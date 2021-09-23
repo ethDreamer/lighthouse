@@ -145,6 +145,18 @@ impl<T, E> SszStaticHandler<T, E> {
     pub fn altair_only() -> Self {
         Self::for_forks(vec![ForkName::Altair])
     }
+
+    pub fn altair_and_later() -> Self {
+        Self::for_forks(ForkName::list_all()[1..].to_vec())
+    }
+
+    pub fn merge_only() -> Self {
+        Self::for_forks(vec![ForkName::Merge])
+    }
+
+    pub fn merge_and_later() -> Self {
+        Self::for_forks(ForkName::list_all()[2..].to_vec())
+    }
 }
 
 /// Handler for SSZ types that implement `CachedTreeHash`.
