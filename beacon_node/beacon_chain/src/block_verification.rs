@@ -730,20 +730,8 @@ impl<T: BeaconChainTypes> GossipVerifiedBlock<T> {
             });
         }
 
-        // TODO: there's probably a better way to fail over to database..
-        let genesis_time = match chain.head_info() {
-            Ok(info) => info.genesis_time,
-            Err(_) => chain
-                .get_state(&parent_block.state_root, None)
-                .map_err(|e| BlockError::BeaconChainError(e))?
-                .map(|state| state.genesis_time())
-                .ok_or(BlockError::BeaconChainError(
-                    BeaconChainError::SnapshotCacheLockTimeout,
-                ))?,
-        };
-
         // validate the block's execution_payload
-        validate_execution_payload(block.message(), &parent_block, &chain.spec, genesis_time)?;
+        validate_execution_payload(&parent_block, block.message(), chain)?;
 
         Ok(Self {
             block,
@@ -1205,64 +1193,55 @@ impl<'a, T: BeaconChainTypes> FullyVerifiedBlock<'a, T> {
 
 /// Validate the gossip block's execution_payload according to the checks described here:
 /// https://github.com/ethereum/consensus-specs/blob/dev/specs/merge/p2p-interface.md#beacon_block
-fn validate_execution_payload<E: EthSpec>(
-    block: BeaconBlockRef<'_, E>,
+fn validate_execution_payload<T: BeaconChainTypes>(
     parent_block: &ProtoBlock,
-    spec: &ChainSpec,
-    genesis_time: u64,
-) -> Result<(), BlockError<E>> {
-    // these checks emulate if !is_execution_enabled(state, block)
-    if parent_block.execution_block_hash == Hash256::zero() {
-        return Ok(());
-    }
-    let execution_payload = block
-        .body()
-        .execution_payload()
-        // TODO: check if this error code is overkill
-        .ok_or_else(|| {
-            BlockError::InconsistentFork(InconsistentFork {
-                fork_at_slot: eth2::types::ForkName::Merge,
-                object_fork: block.body().fork_name(),
-            })
-        })?;
-    if *execution_payload == <ExecutionPayload<E>>::default() {
-        return Ok(());
-    }
+    block: BeaconBlockRef<'_, T::EthSpec>,
+    chain: &BeaconChain<T>,
+) -> Result<(), BlockError<T::EthSpec>> {
+    // Only apply this validation if this is a merge beacon block.
+    if let Some(execution_payload) = block.body().execution_payload() {
 
-    // This emulates expected_timestamp = compute_timestamp_at_slot()
-    let expected_timestamp = block
-        .slot()
-        .as_u64()
-        .safe_sub(spec.genesis_slot.as_u64())?
-        .safe_mul(spec.seconds_per_slot)
-        .and_then(|since_genesis| genesis_time.safe_add(since_genesis))?;
+        // This logic should match `is_execution_enabled`. We use only the execution block hash of
+        // the parent here in order to avoid loading the parent state during gossip verification.
+        let is_merge_complete = parent_block.execution_block_hash != Hash256::zero();
+        let is_merge_block =
+            !is_merge_complete && *execution_payload != <ExecutionPayload<T::EthSpec>>::default();
+        if !is_merge_block && !is_merge_complete {
+            return Ok(());
+        }
 
-    // The block's execution payload timestamp is correct with respect to the slot
-    if execution_payload.timestamp != expected_timestamp {
-        return Err(BlockError::ExecutionPayloadError(
-            ExecutionPayloadError::InvalidPayloadTimestamp {
-                expected: expected_timestamp,
-                found: execution_payload.timestamp,
-            },
-        ));
-    }
-    // Gas used is less than the gas limit
-    if execution_payload.gas_used > execution_payload.gas_limit {
-        return Err(BlockError::ExecutionPayloadError(
-            ExecutionPayloadError::GasUsedExceedsLimit,
-        ));
-    }
-    // The execution payload block hash is not equal to the parent hash
-    if execution_payload.block_hash == execution_payload.parent_hash {
-        return Err(BlockError::ExecutionPayloadError(
-            ExecutionPayloadError::BlockHashEqualsParentHash,
-        ));
-    }
-    // The execution payload transaction list data is within expected size limits
-    if execution_payload.transactions.len() > E::max_transactions_per_payload() {
-        return Err(BlockError::ExecutionPayloadError(
-            ExecutionPayloadError::TransactionDataExceedsSizeLimit,
-        ));
+        // The block's execution payload timestamp is correct with respect to the slot
+        if execution_payload.timestamp
+            != chain
+                .slot_clock
+                .compute_timestamp_at_slot(block.slot())
+                .ok_or(BlockError::BeaconChainError(
+                    BeaconChainError::UnableToComputeTimeAtSlot,
+                ))?
+        {
+            return Err(BlockError::ExecutionPayloadError(
+                ExecutionPayloadError::InvalidPayloadTimestamp,
+            ));
+        }
+        // Gas used is less than the gas limit
+        if execution_payload.gas_used > execution_payload.gas_limit {
+            return Err(BlockError::ExecutionPayloadError(
+                ExecutionPayloadError::GasUsedExceedsLimit,
+            ));
+        }
+        // The execution payload block hash is not equal to the parent hash
+        if execution_payload.block_hash == execution_payload.parent_hash {
+            return Err(BlockError::ExecutionPayloadError(
+                ExecutionPayloadError::BlockHashEqualsParentHash,
+            ));
+        }
+        // TODO: is this necessary.. isn't this already ensured by the type?
+        // The execution payload transaction list data is within expected size limits
+        if execution_payload.transactions.len() > T::EthSpec::max_transactions_per_payload() {
+            return Err(BlockError::ExecutionPayloadError(
+                ExecutionPayloadError::TransactionDataExceedsSizeLimit,
+            ));
+        }
     }
 
     Ok(())
