@@ -53,7 +53,7 @@ use crate::{
 use fork_choice::{ForkChoice, ForkChoiceStore};
 use parking_lot::RwLockReadGuard;
 use proto_array::Block as ProtoBlock;
-use safe_arith::{ArithError, SafeArith};
+use safe_arith::ArithError;
 use slog::{debug, error, Logger};
 use slot_clock::SlotClock;
 use ssz::Encode;
@@ -1210,17 +1210,21 @@ fn validate_execution_payload<T: BeaconChainTypes>(
             return Ok(());
         }
 
+        let expected_timestamp = chain
+            .slot_clock
+            .compute_timestamp_at_slot(block.slot())
+            .ok_or(BlockError::BeaconChainError(
+                BeaconChainError::UnableToComputeTimeAtSlot,
+            ))?;
         // The block's execution payload timestamp is correct with respect to the slot
         if execution_payload.timestamp
-            != chain
-                .slot_clock
-                .compute_timestamp_at_slot(block.slot())
-                .ok_or(BlockError::BeaconChainError(
-                    BeaconChainError::UnableToComputeTimeAtSlot,
-                ))?
+            != expected_timestamp
         {
             return Err(BlockError::ExecutionPayloadError(
-                ExecutionPayloadError::InvalidPayloadTimestamp,
+                ExecutionPayloadError::InvalidPayloadTimestamp{
+                    found: execution_payload.timestamp,
+                    expected: expected_timestamp,
+                },
             ));
         }
         // Gas used is less than the gas limit
