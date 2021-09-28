@@ -53,6 +53,7 @@ use crate::{
 use fork_choice::{ForkChoice, ForkChoiceStore};
 use parking_lot::RwLockReadGuard;
 use proto_array::Block as ProtoBlock;
+use safe_arith::{ArithError, SafeArith};
 use slog::{debug, error, Logger};
 use slot_clock::SlotClock;
 use ssz::Encode;
@@ -259,7 +260,7 @@ pub enum ExecutionPayloadError {
     /// ## Peer scoring
     ///
     /// The block is invalid and the peer is faulty
-    InvalidPayloadTimestamp,
+    InvalidPayloadTimestamp { expected: u64, found: u64 },
     /// The gas used in the block exceeds the gas limit
     ///
     /// ## Peer scoring
@@ -329,6 +330,12 @@ impl<T: EthSpec> From<SlotProcessingError> for BlockError<T> {
 impl<T: EthSpec> From<DBError> for BlockError<T> {
     fn from(e: DBError) -> Self {
         BlockError::BeaconChainError(BeaconChainError::DBError(e))
+    }
+}
+
+impl<T: EthSpec> From<ArithError> for BlockError<T> {
+    fn from(e: ArithError) -> Self {
+        BlockError::BeaconChainError(BeaconChainError::ArithError(e))
     }
 }
 
