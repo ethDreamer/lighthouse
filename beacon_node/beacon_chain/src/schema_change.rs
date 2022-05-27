@@ -1,11 +1,13 @@
 //! Utilities for managing database schema changes.
+mod migration_schema_v10;
 mod migration_schema_v6;
 mod migration_schema_v7;
 mod migration_schema_v8;
 mod migration_schema_v9;
 mod types;
 
-use crate::beacon_chain::{BeaconChainTypes, FORK_CHOICE_DB_KEY};
+use crate::beacon_chain::{BeaconChainTypes, ETH1_CACHE_DB_KEY, FORK_CHOICE_DB_KEY};
+use crate::eth1_chain::SszEth1;
 use crate::persisted_fork_choice::{PersistedForkChoiceV1, PersistedForkChoiceV7};
 use crate::types::ChainSpec;
 use slog::{warn, Logger};
@@ -18,6 +20,7 @@ use store::{Error as StoreError, StoreItem};
 /// Migrate the database from one schema version to another, applying all requisite mutations.
 pub fn migrate_schema<T: BeaconChainTypes>(
     db: Arc<HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>>,
+    deposit_contract_deploy_block: u64,
     datadir: &Path,
     from: SchemaVersion,
     to: SchemaVersion,
@@ -30,8 +33,24 @@ pub fn migrate_schema<T: BeaconChainTypes>(
         // Upgrade across multiple versions by recursively migrating one step at a time.
         (_, _) if from.as_u64() + 1 < to.as_u64() => {
             let next = SchemaVersion(from.as_u64() + 1);
-            migrate_schema::<T>(db.clone(), datadir, from, next, log.clone(), spec)?;
-            migrate_schema::<T>(db, datadir, next, to, log, spec)
+            migrate_schema::<T>(
+                db.clone(),
+                deposit_contract_deploy_block,
+                datadir,
+                from,
+                next,
+                log.clone(),
+                spec,
+            )?;
+            migrate_schema::<T>(
+                db,
+                deposit_contract_deploy_block,
+                datadir,
+                next,
+                to,
+                log,
+                spec,
+            )
         }
 
         //
@@ -129,6 +148,55 @@ pub fn migrate_schema<T: BeaconChainTypes>(
         (SchemaVersion(9), SchemaVersion(8)) => {
             migration_schema_v9::downgrade_from_v9::<T>(db.clone(), log)?;
             db.store_schema_version(to)
+        }
+        (SchemaVersion(9), SchemaVersion(10)) => {
+            let mut ops = vec![];
+            if let Some(persisted_eth1_v1) = db.get_item::<SszEth1>(&ETH1_CACHE_DB_KEY)? {
+                let upgraded_eth1_cache =
+                    match migration_schema_v10::update_eth1_cache(persisted_eth1_v1) {
+                        Ok(upgraded_eth1) => upgraded_eth1,
+                        Err(e) => {
+                            warn!(log, "Failed to deserialize SszEth1CacheV1: {:?}", e);
+                            warn!(log, "Reinitializing eth1 cache");
+                            migration_schema_v10::reinitialized_eth1_cache_v10(
+                                deposit_contract_deploy_block,
+                            )
+                        }
+                    };
+                ops.push(upgraded_eth1_cache.as_kv_store_op(ETH1_CACHE_DB_KEY));
+            }
+
+            db.store_schema_version_atomically(to, ops)?;
+
+            Ok(())
+        }
+        (SchemaVersion(10), SchemaVersion(9)) => {
+            let mut ops = vec![];
+            if let Some(persisted_eth1_v10) = db.get_item::<SszEth1>(&ETH1_CACHE_DB_KEY)? {
+                let downgraded_eth1_cache = match migration_schema_v10::downgrade_eth1_cache(
+                    persisted_eth1_v10,
+                ) {
+                    Ok(Some(downgraded_eth1)) => downgraded_eth1,
+                    Ok(None) => {
+                        warn!(log, "Unable to downgrade eth1 cache from newer version: reinitializing eth1 cache");
+                        migration_schema_v10::reinitialized_eth1_cache_v1(
+                            deposit_contract_deploy_block,
+                        )
+                    }
+                    Err(e) => {
+                        warn!(log, "Unable to downgrade eth1 cache from newer version: failed to deserialize SszEth1CacheV10: {:?}", e);
+                        warn!(log, "Reinitializing eth1 cache");
+                        migration_schema_v10::reinitialized_eth1_cache_v1(
+                            deposit_contract_deploy_block,
+                        )
+                    }
+                };
+                ops.push(downgraded_eth1_cache.as_kv_store_op(ETH1_CACHE_DB_KEY));
+            }
+
+            db.store_schema_version_atomically(to, ops)?;
+
+            Ok(())
         }
         // Anything else is an error.
         (_, _) => Err(HotColdDBError::UnsupportedSchemaVersion {
