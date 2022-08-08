@@ -56,6 +56,33 @@ pub struct DepositContract {
     contract: Contract<Http>,
 }
 
+pub fn generate_deterministic_deposit<E: EthSpec>(
+    keypair_index: usize,
+    amount: u64,
+) -> DepositData {
+    let keypair = generate_deterministic_keypair(keypair_index);
+    let mut deposit = DepositData {
+        pubkey: keypair.pk.into(),
+        withdrawal_credentials: Hash256::zero(),
+        amount,
+        signature: Signature::empty().into(),
+    };
+    deposit.signature = deposit.create_signature(&keypair.sk, &E::default_spec());
+    deposit
+}
+
+pub fn generate_random_deposit<E: EthSpec>(amount: u64) -> DepositData {
+    let keypair = Keypair::random();
+    let mut deposit = DepositData {
+        pubkey: keypair.pk.into(),
+        withdrawal_credentials: Hash256::zero(),
+        amount,
+        signature: Signature::empty().into(),
+    };
+    deposit.signature = deposit.create_signature(&keypair.sk, &E::default_spec());
+    deposit
+}
+
 impl DepositContract {
     pub async fn deploy(
         web3: Web3<Http>,
@@ -135,17 +162,7 @@ impl DepositContract {
     ///
     /// The keypairs are created randomly and destroyed.
     pub async fn deposit_random<E: EthSpec>(&self) -> Result<(), String> {
-        let keypair = Keypair::random();
-
-        let mut deposit = DepositData {
-            pubkey: keypair.pk.into(),
-            withdrawal_credentials: Hash256::zero(),
-            amount: 32_000_000_000,
-            signature: Signature::empty().into(),
-        };
-
-        deposit.signature = deposit.create_signature(&keypair.sk, &E::default_spec());
-
+        let deposit = generate_random_deposit::<E>(32_000_000_000);
         self.deposit(deposit).await
     }
 
@@ -161,18 +178,28 @@ impl DepositContract {
         keypair_index: usize,
         amount: u64,
     ) -> Result<(), String> {
-        let keypair = generate_deterministic_keypair(keypair_index);
-
-        let mut deposit = DepositData {
-            pubkey: keypair.pk.into(),
-            withdrawal_credentials: Hash256::zero(),
-            amount,
-            signature: Signature::empty().into(),
-        };
-
-        deposit.signature = deposit.create_signature(&keypair.sk, &E::default_spec());
-
+        let deposit = generate_deterministic_deposit::<E>(keypair_index, amount);
         self.deposit_async(deposit).await
+    }
+
+    pub async fn get_deposit_root(&self) -> Result<Hash256, String> {
+        let from = self
+            .web3
+            .eth()
+            .accounts()
+            .await
+            .map_err(|e| format!("Failed to get accounts: {:?}", e))
+            .and_then(|accounts| {
+                accounts
+                    .get(DEPOSIT_ACCOUNTS_INDEX)
+                    .cloned()
+                    .ok_or_else(|| "Insufficient accounts for deposit".to_string())
+            })?;
+        self.contract
+            .query("get_deposit_root", (), from, Default::default(), None)
+            .await
+            .map(|bytes: Vec<u8>| Hash256::from_slice(&bytes))
+            .map_err(|e| format!("Failed to get deposit root: {:?}", e))
     }
 
     /// Performs a non-blocking deposit.

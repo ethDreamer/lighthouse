@@ -1593,8 +1593,17 @@ name = "eth1_test_rig"
 version = "0.2.0"
 dependencies = [
  "deposit_contract",
+ "eth2_serde_utils",
+ "eth2_ssz",
+ "eth2_ssz_derive",
+ "serde",
+ "serde_derive",
  "serde_json",
+ "serde_yaml",
+ "state_processing",
  "tokio",
+ "tree_hash",
+ "tree_hash_derive",
  "types",
  "unused_port",
  "web3",
