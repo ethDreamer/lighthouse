@@ -359,9 +359,21 @@ impl<T: EthSpec> BeaconTreeHashCacheInner<T> {
         }
 
         // Execution payload (merge and later).
+        match &state {
+            &BeaconState::Base(_) => {},
+            &BeaconState::Altair(_) => {},
+            &BeaconState::Merge(state) => {
+                hasher.write(state.latest_execution_payload_header.tree_hash_root().as_bytes())?;
+            },
+            &BeaconState::Capella(state) => {
+                hasher.write(state.latest_execution_payload_header.tree_hash_root().as_bytes())?;
+            },
+        }
+        /*
         if let Ok(payload_header) = state.latest_execution_payload_header() {
             hasher.write(payload_header.tree_hash_root().as_bytes())?;
         }
+        */
 
         let root = hasher.finish()?;
 

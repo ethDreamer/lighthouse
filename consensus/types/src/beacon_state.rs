@@ -172,7 +172,7 @@ impl From<BeaconStateHash> for Hash256 {
 
 /// The state of the `BeaconChain` at some slot.
 #[superstruct(
-    variants(Base, Altair, Merge),
+    variants(Base, Altair, Merge, Capella),
     variant_attributes(
         derive(
             Derivative,
@@ -250,9 +250,9 @@ where
     pub current_epoch_attestations: VariableList<PendingAttestation<T>, T::MaxPendingAttestations>,
 
     // Participation (Altair and later)
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub previous_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub current_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
 
     // Finality
@@ -267,18 +267,20 @@ where
 
     // Inactivity
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub inactivity_scores: VariableList<u64, T::ValidatorRegistryLimit>,
 
     // Light-client sync committees
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub current_sync_committee: Arc<SyncCommittee<T>>,
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
-    #[superstruct(only(Merge))]
-    pub latest_execution_payload_header: ExecutionPayloadHeader<T>,
+    #[superstruct(only(Merge), partial_getter(rename = "latest_execution_payload_header_merge"))]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderMerge<T>,
+    #[superstruct(only(Capella), partial_getter(rename = "latest_execution_payload_header_capella"))]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderCapella<T>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]

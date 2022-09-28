@@ -70,15 +70,15 @@ pub struct ExecutionPayload<T: EthSpec> {
 }
 
 impl<T: EthSpec> ExecutionPayload<T> {
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
     #[allow(clippy::integer_arithmetic)]
     /// Returns the maximum size of an execution payload.
     pub fn max_execution_payload_size() -> usize {
+        // TODO: check this!
+        //       max length should be the max of latest fork right?
+
         // Fixed part
-        Self::empty().as_ssz_bytes().len()
+        // Self::empty().as_ssz_bytes().len() // < - pre-fork implementation
+        ExecutionPayloadCapella::<T>::default().as_ssz_bytes().len()
             // Max size of variable length `extra_data` field
             + (T::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len())
             // Max size of variable length `transactions` field

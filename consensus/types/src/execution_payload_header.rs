@@ -29,8 +29,9 @@ use tree_hash_derive::TreeHash;
     cast_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Derivative)]
+#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, Derivative)]
 #[derivative(PartialEq, Hash(bound = "T: EthSpec"))]
+#[tree_hash(enum_behaviour = "transparent")]
 #[serde(bound = "T: EthSpec")]
 #[cfg_attr(feature = "arbitrary-fuzz", derive(arbitrary::Arbitrary))]
 pub struct ExecutionPayloadHeader<T: EthSpec> {
@@ -59,12 +60,8 @@ pub struct ExecutionPayloadHeader<T: EthSpec> {
     pub withdrawals_root: Hash256,
 }
 
-impl<T: EthSpec> ExecutionPayloadHeader<T> {
-    pub fn empty() -> Self {
-        Self::default()
-    }
-}
-
+/*
+// ref implementations (dangerious transparent clone)
 impl<'a, T: EthSpec> From<&'a ExecutionPayload<T>> for ExecutionPayloadHeader<T> {
     fn from(payload_enum: &'a ExecutionPayload<T>) -> Self {
         match payload_enum {
@@ -144,6 +141,50 @@ impl<'a, T: EthSpec> From<&'a ExecutionPayloadCapella<T>> for ExecutionPayloadHe
             gas_used: payload.gas_used,
             timestamp: payload.timestamp,
             extra_data: payload.extra_data.clone(),
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions_root: payload.transactions.tree_hash_root(),
+            withdrawals_root: payload.withdrawals.tree_hash_root(),
+        }
+    }
+}
+*/
+
+impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for ExecutionPayloadHeaderMerge<T> {
+    fn from(payload: ExecutionPayloadMerge<T>) -> Self {
+        Self {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions_root: payload.transactions.tree_hash_root(),
+        }
+    }
+}
+
+impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for ExecutionPayloadHeaderCapella<T> {
+    fn from(payload: ExecutionPayloadCapella<T>) -> Self {
+        Self {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
             base_fee_per_gas: payload.base_fee_per_gas,
             block_hash: payload.block_hash,
             transactions_root: payload.transactions.tree_hash_root(),

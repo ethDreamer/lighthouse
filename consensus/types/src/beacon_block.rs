@@ -571,11 +571,12 @@ macro_rules! impl_from {
     }
 }
 
+/*
 impl_from!(BeaconBlockBase, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyBase<_, _>| body.into());
 impl_from!(BeaconBlockAltair, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyAltair<_, _>| body.into());
 impl_from!(BeaconBlockMerge, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyMerge<_, _>| body.into());
 impl_from!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyCapella<_, _>| body.into());
-
+*/
 
 // We can clone blocks with payloads to blocks without payloads, without cloning the payload.
 macro_rules! impl_clone_as_blinded {
@@ -603,13 +604,16 @@ macro_rules! impl_clone_as_blinded {
     }
 }
 
+/*
 impl_clone_as_blinded!(BeaconBlockBase, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockAltair, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockMerge, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
+ */
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.
+/*
 impl<'a, E: EthSpec> From<BeaconBlockRef<'a, E, FullPayload<E>>>
     for BeaconBlock<E, BlindedPayload<E>>
 {
@@ -635,6 +639,7 @@ impl<E: EthSpec> From<BeaconBlock<E, FullPayload<E>>>
         })
     }
 }
+ */
 
 #[cfg(test)]
 mod tests {

@@ -43,6 +43,7 @@ pub trait AbstractExecPayload<T: EthSpec>:
 {
     type Merge: ExecPayload<T>
         + Into<Self>
+        + AsRef<Self>
         + Default
         + Encode
         + Decode
@@ -51,6 +52,7 @@ pub trait AbstractExecPayload<T: EthSpec>:
         + TryFrom<ExecutionPayloadHeaderMerge<T>>;
     type Capella: ExecPayload<T>
         + Into<Self>
+        + AsRef<Self>
         + Default
         + Encode
         + Decode
@@ -533,7 +535,7 @@ impl<T: EthSpec> Default for BlindedPayloadMerge<T> {
     fn default() -> Self {
         Self {
             execution_payload_header: ExecutionPayloadHeaderMerge::from(
-                &ExecutionPayloadMerge::default(),
+                ExecutionPayloadMerge::default(),
             ),
         }
     }
@@ -543,7 +545,7 @@ impl<T: EthSpec> Default for BlindedPayloadCapella<T> {
     fn default() -> Self {
         Self {
             execution_payload_header: ExecutionPayloadHeaderCapella::from(
-                &ExecutionPayloadCapella::default(),
+                ExecutionPayloadCapella::default(),
             ),
         }
     }
@@ -728,6 +730,57 @@ impl<T: EthSpec> From<BlindedPayloadCapella<T>> for BlindedPayload<T> {
         Self::Capella(payload)
     }
 }
+
+
+// more REF experiments
+
+impl<'a, T: EthSpec> From<&FullPayloadMerge<T>> for FullPayloadRef<'a, T> {
+    fn from(payload_ref: &FullPayloadMerge<T>) -> Self {
+        FullPayloadRef::Merge(payload_ref)
+    }
+}
+impl<'a, T: EthSpec> From<&FullPayloadCapella<T>> for FullPayloadRef<'a, T> {
+    fn from(payload_ref: &FullPayloadCapella<T>) -> Self {
+        FullPayloadRef::Capella(payload_ref)
+    }
+}
+impl<'a, T: EthSpec> From<&BlindedPayloadMerge<T>> for BlindedPayloadRef<'a, T> {
+    fn from(payload_ref: &BlindedPayloadMerge<T>) -> Self {
+        BlindedPayloadRef::Merge(payload_ref)
+    }
+}
+impl<'a, T: EthSpec> From<&BlindedPayloadCapella<T>> for BlindedPayloadRef<'a, T> {
+    fn from(payload_ref: &BlindedPayloadCapella<T>) -> Self {
+        BlindedPayloadRef::Capella(payload_ref)
+    }
+}
+
+// AsRef<Self> experiments
+
+impl<'a, T: EthSpec> AsRef<FullPayload<T>> for FullPayloadMerge<T> {
+    fn as_ref(&self) -> &FullPayload<T> {
+        &FullPayload::Merge(self)
+    }
+}
+impl<'a, T: EthSpec> AsRef<FullPayload<T>> for FullPayloadCapella<T> {
+    fn as_ref(&self) -> &FullPayload<T> {
+        &FullPayload::Capella(self)
+    }
+}
+impl<'a, T: EthSpec> AsRef<BlindedPayload<T>> for BlindedPayloadMerge<T> {
+    fn as_ref(&self) -> &BlindedPayload<T> {
+        &BlindedPayload::Merge(self)
+    }
+}
+impl<'a, T: EthSpec> AsRef<BlindedPayload<T>> for BlindedPayloadCapella<T> {
+    fn as_ref(&self) -> &BlindedPayload<T> {
+        &BlindedPayload::Capella(self)
+    }
+}
+
+// end REF experiments
+
+
 
 /*
 impl<T: EthSpec> TreeHash for FullPayload<T> {
