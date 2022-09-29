@@ -70,10 +70,20 @@ pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
         // See https://github.com/ethereum/consensus-specs/blob/v1.1.0/specs/merge/beacon-chain.md#testing
         // TODO: check this..
         match (&state, execution_payload_header) {
-            (&BeaconState::Merge(_), Some(ExecutionPayloadHeader::Merge(header))) => *state.latest_execution_payload_header_merge_mut()? = header,
-            (&BeaconState::Capella(_), Some(ExecutionPayloadHeader::Capella(header))) => *state.latest_execution_payload_header_capella_mut()? = header,
-            (&BeaconState::Merge(_), None) => *state.latest_execution_payload_header_merge_mut()? = ExecutionPayloadHeaderMerge::default(),
-            (&BeaconState::Capella(_), None) => *state.latest_execution_payload_header_capella_mut()? = ExecutionPayloadHeaderCapella::default(),
+            (&BeaconState::Merge(_), Some(ExecutionPayloadHeader::Merge(header))) => {
+                *state.latest_execution_payload_header_merge_mut()? = header
+            }
+            (&BeaconState::Capella(_), Some(ExecutionPayloadHeader::Capella(header))) => {
+                *state.latest_execution_payload_header_capella_mut()? = header
+            }
+            (&BeaconState::Merge(_), None) => {
+                *state.latest_execution_payload_header_merge_mut()? =
+                    ExecutionPayloadHeaderMerge::default()
+            }
+            (&BeaconState::Capella(_), None) => {
+                *state.latest_execution_payload_header_capella_mut()? =
+                    ExecutionPayloadHeaderCapella::default()
+            }
             (_, _) => return Err(BlockProcessingError::IncorrectStateType),
         };
     }

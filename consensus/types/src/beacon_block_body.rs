@@ -273,10 +273,10 @@ impl<E: EthSpec> From<BeaconBlockBodyMerge<E, FullPayload<E>>>
 }
 
 impl<E: EthSpec> From<BeaconBlockBodyCapella<E, FullPayload<E>>>
-for (
-    BeaconBlockBodyCapella<E, BlindedPayload<E>>,
-    Option<ExecutionPayloadCapella<E>>,
-)
+    for (
+        BeaconBlockBodyCapella<E, BlindedPayload<E>>,
+        Option<ExecutionPayloadCapella<E>>,
+    )
 {
     fn from(body: BeaconBlockBodyCapella<E, FullPayload<E>>) -> Self {
         let BeaconBlockBodyCapella {

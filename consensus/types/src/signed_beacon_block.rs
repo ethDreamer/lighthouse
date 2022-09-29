@@ -319,25 +319,25 @@ impl<E: EthSpec> SignedBeaconBlockCapella<E, BlindedPayload<E>> {
     ) -> SignedBeaconBlockCapella<E, FullPayload<E>> {
         let SignedBeaconBlockCapella {
             message:
-            BeaconBlockCapella {
-                slot,
-                proposer_index,
-                parent_root,
-                state_root,
-                body:
-                BeaconBlockBodyCapella {
-                    randao_reveal,
-                    eth1_data,
-                    graffiti,
-                    proposer_slashings,
-                    attester_slashings,
-                    attestations,
-                    deposits,
-                    voluntary_exits,
-                    sync_aggregate,
-                    execution_payload: BlindedPayloadCapella { .. },
+                BeaconBlockCapella {
+                    slot,
+                    proposer_index,
+                    parent_root,
+                    state_root,
+                    body:
+                        BeaconBlockBodyCapella {
+                            randao_reveal,
+                            eth1_data,
+                            graffiti,
+                            proposer_slashings,
+                            attester_slashings,
+                            attestations,
+                            deposits,
+                            voluntary_exits,
+                            sync_aggregate,
+                            execution_payload: BlindedPayloadCapella { .. },
+                        },
                 },
-            },
             signature,
         } = self;
         SignedBeaconBlockCapella {

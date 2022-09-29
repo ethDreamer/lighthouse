@@ -1,5 +1,4 @@
 use crate::{test_utils::TestRandom, *};
-use BeaconStateError;
 use derivative::Derivative;
 use serde_derive::{Deserialize, Serialize};
 use ssz::Encode;
@@ -7,13 +6,13 @@ use ssz_derive::{Decode, Encode};
 use superstruct::superstruct;
 use test_random_derive::TestRandom;
 use tree_hash_derive::TreeHash;
+use BeaconStateError;
 
 pub type Transaction<N> = VariableList<u8, N>;
 pub type Transactions<T> = VariableList<
     Transaction<<T as EthSpec>::MaxBytesPerTransaction>,
     <T as EthSpec>::MaxTransactionsPerPayload,
 >;
-
 
 #[superstruct(
     variants(Merge, Capella),

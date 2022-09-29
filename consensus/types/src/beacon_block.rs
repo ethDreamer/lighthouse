@@ -71,7 +71,10 @@ pub struct BeaconBlock<T: EthSpec, Payload: AbstractExecPayload<T> = FullPayload
 pub type BlindedBeaconBlock<E> = BeaconBlock<E, BlindedPayload<E>>;
 
 impl<T: EthSpec, Payload: AbstractExecPayload<T>> SignedRoot for BeaconBlock<T, Payload> {}
-impl<'a, T: EthSpec, Payload: AbstractExecPayload<T>> SignedRoot for BeaconBlockRef<'a, T, Payload> {}
+impl<'a, T: EthSpec, Payload: AbstractExecPayload<T>> SignedRoot
+    for BeaconBlockRef<'a, T, Payload>
+{
+}
 
 impl<T: EthSpec, Payload: AbstractExecPayload<T>> BeaconBlock<T, Payload> {
     /// Returns an empty block to be used during genesis.
@@ -540,7 +543,6 @@ impl<E: EthSpec> From<BeaconBlockAltair<E, BlindedPayload<E>>>
     }
 }
 
-
 // We can convert blocks with payloads to blocks without payloads, and an optional payload.
 macro_rules! impl_from {
     ($ty_name:ident, <$($from_params:ty),*>, <$($to_params:ty),*>, $body_expr:expr) => {
@@ -613,7 +615,6 @@ impl_clone_as_blinded!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPaylo
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.
-/*
 impl<'a, E: EthSpec> From<BeaconBlockRef<'a, E, FullPayload<E>>>
     for BeaconBlock<E, BlindedPayload<E>>
 {

@@ -277,9 +277,15 @@ where
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
-    #[superstruct(only(Merge), partial_getter(rename = "latest_execution_payload_header_merge"))]
+    #[superstruct(
+        only(Merge),
+        partial_getter(rename = "latest_execution_payload_header_merge")
+    )]
     pub latest_execution_payload_header: ExecutionPayloadHeaderMerge<T>,
-    #[superstruct(only(Capella), partial_getter(rename = "latest_execution_payload_header_capella"))]
+    #[superstruct(
+        only(Capella),
+        partial_getter(rename = "latest_execution_payload_header_capella")
+    )]
     pub latest_execution_payload_header: ExecutionPayloadHeaderCapella<T>,
 
     // Caching (not in the spec)
