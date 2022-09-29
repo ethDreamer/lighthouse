@@ -37,10 +37,11 @@ pub type Transactions<T> = VariableList<
     cast_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Derivative)]
+#[derive(Debug, Clone, Serialize, Encode, Deserialize, Derivative)]
 #[derivative(PartialEq, Hash(bound = "T: EthSpec"))]
 #[serde(untagged)]
 #[serde(bound = "T: EthSpec")]
+#[ssz(enum_behaviour = "transparent")]
 #[cfg_attr(feature = "arbitrary-fuzz", derive(arbitrary::Arbitrary))]
 pub struct ExecutionPayload<T: EthSpec> {
     pub parent_hash: ExecutionBlockHash,
@@ -83,5 +84,18 @@ impl<T: EthSpec> ExecutionPayload<T> {
             + (T::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len())
             // Max size of variable length `transactions` field
             + (T::max_transactions_per_payload() * (ssz::BYTES_PER_LENGTH_OFFSET + T::max_bytes_per_transaction()))
+    }
+}
+
+// FIXME(sproul): generate these implementations in superstruct
+impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for ExecutionPayload<T> {
+    fn from(payload: ExecutionPayloadMerge<T>) -> Self {
+        Self::Merge(payload)
+    }
+}
+
+impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for ExecutionPayload<T> {
+    fn from(payload: ExecutionPayloadCapella<T>) -> Self {
+        Self::Capella(payload)
     }
 }

@@ -2,13 +2,13 @@ use crate::{test_utils::TestRandom, *};
 use derivative::Derivative;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use ssz::{Decode, DecodeError, Encode};
+use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::hash::Hash;
 use test_random_derive::TestRandom;
-use tree_hash::{PackedEncoding, TreeHash};
+use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 #[derive(Debug)]
@@ -138,9 +138,7 @@ impl<T: EthSpec> ExecPayload<T> for FullPayloadMerge<T> {
     }
 
     fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
-        ExecutionPayloadHeader::Merge(ExecutionPayloadHeaderMerge::from(
-            self.execution_payload.clone(),
-        ))
+        ExecutionPayloadHeader::Merge(ExecutionPayloadHeaderMerge::from(&self.execution_payload))
     }
 
     fn parent_hash(&self) -> ExecutionBlockHash {
@@ -178,7 +176,7 @@ impl<T: EthSpec> ExecPayload<T> for FullPayloadCapella<T> {
 
     fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
         ExecutionPayloadHeader::Capella(ExecutionPayloadHeaderCapella::from(
-            self.execution_payload.clone(),
+            &self.execution_payload,
         ))
     }
 
@@ -217,14 +215,9 @@ impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
     }
 
     fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
-        // FIXME(sproul): remove clones
         match self {
-            Self::Merge(payload) => ExecutionPayloadHeader::Merge(
-                ExecutionPayloadHeaderMerge::from(payload.execution_payload.clone()),
-            ),
-            Self::Capella(payload) => ExecutionPayloadHeader::Capella(
-                ExecutionPayloadHeaderCapella::from(payload.execution_payload.clone()),
-            ),
+            Self::Merge(payload) => payload.to_execution_payload_header(),
+            Self::Capella(payload) => payload.to_execution_payload_header(),
         }
     }
 
@@ -284,14 +277,9 @@ impl<'b, T: EthSpec> ExecPayload<T> for FullPayloadRef<'b, T> {
     }
 
     fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
-        // FIXME(sproul): remove clones
         match self {
-            Self::Merge(payload) => ExecutionPayloadHeader::Merge(
-                ExecutionPayloadHeaderMerge::from(payload.execution_payload.clone()),
-            ),
-            Self::Capella(payload) => ExecutionPayloadHeader::Capella(
-                ExecutionPayloadHeaderCapella::from(payload.execution_payload.clone()),
-            ),
+            Self::Merge(payload) => payload.to_execution_payload_header(),
+            Self::Capella(payload) => payload.to_execution_payload_header(),
         }
     }
 
@@ -786,17 +774,18 @@ impl<T: EthSpec> From<BlindedPayload<T>> for ExecutionPayloadHeader<T> {
     }
 }
 
+// FIXME(sproul): consider adding references to these From impls
 impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for BlindedPayloadMerge<T> {
     fn from(execution_payload: ExecutionPayloadMerge<T>) -> Self {
         Self {
-            execution_payload_header: ExecutionPayloadHeaderMerge::from(execution_payload),
+            execution_payload_header: ExecutionPayloadHeaderMerge::from(&execution_payload),
         }
     }
 }
 impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for BlindedPayloadCapella<T> {
     fn from(execution_payload: ExecutionPayloadCapella<T>) -> Self {
         Self {
-            execution_payload_header: ExecutionPayloadHeaderCapella::from(execution_payload),
+            execution_payload_header: ExecutionPayloadHeaderCapella::from(&execution_payload),
         }
     }
 }
@@ -823,37 +812,6 @@ impl<T: EthSpec> TryFrom<ExecutionPayloadHeader<T>> for BlindedPayloadCapella<T>
         }
     }
 }
-
-/*
-// TODO: implement this if it's needed
-impl<T: EthSpec> From<ExecutionPayload<T>> for BlindedPayload<T> {
-    fn from(execution_payload: ExecutionPayload<T>) -> Self {
-        Self {
-            execution_payload_header: ExecutionPayloadHeader::from(&execution_payload),
-        }
-    }
-}
- */
-
-/*
-impl<T: EthSpec> TreeHash for BlindedPayload<T> {
-    fn tree_hash_type() -> tree_hash::TreeHashType {
-        <ExecutionPayloadHeader<T>>::tree_hash_type()
-    }
-
-    fn tree_hash_packed_encoding(&self) -> PackedEncoding {
-        self.execution_payload_header.tree_hash_packed_encoding()
-    }
-
-    fn tree_hash_packing_factor() -> usize {
-        <ExecutionPayloadHeader<T>>::tree_hash_packing_factor()
-    }
-
-    fn tree_hash_root(&self) -> tree_hash::Hash256 {
-        self.execution_payload_header.tree_hash_root()
-    }
-}
- */
 
 /*
 impl<T: EthSpec> Decode for BlindedPayload<T> {
@@ -889,6 +847,7 @@ impl<T: EthSpec> Encode for BlindedPayload<T> {
 }
 */
 
+// FIXME(sproul): generate these using superstruct
 impl<T: EthSpec> From<FullPayloadMerge<T>> for FullPayload<T> {
     fn from(payload: FullPayloadMerge<T>) -> Self {
         Self::Merge(payload)

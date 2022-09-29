@@ -390,8 +390,6 @@ impl<E: EthSpec> SignedBeaconBlock<E, BlindedPayload<E>> {
 // We can blind blocks with payloads by converting the payload into a header.
 //
 // We can optionally keep the header, or discard it.
-/*
-// TODO: come back to these functions
 impl<E: EthSpec> From<SignedBeaconBlock<E>>
     for (SignedBlindedBeaconBlock<E>, Option<ExecutionPayload<E>>)
 {
@@ -411,7 +409,6 @@ impl<E: EthSpec> From<SignedBeaconBlock<E>> for SignedBlindedBeaconBlock<E> {
         blinded_block
     }
 }
- */
 
 // We can blind borrowed blocks with payloads by converting the payload into a header (without
 // cloning the payload contents).

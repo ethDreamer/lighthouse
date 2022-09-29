@@ -245,7 +245,7 @@ impl<'a, T: EthSpec, Payload: AbstractExecPayload<T>> BeaconBlockRef<'a, T, Payl
 
     /// Extracts a reference to an execution payload from a block, returning an error if the block
     /// is pre-merge.
-    pub fn execution_payload(&self) -> Result<&Payload, Error> {
+    pub fn execution_payload(&self) -> Result<Payload::Ref<'a>, Error> {
         self.body().execution_payload()
     }
 }
@@ -635,11 +635,10 @@ impl<E: EthSpec> From<BeaconBlock<E, FullPayload<E>>>
     fn from(block: BeaconBlock<E, FullPayload<E>>) -> Self {
         map_beacon_block!(block, |inner, cons| {
             let (block, payload) = inner.into();
-            (cons(block), payload)
+            (cons(block), payload.map(Into::into))
         })
     }
 }
- */
 
 #[cfg(test)]
 mod tests {

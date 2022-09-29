@@ -14,7 +14,7 @@ use types::*;
 ///
 /// Utilises lazy-loading from separate storage for its vector fields.
 #[superstruct(
-    variants(Base, Altair, Merge),
+    variants(Base, Altair, Merge, Capella),
     variant_attributes(derive(Debug, PartialEq, Clone, Encode, Decode))
 )]
 #[derive(Debug, PartialEq, Clone, Encode)]
@@ -66,9 +66,9 @@ where
     pub current_epoch_attestations: VariableList<PendingAttestation<T>, T::MaxPendingAttestations>,
 
     // Participation (Altair and later)
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub previous_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub current_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
 
     // Finality
@@ -78,18 +78,26 @@ where
     pub finalized_checkpoint: Checkpoint,
 
     // Inactivity
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub inactivity_scores: VariableList<u64, T::ValidatorRegistryLimit>,
 
     // Light-client sync committees
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub current_sync_committee: Arc<SyncCommittee<T>>,
-    #[superstruct(only(Altair, Merge))]
+    #[superstruct(only(Altair, Merge, Capella))]
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
-    #[superstruct(only(Merge))]
-    pub latest_execution_payload_header: ExecutionPayloadHeader<T>,
+    #[superstruct(
+        only(Merge),
+        partial_getter(rename = "latest_execution_payload_header_merge")
+    )]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderMerge<T>,
+    #[superstruct(
+        only(Capella),
+        partial_getter(rename = "latest_execution_payload_header_capella")
+    )]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderCapella<T>,
 }
 
 /// Implement the conversion function from BeaconState -> PartialBeaconState.
@@ -169,6 +177,20 @@ impl<T: EthSpec> PartialBeaconState<T> {
                 outer,
                 Merge,
                 PartialBeaconStateMerge,
+                [
+                    previous_epoch_participation,
+                    current_epoch_participation,
+                    current_sync_committee,
+                    next_sync_committee,
+                    inactivity_scores,
+                    latest_execution_payload_header
+                ]
+            ),
+            BeaconState::Capella(s) => impl_from_state_forgetful!(
+                s,
+                outer,
+                Capella,
+                PartialBeaconStateCapella,
                 [
                     previous_epoch_participation,
                     current_epoch_participation,
@@ -356,6 +378,19 @@ impl<E: EthSpec> TryInto<BeaconState<E>> for PartialBeaconState<E> {
                 inner,
                 Merge,
                 BeaconStateMerge,
+                [
+                    previous_epoch_participation,
+                    current_epoch_participation,
+                    current_sync_committee,
+                    next_sync_committee,
+                    inactivity_scores,
+                    latest_execution_payload_header
+                ]
+            ),
+            PartialBeaconState::Capella(inner) => impl_try_into_beacon_state!(
+                inner,
+                Capella,
+                BeaconStateCapella,
                 [
                     previous_epoch_participation,
                     current_epoch_participation,

@@ -126,10 +126,12 @@ pub use crate::eth1_data::Eth1Data;
 pub use crate::eth_spec::EthSpecId;
 pub use crate::execution_block_hash::ExecutionBlockHash;
 pub use crate::execution_payload::{
-    ExecutionPayload, ExecutionPayloadCapella, ExecutionPayloadMerge, Transaction, Transactions,
+    ExecutionPayload, ExecutionPayloadCapella, ExecutionPayloadMerge, ExecutionPayloadRef,
+    Transaction, Transactions,
 };
 pub use crate::execution_payload_header::{
     ExecutionPayloadHeader, ExecutionPayloadHeaderCapella, ExecutionPayloadHeaderMerge,
+    ExecutionPayloadHeaderRef,
 };
 pub use crate::fork::Fork;
 pub use crate::fork_context::ForkContext;
