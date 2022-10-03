@@ -47,6 +47,15 @@ impl ForkContext {
             ));
         }
 
+        // Only add Capella to list of forks if it's enabled
+        // Note:: `capella_fork_epoch == None` implies capella hasn't been activated yet on the config.
+        if spec.capella_fork_epoch.is_some() {
+            fork_to_digest.push((
+                ForkName::Capella,
+                ChainSpec::compute_fork_digest(spec.capella_fork_version, genesis_validators_root),
+            ))
+        }
+
         let fork_to_digest: HashMap<ForkName, [u8; 4]> = fork_to_digest.into_iter().collect();
 
         let digest_to_fork = fork_to_digest

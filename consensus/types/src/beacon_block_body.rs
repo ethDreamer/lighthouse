@@ -264,7 +264,7 @@ impl<E: EthSpec> From<BeaconBlockBodyMerge<E, FullPayload<E>>>
                 voluntary_exits,
                 sync_aggregate,
                 execution_payload: BlindedPayloadMerge {
-                    execution_payload_header: From::from(execution_payload),
+                    execution_payload_header: From::from(execution_payload.clone()),
                 },
             },
             Some(execution_payload),
@@ -304,7 +304,7 @@ impl<E: EthSpec> From<BeaconBlockBodyCapella<E, FullPayload<E>>>
                 voluntary_exits,
                 sync_aggregate,
                 execution_payload: BlindedPayloadCapella {
-                    execution_payload_header: From::from(execution_payload),
+                    execution_payload_header: From::from(execution_payload.clone()),
                 },
             },
             Some(execution_payload),
@@ -353,7 +353,7 @@ impl<E: EthSpec> BeaconBlockBodyMerge<E, FullPayload<E>> {
             voluntary_exits: voluntary_exits.clone(),
             sync_aggregate: sync_aggregate.clone(),
             execution_payload: BlindedPayloadMerge {
-                execution_payload_header: From::from(*execution_payload),
+                execution_payload_header: From::from(execution_payload.clone()),
             },
         }
     }
@@ -385,7 +385,7 @@ impl<E: EthSpec> BeaconBlockBodyCapella<E, FullPayload<E>> {
             voluntary_exits: voluntary_exits.clone(),
             sync_aggregate: sync_aggregate.clone(),
             execution_payload: BlindedPayloadCapella {
-                execution_payload_header: From::from(*execution_payload),
+                execution_payload_header: From::from(execution_payload.clone()),
             },
         }
     }

@@ -34,6 +34,9 @@ pub trait ExecPayload<T: EthSpec>: Debug + Clone + PartialEq + Hash + TreeHash +
     fn block_hash(&self) -> ExecutionBlockHash;
     fn fee_recipient(&self) -> Address;
     fn gas_limit(&self) -> u64;
+
+    // Is this a default payload? (pre-merge)
+    fn is_default(&self) -> bool;
 }
 
 pub trait OwnedExecPayload<T: EthSpec>:
@@ -81,7 +84,7 @@ impl<'a, T: EthSpec> ToRef<'a, BlindedPayloadRef<'a, T>> for BlindedPayloadCapel
 pub trait AbstractExecPayload<T: EthSpec>:
     ExecPayload<T> + Sized + From<ExecutionPayload<T>> + TryFrom<ExecutionPayloadHeader<T>>
 {
-    type Ref<'a>: ExecPayload<T>;
+    type Ref<'a>: ExecPayload<T> + Copy;
 
     type Merge: OwnedExecPayload<T>
         + Into<Self>
@@ -138,45 +141,8 @@ impl<T: EthSpec> ExecPayload<T> for FullPayloadMerge<T> {
     }
 
     fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
-        ExecutionPayloadHeader::Merge(ExecutionPayloadHeaderMerge::from(&self.execution_payload))
-    }
-
-    fn parent_hash(&self) -> ExecutionBlockHash {
-        self.execution_payload.parent_hash
-    }
-
-    fn prev_randao(&self) -> Hash256 {
-        self.execution_payload.prev_randao
-    }
-
-    fn block_number(&self) -> u64 {
-        self.execution_payload.block_number
-    }
-
-    fn timestamp(&self) -> u64 {
-        self.execution_payload.timestamp
-    }
-
-    fn block_hash(&self) -> ExecutionBlockHash {
-        self.execution_payload.block_hash
-    }
-
-    fn fee_recipient(&self) -> Address {
-        self.execution_payload.fee_recipient
-    }
-
-    fn gas_limit(&self) -> u64 {
-        self.execution_payload.gas_limit
-    }
-}
-impl<T: EthSpec> ExecPayload<T> for FullPayloadCapella<T> {
-    fn block_type() -> BlockType {
-        BlockType::Full
-    }
-
-    fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
-        ExecutionPayloadHeader::Capella(ExecutionPayloadHeaderCapella::from(
-            &self.execution_payload,
+        ExecutionPayloadHeader::Merge(ExecutionPayloadHeaderMerge::from(
+            self.execution_payload.clone(),
         ))
     }
 
@@ -206,6 +172,55 @@ impl<T: EthSpec> ExecPayload<T> for FullPayloadCapella<T> {
 
     fn gas_limit(&self) -> u64 {
         self.execution_payload.gas_limit
+    }
+
+    // TODO: can this function be optimized?
+    fn is_default(&self) -> bool {
+        self.execution_payload == ExecutionPayloadMerge::default()
+    }
+}
+impl<T: EthSpec> ExecPayload<T> for FullPayloadCapella<T> {
+    fn block_type() -> BlockType {
+        BlockType::Full
+    }
+
+    fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<T> {
+        ExecutionPayloadHeader::Capella(ExecutionPayloadHeaderCapella::from(
+            self.execution_payload.clone(),
+        ))
+    }
+
+    fn parent_hash(&self) -> ExecutionBlockHash {
+        self.execution_payload.parent_hash
+    }
+
+    fn prev_randao(&self) -> Hash256 {
+        self.execution_payload.prev_randao
+    }
+
+    fn block_number(&self) -> u64 {
+        self.execution_payload.block_number
+    }
+
+    fn timestamp(&self) -> u64 {
+        self.execution_payload.timestamp
+    }
+
+    fn block_hash(&self) -> ExecutionBlockHash {
+        self.execution_payload.block_hash
+    }
+
+    fn fee_recipient(&self) -> Address {
+        self.execution_payload.fee_recipient
+    }
+
+    fn gas_limit(&self) -> u64 {
+        self.execution_payload.gas_limit
+    }
+
+    // TODO: can this function be optimized?
+    fn is_default(&self) -> bool {
+        self.execution_payload == ExecutionPayloadCapella::default()
     }
 }
 
@@ -269,6 +284,15 @@ impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
             payload.execution_payload.gas_limit
         })
     }
+
+    fn is_default(&self) -> bool {
+        match self {
+            Self::Merge(payload) => payload.execution_payload == ExecutionPayloadMerge::default(),
+            Self::Capella(payload) => {
+                payload.execution_payload == ExecutionPayloadCapella::default()
+            }
+        }
+    }
 }
 
 impl<'b, T: EthSpec> ExecPayload<T> for FullPayloadRef<'b, T> {
@@ -330,6 +354,17 @@ impl<'b, T: EthSpec> ExecPayload<T> for FullPayloadRef<'b, T> {
             cons(payload);
             payload.execution_payload.gas_limit
         })
+    }
+
+    fn is_default<'a>(&'a self) -> bool {
+        match self {
+            Self::Merge(payload_ref) => {
+                payload_ref.execution_payload == ExecutionPayloadMerge::default()
+            }
+            Self::Capella(payload_ref) => {
+                payload_ref.execution_payload == ExecutionPayloadCapella::default()
+            }
+        }
     }
 }
 
@@ -514,6 +549,17 @@ impl<T: EthSpec> ExecPayload<T> for BlindedPayload<T> {
             Self::Capella(payload) => payload.execution_payload_header.gas_limit,
         }
     }
+
+    fn is_default(&self) -> bool {
+        match self {
+            Self::Merge(payload) => {
+                payload.execution_payload_header == ExecutionPayloadHeaderMerge::default()
+            }
+            Self::Capella(payload) => {
+                payload.execution_payload_header == ExecutionPayloadHeaderCapella::default()
+            }
+        }
+    }
 }
 
 // FIXME(sproul): deduplicate this
@@ -581,6 +627,17 @@ impl<'b, T: EthSpec> ExecPayload<T> for BlindedPayloadRef<'b, T> {
             Self::Capella(payload) => payload.execution_payload_header.gas_limit,
         }
     }
+
+    fn is_default<'a>(&'a self) -> bool {
+        match self {
+            Self::Merge(payload) => {
+                payload.execution_payload_header == ExecutionPayloadHeaderMerge::default()
+            }
+            Self::Capella(payload) => {
+                payload.execution_payload_header == ExecutionPayloadHeaderCapella::default()
+            }
+        }
+    }
 }
 
 impl<T: EthSpec> ExecPayload<T> for BlindedPayloadMerge<T> {
@@ -621,6 +678,10 @@ impl<T: EthSpec> ExecPayload<T> for BlindedPayloadMerge<T> {
     fn gas_limit(&self) -> u64 {
         self.execution_payload_header.gas_limit
     }
+
+    fn is_default(&self) -> bool {
+        self.execution_payload_header == ExecutionPayloadHeaderMerge::default()
+    }
 }
 impl<T: EthSpec> ExecPayload<T> for BlindedPayloadCapella<T> {
     fn block_type() -> BlockType {
@@ -659,6 +720,10 @@ impl<T: EthSpec> ExecPayload<T> for BlindedPayloadCapella<T> {
 
     fn gas_limit(&self) -> u64 {
         self.execution_payload_header.gas_limit
+    }
+
+    fn is_default(&self) -> bool {
+        self.execution_payload_header == ExecutionPayloadHeaderCapella::default()
     }
 }
 
@@ -704,7 +769,7 @@ impl<T: EthSpec> Default for BlindedPayloadMerge<T> {
     fn default() -> Self {
         Self {
             execution_payload_header: ExecutionPayloadHeaderMerge::from(
-                &ExecutionPayloadMerge::default(),
+                ExecutionPayloadMerge::default(),
             ),
         }
     }
@@ -714,7 +779,7 @@ impl<T: EthSpec> Default for BlindedPayloadCapella<T> {
     fn default() -> Self {
         Self {
             execution_payload_header: ExecutionPayloadHeaderCapella::from(
-                &ExecutionPayloadCapella::default(),
+                ExecutionPayloadCapella::default(),
             ),
         }
     }
@@ -778,14 +843,14 @@ impl<T: EthSpec> From<BlindedPayload<T>> for ExecutionPayloadHeader<T> {
 impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for BlindedPayloadMerge<T> {
     fn from(execution_payload: ExecutionPayloadMerge<T>) -> Self {
         Self {
-            execution_payload_header: ExecutionPayloadHeaderMerge::from(&execution_payload),
+            execution_payload_header: ExecutionPayloadHeaderMerge::from(execution_payload),
         }
     }
 }
 impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for BlindedPayloadCapella<T> {
     fn from(execution_payload: ExecutionPayloadCapella<T>) -> Self {
         Self {
-            execution_payload_header: ExecutionPayloadHeaderCapella::from(&execution_payload),
+            execution_payload_header: ExecutionPayloadHeaderCapella::from(execution_payload),
         }
     }
 }

@@ -397,6 +397,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Base { .. } => ForkName::Base,
             BeaconState::Altair { .. } => ForkName::Altair,
             BeaconState::Merge { .. } => ForkName::Merge,
+            BeaconState::Capella { .. } => ForkName::Capella,
         };
 
         if fork_at_slot == object_fork {
@@ -684,6 +685,20 @@ impl<T: EthSpec> BeaconState<T> {
             .get(index)
             .copied()
             .ok_or(Error::ShuffleIndexOutOfBounds(index))
+    }
+
+    // TODO: check this implementation
+    /// Convenience accessor for the `execution_payload_header` as an `ExecutionPayloadHeaderRef`.
+    pub fn latest_execution_payload_header(&self) -> Result<ExecutionPayloadHeaderRef<T>, Error> {
+        match self {
+            BeaconState::Base(_) | BeaconState::Altair(_) => Err(Error::IncorrectStateVariant),
+            BeaconState::Merge(state) => Ok(ExecutionPayloadHeaderRef::Merge(
+                &state.latest_execution_payload_header,
+            )),
+            BeaconState::Capella(state) => Ok(ExecutionPayloadHeaderRef::Capella(
+                &state.latest_execution_payload_header,
+            )),
+        }
     }
 
     /// Return `true` if the validator who produced `slot_signature` is eligible to aggregate.
@@ -1110,6 +1125,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Base(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Altair(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Merge(state) => (&mut state.validators, &mut state.balances),
+            BeaconState::Capella(state) => (&mut state.validators, &mut state.balances),
         }
     }
 
@@ -1306,12 +1322,14 @@ impl<T: EthSpec> BeaconState<T> {
                 BeaconState::Base(_) => Err(BeaconStateError::IncorrectStateVariant),
                 BeaconState::Altair(state) => Ok(&mut state.current_epoch_participation),
                 BeaconState::Merge(state) => Ok(&mut state.current_epoch_participation),
+                BeaconState::Capella(state) => Ok(&mut state.current_epoch_participation),
             }
         } else if epoch == self.previous_epoch() {
             match self {
                 BeaconState::Base(_) => Err(BeaconStateError::IncorrectStateVariant),
                 BeaconState::Altair(state) => Ok(&mut state.previous_epoch_participation),
                 BeaconState::Merge(state) => Ok(&mut state.previous_epoch_participation),
+                BeaconState::Capella(state) => Ok(&mut state.previous_epoch_participation),
             }
         } else {
             Err(BeaconStateError::EpochOutOfBounds)
@@ -1616,6 +1634,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Base(inner) => BeaconState::Base(inner.clone()),
             BeaconState::Altair(inner) => BeaconState::Altair(inner.clone()),
             BeaconState::Merge(inner) => BeaconState::Merge(inner.clone()),
+            BeaconState::Capella(inner) => BeaconState::Capella(inner.clone()),
         };
         if config.committee_caches {
             *res.committee_caches_mut() = self.committee_caches().clone();

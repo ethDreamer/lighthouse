@@ -131,7 +131,7 @@ pub use crate::execution_payload::{
 };
 pub use crate::execution_payload_header::{
     ExecutionPayloadHeader, ExecutionPayloadHeaderCapella, ExecutionPayloadHeaderMerge,
-    ExecutionPayloadHeaderRef,
+    ExecutionPayloadHeaderRef, ExecutionPayloadHeaderRefMut,
 };
 pub use crate::fork::Fork;
 pub use crate::fork_context::ForkContext;

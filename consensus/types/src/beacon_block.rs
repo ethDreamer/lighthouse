@@ -611,7 +611,6 @@ impl_clone_as_blinded!(BeaconBlockBase, <E, FullPayload<E>>, <E, BlindedPayload<
 impl_clone_as_blinded!(BeaconBlockAltair, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockMerge, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
- */
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.
@@ -640,6 +639,7 @@ impl<E: EthSpec> From<BeaconBlock<E, FullPayload<E>>>
         })
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {

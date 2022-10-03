@@ -26,6 +26,7 @@ use BeaconStateError;
         serde(bound = "T: EthSpec", deny_unknown_fields),
         cfg_attr(feature = "arbitrary-fuzz", derive(arbitrary::Arbitrary))
     ),
+    ref_attributes(derive(PartialEq),),
     cast_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "BeaconStateError::IncorrectStateVariant")
 )]
@@ -61,59 +62,19 @@ pub struct ExecutionPayloadHeader<T: EthSpec> {
     pub withdrawals_root: Hash256,
 }
 
-/*
-impl<'a, T: EthSpec> From<&'a ExecutionPayload<T>> for ExecutionPayloadHeader<T> {
-    fn from(payload_enum: &'a ExecutionPayload<T>) -> Self {
-        match payload_enum {
-            ExecutionPayload::Merge(payload) => Self::Merge(payload.into()),
-            ExecutionPayload::Capella(payload) => Self::Capella(payload.into()),
+impl<T: EthSpec> ExecutionPayloadHeader<T> {
+    pub fn default_at_fork(fork_name: ForkName) -> Result<Self, Error> {
+        match fork_name {
+            ForkName::Base | ForkName::Altair => Err(Error::IncorrectStateVariant),
+            ForkName::Merge => Ok(ExecutionPayloadHeader::Merge(
+                ExecutionPayloadHeaderMerge::default(),
+            )),
+            ForkName::Capella => Ok(ExecutionPayloadHeader::Capella(
+                ExecutionPayloadHeaderCapella::default(),
+            )),
         }
     }
 }
-
-impl<'a, T: EthSpec> From<&'a ExecutionPayloadMerge<T>> for ExecutionPayloadHeaderMerge<T> {
-    fn from(payload: &'a ExecutionPayloadMerge<T>) -> Self {
-        Self {
-            parent_hash: payload.parent_hash,
-            fee_recipient: payload.fee_recipient,
-            state_root: payload.state_root,
-            receipts_root: payload.receipts_root,
-            logs_bloom: payload.logs_bloom.clone(),
-            prev_randao: payload.prev_randao,
-            block_number: payload.block_number,
-            gas_limit: payload.gas_limit,
-            gas_used: payload.gas_used,
-            timestamp: payload.timestamp,
-            extra_data: payload.extra_data.clone(),
-            base_fee_per_gas: payload.base_fee_per_gas,
-            block_hash: payload.block_hash,
-            transactions_root: payload.transactions.tree_hash_root(),
-        }
-    }
-}
-
-impl<'a, T: EthSpec> From<&'a ExecutionPayloadCapella<T>> for ExecutionPayloadHeaderCapella<T> {
-    fn from(payload: &'a ExecutionPayloadCapella<T>) -> Self {
-        Self {
-            parent_hash: payload.parent_hash,
-            fee_recipient: payload.fee_recipient,
-            state_root: payload.state_root,
-            receipts_root: payload.receipts_root,
-            logs_bloom: payload.logs_bloom.clone(),
-            prev_randao: payload.prev_randao,
-            block_number: payload.block_number,
-            gas_limit: payload.gas_limit,
-            gas_used: payload.gas_used,
-            timestamp: payload.timestamp,
-            extra_data: payload.extra_data.clone(),
-            base_fee_per_gas: payload.base_fee_per_gas,
-            block_hash: payload.block_hash,
-            transactions_root: payload.transactions.tree_hash_root(),
-            withdrawals_root: payload.withdrawals.tree_hash_root(),
-        }
-    }
-}
-*/
 
 // FIXME(sproul): auto-generate in superstruct
 impl<T: EthSpec> From<ExecutionPayloadHeaderMerge<T>> for ExecutionPayloadHeader<T> {
@@ -124,6 +85,57 @@ impl<T: EthSpec> From<ExecutionPayloadHeaderMerge<T>> for ExecutionPayloadHeader
 impl<T: EthSpec> From<ExecutionPayloadHeaderCapella<T>> for ExecutionPayloadHeader<T> {
     fn from(header: ExecutionPayloadHeaderCapella<T>) -> Self {
         Self::Capella(header)
+    }
+}
+
+// not sure if these can be auto-generated too with a map! macro..
+impl<T: EthSpec> From<ExecutionPayload<T>> for ExecutionPayloadHeader<T> {
+    fn from(payload_enum: ExecutionPayload<T>) -> Self {
+        match payload_enum {
+            ExecutionPayload::Merge(payload) => Self::Merge(payload.into()),
+            ExecutionPayload::Capella(payload) => Self::Capella(payload.into()),
+        }
+    }
+}
+impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for ExecutionPayloadHeaderMerge<T> {
+    fn from(payload: ExecutionPayloadMerge<T>) -> Self {
+        Self {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions_root: payload.transactions.tree_hash_root(),
+        }
+    }
+}
+impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for ExecutionPayloadHeaderCapella<T> {
+    fn from(payload: ExecutionPayloadCapella<T>) -> Self {
+        Self {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions_root: payload.transactions.tree_hash_root(),
+            withdrawals_root: payload.withdrawals.tree_hash_root(),
+        }
     }
 }
 

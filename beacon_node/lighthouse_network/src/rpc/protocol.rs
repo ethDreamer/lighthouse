@@ -21,8 +21,8 @@ use tokio_util::{
     compat::{Compat, FuturesAsyncReadCompatExt},
 };
 use types::{
-    BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockMerge, EthSpec, ForkContext,
-    ForkName, Hash256, MainnetEthSpec, Signature, SignedBeaconBlock,
+    BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockCapella, BeaconBlockMerge, EthSpec,
+    ForkContext, ForkName, Hash256, MainnetEthSpec, Signature, SignedBeaconBlock,
 };
 
 lazy_static! {
@@ -68,8 +68,21 @@ lazy_static! {
     pub static ref SIGNED_BEACON_BLOCK_MERGE_MAX: usize =
     // Size of a full altair block
     *SIGNED_BEACON_BLOCK_ALTAIR_MAX
-    + types::ExecutionPayload::<MainnetEthSpec>::max_execution_payload_size() // adding max size of execution payload (~16gb)
+    + types::ExecutionPayload::<MainnetEthSpec>::max_execution_payload_merge_size() // adding max size of execution payload (~16gb)
     + ssz::BYTES_PER_LENGTH_OFFSET; // Adding the additional ssz offset for the `ExecutionPayload` field
+
+    pub static ref SIGNED_BEACON_BLOCK_CAPELLA_MIN: usize = SignedBeaconBlock::<MainnetEthSpec>::from_block(
+        BeaconBlock::Capella(BeaconBlockCapella::<MainnetEthSpec>::empty(&MainnetEthSpec::default_spec())),
+        Signature::empty(),
+    )
+    .as_ssz_bytes()
+    .len();
+
+    // TODO: check this later
+    pub static ref SIGNED_BEACON_BLOCK_CAPELLA_MAX: usize =
+    *SIGNED_BEACON_BLOCK_ALTAIR_MAX
+    + types::ExecutionPayload::<MainnetEthSpec>::max_execution_payload_capella_size()
+    + ssz::BYTES_PER_LENGTH_OFFSET;
 
     pub static ref BLOCKS_BY_ROOT_REQUEST_MIN: usize =
         VariableList::<Hash256, MaxRequestBlocks>::from(Vec::<Hash256>::new())
@@ -113,7 +126,9 @@ const REQUEST_TIMEOUT: u64 = 15;
 /// Returns the maximum bytes that can be sent across the RPC.
 pub fn max_rpc_size(fork_context: &ForkContext) -> usize {
     match fork_context.current_fork() {
-        ForkName::Merge => MAX_RPC_SIZE_POST_MERGE,
+        // according to https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/p2p-interface.md
+        // the size is  unchanged in Capella (TODO: check back on this later as page is blank now)
+        ForkName::Merge | ForkName::Capella => MAX_RPC_SIZE_POST_MERGE,
         ForkName::Altair | ForkName::Base => MAX_RPC_SIZE,
     }
 }
@@ -134,6 +149,10 @@ pub fn rpc_block_limits_by_fork(current_fork: ForkName) -> RpcLimits {
         ForkName::Merge => RpcLimits::new(
             *SIGNED_BEACON_BLOCK_BASE_MIN, // Base block is smaller than altair and merge blocks
             *SIGNED_BEACON_BLOCK_MERGE_MAX, // Merge block is larger than base and altair blocks
+        ),
+        ForkName::Capella => RpcLimits::new(
+            *SIGNED_BEACON_BLOCK_BASE_MIN, // Base block is smaller than altair and merge blocks
+            *SIGNED_BEACON_BLOCK_CAPELLA_MAX, // Capella block is larger than base/altair/merge blocks
         ),
     }
 }

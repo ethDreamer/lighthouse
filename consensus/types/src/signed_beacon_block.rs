@@ -387,6 +387,7 @@ impl<E: EthSpec> SignedBeaconBlock<E, BlindedPayload<E>> {
     }
 }
 
+/*
 // We can blind blocks with payloads by converting the payload into a header.
 //
 // We can optionally keep the header, or discard it.
@@ -417,6 +418,7 @@ impl<E: EthSpec> SignedBeaconBlock<E> {
         SignedBeaconBlock::from_block(self.message().into(), self.signature().clone())
     }
 }
+*/
 
 #[cfg(test)]
 mod test {

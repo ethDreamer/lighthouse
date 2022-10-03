@@ -72,17 +72,27 @@ pub struct ExecutionPayload<T: EthSpec> {
 impl<T: EthSpec> ExecutionPayload<T> {
     #[allow(clippy::integer_arithmetic)]
     /// Returns the maximum size of an execution payload.
-    pub fn max_execution_payload_size() -> usize {
-        // TODO: check this!
-        //       max length should be the max of latest fork right?
-
+    pub fn max_execution_payload_merge_size() -> usize {
         // Fixed part
-        // Self::empty().as_ssz_bytes().len() // < - pre-fork implementation
+        ExecutionPayloadMerge::<T>::default().as_ssz_bytes().len()
+            // Max size of variable length `extra_data` field
+            + (T::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len())
+            // Max size of variable length `transactions` field
+            + (T::max_transactions_per_payload() * (ssz::BYTES_PER_LENGTH_OFFSET + T::max_bytes_per_transaction()))
+    }
+
+    #[allow(clippy::integer_arithmetic)]
+    /// Returns the maximum size of an execution payload.
+    pub fn max_execution_payload_capella_size() -> usize {
+        // Fixed part
         ExecutionPayloadCapella::<T>::default().as_ssz_bytes().len()
             // Max size of variable length `extra_data` field
             + (T::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len())
             // Max size of variable length `transactions` field
             + (T::max_transactions_per_payload() * (ssz::BYTES_PER_LENGTH_OFFSET + T::max_bytes_per_transaction()))
+            // Max size of variable length `withdrawals` field
+            // TODO: check this
+            + (T::max_withdrawals_per_payload() * (ssz::BYTES_PER_LENGTH_OFFSET + <Withdrawal as Encode>::ssz_fixed_len()))
     }
 }
 
@@ -96,5 +106,15 @@ impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for ExecutionPayload<T> {
 impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for ExecutionPayload<T> {
     fn from(payload: ExecutionPayloadCapella<T>) -> Self {
         Self::Capella(payload)
+    }
+}
+
+impl<T: EthSpec> ExecutionPayload<T> {
+    pub fn default_at_fork(fork_name: ForkName) -> Result<Self, Error> {
+        match fork_name {
+            ForkName::Base | ForkName::Altair => Err(Error::IncorrectStateVariant),
+            ForkName::Merge => Ok(ExecutionPayload::Merge(ExecutionPayloadMerge::default())),
+            ForkName::Capella => Ok(ExecutionPayload::Capella(ExecutionPayloadCapella::default())),
+        }
     }
 }
