@@ -96,19 +96,6 @@ impl<T: EthSpec> ExecutionPayload<T> {
     }
 }
 
-// FIXME(sproul): generate these implementations in superstruct
-impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for ExecutionPayload<T> {
-    fn from(payload: ExecutionPayloadMerge<T>) -> Self {
-        Self::Merge(payload)
-    }
-}
-
-impl<T: EthSpec> From<ExecutionPayloadCapella<T>> for ExecutionPayload<T> {
-    fn from(payload: ExecutionPayloadCapella<T>) -> Self {
-        Self::Capella(payload)
-    }
-}
-
 impl<T: EthSpec> ExecutionPayload<T> {
     pub fn default_at_fork(fork_name: ForkName) -> Result<Self, Error> {
         match fork_name {

@@ -76,18 +76,6 @@ impl<T: EthSpec> ExecutionPayloadHeader<T> {
     }
 }
 
-// FIXME(sproul): auto-generate in superstruct
-impl<T: EthSpec> From<ExecutionPayloadHeaderMerge<T>> for ExecutionPayloadHeader<T> {
-    fn from(header: ExecutionPayloadHeaderMerge<T>) -> Self {
-        Self::Merge(header)
-    }
-}
-impl<T: EthSpec> From<ExecutionPayloadHeaderCapella<T>> for ExecutionPayloadHeader<T> {
-    fn from(header: ExecutionPayloadHeaderCapella<T>) -> Self {
-        Self::Capella(header)
-    }
-}
-
 // not sure if these can be auto-generated too with a map! macro..
 impl<T: EthSpec> From<ExecutionPayload<T>> for ExecutionPayloadHeader<T> {
     fn from(payload_enum: ExecutionPayload<T>) -> Self {
