@@ -409,7 +409,7 @@ pub fn get_execution_payload<
         &BeaconState::Capella(_) | &BeaconState::Eip4844(_) => {
             let expected_withdrawals = get_expected_withdrawals(state, spec)?;
             println!(
-                "get_execution_payload:  slot[{}] timestamp[{}] withdrawals_root[{}]",
+                "\n\nget_execution_payload:  slot[{}] timestamp[{}] withdrawals_root[{}]\n\n",
                 state.slot(),
                 timestamp,
                 expected_withdrawals.tree_hash_root()

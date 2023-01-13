@@ -798,7 +798,7 @@ impl HttpJsonRpc {
                         ENGINE_GET_PAYLOAD_TIMEOUT * self.execution_timeout_multiplier,
                     )
                     .await?;
-                println!("get_payload_v2: V1\n{:?}", response);
+                println!("\n\nget_payload_v2: V1\n{:?}", response);
                 Ok(JsonGetPayloadResponse::V1(response))
             }
             ForkName::Capella => {
@@ -809,7 +809,7 @@ impl HttpJsonRpc {
                         ENGINE_GET_PAYLOAD_TIMEOUT * self.execution_timeout_multiplier,
                     )
                     .await?;
-                println!("get_payload_v2: V2\n{:?}", response);
+                println!("\n\nget_payload_v2: V2\n{:?}", response);
                 Ok(JsonGetPayloadResponse::V2(response))
             }
             ForkName::Base | ForkName::Altair | ForkName::Eip4844 => {
@@ -963,6 +963,14 @@ impl HttpJsonRpc {
                     Ok(JsonExecutionPayload::V1(response.execution_payload).into())
                 }
                 JsonGetPayloadResponse::V2(response) => {
+                    use tree_hash::TreeHash;
+                    let v2 = ExecutionPayload::<T>::from(JsonExecutionPayload::V2(
+                        response.execution_payload.clone(),
+                    ));
+                    println!(
+                        "get_payload_v2: withdrawals_root[{:?}]\n",
+                        v2.withdrawals().unwrap().tree_hash_root()
+                    );
                     Ok(JsonExecutionPayload::V2(response.execution_payload).into())
                 }
                 // this shouldn't happen but it's here for completeness

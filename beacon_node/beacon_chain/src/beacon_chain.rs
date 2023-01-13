@@ -4722,7 +4722,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             .ok_or(Error::InvalidSlot(prepare_slot))?
                             .as_secs();
                         println!(
-                            "prepare_beacon_proposer:slot[{}] timestamp[{}] withdrawals_root[{}]",
+                            "\n\nprepare_beacon_proposer:slot[{}] timestamp[{}] withdrawals_root[{}]\n\n",
                             prepare_state.slot(),
                             timestamp,
                             withdrawals.tree_hash_root()
@@ -4767,12 +4767,21 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         );
 
         let already_known = execution_layer
-            .insert_proposer(prepare_slot, head_root, proposer, payload_attributes)
+            .insert_proposer(
+                prepare_slot,
+                head_root,
+                proposer,
+                payload_attributes.clone(),
+            )
             .await;
 
         // Only push a log to the user if this is the first time we've seen this proposer for this
         // slot.
         if !already_known {
+            println!(
+                "\n\nprepare_beacon_proposer: payload_attributes not already known: {:?}\n\n",
+                payload_attributes
+            );
             info!(
                 self.log,
                 "Prepared beacon proposer";

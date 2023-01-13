@@ -66,7 +66,7 @@ pub struct JsonPayloadIdResponse {
 #[superstruct(
     variants(V1, V2, V3),
     variant_attributes(
-        derive(Debug, PartialEq, Default, Serialize, Deserialize,),
+        derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize,),
         serde(bound = "T: EthSpec", rename_all = "camelCase"),
     ),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
