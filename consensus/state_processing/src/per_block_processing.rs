@@ -529,6 +529,19 @@ pub fn process_withdrawals<'payload, T: EthSpec, Payload: AbstractExecPayload<T>
             let withdrawals_root = payload.withdrawals_root()?;
 
             if expected_root != withdrawals_root {
+                println!(
+                    "process_withdrawals:    slot[{}] timestamp[{}] withdrawals_root[{}]",
+                    state.slot(),
+                    payload.timestamp(),
+                    withdrawals_root
+                );
+                println!("process_withdrawals: expected withdrawals\n");
+                for withdrawal in expected_withdrawals.iter() {
+                    println!(
+                        "    process_withdrawals: index[{}] amount[{}] validator_index[{}]",
+                        withdrawal.index, withdrawal.amount, withdrawal.validator_index
+                    );
+                }
                 return Err(BlockProcessingError::WithdrawalsRootMismatch {
                     expected: expected_root,
                     found: withdrawals_root,

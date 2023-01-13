@@ -67,7 +67,7 @@ pub struct JsonPayloadIdResponse {
     variants(V1, V2, V3),
     variant_attributes(
         derive(Debug, PartialEq, Default, Serialize, Deserialize,),
-        serde(bound = "T: EthSpec", rename_all = "camelCase", deny_unknown_fields),
+        serde(bound = "T: EthSpec", rename_all = "camelCase"),
     ),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")
@@ -316,7 +316,7 @@ impl From<JsonWithdrawal> for Withdrawal {
     variants(V1, V2),
     variant_attributes(
         derive(Debug, Clone, PartialEq, Serialize, Deserialize),
-        serde(rename_all = "camelCase", deny_unknown_fields)
+        serde(rename_all = "camelCase")
     ),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")

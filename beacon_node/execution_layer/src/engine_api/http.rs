@@ -798,6 +798,7 @@ impl HttpJsonRpc {
                         ENGINE_GET_PAYLOAD_TIMEOUT * self.execution_timeout_multiplier,
                     )
                     .await?;
+                println!("get_payload_v2: V1\n{:?}", response);
                 Ok(JsonGetPayloadResponse::V1(response))
             }
             ForkName::Capella => {
@@ -808,6 +809,7 @@ impl HttpJsonRpc {
                         ENGINE_GET_PAYLOAD_TIMEOUT * self.execution_timeout_multiplier,
                     )
                     .await?;
+                println!("get_payload_v2: V2\n{:?}", response);
                 Ok(JsonGetPayloadResponse::V2(response))
             }
             ForkName::Base | ForkName::Altair | ForkName::Eip4844 => {

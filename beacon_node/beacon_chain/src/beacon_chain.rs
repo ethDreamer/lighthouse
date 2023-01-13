@@ -4713,6 +4713,28 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         error!(self.log, "State advance for withdrawals failed"; "error" => ?e);
                         e
                     })?;
+                let proposed_withdrawals = get_expected_withdrawals(&prepare_state, &self.spec);
+                match proposed_withdrawals {
+                    Ok(withdrawals) => {
+                        let timestamp = self
+                            .slot_clock
+                            .start_of(prepare_slot)
+                            .ok_or(Error::InvalidSlot(prepare_slot))?
+                            .as_secs();
+                        println!(
+                            "prepare_beacon_proposer:slot[{}] timestamp[{}] withdrawals_root[{}]",
+                            prepare_state.slot(),
+                            timestamp,
+                            withdrawals.tree_hash_root()
+                        );
+                    }
+                    Err(e) => {
+                        println!(
+                            "prepare_beacon_proposer: error getting expected withdrawals: {:?}",
+                            e
+                        );
+                    }
+                }
                 Some(get_expected_withdrawals(&prepare_state, &self.spec))
             }
         }

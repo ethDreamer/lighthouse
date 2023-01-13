@@ -407,6 +407,13 @@ pub fn get_execution_payload<
         state.latest_execution_payload_header()?.block_hash();
     let withdrawals = match state {
         &BeaconState::Capella(_) | &BeaconState::Eip4844(_) => {
+            let expected_withdrawals = get_expected_withdrawals(state, spec)?;
+            println!(
+                "get_execution_payload:  slot[{}] timestamp[{}] withdrawals_root[{}]",
+                state.slot(),
+                timestamp,
+                expected_withdrawals.tree_hash_root()
+            );
             Some(get_expected_withdrawals(state, spec)?.into())
         }
         &BeaconState::Merge(_) => None,
