@@ -267,7 +267,7 @@ pub struct PayloadAttributes {
     #[superstruct(getter(copy))]
     pub suggested_fee_recipient: Address,
     #[superstruct(only(V2))]
-    pub withdrawals: Option<Vec<Withdrawal>>,
+    pub withdrawals: Vec<Withdrawal>,
 }
 
 impl PayloadAttributes {
@@ -277,31 +277,18 @@ impl PayloadAttributes {
         suggested_fee_recipient: Address,
         withdrawals: Option<Vec<Withdrawal>>,
     ) -> Self {
-        // this should always return the highest version
-        PayloadAttributes::V2(PayloadAttributesV2 {
-            timestamp,
-            prev_randao,
-            suggested_fee_recipient,
-            withdrawals,
-        })
-    }
-
-    pub fn downgrade_to_v1(self) -> Result<Self, Error> {
-        match self {
-            PayloadAttributes::V1(_) => Ok(self),
-            PayloadAttributes::V2(v2) => {
-                if v2.withdrawals.is_some() {
-                    return Err(Error::BadConversion(
-                        "Downgrading from PayloadAttributesV2 with non-null withdrawals"
-                            .to_string(),
-                    ));
-                }
-                Ok(PayloadAttributes::V1(PayloadAttributesV1 {
-                    timestamp: v2.timestamp,
-                    prev_randao: v2.prev_randao,
-                    suggested_fee_recipient: v2.suggested_fee_recipient,
-                }))
-            }
+        match withdrawals {
+            Some(withdrawals) => PayloadAttributes::V2(PayloadAttributesV2 {
+                timestamp,
+                prev_randao,
+                suggested_fee_recipient,
+                withdrawals,
+            }),
+            None => PayloadAttributes::V1(PayloadAttributesV1 {
+                timestamp,
+                prev_randao,
+                suggested_fee_recipient,
+            }),
         }
     }
 }
