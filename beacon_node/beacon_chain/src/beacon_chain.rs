@@ -980,7 +980,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .ok_or(Error::ExecutionLayerMissing)?
             .get_payload_by_block_hash(exec_block_hash, fork)
             .await
-            .map_err(|e| Error::ExecutionLayerErrorPayloadReconstruction(exec_block_hash, e))?
+            .map_err(|e| {
+                Error::ExecutionLayerErrorPayloadReconstruction(exec_block_hash, Box::new(e))
+            })?
             .ok_or(Error::BlockHashMissingFromExecutionLayer(exec_block_hash))?;
 
         //FIXME(sean) avoid the clone by comparing refs to headers (`as_execution_payload_header` method ?)

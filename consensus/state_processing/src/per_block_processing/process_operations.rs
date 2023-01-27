@@ -11,7 +11,7 @@ use types::consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_
 
 pub fn process_operations<'a, T: EthSpec, Payload: AbstractExecPayload<T>>(
     state: &mut BeaconState<T>,
-    block_body: BeaconBlockBodyRef<'a, T, Payload>,
+    block_body: BeaconBlockBodyRef<T, Payload>,
     verify_signatures: VerifySignatures,
     ctxt: &mut ConsensusContext<T>,
     spec: &ChainSpec,
@@ -239,7 +239,7 @@ pub fn process_attester_slashings<T: EthSpec>(
 /// the fork.
 pub fn process_attestations<'a, T: EthSpec, Payload: AbstractExecPayload<T>>(
     state: &mut BeaconState<T>,
-    block_body: BeaconBlockBodyRef<'a, T, Payload>,
+    block_body: BeaconBlockBodyRef<T, Payload>,
     verify_signatures: VerifySignatures,
     ctxt: &mut ConsensusContext<T>,
     spec: &ChainSpec,
