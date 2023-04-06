@@ -12,6 +12,7 @@ use crate::data_availability_checker::{
 use crate::kzg_utils::{validate_blob, validate_blobs};
 use crate::BeaconChainError;
 use kzg::Kzg;
+use ssz_derive::{Decode, Encode};
 use types::{
     BeaconBlockRef, BeaconStateError, BlobSidecar, BlobSidecarList, Epoch, EthSpec, Hash256,
     KzgCommitment, SignedBeaconBlock, SignedBeaconBlockHeader, SignedBlobSidecar, Slot,
@@ -265,7 +266,7 @@ pub fn validate_blob_sidecar_for_gossip<T: BeaconChainTypes>(
 
 /// Wrapper over a `BlobSidecar` for which we have completed kzg verification.
 /// i.e. `verify_blob_kzg_proof(blob, commitment, proof) == true`.
-#[derive(Debug, Derivative, Clone)]
+#[derive(Debug, Derivative, Clone, Encode, Decode)]
 #[derivative(PartialEq, Eq)]
 pub struct KzgVerifiedBlob<T: EthSpec> {
     blob: Arc<BlobSidecar<T>>,
