@@ -1838,6 +1838,81 @@ pub fn serve<T: BeaconChainTypes>(
             },
         );
 
+    // POST beacon/pool/bls_to_execution_changes_special
+    let post_beacon_pool_bls_to_execution_changes_special = beacon_pool_path
+        .clone()
+        .and(warp::path("bls_to_execution_changes_special"))
+        .and(warp::path::end())
+        .and(warp::body::json())
+        .and(log_filter.clone())
+        .and_then(
+            |chain: Arc<BeaconChain<T>>,
+             address_changes: Vec<SignedBlsToExecutionChange>,
+             log: Logger| {
+                blocking_json_task(move || {
+                    let mut failures = vec![];
+
+                    for (index, address_change) in address_changes.into_iter().enumerate() {
+                        let validator_index = address_change.message.validator_index;
+
+                        match chain.verify_bls_to_execution_change_for_special(address_change) {
+                            Ok(ObservationOutcome::New(verified_address_change)) => {
+                                let validator_index =
+                                    verified_address_change.as_inner().message.validator_index;
+                                let address = verified_address_change
+                                    .as_inner()
+                                    .message
+                                    .to_execution_address;
+
+                                // Import to op pool (may return `false` if there's a race).
+                                let imported = chain.import_bls_to_execution_change_special(
+                                    verified_address_change,
+                                );
+
+                                info!(
+                                    log,
+                                    "Processed Special BLS to execution change";
+                                    "validator_index" => validator_index,
+                                    "address" => ?address,
+                                    "published" => false,
+                                    "imported" => imported,
+                                );
+                            }
+                            Ok(ObservationOutcome::AlreadyKnown) => {
+                                debug!(
+                                    log,
+                                    "BLS to execution change already known";
+                                    "validator_index" => validator_index,
+                                );
+                            }
+                            Err(e) => {
+                                warn!(
+                                    log,
+                                    "Invalid BLS to execution change";
+                                    "validator_index" => validator_index,
+                                    "reason" => ?e,
+                                    "source" => "HTTP",
+                                );
+                                failures.push(api_types::Failure::new(
+                                    index,
+                                    format!("invalid: {e:?}"),
+                                ));
+                            }
+                        }
+                    }
+
+                    if failures.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(warp_utils::reject::indexed_bad_request(
+                            "some BLS to execution changes failed to verify".into(),
+                            failures,
+                        ))
+                    }
+                })
+            },
+        );
+
     // GET beacon/deposit_snapshot
     let get_beacon_deposit_snapshot = eth_v1
         .and(warp::path("beacon"))
@@ -3723,6 +3798,7 @@ pub fn serve<T: BeaconChainTypes>(
                     .uor(post_beacon_pool_voluntary_exits)
                     .uor(post_beacon_pool_sync_committees)
                     .uor(post_beacon_pool_bls_to_execution_changes)
+                    .uor(post_beacon_pool_bls_to_execution_changes_special)
                     .uor(post_beacon_rewards_attestations)
                     .uor(post_beacon_rewards_sync_committee)
                     .uor(post_validator_duties_attester)

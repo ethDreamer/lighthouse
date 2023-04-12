@@ -530,6 +530,18 @@ impl<T: EthSpec> OperationPool<T> {
             .existing_change_equals(address_change)
     }
 
+    /// Check if the special address change is equal to special `address_change` that is already in the pool.
+    ///
+    /// Return `None` if the address is not special
+    pub fn bls_to_execution_change_in_pool_special_equals(
+        &self,
+        address_change: &SignedBlsToExecutionChange,
+    ) -> Option<bool> {
+        self.bls_to_execution_changes
+            .read()
+            .existing_change_special_equals(address_change)
+    }
+
     /// Insert a BLS to execution change into the pool, *only if* no prior change is known.
     ///
     /// Return `true` if the change was inserted.
@@ -541,6 +553,18 @@ impl<T: EthSpec> OperationPool<T> {
         self.bls_to_execution_changes
             .write()
             .insert(verified_change, received_pre_capella)
+    }
+
+    /// Inserts a BLS to execution change as SPECIAL
+    ///
+    /// Returns `true` if this overwrote an existing change
+    pub fn insert_bls_to_execution_change_special(
+        &self,
+        verified_change: SigVerifiedOp<SignedBlsToExecutionChange, T>,
+    ) -> bool {
+        self.bls_to_execution_changes
+            .write()
+            .insert_special(verified_change)
     }
 
     /// Get a list of execution changes for inclusion in a block.

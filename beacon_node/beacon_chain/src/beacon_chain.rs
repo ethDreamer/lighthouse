@@ -2259,6 +2259,31 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         &self,
         bls_to_execution_change: SignedBlsToExecutionChange,
     ) -> Result<ObservationOutcome<SignedBlsToExecutionChange, T::EthSpec>, Error> {
+        match self
+            .op_pool
+            .bls_to_execution_change_in_pool_special_equals(&bls_to_execution_change)
+        {
+            Some(true) => {
+                info!(
+                    self.log,
+                    "Received duplicate SPECIAL bls execution change";
+                    "validator" => bls_to_execution_change.message.validator_index,
+                    "execution_address" => ?bls_to_execution_change.message.to_execution_address,
+                );
+                return Ok(ObservationOutcome::AlreadyKnown);
+            }
+            Some(false) => {
+                warn!(
+                    self.log,
+                    "Received CONFLICTING SPECIAL bls execution change";
+                    "validator" => bls_to_execution_change.message.validator_index,
+                    "execution_address" => ?bls_to_execution_change.message.to_execution_address,
+                );
+                return Err(Error::BlsToExecutionConflictsWithPool);
+            }
+            None => (),
+        };
+
         // Before checking the gossip duplicate filter, check that no prior change is already
         // in our op pool. Ignore these messages: do not gossip, do not try to override the pool.
         match self
@@ -2280,6 +2305,22 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .observed_bls_to_execution_changes
             .lock()
             .verify_and_observe(bls_to_execution_change, head_state, &self.spec)?)
+    }
+
+    // only validates, does not observe
+    pub fn verify_bls_to_execution_change_for_special(
+        &self,
+        bls_to_execution_change: SignedBlsToExecutionChange,
+    ) -> Result<ObservationOutcome<SignedBlsToExecutionChange, T::EthSpec>, Error> {
+        // Use the head state to save advancing to the wall-clock slot unnecessarily. The message is
+        // signed with respect to the genesis fork version, and the slot check for gossip is applied
+        // separately. This `Arc` clone of the head is nice and cheap.
+        let head_snapshot = self.head().snapshot;
+        let head_state = &head_snapshot.beacon_state;
+
+        Ok(ObservationOutcome::New(
+            bls_to_execution_change.validate(head_state, &self.spec)?,
+        ))
     }
 
     /// Verify a signed BLS to execution change before allowing it to propagate on the gossip network.
@@ -2322,6 +2363,21 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         if self.eth1_chain.is_some() {
             self.op_pool
                 .insert_bls_to_execution_change(bls_to_execution_change, received_pre_capella)
+        } else {
+            false
+        }
+    }
+
+    /// Import a SPECIAL BLS to execution change to the op pool.
+    ///
+    /// Return `true` if the change was added to the pool.
+    pub fn import_bls_to_execution_change_special(
+        &self,
+        bls_to_execution_change: SigVerifiedOp<SignedBlsToExecutionChange, T::EthSpec>,
+    ) -> bool {
+        if self.eth1_chain.is_some() {
+            self.op_pool
+                .insert_bls_to_execution_change_special(bls_to_execution_change)
         } else {
             false
         }
