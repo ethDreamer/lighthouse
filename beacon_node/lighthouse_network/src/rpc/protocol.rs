@@ -144,6 +144,8 @@ pub fn max_rpc_size(fork_context: &ForkContext) -> usize {
         ForkName::Merge => MAX_RPC_SIZE_POST_MERGE,
         ForkName::Capella => MAX_RPC_SIZE_POST_CAPELLA,
         ForkName::Deneb => MAX_RPC_SIZE_POST_DENEB,
+        // TODO(mark): verify this
+        ForkName::Whisk => MAX_RPC_SIZE_POST_DENEB,
     }
 }
 
@@ -169,6 +171,11 @@ pub fn rpc_block_limits_by_fork(current_fork: ForkName) -> RpcLimits {
             *SIGNED_BEACON_BLOCK_CAPELLA_MAX, // Capella block is larger than base, altair and merge blocks
         ),
         ForkName::Deneb => RpcLimits::new(
+            *SIGNED_BEACON_BLOCK_BASE_MIN, // Base block is smaller than altair and merge blocks
+            *SIGNED_BEACON_BLOCK_DENEB_MAX, // EIP 4844 block is larger than all prior fork blocks
+        ),
+        // TODO(mark): verify this
+        ForkName::Whisk => RpcLimits::new(
             *SIGNED_BEACON_BLOCK_BASE_MIN, // Base block is smaller than altair and merge blocks
             *SIGNED_BEACON_BLOCK_DENEB_MAX, // EIP 4844 block is larger than all prior fork blocks
         ),

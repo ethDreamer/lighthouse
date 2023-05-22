@@ -12,8 +12,9 @@ use types::{
     Attestation, AttesterSlashing, EthSpec, ForkContext, ForkName, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, ProposerSlashing, SignedAggregateAndProof, SignedBeaconBlock,
     SignedBeaconBlockAltair, SignedBeaconBlockBase, SignedBeaconBlockCapella,
-    SignedBeaconBlockDeneb, SignedBeaconBlockMerge, SignedBlobSidecar, SignedBlsToExecutionChange,
-    SignedContributionAndProof, SignedVoluntaryExit, SubnetId, SyncCommitteeMessage, SyncSubnetId,
+    SignedBeaconBlockDeneb, SignedBeaconBlockMerge, SignedBeaconBlockWhisk, SignedBlobSidecar,
+    SignedBlsToExecutionChange, SignedContributionAndProof, SignedVoluntaryExit, SubnetId,
+    SyncCommitteeMessage, SyncSubnetId,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -192,6 +193,10 @@ impl<T: EthSpec> PubsubMessage<T> {
                                     SignedBeaconBlockDeneb::from_ssz_bytes(data)
                                         .map_err(|e| format!("{:?}", e))?,
                                 ),
+                                Some(ForkName::Whisk) => SignedBeaconBlock::<T>::Whisk(
+                                    SignedBeaconBlockWhisk::from_ssz_bytes(data)
+                                        .map_err(|e| format!("{:?}", e))?,
+                                ),
                                 None => {
                                     return Err(format!(
                                         "Unknown gossipsub fork digest: {:?}",
@@ -203,7 +208,7 @@ impl<T: EthSpec> PubsubMessage<T> {
                     }
                     GossipKind::BlobSidecar(blob_index) => {
                         match fork_context.from_context_bytes(gossip_topic.fork_digest) {
-                            Some(ForkName::Deneb) => {
+                            Some(ForkName::Deneb | ForkName::Whisk) => {
                                 let blob_sidecar = SignedBlobSidecar::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?;
                                 Ok(PubsubMessage::BlobSidecar(Box::new((

@@ -244,7 +244,7 @@ impl<T: EthSpec, Payload: AbstractExecPayload<T>> BlockProposalContents<T, Paylo
                     block_value: Uint256::zero(),
                 }
             }
-            ForkName::Deneb => BlockProposalContents::PayloadAndBlobs {
+            ForkName::Deneb | ForkName::Whisk => BlockProposalContents::PayloadAndBlobs {
                 payload: Payload::default_at_fork(fork_name)?,
                 block_value: Uint256::zero(),
                 blobs: VariableList::default(),
@@ -1704,7 +1704,7 @@ impl<T: EthSpec> ExecutionLayer<T> {
             let payload = match fork {
                 ForkName::Merge => ExecutionPayloadMerge::default().into(),
                 ForkName::Capella => ExecutionPayloadCapella::default().into(),
-                ForkName::Deneb => ExecutionPayloadDeneb::default().into(),
+                ForkName::Deneb | ForkName::Whisk => ExecutionPayloadDeneb::default().into(),
                 ForkName::Base | ForkName::Altair => {
                     return Err(Error::InvalidForkForPayload);
                 }
@@ -1761,7 +1761,9 @@ impl<T: EthSpec> ExecutionLayer<T> {
             return match fork {
                 ForkName::Merge => Ok(Some(ExecutionPayloadMerge::default().into())),
                 ForkName::Capella => Ok(Some(ExecutionPayloadCapella::default().into())),
-                ForkName::Deneb => Ok(Some(ExecutionPayloadDeneb::default().into())),
+                ForkName::Deneb | ForkName::Whisk => {
+                    Ok(Some(ExecutionPayloadDeneb::default().into()))
+                }
                 ForkName::Base | ForkName::Altair => Err(ApiError::UnsupportedForkVariant(
                     format!("called get_payload_by_hash_from_engine with {}", fork),
                 )),

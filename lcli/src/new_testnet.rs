@@ -112,7 +112,7 @@ pub fn run<T: EthSpec>(testnet_dir_path: PathBuf, matches: &ArgMatches) -> Resul
                             ExecutionPayloadHeaderCapella::<T>::from_ssz_bytes(bytes.as_slice())
                                 .map(ExecutionPayloadHeader::Capella)
                         }
-                        ForkName::Deneb => {
+                        ForkName::Deneb | ForkName::Whisk => {
                             ExecutionPayloadHeaderDeneb::<T>::from_ssz_bytes(bytes.as_slice())
                                 .map(ExecutionPayloadHeader::Deneb)
                         }

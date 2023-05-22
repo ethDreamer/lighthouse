@@ -762,6 +762,14 @@ impl HttpJsonRpc {
                 )
                 .await?,
             ),
+            ForkName::Whisk => ExecutionBlockWithTransactions::Deneb(
+                self.rpc_request(
+                    ETH_GET_BLOCK_BY_HASH,
+                    params,
+                    ETH_GET_BLOCK_BY_HASH_TIMEOUT * self.execution_timeout_multiplier,
+                )
+                .await?,
+            ),
             ForkName::Base | ForkName::Altair => {
                 return Err(Error::UnsupportedForkVariant(format!(
                     "called get_block_by_hash_with_txns with fork {:?}",
@@ -873,7 +881,7 @@ impl HttpJsonRpc {
                     .await?;
                 Ok(JsonGetPayloadResponse::V2(response).into())
             }
-            ForkName::Base | ForkName::Altair | ForkName::Deneb => Err(
+            ForkName::Base | ForkName::Altair | ForkName::Deneb | ForkName::Whisk => Err(
                 Error::UnsupportedForkVariant(format!("called get_payload_v2 with {}", fork_name)),
             ),
         }
@@ -907,7 +915,7 @@ impl HttpJsonRpc {
                     .await?;
                 Ok(JsonGetPayloadResponse::V2(response).into())
             }
-            ForkName::Deneb => {
+            ForkName::Deneb | ForkName::Whisk => {
                 let response: JsonGetPayloadResponseV3<T> = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V3,

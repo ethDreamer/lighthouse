@@ -37,3 +37,10 @@ pub mod deneb {
     pub const BLOB_TX_TYPE: u8 = 3;
     pub const VERSIONED_HASH_VERSION_KZG: u8 = 1;
 }
+pub mod whisk {
+    pub const WHISK_CANDIDATE_TRACKERS_COUNT: u64 = 16384;
+    pub const WHISK_PROPOSER_TRACKERS_COUNT: u64 = 8192;
+    pub const WHISK_EPOCHS_PER_SHUFFLING_PHASE: u64 = 256;
+    pub const WHISK_VALIDATORS_PER_SHUFFLE: u64 = 128;
+    pub const WHISK_PROPOSER_SELECTION_GAP: u64 = 2;
+}

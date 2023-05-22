@@ -23,6 +23,9 @@ pub enum Domain {
     SyncCommittee,
     ContributionAndProof,
     SyncCommitteeSelectionProof,
+    WhiskCandidateSelection,
+    WhiskShuffle,
+    WhiskProposerSelection,
     ApplicationMask(ApplicationDomain),
 }
 
@@ -106,6 +109,9 @@ pub struct ChainSpec {
     pub(crate) domain_voluntary_exit: u32,
     pub(crate) domain_selection_proof: u32,
     pub(crate) domain_aggregate_and_proof: u32,
+    pub(crate) domain_whisk_candidate_selection: u32,
+    pub(crate) domain_whisk_shuffle: u32,
+    pub(crate) domain_whisk_proposer_selection: u32,
 
     /*
      * Fork choice
@@ -166,6 +172,12 @@ pub struct ChainSpec {
      */
     pub deneb_fork_version: [u8; 4],
     pub deneb_fork_epoch: Option<Epoch>,
+
+    /*
+     * Whisk hard fork params
+     */
+    pub whisk_fork_version: [u8; 4],
+    pub whisk_fork_epoch: Option<Epoch>,
 
     /*
      * Networking
@@ -255,15 +267,18 @@ impl ChainSpec {
 
     /// Returns the name of the fork which is active at `epoch`.
     pub fn fork_name_at_epoch(&self, epoch: Epoch) -> ForkName {
-        match self.deneb_fork_epoch {
-            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Deneb,
-            _ => match self.capella_fork_epoch {
-                Some(fork_epoch) if epoch >= fork_epoch => ForkName::Capella,
-                _ => match self.bellatrix_fork_epoch {
-                    Some(fork_epoch) if epoch >= fork_epoch => ForkName::Merge,
-                    _ => match self.altair_fork_epoch {
-                        Some(fork_epoch) if epoch >= fork_epoch => ForkName::Altair,
-                        _ => ForkName::Base,
+        match self.whisk_fork_epoch {
+            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Whisk,
+            _ => match self.deneb_fork_epoch {
+                Some(fork_epoch) if epoch >= fork_epoch => ForkName::Deneb,
+                _ => match self.capella_fork_epoch {
+                    Some(fork_epoch) if epoch >= fork_epoch => ForkName::Capella,
+                    _ => match self.bellatrix_fork_epoch {
+                        Some(fork_epoch) if epoch >= fork_epoch => ForkName::Merge,
+                        _ => match self.altair_fork_epoch {
+                            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Altair,
+                            _ => ForkName::Base,
+                        },
                     },
                 },
             },
@@ -278,6 +293,7 @@ impl ChainSpec {
             ForkName::Merge => self.bellatrix_fork_version,
             ForkName::Capella => self.capella_fork_version,
             ForkName::Deneb => self.deneb_fork_version,
+            ForkName::Whisk => self.whisk_fork_version,
         }
     }
 
@@ -289,6 +305,7 @@ impl ChainSpec {
             ForkName::Merge => self.bellatrix_fork_epoch,
             ForkName::Capella => self.capella_fork_epoch,
             ForkName::Deneb => self.deneb_fork_epoch,
+            ForkName::Whisk => self.whisk_fork_epoch,
         }
     }
 
@@ -300,6 +317,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.inactivity_penalty_quotient_bellatrix,
             BeaconState::Capella(_) => self.inactivity_penalty_quotient_bellatrix,
             BeaconState::Deneb(_) => self.inactivity_penalty_quotient_bellatrix,
+            BeaconState::Whisk(_) => self.inactivity_penalty_quotient_bellatrix,
         }
     }
 
@@ -314,6 +332,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.proportional_slashing_multiplier_bellatrix,
             BeaconState::Capella(_) => self.proportional_slashing_multiplier_bellatrix,
             BeaconState::Deneb(_) => self.proportional_slashing_multiplier_bellatrix,
+            BeaconState::Whisk(_) => self.proportional_slashing_multiplier_bellatrix,
         }
     }
 
@@ -328,6 +347,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.min_slashing_penalty_quotient_bellatrix,
             BeaconState::Capella(_) => self.min_slashing_penalty_quotient_bellatrix,
             BeaconState::Deneb(_) => self.min_slashing_penalty_quotient_bellatrix,
+            BeaconState::Whisk(_) => self.min_slashing_penalty_quotient_bellatrix,
         }
     }
 
@@ -377,6 +397,9 @@ impl ChainSpec {
             Domain::SyncCommitteeSelectionProof => self.domain_sync_committee_selection_proof,
             Domain::ApplicationMask(application_domain) => application_domain.get_domain_constant(),
             Domain::BlsToExecutionChange => self.domain_bls_to_execution_change,
+            Domain::WhiskCandidateSelection => self.domain_whisk_candidate_selection,
+            Domain::WhiskProposerSelection => self.domain_whisk_proposer_selection,
+            Domain::WhiskShuffle => self.domain_whisk_shuffle,
         }
     }
 
@@ -575,6 +598,9 @@ impl ChainSpec {
             domain_selection_proof: 5,
             domain_aggregate_and_proof: 6,
             domain_blob_sidecar: 11, // 0x0B000000
+            domain_whisk_candidate_selection: 100,
+            domain_whisk_shuffle: 101,
+            domain_whisk_proposer_selection: 102,
 
             /*
              * Fork choice
@@ -641,6 +667,12 @@ impl ChainSpec {
              */
             deneb_fork_version: [0x04, 0x00, 0x00, 0x00],
             deneb_fork_epoch: None,
+
+            /*
+             * Whisk hard fork params
+             */
+            whisk_fork_version: [0x05, 0x00, 0x00, 0x00],
+            whisk_fork_epoch: None,
 
             /*
              * Network specific
@@ -810,6 +842,9 @@ impl ChainSpec {
             domain_selection_proof: 5,
             domain_aggregate_and_proof: 6,
             domain_blob_sidecar: 11,
+            domain_whisk_candidate_selection: 100,
+            domain_whisk_shuffle: 101,
+            domain_whisk_proposer_selection: 102,
 
             /*
              * Fork choice
@@ -878,6 +913,12 @@ impl ChainSpec {
              */
             deneb_fork_version: [0x04, 0x00, 0x00, 0x64],
             deneb_fork_epoch: None,
+
+            /*
+             * Whisk hard fork params
+             */
+            whisk_fork_version: [0x05, 0x00, 0x00, 0x64],
+            whisk_fork_epoch: None,
 
             /*
              * Network specific

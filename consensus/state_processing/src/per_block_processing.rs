@@ -523,7 +523,7 @@ pub fn process_withdrawals<T: EthSpec, Payload: AbstractExecPayload<T>>(
 ) -> Result<(), BlockProcessingError> {
     match state {
         BeaconState::Merge(_) => Ok(()),
-        BeaconState::Capella(_) | BeaconState::Deneb(_) => {
+        BeaconState::Capella(_) | BeaconState::Deneb(_) | BeaconState::Whisk(_) => {
             let expected_withdrawals = get_expected_withdrawals(state, spec)?;
             let expected_root = expected_withdrawals.tree_hash_root();
             let withdrawals_root = payload.withdrawals_root()?;

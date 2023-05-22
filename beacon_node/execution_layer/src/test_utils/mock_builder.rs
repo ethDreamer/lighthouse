@@ -405,7 +405,7 @@ impl<E: EthSpec> mev_rs::BlindedBlockProvider for MockBuilder<E> {
         let payload_attributes = match fork {
             ForkName::Merge => PayloadAttributes::new(timestamp, *prev_randao, fee_recipient, None),
             // the withdrawals root is filled in by operations
-            ForkName::Capella | ForkName::Deneb => {
+            ForkName::Capella | ForkName::Deneb | ForkName::Whisk => {
                 PayloadAttributes::new(timestamp, *prev_randao, fee_recipient, Some(vec![]))
             }
             ForkName::Base | ForkName::Altair => {
@@ -452,7 +452,7 @@ impl<E: EthSpec> mev_rs::BlindedBlockProvider for MockBuilder<E> {
                 value: to_ssz_rs(&Uint256::from(DEFAULT_BUILDER_PAYLOAD_VALUE_WEI))?,
                 public_key: self.builder_sk.public_key(),
             }),
-            ForkName::Base | ForkName::Altair | ForkName::Deneb => {
+            ForkName::Base | ForkName::Altair | ForkName::Deneb | ForkName::Whisk => {
                 return Err(BlindedBlockProviderError::Custom(format!(
                     "Unsupported fork: {}",
                     fork

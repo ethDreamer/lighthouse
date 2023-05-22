@@ -176,7 +176,7 @@ impl From<BeaconStateHash> for Hash256 {
 
 /// The state of the `BeaconChain` at some slot.
 #[superstruct(
-    variants(Base, Altair, Merge, Capella, Deneb),
+    variants(Base, Altair, Merge, Capella, Deneb, Whisk),
     variant_attributes(
         derive(
             Derivative,
@@ -256,9 +256,9 @@ where
     pub current_epoch_attestations: VariableList<PendingAttestation<T>, T::MaxPendingAttestations>,
 
     // Participation (Altair and later)
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub previous_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub current_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
 
     // Finality
@@ -273,13 +273,13 @@ where
 
     // Inactivity
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub inactivity_scores: VariableList<u64, T::ValidatorRegistryLimit>,
 
     // Light-client sync committees
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub current_sync_committee: Arc<SyncCommittee<T>>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
@@ -298,16 +298,21 @@ where
         partial_getter(rename = "latest_execution_payload_header_deneb")
     )]
     pub latest_execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
+    #[superstruct(
+        only(Whisk),
+        partial_getter(rename = "latest_execution_payload_header_whisk")
+    )]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
 
     // Capella
-    #[superstruct(only(Capella, Deneb), partial_getter(copy))]
+    #[superstruct(only(Capella, Deneb, Whisk), partial_getter(copy))]
     #[serde(with = "eth2_serde_utils::quoted_u64")]
     pub next_withdrawal_index: u64,
-    #[superstruct(only(Capella, Deneb), partial_getter(copy))]
+    #[superstruct(only(Capella, Deneb, Whisk), partial_getter(copy))]
     #[serde(with = "eth2_serde_utils::quoted_u64")]
     pub next_withdrawal_validator_index: u64,
     // Deep history valid from Capella onwards.
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Whisk))]
     pub historical_summaries: VariableList<HistoricalSummary, T::HistoricalRootsLimit>,
 
     // Caching (not in the spec)
@@ -437,6 +442,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge { .. } => ForkName::Merge,
             BeaconState::Capella { .. } => ForkName::Capella,
             BeaconState::Deneb { .. } => ForkName::Deneb,
+            BeaconState::Whisk { .. } => ForkName::Whisk,
         }
     }
 
@@ -730,6 +736,9 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Deneb(state) => Ok(ExecutionPayloadHeaderRef::Deneb(
                 &state.latest_execution_payload_header,
             )),
+            BeaconState::Whisk(state) => Ok(ExecutionPayloadHeaderRef::Deneb(
+                &state.latest_execution_payload_header,
+            )),
         }
     }
 
@@ -745,6 +754,9 @@ impl<T: EthSpec> BeaconState<T> {
                 &mut state.latest_execution_payload_header,
             )),
             BeaconState::Deneb(state) => Ok(ExecutionPayloadHeaderRefMut::Deneb(
+                &mut state.latest_execution_payload_header,
+            )),
+            BeaconState::Whisk(state) => Ok(ExecutionPayloadHeaderRefMut::Deneb(
                 &mut state.latest_execution_payload_header,
             )),
         }
@@ -1176,6 +1188,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Capella(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Deneb(state) => (&mut state.validators, &mut state.balances),
+            BeaconState::Whisk(state) => (&mut state.validators, &mut state.balances),
         }
     }
 
@@ -1374,6 +1387,7 @@ impl<T: EthSpec> BeaconState<T> {
                 BeaconState::Merge(state) => Ok(&mut state.current_epoch_participation),
                 BeaconState::Capella(state) => Ok(&mut state.current_epoch_participation),
                 BeaconState::Deneb(state) => Ok(&mut state.current_epoch_participation),
+                BeaconState::Whisk(state) => Ok(&mut state.current_epoch_participation),
             }
         } else if epoch == self.previous_epoch() {
             match self {
@@ -1382,6 +1396,7 @@ impl<T: EthSpec> BeaconState<T> {
                 BeaconState::Merge(state) => Ok(&mut state.previous_epoch_participation),
                 BeaconState::Capella(state) => Ok(&mut state.previous_epoch_participation),
                 BeaconState::Deneb(state) => Ok(&mut state.previous_epoch_participation),
+                BeaconState::Whisk(state) => Ok(&mut state.previous_epoch_participation),
             }
         } else {
             Err(BeaconStateError::EpochOutOfBounds)
@@ -1688,6 +1703,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge(inner) => BeaconState::Merge(inner.clone()),
             BeaconState::Capella(inner) => BeaconState::Capella(inner.clone()),
             BeaconState::Deneb(inner) => BeaconState::Deneb(inner.clone()),
+            BeaconState::Whisk(inner) => BeaconState::Whisk(inner.clone()),
         };
         if config.committee_caches {
             *res.committee_caches_mut() = self.committee_caches().clone();
@@ -1950,6 +1966,7 @@ pub mod ssz_tagged_beacon_state {
                     body,
                 )?)),
                 ForkName::Deneb => Ok(BeaconState::Deneb(BeaconStateDeneb::from_ssz_bytes(body)?)),
+                ForkName::Whisk => Ok(BeaconState::Whisk(BeaconStateWhisk::from_ssz_bytes(body)?)),
             }
         }
     }

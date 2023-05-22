@@ -257,7 +257,8 @@ pub fn process_attestations<T: EthSpec, Payload: AbstractExecPayload<T>>(
         BeaconBlockBodyRef::Altair(_)
         | BeaconBlockBodyRef::Merge(_)
         | BeaconBlockBodyRef::Capella(_)
-        | BeaconBlockBodyRef::Deneb(_) => {
+        | BeaconBlockBodyRef::Deneb(_)
+        | BeaconBlockBodyRef::Whisk(_) => {
             altair::process_attestations(
                 state,
                 block_body.attestations(),

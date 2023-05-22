@@ -97,7 +97,7 @@ fn reconstruct_default_header_block<E: EthSpec>(
     let payload: ExecutionPayload<E> = match fork {
         ForkName::Merge => ExecutionPayloadMerge::default().into(),
         ForkName::Capella => ExecutionPayloadCapella::default().into(),
-        ForkName::Deneb => ExecutionPayloadDeneb::default().into(),
+        ForkName::Deneb | ForkName::Whisk => ExecutionPayloadDeneb::default().into(),
         ForkName::Base | ForkName::Altair => {
             return Err(Error::PayloadReconstruction(format!(
                 "Block with fork variant {} has execution payload",

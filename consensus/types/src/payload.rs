@@ -389,7 +389,7 @@ impl<T: EthSpec> AbstractExecPayload<T> for FullPayload<T> {
             ForkName::Base | ForkName::Altair => Err(Error::IncorrectStateVariant),
             ForkName::Merge => Ok(FullPayloadMerge::default().into()),
             ForkName::Capella => Ok(FullPayloadCapella::default().into()),
-            ForkName::Deneb => Ok(FullPayloadDeneb::default().into()),
+            ForkName::Deneb | ForkName::Whisk => Ok(FullPayloadDeneb::default().into()),
         }
     }
 }
@@ -902,7 +902,7 @@ impl<T: EthSpec> AbstractExecPayload<T> for BlindedPayload<T> {
             ForkName::Base | ForkName::Altair => Err(Error::IncorrectStateVariant),
             ForkName::Merge => Ok(BlindedPayloadMerge::default().into()),
             ForkName::Capella => Ok(BlindedPayloadCapella::default().into()),
-            ForkName::Deneb => Ok(BlindedPayloadDeneb::default().into()),
+            ForkName::Deneb | ForkName::Whisk => Ok(BlindedPayloadDeneb::default().into()),
         }
     }
 }

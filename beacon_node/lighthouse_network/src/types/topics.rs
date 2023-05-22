@@ -49,7 +49,8 @@ pub fn fork_core_topics<T: EthSpec>(fork_name: &ForkName) -> Vec<GossipKind> {
         ForkName::Altair => ALTAIR_CORE_TOPICS.to_vec(),
         ForkName::Merge => vec![],
         ForkName::Capella => CAPELLA_CORE_TOPICS.to_vec(),
-        ForkName::Deneb => {
+        // TODO(mark): Verify this
+        ForkName::Deneb | ForkName::Whisk => {
             // All of deneb blob topics are core topics
             let mut deneb_blob_topics = Vec::new();
             for i in 0..T::max_blobs_per_block() {

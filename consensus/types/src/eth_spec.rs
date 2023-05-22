@@ -4,7 +4,7 @@ use safe_arith::SafeArith;
 use serde_derive::{Deserialize, Serialize};
 use ssz_types::typenum::{
     bit::B0, UInt, Unsigned, U0, U1024, U1048576, U1073741824, U1099511627776, U128, U131072, U16,
-    U16777216, U2, U2048, U256, U32, U4, U4096, U512, U625, U64, U65536, U8, U8192,
+    U16777216, U2, U2048, U256, U32, U32768, U4, U4096, U512, U625, U64, U65536, U8, U8192,
 };
 use std::fmt::{self, Debug};
 use std::str::FromStr;
@@ -108,6 +108,12 @@ pub trait EthSpec:
     type MaxBlobsPerBlock: Unsigned + Clone + Sync + Send + Debug + PartialEq + Unpin;
     type FieldElementsPerBlob: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type BytesPerFieldElement: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /*
+     * New in Whisk
+     */
+    type WhiskMaxShuffleProofSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type WhiskMaxOpeningProofSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+
     /*
      * Derived values (set these CAREFULLY)
      */
@@ -308,6 +314,8 @@ impl EthSpec for MainnetEthSpec {
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
     type MaxBlsToExecutionChanges = U16;
     type MaxWithdrawalsPerPayload = U16;
+    type WhiskMaxShuffleProofSize = U32768;
+    type WhiskMaxOpeningProofSize = U1024;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -357,7 +365,9 @@ impl EthSpec for MinimalEthSpec {
         MaxExtraDataBytes,
         MaxBlsToExecutionChanges,
         MaxBlobsPerBlock,
-        BytesPerFieldElement
+        BytesPerFieldElement,
+        WhiskMaxShuffleProofSize,
+        WhiskMaxOpeningProofSize
     });
 
     fn default_spec() -> ChainSpec {
@@ -407,6 +417,8 @@ impl EthSpec for GnosisEthSpec {
     type FieldElementsPerBlob = U4096;
     type BytesPerFieldElement = U32;
     type BytesPerBlob = U131072;
+    type WhiskMaxShuffleProofSize = U32768;
+    type WhiskMaxOpeningProofSize = U1024;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

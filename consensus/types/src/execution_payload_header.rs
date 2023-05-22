@@ -97,7 +97,9 @@ impl<T: EthSpec> ExecutionPayloadHeader<T> {
             ForkName::Capella => {
                 ExecutionPayloadHeaderCapella::from_ssz_bytes(bytes).map(Self::Capella)
             }
-            ForkName::Deneb => ExecutionPayloadHeaderDeneb::from_ssz_bytes(bytes).map(Self::Deneb),
+            ForkName::Deneb | ForkName::Whisk => {
+                ExecutionPayloadHeaderDeneb::from_ssz_bytes(bytes).map(Self::Deneb)
+            }
         }
     }
 }
@@ -297,7 +299,9 @@ impl<T: EthSpec> ForkVersionDeserialize for ExecutionPayloadHeader<T> {
         Ok(match fork_name {
             ForkName::Merge => Self::Merge(serde_json::from_value(value).map_err(convert_err)?),
             ForkName::Capella => Self::Capella(serde_json::from_value(value).map_err(convert_err)?),
-            ForkName::Deneb => Self::Deneb(serde_json::from_value(value).map_err(convert_err)?),
+            ForkName::Deneb | ForkName::Whisk => {
+                Self::Deneb(serde_json::from_value(value).map_err(convert_err)?)
+            }
             ForkName::Base | ForkName::Altair => {
                 return Err(serde::de::Error::custom(format!(
                     "ExecutionPayloadHeader failed to deserialize: unsupported fork '{}'",

@@ -25,6 +25,7 @@ pub mod beacon_block_body;
 pub mod beacon_block_header;
 pub mod beacon_committee;
 pub mod beacon_state;
+pub mod bls_g1_point;
 pub mod bls_to_execution_change;
 pub mod builder_bid;
 pub mod chain_spec;
@@ -110,16 +111,19 @@ pub use crate::attestation_duty::AttestationDuty;
 pub use crate::attester_slashing::AttesterSlashing;
 pub use crate::beacon_block::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockCapella, BeaconBlockDeneb,
-    BeaconBlockMerge, BeaconBlockRef, BeaconBlockRefMut, BlindedBeaconBlock, EmptyBlock,
+    BeaconBlockMerge, BeaconBlockRef, BeaconBlockRefMut, BeaconBlockWhisk, BlindedBeaconBlock,
+    EmptyBlock,
 };
 pub use crate::beacon_block_body::{
     BeaconBlockBody, BeaconBlockBodyAltair, BeaconBlockBodyBase, BeaconBlockBodyCapella,
     BeaconBlockBodyDeneb, BeaconBlockBodyMerge, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
+    BeaconBlockBodyWhisk,
 };
 pub use crate::beacon_block_header::BeaconBlockHeader;
 pub use crate::beacon_committee::{BeaconCommittee, OwnedBeaconCommittee};
 pub use crate::beacon_state::{BeaconTreeHashCache, Error as BeaconStateError, *};
 pub use crate::blob_sidecar::{BlobSidecar, BlobSidecarList};
+pub use crate::bls_g1_point::BLSG1Point;
 pub use crate::bls_to_execution_change::BlsToExecutionChange;
 pub use crate::chain_spec::{ChainSpec, Config, Domain};
 pub use crate::checkpoint::Checkpoint;
@@ -172,7 +176,7 @@ pub use crate::signed_aggregate_and_proof::SignedAggregateAndProof;
 pub use crate::signed_beacon_block::{
     ssz_tagged_signed_beacon_block, SignedBeaconBlock, SignedBeaconBlockAltair,
     SignedBeaconBlockBase, SignedBeaconBlockCapella, SignedBeaconBlockDeneb, SignedBeaconBlockHash,
-    SignedBeaconBlockMerge, SignedBlindedBeaconBlock,
+    SignedBeaconBlockMerge, SignedBeaconBlockWhisk, SignedBlindedBeaconBlock,
 };
 pub use crate::signed_beacon_block_header::SignedBeaconBlockHeader;
 pub use crate::signed_blob::*;
@@ -207,6 +211,10 @@ pub type Blob<T> = FixedVector<u8, <T as EthSpec>::BytesPerBlob>;
 pub type KzgProofs<T> = VariableList<KzgProof, <T as EthSpec>::MaxBlobsPerBlock>;
 pub type VersionedHash = Hash256;
 pub type Hash64 = ethereum_types::H64;
+
+// Whisk
+pub type WhiskShuffleProof<E> = VariableList<u8, <E as EthSpec>::WhiskMaxShuffleProofSize>;
+pub type WhiskTrackerProof<E> = VariableList<u8, <E as EthSpec>::WhiskMaxOpeningProofSize>;
 
 pub use bls::{
     AggregatePublicKey, AggregateSignature, Keypair, PublicKey, PublicKeyBytes, SecretKey,

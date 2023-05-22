@@ -15,7 +15,7 @@ use types::*;
 ///
 /// Utilises lazy-loading from separate storage for its vector fields.
 #[superstruct(
-    variants(Base, Altair, Merge, Capella, Deneb),
+    variants(Base, Altair, Merge, Capella, Deneb, Whisk),
     variant_attributes(derive(Debug, PartialEq, Clone, Encode, Decode))
 )]
 #[derive(Debug, PartialEq, Clone, Encode)]
@@ -67,9 +67,9 @@ where
     pub current_epoch_attestations: VariableList<PendingAttestation<T>, T::MaxPendingAttestations>,
 
     // Participation (Altair and later)
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub previous_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub current_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
 
     // Finality
@@ -79,13 +79,13 @@ where
     pub finalized_checkpoint: Checkpoint,
 
     // Inactivity
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub inactivity_scores: VariableList<u64, T::ValidatorRegistryLimit>,
 
     // Light-client sync committees
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub current_sync_committee: Arc<SyncCommittee<T>>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Whisk))]
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
@@ -104,15 +104,20 @@ where
         partial_getter(rename = "latest_execution_payload_header_deneb")
     )]
     pub latest_execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
+    #[superstruct(
+        only(Whisk),
+        partial_getter(rename = "latest_execution_payload_header_whisk")
+    )]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
 
     // Capella
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Whisk))]
     pub next_withdrawal_index: u64,
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Whisk))]
     pub next_withdrawal_validator_index: u64,
 
     #[ssz(skip_serializing, skip_deserializing)]
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Whisk))]
     pub historical_summaries: Option<VariableList<HistoricalSummary, T::HistoricalRootsLimit>>,
 }
 
@@ -232,6 +237,23 @@ impl<T: EthSpec> PartialBeaconState<T> {
                 outer,
                 Deneb,
                 PartialBeaconStateDeneb,
+                [
+                    previous_epoch_participation,
+                    current_epoch_participation,
+                    current_sync_committee,
+                    next_sync_committee,
+                    inactivity_scores,
+                    latest_execution_payload_header,
+                    next_withdrawal_index,
+                    next_withdrawal_validator_index
+                ],
+                [historical_summaries]
+            ),
+            BeaconState::Whisk(s) => impl_from_state_forgetful!(
+                s,
+                outer,
+                Whisk,
+                PartialBeaconStateWhisk,
                 [
                     previous_epoch_participation,
                     current_epoch_participation,
@@ -476,6 +498,22 @@ impl<E: EthSpec> TryInto<BeaconState<E>> for PartialBeaconState<E> {
                 inner,
                 Deneb,
                 BeaconStateDeneb,
+                [
+                    previous_epoch_participation,
+                    current_epoch_participation,
+                    current_sync_committee,
+                    next_sync_committee,
+                    inactivity_scores,
+                    latest_execution_payload_header,
+                    next_withdrawal_index,
+                    next_withdrawal_validator_index
+                ],
+                [historical_summaries]
+            ),
+            PartialBeaconState::Whisk(inner) => impl_try_into_beacon_state!(
+                inner,
+                Whisk,
+                BeaconStateWhisk,
                 [
                     previous_epoch_participation,
                     current_epoch_participation,

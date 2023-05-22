@@ -583,7 +583,7 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
 
                 match execution_payload.fork_name() {
                     ForkName::Base | ForkName::Altair | ForkName::Merge | ForkName::Capella => {}
-                    ForkName::Deneb => {
+                    ForkName::Deneb | ForkName::Whisk => {
                         // get random number between 0 and Max Blobs
                         let num_blobs = rand::random::<usize>() % T::max_blobs_per_block();
                         let kzg = self.kzg.as_ref().ok_or("kzg not initialized")?;

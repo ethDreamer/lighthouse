@@ -38,7 +38,7 @@ impl From<SignedBeaconBlockHash> for Hash256 {
 
 /// A `BeaconBlock` and a signature from its proposer.
 #[superstruct(
-    variants(Base, Altair, Merge, Capella, Deneb),
+    variants(Base, Altair, Merge, Capella, Deneb, Whisk),
     variant_attributes(
         derive(
             Debug,
@@ -79,6 +79,8 @@ pub struct SignedBeaconBlock<E: EthSpec, Payload: AbstractExecPayload<E> = FullP
     pub message: BeaconBlockCapella<E, Payload>,
     #[superstruct(only(Deneb), partial_getter(rename = "message_deneb"))]
     pub message: BeaconBlockDeneb<E, Payload>,
+    #[superstruct(only(Whisk), partial_getter(rename = "message_whisk"))]
+    pub message: BeaconBlockWhisk<E, Payload>,
     pub signature: Signature,
 }
 
@@ -147,6 +149,9 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignedBeaconBlock<E, Payload> 
             }
             BeaconBlock::Deneb(message) => {
                 SignedBeaconBlock::Deneb(SignedBeaconBlockDeneb { message, signature })
+            }
+            BeaconBlock::Whisk(message) => {
+                SignedBeaconBlock::Whisk(SignedBeaconBlockWhisk { message, signature })
             }
         }
     }
@@ -473,6 +478,62 @@ impl<E: EthSpec> SignedBeaconBlockDeneb<E, BlindedPayload<E>> {
     }
 }
 
+impl<E: EthSpec> SignedBeaconBlockWhisk<E, BlindedPayload<E>> {
+    pub fn into_full_block(
+        self,
+        execution_payload: ExecutionPayloadDeneb<E>,
+    ) -> SignedBeaconBlockWhisk<E, FullPayload<E>> {
+        let SignedBeaconBlockWhisk {
+            message:
+                BeaconBlockWhisk {
+                    slot,
+                    proposer_index,
+                    parent_root,
+                    state_root,
+                    body:
+                        BeaconBlockBodyWhisk {
+                            randao_reveal,
+                            eth1_data,
+                            graffiti,
+                            proposer_slashings,
+                            attester_slashings,
+                            attestations,
+                            deposits,
+                            voluntary_exits,
+                            sync_aggregate,
+                            execution_payload: BlindedPayloadDeneb { .. },
+                            bls_to_execution_changes,
+                            blob_kzg_commitments,
+                        },
+                },
+            signature,
+        } = self;
+        SignedBeaconBlockWhisk {
+            message: BeaconBlockWhisk {
+                slot,
+                proposer_index,
+                parent_root,
+                state_root,
+                body: BeaconBlockBodyWhisk {
+                    randao_reveal,
+                    eth1_data,
+                    graffiti,
+                    proposer_slashings,
+                    attester_slashings,
+                    attestations,
+                    deposits,
+                    voluntary_exits,
+                    sync_aggregate,
+                    execution_payload: FullPayloadDeneb { execution_payload },
+                    bls_to_execution_changes,
+                    blob_kzg_commitments,
+                },
+            },
+            signature,
+        }
+    }
+}
+
 impl<E: EthSpec> SignedBeaconBlock<E, BlindedPayload<E>> {
     pub fn try_into_full_block(
         self,
@@ -490,11 +551,15 @@ impl<E: EthSpec> SignedBeaconBlock<E, BlindedPayload<E>> {
             (SignedBeaconBlock::Deneb(block), Some(ExecutionPayload::Deneb(payload))) => {
                 SignedBeaconBlock::Deneb(block.into_full_block(payload))
             }
+            (SignedBeaconBlock::Whisk(block), Some(ExecutionPayload::Deneb(payload))) => {
+                SignedBeaconBlock::Whisk(block.into_full_block(payload))
+            }
             // avoid wildcard matching forks so that compiler will
             // direct us here when a new fork has been added
             (SignedBeaconBlock::Merge(_), _) => return None,
             (SignedBeaconBlock::Capella(_), _) => return None,
             (SignedBeaconBlock::Deneb(_), _) => return None,
+            (SignedBeaconBlock::Whisk(_), _) => return None,
         };
         Some(full_block)
     }
@@ -636,6 +701,9 @@ pub mod ssz_tagged_signed_beacon_block {
                 )),
                 ForkName::Deneb => Ok(SignedBeaconBlock::Deneb(
                     SignedBeaconBlockDeneb::from_ssz_bytes(body)?,
+                )),
+                ForkName::Whisk => Ok(SignedBeaconBlock::Whisk(
+                    SignedBeaconBlockWhisk::from_ssz_bytes(body)?,
                 )),
             }
         }

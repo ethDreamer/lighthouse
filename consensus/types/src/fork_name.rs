@@ -15,6 +15,7 @@ pub enum ForkName {
     Merge,
     Capella,
     Deneb,
+    Whisk,
 }
 
 impl ForkName {
@@ -25,6 +26,7 @@ impl ForkName {
             ForkName::Merge,
             ForkName::Capella,
             ForkName::Deneb,
+            ForkName::Whisk,
         ]
     }
 
@@ -38,6 +40,7 @@ impl ForkName {
                 spec.bellatrix_fork_epoch = None;
                 spec.capella_fork_epoch = None;
                 spec.deneb_fork_epoch = None;
+                spec.whisk_fork_epoch = None;
                 spec
             }
             ForkName::Altair => {
@@ -45,6 +48,7 @@ impl ForkName {
                 spec.bellatrix_fork_epoch = None;
                 spec.capella_fork_epoch = None;
                 spec.deneb_fork_epoch = None;
+                spec.whisk_fork_epoch = None;
                 spec
             }
             ForkName::Merge => {
@@ -52,6 +56,7 @@ impl ForkName {
                 spec.bellatrix_fork_epoch = Some(Epoch::new(0));
                 spec.capella_fork_epoch = None;
                 spec.deneb_fork_epoch = None;
+                spec.whisk_fork_epoch = None;
                 spec
             }
             ForkName::Capella => {
@@ -59,6 +64,7 @@ impl ForkName {
                 spec.bellatrix_fork_epoch = Some(Epoch::new(0));
                 spec.capella_fork_epoch = Some(Epoch::new(0));
                 spec.deneb_fork_epoch = None;
+                spec.whisk_fork_epoch = None;
                 spec
             }
             ForkName::Deneb => {
@@ -66,6 +72,15 @@ impl ForkName {
                 spec.bellatrix_fork_epoch = Some(Epoch::new(0));
                 spec.capella_fork_epoch = Some(Epoch::new(0));
                 spec.deneb_fork_epoch = Some(Epoch::new(0));
+                spec.whisk_fork_epoch = None;
+                spec
+            }
+            ForkName::Whisk => {
+                spec.altair_fork_epoch = Some(Epoch::new(0));
+                spec.bellatrix_fork_epoch = Some(Epoch::new(0));
+                spec.capella_fork_epoch = Some(Epoch::new(0));
+                spec.deneb_fork_epoch = Some(Epoch::new(0));
+                spec.whisk_fork_epoch = Some(Epoch::new(0));
                 spec
             }
         }
@@ -81,6 +96,7 @@ impl ForkName {
             ForkName::Merge => Some(ForkName::Altair),
             ForkName::Capella => Some(ForkName::Merge),
             ForkName::Deneb => Some(ForkName::Capella),
+            ForkName::Whisk => Some(ForkName::Deneb),
         }
     }
 
@@ -93,7 +109,8 @@ impl ForkName {
             ForkName::Altair => Some(ForkName::Merge),
             ForkName::Merge => Some(ForkName::Capella),
             ForkName::Capella => Some(ForkName::Deneb),
-            ForkName::Deneb => None,
+            ForkName::Deneb => Some(ForkName::Whisk),
+            ForkName::Whisk => None,
         }
     }
 }
@@ -143,6 +160,10 @@ macro_rules! map_fork_name_with {
                 let (value, extra_data) = $body;
                 ($t::Deneb(value), extra_data)
             }
+            ForkName::Whisk => {
+                let (value, extra_data) = $body;
+                ($t::Whisk(value), extra_data)
+            }
         }
     };
 }
@@ -157,6 +178,7 @@ impl FromStr for ForkName {
             "bellatrix" | "merge" => ForkName::Merge,
             "capella" => ForkName::Capella,
             "deneb" => ForkName::Deneb,
+            "whisk" => ForkName::Whisk,
             _ => return Err(format!("unknown fork name: {}", fork_name)),
         })
     }
@@ -170,6 +192,7 @@ impl Display for ForkName {
             ForkName::Merge => "bellatrix".fmt(f),
             ForkName::Capella => "capella".fmt(f),
             ForkName::Deneb => "deneb".fmt(f),
+            ForkName::Whisk => "whisk".fmt(f),
         }
     }
 }

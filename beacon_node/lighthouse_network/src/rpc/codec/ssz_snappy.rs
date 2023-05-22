@@ -19,7 +19,7 @@ use types::{light_client_bootstrap::LightClientBootstrap, BlobSidecar};
 use types::{
     EthSpec, ForkContext, ForkName, Hash256, SignedBeaconBlock, SignedBeaconBlockAltair,
     SignedBeaconBlockBase, SignedBeaconBlockCapella, SignedBeaconBlockDeneb,
-    SignedBeaconBlockMerge,
+    SignedBeaconBlockMerge, SignedBeaconBlockWhisk,
 };
 use unsigned_varint::codec::Uvi;
 
@@ -419,6 +419,10 @@ fn context_bytes<T: EthSpec>(
                 return match **ref_box_block {
                     // NOTE: If you are adding another fork type here, be sure to modify the
                     //       `fork_context.to_context_bytes()` function to support it as well!
+                    SignedBeaconBlock::Whisk { .. } => {
+                        // Whisk context being `None` implies that "whisk never happened".
+                        fork_context.to_context_bytes(ForkName::Whisk)
+                    }
                     SignedBeaconBlock::Deneb { .. } => {
                         // Deneb context being `None` implies that "merge never happened".
                         fork_context.to_context_bytes(ForkName::Deneb)
@@ -667,6 +671,11 @@ fn handle_v2_response<T: EthSpec>(
                         decoded_buffer,
                     )?),
                 )))),
+                ForkName::Whisk => Ok(Some(RPCResponse::BlocksByRange(Arc::new(
+                    SignedBeaconBlock::Whisk(SignedBeaconBlockWhisk::from_ssz_bytes(
+                        decoded_buffer,
+                    )?),
+                )))),
             },
             Protocol::BlocksByRoot => match fork_name {
                 ForkName::Altair => Ok(Some(RPCResponse::BlocksByRoot(Arc::new(
@@ -689,6 +698,11 @@ fn handle_v2_response<T: EthSpec>(
                 )))),
                 ForkName::Deneb => Ok(Some(RPCResponse::BlocksByRoot(Arc::new(
                     SignedBeaconBlock::Deneb(SignedBeaconBlockDeneb::from_ssz_bytes(
+                        decoded_buffer,
+                    )?),
+                )))),
+                ForkName::Whisk => Ok(Some(RPCResponse::BlocksByRoot(Arc::new(
+                    SignedBeaconBlock::Whisk(SignedBeaconBlockWhisk::from_ssz_bytes(
                         decoded_buffer,
                     )?),
                 )))),

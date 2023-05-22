@@ -40,14 +40,16 @@ pub fn run<T: EthSpec>(matches: &ArgMatches) -> Result<(), String> {
             prev_randao: eth1_block_hash.into_root(),
             ..ExecutionPayloadHeaderCapella::default()
         }),
-        ForkName::Deneb => ExecutionPayloadHeader::Deneb(ExecutionPayloadHeaderDeneb {
-            gas_limit,
-            base_fee_per_gas,
-            timestamp: genesis_time,
-            block_hash: eth1_block_hash,
-            prev_randao: eth1_block_hash.into_root(),
-            ..ExecutionPayloadHeaderDeneb::default()
-        }),
+        ForkName::Deneb | ForkName::Whisk => {
+            ExecutionPayloadHeader::Deneb(ExecutionPayloadHeaderDeneb {
+                gas_limit,
+                base_fee_per_gas,
+                timestamp: genesis_time,
+                block_hash: eth1_block_hash,
+                prev_randao: eth1_block_hash.into_root(),
+                ..ExecutionPayloadHeaderDeneb::default()
+            })
+        }
     };
 
     let mut file = File::create(file_name).map_err(|_| "Unable to create file".to_string())?;

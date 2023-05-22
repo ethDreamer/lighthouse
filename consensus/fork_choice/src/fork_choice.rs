@@ -758,7 +758,8 @@ where
                     let justification_and_finalization_state = match block {
                         // TODO(deneb): Ensure that the final specification
                         // does not substantially modify per epoch processing.
-                        BeaconBlockRef::Deneb(_)
+                        BeaconBlockRef::Whisk(_)
+                        | BeaconBlockRef::Deneb(_)
                         | BeaconBlockRef::Capella(_)
                         | BeaconBlockRef::Merge(_)
                         | BeaconBlockRef::Altair(_) => {

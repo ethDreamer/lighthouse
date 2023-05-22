@@ -1,6 +1,6 @@
 use crate::beacon_block_body::{
     BeaconBlockBodyAltair, BeaconBlockBodyBase, BeaconBlockBodyDeneb, BeaconBlockBodyMerge,
-    BeaconBlockBodyRef, BeaconBlockBodyRefMut,
+    BeaconBlockBodyRef, BeaconBlockBodyRefMut, BeaconBlockBodyWhisk,
 };
 use crate::test_utils::TestRandom;
 use crate::*;
@@ -17,7 +17,7 @@ use tree_hash_derive::TreeHash;
 
 /// A block of the `BeaconChain`.
 #[superstruct(
-    variants(Base, Altair, Merge, Capella, Deneb),
+    variants(Base, Altair, Merge, Capella, Deneb, Whisk),
     variant_attributes(
         derive(
             Debug,
@@ -74,6 +74,8 @@ pub struct BeaconBlock<T: EthSpec, Payload: AbstractExecPayload<T> = FullPayload
     pub body: BeaconBlockBodyCapella<T, Payload>,
     #[superstruct(only(Deneb), partial_getter(rename = "body_deneb"))]
     pub body: BeaconBlockBodyDeneb<T, Payload>,
+    #[superstruct(only(Whisk), partial_getter(rename = "body_whisk"))]
+    pub body: BeaconBlockBodyWhisk<T, Payload>,
 }
 
 pub type BlindedBeaconBlock<E> = BeaconBlock<E, BlindedPayload<E>>;
@@ -223,6 +225,7 @@ impl<'a, T: EthSpec, Payload: AbstractExecPayload<T>> BeaconBlockRef<'a, T, Payl
             BeaconBlockRef::Merge { .. } => ForkName::Merge,
             BeaconBlockRef::Capella { .. } => ForkName::Capella,
             BeaconBlockRef::Deneb { .. } => ForkName::Deneb,
+            BeaconBlockRef::Whisk { .. } => ForkName::Whisk,
         }
     }
 
@@ -597,6 +600,35 @@ impl<T: EthSpec, Payload: AbstractExecPayload<T>> EmptyBlock for BeaconBlockDene
     }
 }
 
+impl<T: EthSpec, Payload: AbstractExecPayload<T>> EmptyBlock for BeaconBlockWhisk<T, Payload> {
+    fn empty(spec: &ChainSpec) -> Self {
+        BeaconBlockWhisk {
+            slot: spec.genesis_slot,
+            proposer_index: 0,
+            parent_root: Hash256::zero(),
+            state_root: Hash256::zero(),
+            body: BeaconBlockBodyWhisk {
+                randao_reveal: Signature::empty(),
+                eth1_data: Eth1Data {
+                    deposit_root: Hash256::zero(),
+                    block_hash: Hash256::zero(),
+                    deposit_count: 0,
+                },
+                graffiti: Graffiti::default(),
+                proposer_slashings: VariableList::empty(),
+                attester_slashings: VariableList::empty(),
+                attestations: VariableList::empty(),
+                deposits: VariableList::empty(),
+                voluntary_exits: VariableList::empty(),
+                sync_aggregate: SyncAggregate::empty(),
+                execution_payload: Payload::Deneb::default(),
+                bls_to_execution_changes: VariableList::empty(),
+                blob_kzg_commitments: VariableList::empty(),
+            },
+        }
+    }
+}
+
 // We can convert pre-Bellatrix blocks without payloads into blocks "with" payloads.
 impl<E: EthSpec> From<BeaconBlockBase<E, BlindedPayload<E>>>
     for BeaconBlockBase<E, FullPayload<E>>
@@ -677,6 +709,7 @@ impl_from!(BeaconBlockAltair, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body
 impl_from!(BeaconBlockMerge, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyMerge<_, _>| body.into());
 impl_from!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyCapella<_, _>| body.into());
 impl_from!(BeaconBlockDeneb, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyDeneb<_, _>| body.into());
+impl_from!(BeaconBlockWhisk, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyWhisk<_, _>| body.into());
 
 // We can clone blocks with payloads to blocks without payloads, without cloning the payload.
 macro_rules! impl_clone_as_blinded {
@@ -709,6 +742,7 @@ impl_clone_as_blinded!(BeaconBlockAltair, <E, FullPayload<E>>, <E, BlindedPayloa
 impl_clone_as_blinded!(BeaconBlockMerge, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockCapella, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockDeneb, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
+impl_clone_as_blinded!(BeaconBlockWhisk, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.
