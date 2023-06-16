@@ -252,6 +252,58 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
         }
     }
 
+    /// Checks if a vector of blocks are available. Returns a vector of `MaybeAvailableBlock`
+    pub fn check_availability_bulk(
+        &self,
+        blocks: Vec<BlockWrapper<T::EthSpec>>,
+    ) -> Result<Vec<MaybeAvailableBlock<T::EthSpec>>, AvailabilityCheckError> {
+        let mut results = Vec::with_capacity(blocks.len());
+        let kzg = self
+            .kzg
+            .as_ref()
+            .ok_or(AvailabilityCheckError::KzgNotInitialized)?;
+
+        let all_blobs = blocks
+            .iter()
+            .filter_map(|block| match block {
+                BlockWrapper::Block(_) => None,
+                BlockWrapper::BlockAndBlobs(_, blob_list) => {
+                    Some(blob_list.iter().flatten().cloned().collect::<Vec<_>>())
+                }
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+        // Verify all blobs in all blocks at once
+        // TODO: ensure this function returns empty list if there are no blobs
+        let mut verified_blobs = verify_kzg_for_blob_list(all_blobs, kzg)?
+            .into_iter()
+            // VecDeque is used to allow efficient draining of verified_blobs
+            .collect::<std::collections::VecDeque<_>>();
+
+        for block in blocks {
+            match block {
+                BlockWrapper::Block(block) => {
+                    results.push(self.check_availability_without_blobs(block)?)
+                }
+                BlockWrapper::BlockAndBlobs(block, _) => {
+                    let block_root = block.canonical_root();
+                    // find the index of the first blob that does not belong to this block
+                    let split = verified_blobs
+                        .iter()
+                        .position(|blob| blob.block_root() != block_root)
+                        .unwrap_or_else(|| verified_blobs.len());
+                    let block_blobs = verified_blobs.drain(..split).collect();
+
+                    results.push(MaybeAvailableBlock::Available(
+                        self.check_availability_with_blobs(block, block_blobs)?,
+                    ));
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
     /// Verifies a block against a set of KZG verified blobs. Returns an AvailableBlock if block's
     /// commitments are consistent with the provided verified blob commitments.
     pub fn check_availability_with_blobs(
@@ -666,8 +718,183 @@ impl<E: EthSpec> ssz::Decode for AvailabilityPendingBlock<E> {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::test_utils::{BaseHarnessType, BeaconChainHarness, DiskHarnessType};
+    use execution_layer::test_utils::Block;
+    use logging::test_logger;
+    use slasher::test_utils::block;
+    use slog::{info, Logger};
+    use std::time::{Duration, Instant};
+    use store::{HotColdDB, ItemStore, LevelDB, StoreConfig};
+    use tempfile::{tempdir, TempDir};
+    use types::MainnetEthSpec;
+
     #[test]
     fn check_encode_decode_availability_pending_block() {
         // todo.. (difficult to create default beacon blocks to test)
+    }
+
+    fn get_store_with_spec<E: EthSpec>(
+        db_path: &TempDir,
+        spec: ChainSpec,
+        log: Logger,
+    ) -> Arc<HotColdDB<E, LevelDB<E>, LevelDB<E>>> {
+        let hot_path = db_path.path().join("hot_db");
+        let cold_path = db_path.path().join("cold_db");
+        let config = StoreConfig::default();
+
+        HotColdDB::open(
+            &hot_path,
+            &cold_path,
+            None,
+            |_, _, _| Ok(()),
+            config,
+            spec,
+            log,
+        )
+        .expect("disk store should initialize")
+    }
+
+    // get a beacon chain harness advanced to just before deneb fork
+    async fn get_deneb_chain<E: EthSpec>(
+        log: Logger,
+        db_path: &TempDir,
+    ) -> BeaconChainHarness<BaseHarnessType<E, LevelDB<E>, LevelDB<E>>> {
+        const LOW_VALIDATOR_COUNT: usize = 32;
+        let altair_fork_epoch = Epoch::new(1);
+        let bellatrix_fork_epoch = Epoch::new(2);
+        let bellatrix_fork_slot = bellatrix_fork_epoch.start_slot(E::slots_per_epoch());
+        let capella_fork_epoch = Epoch::new(3);
+        let deneb_fork_epoch = Epoch::new(4);
+        let deneb_fork_slot = deneb_fork_epoch.start_slot(E::slots_per_epoch());
+
+        let mut spec = E::default_spec();
+        spec.altair_fork_epoch = Some(altair_fork_epoch);
+        spec.bellatrix_fork_epoch = Some(bellatrix_fork_epoch);
+        spec.capella_fork_epoch = Some(capella_fork_epoch);
+        spec.deneb_fork_epoch = Some(deneb_fork_epoch);
+
+        let chain_store = get_store_with_spec::<E>(db_path, spec.clone(), log.clone());
+        let validators_keypairs =
+            types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
+        let harness = BeaconChainHarness::builder(E::default())
+            .spec(spec.clone())
+            .logger(log.clone())
+            .keypairs(validators_keypairs)
+            .fresh_disk_store(chain_store)
+            .mock_execution_layer()
+            .build();
+
+        // go to bellatrix slot
+        harness.extend_to_slot(bellatrix_fork_slot).await;
+        let merge_head = &harness.chain.head_snapshot().beacon_block;
+        assert!(merge_head.as_merge().is_ok());
+        assert_eq!(merge_head.slot(), bellatrix_fork_slot);
+        assert!(
+            merge_head
+                .message()
+                .body()
+                .execution_payload()
+                .unwrap()
+                .is_default_with_empty_roots(),
+            "Merge head is default payload"
+        );
+        // Trigger the terminal PoW block.
+        harness
+            .execution_block_generator()
+            .move_to_terminal_block()
+            .unwrap();
+        // go right before deneb slot
+        harness.extend_to_slot(deneb_fork_slot - 1).await;
+
+        harness
+    }
+
+    async fn get_wrapped_block<E, Hot, Cold>(
+        harness: &BeaconChainHarness<BaseHarnessType<E, Hot, Cold>>,
+        log: Logger,
+    ) -> BlockWrapper<E>
+    where
+        E: EthSpec,
+        Hot: ItemStore<E>,
+        Cold: ItemStore<E>,
+    {
+        let chain = &harness.chain;
+        let head = chain.head_snapshot();
+        let parent_state = head.beacon_state.clone_with_only_committee_caches();
+        let target_slot = harness.chain.slot().expect("should get slot") + 1;
+
+        let (_block_hash, block_contents_tuple, _state) = harness
+            .add_block_at_slot(target_slot, parent_state)
+            .await
+            .expect("should add block");
+
+        block_contents_tuple.into()
+    }
+
+    #[tokio::test]
+    async fn data_availability_checker_bulk_verify_kzg() {
+        type E = MainnetEthSpec;
+        type T = DiskHarnessType<E>;
+        let log = test_logger();
+        let chain_db_path = tempdir().expect("should create tempdir");
+        let harness: BeaconChainHarness<T> = get_deneb_chain(log.clone(), &chain_db_path).await;
+
+        let da_checker = DataAvailabilityChecker::<T>::new(
+            harness.chain.slot_clock.clone(),
+            harness.chain.kzg.clone(),
+            harness.chain.store.clone(),
+            harness.chain.spec.clone(),
+        )
+        .expect("should create data availability checker");
+
+        // get 1 epoch's worth of blobs
+        let mut wrapped_blocks = Vec::with_capacity(E::slots_per_epoch() as usize);
+        for _ in 0..E::slots_per_epoch() {
+            wrapped_blocks.push(get_wrapped_block(&harness, log.clone()).await);
+        }
+
+        let NUM_CYCLES = 128;
+
+        info!(log, "Timing Sequentially");
+        // first time it sequentially
+        let mut clone_duration = Duration::new(0, 0);
+        let start_sequential = Instant::now();
+        for _ in 0..NUM_CYCLES {
+            let clone_start = Instant::now();
+            let cloned_blocks = wrapped_blocks.clone();
+            clone_duration += clone_start.elapsed();
+
+            for wb in cloned_blocks {
+                da_checker.check_availability(wb);
+            }
+        }
+        let duration_sequential = (start_sequential.elapsed() - clone_duration) / NUM_CYCLES;
+
+        info!(log, "Timing In Bulk");
+        // time it in bulk
+        let mut clone_duration = Duration::new(0, 0);
+        let start_bulk = Instant::now();
+        for _ in 0..NUM_CYCLES {
+            let clone_start = Instant::now();
+            let cloned_blocks = wrapped_blocks.clone();
+            clone_duration += clone_start.elapsed();
+
+            da_checker.check_availability_bulk(cloned_blocks);
+        }
+        let duration_bulk = (start_bulk.elapsed() - clone_duration) / NUM_CYCLES;
+
+        // print out the two times
+        println!("NUM_CYCLES: {}", NUM_CYCLES);
+        println!("Sequential: {}", duration_sequential.as_micros());
+        println!("Bulk:       {}", duration_bulk.as_micros());
+        println!(
+            "Ratio:      {}",
+            duration_bulk.as_micros() as f64 / duration_sequential.as_micros() as f64
+        );
+
+        // bulk should be faster
+        assert!(duration_bulk < duration_sequential);
+        assert!(false);
     }
 }
