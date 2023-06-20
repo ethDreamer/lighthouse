@@ -427,14 +427,10 @@ impl<T: BeaconChainTypes> Worker<T> {
         downloaded_blocks: Vec<BlockWrapper<T::EthSpec>>,
     ) -> (usize, Result<(), ChainSegmentFailed>) {
         let total_blocks = downloaded_blocks.len();
-        let available_blocks = match downloaded_blocks
-            .into_iter()
-            .map(|block| {
-                self.chain
-                    .data_availability_checker
-                    .check_availability(block)
-            })
-            .collect::<Result<Vec<_>, _>>()
+        let available_blocks = match self
+            .chain
+            .data_availability_checker
+            .check_availability_bulk(downloaded_blocks)
         {
             Ok(blocks) => blocks
                 .into_iter()
