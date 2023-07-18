@@ -57,8 +57,8 @@ use std::borrow::Cow;
 use strum::AsRefStr;
 use tree_hash::TreeHash;
 use types::{
-    Attestation, BeaconCommittee, CommitteeIndex, Epoch, EthSpec, Hash256, IndexedAttestation,
-    SelectionProof, SignedAggregateAndProof, Slot, SubnetId,
+    Attestation, BeaconCommittee, ChainSpec, CommitteeIndex, Epoch, EthSpec, ForkName, Hash256,
+    IndexedAttestation, SelectionProof, SignedAggregateAndProof, Slot, SubnetId,
 };
 
 pub use batch::{batch_verify_aggregated_attestations, batch_verify_unaggregated_attestations};
@@ -454,7 +454,7 @@ impl<'a, T: BeaconChainTypes> IndexedAggregatedAttestation<'a, T> {
         // MAXIMUM_GOSSIP_CLOCK_DISPARITY allowance).
         //
         // We do not queue future attestations for later processing.
-        verify_propagation_slot_range(&chain.slot_clock, attestation)?;
+        verify_propagation_slot_range(&chain.slot_clock, attestation, &chain.spec)?;
 
         // Check the attestation's epoch matches its target.
         if attestation.data.slot.epoch(T::EthSpec::slots_per_epoch())
@@ -722,7 +722,7 @@ impl<'a, T: BeaconChainTypes> IndexedUnaggregatedAttestation<'a, T> {
         // MAXIMUM_GOSSIP_CLOCK_DISPARITY allowance).
         //
         // We do not queue future attestations for later processing.
-        verify_propagation_slot_range(&chain.slot_clock, attestation)?;
+        verify_propagation_slot_range(&chain.slot_clock, attestation, &chain.spec)?;
 
         // Check to ensure that the attestation is "unaggregated". I.e., it has exactly one
         // aggregation bit set.
@@ -1037,6 +1037,7 @@ fn verify_head_block_is_known<T: BeaconChainTypes>(
 pub fn verify_propagation_slot_range<S: SlotClock, E: EthSpec>(
     slot_clock: &S,
     attestation: &Attestation<E>,
+    spec: &ChainSpec,
 ) -> Result<(), Error> {
     let attestation_slot = attestation.data.slot;
 
@@ -1051,10 +1052,21 @@ pub fn verify_propagation_slot_range<S: SlotClock, E: EthSpec>(
     }
 
     // Taking advantage of saturating subtraction on `Slot`.
-    let earliest_permissible_slot = slot_clock
+    let one_epoch_prior = slot_clock
         .now_with_past_tolerance(MAXIMUM_GOSSIP_CLOCK_DISPARITY)
         .ok_or(BeaconChainError::UnableToReadSlot)?
         - E::slots_per_epoch();
+
+    let current_fork =
+        spec.fork_name_at_slot::<E>(slot_clock.now().ok_or(BeaconChainError::UnableToReadSlot)?);
+    let earliest_permissible_slot = match current_fork {
+        ForkName::Base | ForkName::Altair | ForkName::Merge | ForkName::Capella => one_epoch_prior,
+        // EIP-7045
+        ForkName::Deneb => one_epoch_prior
+            .epoch(E::slots_per_epoch())
+            .start_slot(E::slots_per_epoch()),
+    };
+
     if attestation_slot < earliest_permissible_slot {
         return Err(Error::PastSlot {
             attestation_slot,
