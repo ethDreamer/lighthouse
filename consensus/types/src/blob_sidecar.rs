@@ -1,8 +1,10 @@
 use crate::test_utils::TestRandom;
-use crate::{Blob, ChainSpec, Domain, EthSpec, Fork, Hash256, SignedBlobSidecar, SignedRoot, Slot};
+use crate::{
+    ChainSpec, Domain, EthSpec, Fork, Hash256, SignedBlobSidecar, SignedRoot, SigpBlob, Slot,
+};
 use bls::SecretKey;
 use derivative::Derivative;
-use kzg::{Kzg, KzgCommitment, KzgPreset, KzgProof};
+use kzg::{Kzg, KzgCommitment, KzgProof};
 use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 use ssz::Encode;
@@ -57,8 +59,7 @@ pub struct BlobSidecar<T: EthSpec> {
     pub block_parent_root: Hash256,
     #[serde(with = "serde_utils::quoted_u64")]
     pub proposer_index: u64,
-    #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]
-    pub blob: Blob<T>,
+    pub blob: SigpBlob<T>,
     pub kzg_commitment: KzgCommitment,
     pub kzg_proof: KzgProof,
 }
@@ -78,7 +79,7 @@ impl<T: EthSpec> Ord for BlobSidecar<T> {
 pub type BlobSidecarList<T> = VariableList<Arc<BlobSidecar<T>>, <T as EthSpec>::MaxBlobsPerBlock>;
 pub type FixedBlobSidecarList<T> =
     FixedVector<Option<Arc<BlobSidecar<T>>>, <T as EthSpec>::MaxBlobsPerBlock>;
-pub type Blobs<T> = VariableList<Blob<T>, <T as EthSpec>::MaxBlobsPerBlock>;
+pub type Blobs<T> = VariableList<SigpBlob<T>, <T as EthSpec>::MaxBlobsPerBlock>;
 
 impl<T: EthSpec> SignedRoot for BlobSidecar<T> {}
 
@@ -95,20 +96,8 @@ impl<T: EthSpec> BlobSidecar<T> {
     }
 
     pub fn random_valid<R: Rng>(rng: &mut R, kzg: &Kzg<T::Kzg>) -> Result<Self, String> {
-        let mut blob_bytes = vec![0u8; T::Kzg::BYTES_PER_BLOB];
-        rng.fill_bytes(&mut blob_bytes);
-        // Ensure that the blob is canonical by ensuring that
-        // each field element contained in the blob is < BLS_MODULUS
-        for i in 0..T::Kzg::FIELD_ELEMENTS_PER_BLOB {
-            let Some(byte) = blob_bytes.get_mut(i.checked_mul(T::Kzg::BYTES_PER_FIELD_ELEMENT).ok_or("overflow".to_string())?)  else {
-                return Err(format!("blob byte index out of bounds: {:?}", i));
-            };
-            *byte = 0;
-        }
-
-        let blob = Blob::<T>::new(blob_bytes)
-            .map_err(|e| format!("error constructing random blob: {:?}", e))?;
-        let kzg_blob = T::blob_from_bytes(&blob).unwrap();
+        let blob = SigpBlob::<T>::random_valid(rng)?;
+        let kzg_blob = blob.c_kzg_blob();
 
         let commitment = kzg
             .blob_to_kzg_commitment(kzg_blob.clone())
