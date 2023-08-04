@@ -1049,6 +1049,5 @@ pub struct ExecutionPayloadAndBlobs<E: EthSpec> {
 pub struct BlobsBundle<E: EthSpec> {
     pub commitments: KzgCommitments<E>,
     pub proofs: KzgProofs<E>,
-    #[serde(with = "ssz_types::serde_utils::list_of_hex_fixed_vec")]
     pub blobs: BlobsList<E>,
 }
