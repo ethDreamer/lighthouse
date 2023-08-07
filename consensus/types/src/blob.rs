@@ -28,9 +28,9 @@ impl<E: EthSpec> SigpBlob<E> {
             };
             *byte = 0;
         }
-        let kzg_blob = <E::Kzg as KzgPreset>::Blob::from_bytes(&blob_bytes)
+        let boxed_kzg_blob = <E::Kzg as KzgPreset>::Blob::from_bytes(&blob_bytes)
             .map_err(|e| format!("failed to create blob: {:?}", e))?;
-        Ok(Self(Arc::new(kzg_blob)))
+        Ok(Self(Arc::from(boxed_kzg_blob)))
     }
 
     pub fn c_kzg_blob(&self) -> &<E::Kzg as KzgPreset>::Blob {
@@ -51,9 +51,9 @@ impl<'a, E: EthSpec> Arbitrary<'a> for SigpBlob<E> {
             };
             *byte = 0;
         }
-        let kzg_blob =
+        let boxed_kzg_blob =
             <E::Kzg as KzgPreset>::Blob::from_bytes(&blob_bytes).map_err(|_| arbitrary_error)?;
-        Ok(Self(Arc::new(kzg_blob)))
+        Ok(Self(Arc::from(boxed_kzg_blob)))
     }
 }
 
@@ -100,15 +100,15 @@ impl<'de, T: EthSpec> Deserialize<'de> for SigpBlob<T> {
                 let bytes = hex::decode(hex_value)
                     .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(value), &self))?;
 
-                let kzg_blob =
-                    <T::Kzg as KzgPreset>::Blob::from_bytes(bytes.as_slice()).map_err(|_| {
+                let boxed_kzg_blob = <T::Kzg as KzgPreset>::Blob::from_bytes(bytes.as_slice())
+                    .map_err(|_| {
                         de::Error::invalid_length(
                             bytes.len(),
                             &"a blob with the correct byte length",
                         )
                     })?;
 
-                Ok(SigpBlob(Arc::new(kzg_blob)))
+                Ok(SigpBlob(Arc::from(boxed_kzg_blob)))
             }
         }
 
@@ -142,14 +142,14 @@ impl<E: EthSpec> Decode for SigpBlob<E> {
     }
 
     fn from_ssz_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        let kzg_blob = <E::Kzg as KzgPreset>::Blob::from_bytes(bytes).map_err(|_| {
+        let boxed_kzg_blob = <E::Kzg as KzgPreset>::Blob::from_bytes(bytes).map_err(|_| {
             DecodeError::InvalidByteLength {
                 len: bytes.len(),
                 expected: <E::Kzg as KzgPreset>::BYTES_PER_BLOB,
             }
         })?;
 
-        Ok(Self(Arc::new(kzg_blob)))
+        Ok(Self(Arc::from(boxed_kzg_blob)))
     }
 }
 
@@ -158,14 +158,15 @@ impl<E: EthSpec> TryFrom<Vec<u8>> for SigpBlob<E> {
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let length = bytes.len();
-        let kzg_blob = <E::Kzg as KzgPreset>::Blob::from_bytes(bytes.as_slice()).map_err(|_| {
-            format!(
-                "Invalid blob length: {} bytes, expected {}",
-                length,
-                <E::Kzg as KzgPreset>::BYTES_PER_BLOB
-            )
-        })?;
-        Ok(Self(Arc::new(kzg_blob)))
+        let boxed_kzg_blob =
+            <E::Kzg as KzgPreset>::Blob::from_bytes(bytes.as_slice()).map_err(|_| {
+                format!(
+                    "Invalid blob length: {} bytes, expected {}",
+                    length,
+                    <E::Kzg as KzgPreset>::BYTES_PER_BLOB
+                )
+            })?;
+        Ok(Self(Arc::from(boxed_kzg_blob)))
     }
 }
 
@@ -205,7 +206,7 @@ impl<E: EthSpec> TreeHash for SigpBlob<E> {
 impl<E: EthSpec> Default for SigpBlob<E> {
     fn default() -> Self {
         let bytes = vec![0u8; <E::Kzg as KzgPreset>::BYTES_PER_BLOB];
-        SigpBlob(Arc::new(
+        SigpBlob(Arc::from(
             <E::Kzg as KzgPreset>::Blob::from_bytes(bytes.as_slice())
                 .expect("default blob should be valid"),
         ))
