@@ -6,6 +6,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub use crate::{kzg_commitment::KzgCommitment, kzg_proof::KzgProof, trusted_setup::TrustedSetup};
 pub use c_kzg::{Bytes32, Bytes48, BYTES_PER_COMMITMENT, BYTES_PER_PROOF};
@@ -93,7 +94,7 @@ pub trait KzgPreset:
     ) -> Result<KzgProof, CryptoError>;
 
     fn verify_blob_kzg_proof(
-        blob: &Self::Blob,
+        blob: Arc<Self::Blob>,
         kzg_commitment: KzgCommitment,
         kzg_proof: KzgProof,
         trusted_setup: &Self::KzgSettings,
@@ -168,7 +169,7 @@ macro_rules! implement_kzg_preset {
             }
 
             fn verify_blob_kzg_proof(
-                blob: &Self::Blob,
+                blob: Arc<Self::Blob>,
                 kzg_commitment: KzgCommitment,
                 kzg_proof: KzgProof,
                 trusted_setup: &Self::KzgSettings,
@@ -284,7 +285,7 @@ impl<P: KzgPreset> Kzg<P> {
     /// Verify a kzg proof given the blob, kzg commitment and kzg proof.
     pub fn verify_blob_kzg_proof(
         &self,
-        blob: &P::Blob,
+        blob: Arc<P::Blob>,
         kzg_commitment: KzgCommitment,
         kzg_proof: KzgProof,
     ) -> Result<bool, Error> {

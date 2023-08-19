@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tree_hash::{PackedEncoding, TreeHash};
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct SigpBlob<E: EthSpec>(Arc<<E::Kzg as KzgPreset>::Blob>);
+pub struct SigpBlob<E: EthSpec>(pub Arc<<E::Kzg as KzgPreset>::Blob>);
 
 impl<E: EthSpec> SigpBlob<E> {
     pub fn random_valid<R: Rng>(rng: &mut R) -> Result<Self, String> {

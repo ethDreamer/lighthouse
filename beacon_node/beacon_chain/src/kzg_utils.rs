@@ -8,7 +8,7 @@ pub fn validate_blob<T: EthSpec>(
     kzg_commitment: KzgCommitment,
     kzg_proof: KzgProof,
 ) -> Result<bool, KzgError> {
-    kzg.verify_blob_kzg_proof(blob.c_kzg_blob(), kzg_commitment, kzg_proof)
+    kzg.verify_blob_kzg_proof(blob.clone().0, kzg_commitment, kzg_proof)
 }
 
 /// Validate a batch of blob-commitment-proof triplets from multiple `BlobSidecars`.
