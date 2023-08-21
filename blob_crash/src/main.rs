@@ -1,6 +1,13 @@
-use kzg::TrustedSetup;
-use rand::thread_rng;
-use types::{BlobSidecar, EthSpec, KzgCommitment, KzgProof, MainnetEthSpec, SigpBlob};
+use rand::{thread_rng, Rng};
+use c_kzg::KzgSettings;
+
+mod kzg_commitment;
+mod kzg_proof;
+mod trusted_setup;
+
+use kzg_commitment::KzgCommitment;
+use kzg_proof::KzgProof;
+use trusted_setup::TrustedSetup;
 
 const TRUSTED_SETUP: &[u8] =
     include_bytes!("../../common/eth2_network_config/built_in_network_configs/testing_trusted_setups.json");
@@ -29,34 +36,47 @@ fn print_usage_and_exit() {
     std::process::exit(1);
 }
 
+pub fn random_valid_blob<R: Rng>(rng: &mut R) -> Result<c_kzg::Blob, String> {
+    let mut blob_bytes = vec![0u8; c_kzg::BYTES_PER_BLOB];
+    rng.fill_bytes(&mut blob_bytes);
 
-pub fn random_valid<R: Rng>(rng: &mut R, kzg: &Kzg<T::Kzg>) -> Result<Self, String> {
-    let blob = SigpBlob::<T>::random_valid(rng)?;
-    let kzg_blob = blob.c_kzg_blob();
-
-    let commitment = kzg
-        .blob_to_kzg_commitment(kzg_blob.clone())
-        .map_err(|e| format!("error computing kzg commitment: {:?}", e))?;
-
-    let proof = kzg
-        .compute_blob_kzg_proof(kzg_blob, commitment)
-        .map_err(|e| format!("error computing kzg proof: {:?}", e))?;
-
-    Ok(Self {
-        blob,
-        kzg_commitment: commitment,
-        kzg_proof: proof,
-        ..Default::default()
-    })
+    // Ensure that the blob is canonical by ensuring that
+    // each field element contained in the blob is < BLS_MODULUS
+    for i in 0..c_kzg::FIELD_ELEMENTS_PER_BLOB {
+        let Some(byte) = blob_bytes.get_mut(i.checked_mul(c_kzg::BYTES_PER_FIELD_ELEMENT).ok_or("overflow".to_string())?)  else {
+            return Err(format!("blob byte index out of bounds: {:?}", i));
+        };
+        *byte = 0;
+    }
+    c_kzg::Blob::from_bytes(&blob_bytes)
+        .map_err(|e| format!("failed to create blob: {:?}", e))
 }
 
+fn random_valid_blob_components<R: Rng>(rng: &mut R, kzg_settings: &KzgSettings) -> Result<(c_kzg::Blob, KzgCommitment, KzgProof), String> {
+    let blob = random_valid_blob(rng)
+        .map_err(|e| format!("error generating valid blob: {:?}", e))?;
+    let c_kzg_blob = &blob;
+
+    let commitment = c_kzg::KzgCommitment::blob_to_kzg_commitment(c_kzg_blob.clone(), kzg_settings)
+        .map(|com| KzgCommitment(com.to_bytes().into_inner()))
+        .map_err(|e| format!("error computing kzg commitment: {:?}", e))?;
+
+    let proof = c_kzg::KzgProof::compute_blob_kzg_proof(
+        c_kzg_blob,
+        commitment.into(),
+        kzg_settings,
+    )
+        .map(|proof| KzgProof(proof.to_bytes().into_inner()))
+        .map_err(|e| format!("error computing kzg proof: {:?}", e))?;
+
+    Ok((blob, commitment, proof))
+}
 
 fn main() {
     // Get command line arguments.
     let iterations = parse_iterations_arg_or_default();
     println!("Number of iterations: {}", iterations);
 
-    type E = MainnetEthSpec;
     let trusted_setup: TrustedSetup =
         serde_json::from_reader(TRUSTED_SETUP)
             .map_err(|e| format!("Unable to read trusted setup file: {}", e))
@@ -68,11 +88,11 @@ fn main() {
     ).expect("should load trusted setup");
 
     for i in 0..iterations {
-        let sidecar = BlobSidecar::<E>::random_valid(&mut thread_rng(), &kzg).expect("should get random valid sidecar");
+        let (blob, commitment, proof) = random_valid_blob_components(&mut thread_rng(), &kzg_settings).expect("should get blob components");
         let result = c_kzg::KzgProof::verify_blob_kzg_proof(
-            sidecar.blob.c_kzg_blob(),
-            sidecar.kzg_commitment.into(),
-            sidecar.kzg_proof.into(),
+            &blob,
+            commitment.into(),
+            proof.into(),
             &kzg_settings,
         );
 

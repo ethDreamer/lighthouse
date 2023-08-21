@@ -6,12 +6,11 @@ authors = ["Mark Mackey <mark@sigmaprime.io>"]
 edition = "2021"
 
 [dependencies]
-#beacon_chain = { path = "../beacon_node/beacon_chain" }
 #c-kzg = { path = "C:\\c-kzg-4844\\bindings\\rust" }
 c-kzg = { git = "https://github.com/ethDreamer/c-kzg-4844", rev = "50999951b66f530bbdb71100349ae04e71181477" }
-kzg = { path = "../crypto/kzg" }
+hex = "0.4.2"
 serde_json = "1.0.66"
-types = { path = "../consensus/types" }
 rand = "0.8.5"
+serde = "1.0.116"
 
 [workspace]
