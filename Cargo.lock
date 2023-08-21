@@ -713,6 +713,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "blob_crash"
+version = "0.1.0"
+dependencies = [
+ "kzg",
+ "rand 0.8.5",
+ "serde_json",
+ "types",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -894,7 +904,7 @@ dependencies = [
 [[package]]
 name = "c-kzg"
 version = "0.1.0"
-source = "git+https://github.com/ethDreamer//c-kzg-4844?rev=483d460c164967c36f7377c87be0fb60fad2ff99#483d460c164967c36f7377c87be0fb60fad2ff99"
+source = "git+https://github.com/ethDreamer//c-kzg-4844?rev=50999951b66f530bbdb71100349ae04e71181477#50999951b66f530bbdb71100349ae04e71181477"
 dependencies = [
  "bindgen 0.64.0",
  "cc",
@@ -907,7 +917,7 @@ dependencies = [
 [[package]]
 name = "c-kzg"
 version = "0.1.0"
-source = "git+https://github.com/ethDreamer/c-kzg-4844?rev=483d460c164967c36f7377c87be0fb60fad2ff99#483d460c164967c36f7377c87be0fb60fad2ff99"
+source = "git+https://github.com/ethDreamer/c-kzg-4844?rev=50999951b66f530bbdb71100349ae04e71181477#50999951b66f530bbdb71100349ae04e71181477"
 dependencies = [
  "bindgen 0.64.0",
  "cc",
@@ -3844,8 +3854,8 @@ name = "kzg"
 version = "0.1.0"
 dependencies = [
  "arbitrary",
- "c-kzg 0.1.0 (git+https://github.com/ethDreamer//c-kzg-4844?rev=483d460c164967c36f7377c87be0fb60fad2ff99)",
- "c-kzg 0.1.0 (git+https://github.com/ethDreamer/c-kzg-4844?rev=483d460c164967c36f7377c87be0fb60fad2ff99)",
+ "c-kzg 0.1.0 (git+https://github.com/ethDreamer//c-kzg-4844?rev=50999951b66f530bbdb71100349ae04e71181477)",
+ "c-kzg 0.1.0 (git+https://github.com/ethDreamer/c-kzg-4844?rev=50999951b66f530bbdb71100349ae04e71181477)",
  "derivative",
  "ethereum_hashing",
  "ethereum_serde_utils",

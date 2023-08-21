@@ -7,6 +7,7 @@ mod trusted_setup;
 
 use kzg_commitment::KzgCommitment;
 use kzg_proof::KzgProof;
+use std::sync::Arc;
 use trusted_setup::TrustedSetup;
 
 const TRUSTED_SETUP: &[u8] =
@@ -52,10 +53,11 @@ pub fn random_valid_blob<R: Rng>(rng: &mut R) -> Result<c_kzg::Blob, String> {
         .map_err(|e| format!("failed to create blob: {:?}", e))
 }
 
-fn random_valid_blob_components<R: Rng>(rng: &mut R, kzg_settings: &KzgSettings) -> Result<(c_kzg::Blob, KzgCommitment, KzgProof), String> {
+fn random_valid_blob_components<R: Rng>(rng: &mut R, kzg_settings: &KzgSettings) -> Result<(Arc<c_kzg::Blob>, KzgCommitment, KzgProof), String> {
     let blob = random_valid_blob(rng)
+        .map(Arc::new)
         .map_err(|e| format!("error generating valid blob: {:?}", e))?;
-    let c_kzg_blob = &blob;
+    let c_kzg_blob = blob.as_ref();
 
     let commitment = c_kzg::KzgCommitment::blob_to_kzg_commitment(c_kzg_blob.clone(), kzg_settings)
         .map(|com| KzgCommitment(com.to_bytes().into_inner()))
@@ -77,6 +79,11 @@ fn main() {
     let iterations = parse_iterations_arg_or_default();
     println!("Number of iterations: {}", iterations);
 
+    println!("press enter");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).expect("failed to read line");
+    println!("continuing!");
+
     let trusted_setup: TrustedSetup =
         serde_json::from_reader(TRUSTED_SETUP)
             .map_err(|e| format!("Unable to read trusted setup file: {}", e))
@@ -90,7 +97,7 @@ fn main() {
     for i in 0..iterations {
         let (blob, commitment, proof) = random_valid_blob_components(&mut thread_rng(), &kzg_settings).expect("should get blob components");
         let result = c_kzg::KzgProof::verify_blob_kzg_proof(
-            &blob,
+            blob.as_ref(),
             commitment.into(),
             proof.into(),
             &kzg_settings,

@@ -14,3 +14,7 @@ rand = "0.8.5"
 serde = "1.0.116"
 
 [workspace]
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
