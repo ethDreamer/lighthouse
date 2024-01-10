@@ -318,7 +318,7 @@ where
                 let genesis_state = genesis_state(&runtime_context, &config, log).await?;
 
                 builder
-                    .weak_subjectivity_state(anchor_state, anchor_block, genesis_state)
+                    .weak_subjectivity_state(anchor_state, anchor_block, genesis_state, None)
                     .map(|v| (v, None))?
             }
             ClientGenesis::CheckpointSyncUrl { url, remote_state } => {
@@ -428,8 +428,30 @@ where
                         e => format!("Error fetching corresponding block from remote: {:?}", e),
                     })?
                     .ok_or("Corresponding block missing from remote, it returned 404")?;
-
                 debug!(context.log(), "Downloaded corresponding block");
+
+                let finalized = if matches!(remote_state_id, StateId::Finalized) {
+                    None
+                } else {
+                    debug!(context.log(), "Downloading finalized block header");
+                    let header = remote
+                        .get_beacon_headers_block_id(BlockId::Finalized)
+                        .await
+                        .map_err(|e| match e {
+                            ApiError::InvalidSsz(e) => format!(
+                                "Unable to parse SSZ: {:?}. Ensure the checkpoint-sync-url refers to a \
+                                node for the correct network",
+                                e
+                            ),
+                            e => format!("Error fetching finalized block header from remote: {:?}", e),
+                        })?
+                        .ok_or("Finalized block header missing from remote, it returned 404")?
+                        .data
+                        .header
+                        .message;
+                    debug!(context.log(), "Downloaded finalized block header"; "anchor_slot" => block.slot(), "finalized_slot" => header.slot);
+                    Some((header.slot, header.state_root))
+                };
 
                 let genesis_state = genesis_state(&runtime_context, &config, log).await?;
 
@@ -466,7 +488,7 @@ where
                     });
 
                 builder
-                    .weak_subjectivity_state(state, block, genesis_state)
+                    .weak_subjectivity_state(state, block, genesis_state, finalized)
                     .map(|v| (v, service))?
             }
             ClientGenesis::DepositContract => {

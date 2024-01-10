@@ -423,6 +423,84 @@ where
         Ok(fork_choice)
     }
 
+    pub fn from_anchor_no_final(
+        fc_store: T,
+        anchor_block_root: Hash256,
+        anchor_block: &SignedBeaconBlock<E>,
+        anchor_state: &BeaconState<E>,
+        current_slot: Option<Slot>,
+        finalized_slot: Slot,
+        finalized_state_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Result<Self, Error<T::Error>> {
+        // Sanity check: the anchor must lie on an epoch boundary.
+        if anchor_state.slot() % E::slots_per_epoch() != 0 {
+            return Err(Error::InvalidAnchor {
+                block_slot: anchor_block.slot(),
+                state_slot: anchor_state.slot(),
+            });
+        }
+
+        let finalized_block_slot = finalized_slot;
+        let finalized_block_state_root = finalized_state_root;
+        let current_epoch_shuffling_id =
+            AttestationShufflingId::new(anchor_block_root, anchor_state, RelativeEpoch::Current)
+                .map_err(Error::BeaconStateError)?;
+        let next_epoch_shuffling_id =
+            AttestationShufflingId::new(anchor_block_root, anchor_state, RelativeEpoch::Next)
+                .map_err(Error::BeaconStateError)?;
+
+        let execution_status = anchor_block.message().execution_payload().map_or_else(
+            // If the block doesn't have an execution payload then it can't have
+            // execution enabled.
+            |_| ExecutionStatus::irrelevant(),
+            |execution_payload| {
+                if execution_payload.is_default_with_empty_roots() {
+                    // A default payload does not have execution enabled.
+                    ExecutionStatus::irrelevant()
+                } else {
+                    // Assume that this payload is valid, since the anchor should be a trusted block and
+                    // state.
+                    ExecutionStatus::Valid(execution_payload.block_hash())
+                }
+            },
+        );
+
+        // If the current slot is not provided, use the value that was last provided to the store.
+        let current_slot = current_slot.unwrap_or_else(|| fc_store.get_current_slot());
+
+        let proto_array = ProtoArrayForkChoice::new::<E>(
+            current_slot,
+            finalized_block_slot,
+            finalized_block_state_root,
+            *fc_store.justified_checkpoint(),
+            *fc_store.finalized_checkpoint(),
+            current_epoch_shuffling_id,
+            next_epoch_shuffling_id,
+            execution_status,
+        )?;
+
+        let mut fork_choice = Self {
+            fc_store,
+            proto_array,
+            queued_attestations: vec![],
+            // This will be updated during the next call to `Self::get_head`.
+            forkchoice_update_parameters: ForkchoiceUpdateParameters {
+                head_hash: None,
+                justified_hash: None,
+                finalized_hash: None,
+                // This will be updated during the next call to `Self::get_head`.
+                head_root: Hash256::zero(),
+            },
+            _phantom: PhantomData,
+        };
+
+        // Ensure that `fork_choice.forkchoice_update_parameters.head_root` is updated.
+        fork_choice.get_head(current_slot, spec)?;
+
+        Ok(fork_choice)
+    }
+
     /// Returns cached information that can be used to issue a `forkchoiceUpdated` message to an
     /// execution engine.
     ///

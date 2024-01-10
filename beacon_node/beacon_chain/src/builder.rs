@@ -428,6 +428,7 @@ where
         mut weak_subj_state: BeaconState<TEthSpec>,
         weak_subj_block: SignedBeaconBlock<TEthSpec>,
         genesis_state: BeaconState<TEthSpec>,
+        finalized: Option<(Slot, Hash256)>,
     ) -> Result<Self, String> {
         let store = self
             .store
@@ -547,15 +548,37 @@ where
         let fc_store = BeaconForkChoiceStore::get_forkchoice_store(store, &snapshot)
             .map_err(|e| format!("Unable to initialize fork choice store: {e:?}"))?;
 
-        let fork_choice = ForkChoice::from_anchor(
-            fc_store,
-            snapshot.beacon_block_root,
-            &snapshot.beacon_block,
-            &snapshot.beacon_state,
-            Some(weak_subj_slot),
-            &self.spec,
-        )
-        .map_err(|e| format!("Unable to initialize ForkChoice: {:?}", e))?;
+        let fork_choice = if let Some((finalized_slot, finalized_state_root)) = finalized {
+            debug!(
+                *self.log.as_ref().ok_or("weak_subjectivity_state requires a log")?,
+                "Initializing fork choice with non-finalized state";
+                "finalized_slot" => finalized_slot,
+                "finalized_state_root" => format!("{:?}", finalized_state_root),
+                "anchor_block_slot" => snapshot.beacon_block.slot(),
+                "anchor_state_root" => ?snapshot.beacon_state.canonical_root(),
+            );
+            ForkChoice::from_anchor_no_final(
+                fc_store,
+                snapshot.beacon_block_root,
+                &snapshot.beacon_block,
+                &snapshot.beacon_state,
+                Some(weak_subj_slot),
+                finalized_slot,
+                finalized_state_root,
+                &self.spec,
+            )
+            .map_err(|e| format!("Unable to initialize ForkChoice: {:?}", e))?
+        } else {
+            ForkChoice::from_anchor(
+                fc_store,
+                snapshot.beacon_block_root,
+                &snapshot.beacon_block,
+                &snapshot.beacon_state,
+                Some(weak_subj_slot),
+                &self.spec,
+            )
+            .map_err(|e| format!("Unable to initialize ForkChoice: {:?}", e))?
+        };
 
         self.fork_choice = Some(fork_choice);
 
