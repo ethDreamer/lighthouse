@@ -430,12 +430,26 @@ where
                     .ok_or("Corresponding block missing from remote, it returned 404")?;
                 debug!(context.log(), "Downloaded corresponding block");
 
-                let finalized = if matches!(remote_state_id, StateId::Finalized) {
+                let finalized_state_block = if matches!(remote_state_id, StateId::Finalized) {
                     None
                 } else {
-                    debug!(context.log(), "Downloading finalized block header");
-                    let header = remote
-                        .get_beacon_headers_block_id(BlockId::Finalized)
+                    debug!(
+                        context.log(),
+                        "Downloading finalized state";
+                    );
+                    let finalized_state = remote
+                        .get_debug_beacon_states_ssz::<TEthSpec>(StateId::Finalized, &spec)
+                        .await
+                        .map_err(|e| format!("Error loading checkpoint state from remote: {:?}", e))?
+                        .ok_or_else(|| "Checkpoint state missing from remote".to_string())?;
+
+                    debug!(context.log(), "Downloaded finalized state"; "slot" => ?finalized_state.slot());
+
+                    let finalized_block_slot = finalized_state.latest_block_header().slot;
+
+                    debug!(context.log(), "Downloading finalized block"; "block_slot" => ?finalized_block_slot);
+                    let finalized_block = remote
+                        .get_beacon_blocks_ssz::<TEthSpec>(BlockId::Slot(finalized_block_slot), &spec)
                         .await
                         .map_err(|e| match e {
                             ApiError::InvalidSsz(e) => format!(
@@ -443,14 +457,13 @@ where
                                 node for the correct network",
                                 e
                             ),
-                            e => format!("Error fetching finalized block header from remote: {:?}", e),
+                            e => format!("Error fetching finalized block from remote: {:?}", e),
                         })?
-                        .ok_or("Finalized block header missing from remote, it returned 404")?
-                        .data
-                        .header
-                        .message;
-                    debug!(context.log(), "Downloaded finalized block header"; "anchor_slot" => block.slot(), "finalized_slot" => header.slot);
-                    Some((header.slot, header.state_root))
+                        .ok_or("Finalized block missing from remote, it returned 404")?;
+
+                    debug!(context.log(), "Downloaded finalized block");
+
+                    Some((finalized_state, finalized_block))
                 };
 
                 let genesis_state = genesis_state(&runtime_context, &config, log).await?;
@@ -488,7 +501,7 @@ where
                     });
 
                 builder
-                    .weak_subjectivity_state(state, block, genesis_state, finalized)
+                    .weak_subjectivity_state(state, block, genesis_state, finalized_state_block)
                     .map(|v| (v, service))?
             }
             ClientGenesis::DepositContract => {

@@ -428,7 +428,7 @@ where
         mut weak_subj_state: BeaconState<TEthSpec>,
         weak_subj_block: SignedBeaconBlock<TEthSpec>,
         genesis_state: BeaconState<TEthSpec>,
-        finalized: Option<(Slot, Hash256)>,
+        finalized: Option<(BeaconState<TEthSpec>, SignedBeaconBlock<TEthSpec>)>,
     ) -> Result<Self, String> {
         let store = self
             .store
@@ -488,7 +488,12 @@ where
 
         // Set the store's split point *before* storing genesis so that genesis is stored
         // immediately in the freezer DB.
-        store.set_split(weak_subj_slot, weak_subj_state_root, weak_subj_block_root);
+        if let Some((finalized_state, finalized_block)) = finalized.as_ref() {
+            store.set_split(finalized_state.slot(), finalized_state.canonical_root(), finalized_block.canonical_root());
+        } else {
+            store.set_split(weak_subj_slot, weak_subj_state_root, weak_subj_block_root);
+        }
+
         let (_, updated_builder) = self.set_genesis_state(genesis_state)?;
         self = updated_builder;
 
@@ -515,6 +520,15 @@ where
         store
             .put_block(&weak_subj_block_root, weak_subj_block.clone())
             .map_err(|e| format!("Failed to store weak subjectivity block: {:?}", e))?;
+        // also write the finalized state & block because.. we probably need to?
+        if let Some((finalized_state, finalized_block)) = finalized.as_ref() {
+            store
+                .put_state(&finalized_state.canonical_root(), finalized_state)
+                .map_err(|e| format!("Failed to store finalized state: {:?}", e))?;
+            store
+                .put_block(&finalized_block.canonical_root(), finalized_block.clone())
+                .map_err(|e| format!("Failed to store finalized block: {:?}", e))?;
+        }
 
         // Stage the database's metadata fields for atomic storage when `build` is called.
         // This prevents the database from restarting in an inconsistent state if the anchor
@@ -548,12 +562,12 @@ where
         let fc_store = BeaconForkChoiceStore::get_forkchoice_store(store, &snapshot)
             .map_err(|e| format!("Unable to initialize fork choice store: {e:?}"))?;
 
-        let fork_choice = if let Some((finalized_slot, finalized_state_root)) = finalized {
+        let fork_choice = if let Some((finalized_state, _)) = finalized {
             debug!(
                 *self.log.as_ref().ok_or("weak_subjectivity_state requires a log")?,
                 "Initializing fork choice with non-finalized state";
-                "finalized_slot" => finalized_slot,
-                "finalized_state_root" => format!("{:?}", finalized_state_root),
+                "finalized_slot" => finalized_state.slot(),
+                "finalized_state_root" => format!("{:?}", finalized_state.canonical_root()),
                 "anchor_block_slot" => snapshot.beacon_block.slot(),
                 "anchor_state_root" => ?snapshot.beacon_state.canonical_root(),
             );
@@ -563,8 +577,8 @@ where
                 &snapshot.beacon_block,
                 &snapshot.beacon_state,
                 Some(weak_subj_slot),
-                finalized_slot,
-                finalized_state_root,
+                finalized_state.slot(),
+                finalized_state.canonical_root(),
                 &self.spec,
             )
             .map_err(|e| format!("Unable to initialize ForkChoice: {:?}", e))?
