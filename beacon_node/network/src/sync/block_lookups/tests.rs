@@ -1219,8 +1219,8 @@ mod deneb_only {
                 let parent_root = block.canonical_root();
                 let parent_block = block.clone();
                 let parent_blobs = blobs.clone();
-                parent_block_chain.push_back(parent_block);
-                parent_blobs_chain.push_back(parent_blobs);
+                parent_block_chain.push_front(parent_block);
+                parent_blobs_chain.push_front(parent_blobs);
 
                 // Create the next block.
                 let (child_block, child_blobs) =
@@ -2076,7 +2076,6 @@ mod deneb_only {
             .block_response()
             .expect_empty_beacon_processor()
             .parent_block_response()
-            .expect_penalty()
             .parent_blob_response()
             .expect_no_penalty()
             .expect_block_process()
@@ -2085,7 +2084,6 @@ mod deneb_only {
             .expect_parent_blobs_request()
             .expect_empty_beacon_processor()
             .parent_block_response()
-            .expect_penalty()
             .parent_blob_response()
             .expect_no_penalty()
             .expect_block_process();
