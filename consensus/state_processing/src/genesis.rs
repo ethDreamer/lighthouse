@@ -144,7 +144,7 @@ pub fn process_activations<T: EthSpec>(
             balance.safe_sub(balance.safe_rem(spec.effective_balance_increment)?)?,
             spec.max_effective_balance,
         );
-        if validator.effective_balance == spec.max_effective_balance {
+        if validator.effective_balance >= spec.min_activation_balance {
             validator.activation_eligibility_epoch = T::genesis_epoch();
             validator.activation_epoch = T::genesis_epoch();
         }

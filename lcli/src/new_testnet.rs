@@ -261,7 +261,7 @@ fn initialize_state_with_validators<T: EthSpec>(
             credentials[0] = spec.bls_withdrawal_prefix_byte;
             Hash256::from_slice(&credentials)
         };
-        let amount = spec.max_effective_balance;
+        let amount = spec.min_activation_balance;
         // Create a new validator.
         let validator = Validator {
             pubkey: keypair.0.pk.clone().into(),

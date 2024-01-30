@@ -60,7 +60,7 @@ impl Validator {
     /// Spec v0.12.1
     pub fn is_eligible_for_activation_queue(&self, spec: &ChainSpec) -> bool {
         self.activation_eligibility_epoch == spec.far_future_epoch
-            && self.effective_balance == spec.max_effective_balance
+            && self.effective_balance >= spec.min_activation_balance
     }
 
     /// Returns `true` if the validator is eligible to be activated.

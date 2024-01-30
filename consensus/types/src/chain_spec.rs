@@ -66,6 +66,7 @@ pub struct ChainSpec {
      */
     pub min_deposit_amount: u64,
     pub max_effective_balance: u64,
+    pub min_activation_balance: u64,
     pub ejection_balance: u64,
     pub effective_balance_increment: u64,
 
@@ -566,6 +567,10 @@ impl ChainSpec {
                 u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
+            min_activation_balance: option_wrapper(|| {
+                u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
+            })
+            .expect("calculation does not overflow"),
             ejection_balance: option_wrapper(|| {
                 u64::checked_pow(2, 4)?.checked_mul(u64::checked_pow(10, 9)?)
             })
@@ -822,6 +827,10 @@ impl ChainSpec {
             })
             .expect("calculation does not overflow"),
             max_effective_balance: option_wrapper(|| {
+                u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
+            })
+            .expect("calculation does not overflow"),
+            min_activation_balance: option_wrapper(|| {
                 u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
