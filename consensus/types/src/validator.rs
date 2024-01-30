@@ -1,5 +1,5 @@
 use crate::{
-    test_utils::TestRandom, Address, BeaconState, ChainSpec, Epoch, EthSpec, Hash256,
+    test_utils::TestRandom, Address, BeaconState, ChainSpec, Epoch, EthSpec, ForkName, Hash256,
     PublicKeyBytes,
 };
 use serde::{Deserialize, Serialize};
@@ -86,6 +86,15 @@ impl Validator {
             .unwrap_or(false)
     }
 
+    /// Returns `true` if the validator has compounding withdrawal credential.
+    pub fn has_compounding_withdrawal_credential(&self, spec: &ChainSpec) -> bool {
+        self.withdrawal_credentials
+            .as_bytes()
+            .first()
+            .map(|byte| *byte == spec.compounding_withdrawal_prefix_byte)
+            .unwrap_or(false)
+    }
+
     /// Get the eth1 withdrawal address if this validator has one initialized.
     pub fn get_eth1_withdrawal_address(&self, spec: &ChainSpec) -> Option<Address> {
         self.has_eth1_withdrawal_credential(spec)
@@ -114,10 +123,53 @@ impl Validator {
     }
 
     /// Returns `true` if the validator is partially withdrawable.
-    pub fn is_partially_withdrawable_validator(&self, balance: u64, spec: &ChainSpec) -> bool {
+    pub fn is_partially_withdrawable_validator(
+        &self,
+        balance: u64,
+        spec: &ChainSpec,
+        fork: ForkName,
+    ) -> bool {
+        let max_effective_balance = spec.max_effective_balance(fork);
         self.has_eth1_withdrawal_credential(spec)
-            && self.effective_balance == spec.max_effective_balance
-            && balance > spec.max_effective_balance
+            && self.effective_balance == max_effective_balance
+            && balance > max_effective_balance
+    }
+
+    pub fn compute_effective_balance_limit(&self, spec: &ChainSpec, fork: ForkName) -> u64 {
+        match fork {
+            ForkName::Base | ForkName::Altair | ForkName::Capella | ForkName::Merge => {
+                spec.min_activation_balance
+            }
+            ForkName::Deneb => {
+                if self.has_compounding_withdrawal_credential(spec) {
+                    spec.max_effective_balance(fork)
+                } else {
+                    spec.min_activation_balance
+                }
+            }
+        }
+    }
+
+    /// Get excess balance for partial withdrawals for ``validator``.
+    pub fn compute_excess_balance(&self, balance: u64, spec: &ChainSpec, fork: ForkName) -> u64 {
+        match fork {
+            ForkName::Base | ForkName::Altair | ForkName::Capella | ForkName::Merge => {
+                if self.has_eth1_withdrawal_credential(spec) {
+                    balance.saturating_sub(spec.min_activation_balance)
+                } else if self.has_compounding_withdrawal_credential(spec) {
+                    balance.saturating_sub(spec.max_effective_balance_maxeb)
+                } else {
+                    0
+                }
+            }
+            ForkName::Deneb => {
+                if self.has_eth1_withdrawal_credential(spec) {
+                    balance.saturating_sub(spec.min_activation_balance)
+                } else {
+                    0
+                }
+            }
+        }
     }
 }
 

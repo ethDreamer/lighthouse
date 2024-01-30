@@ -55,7 +55,7 @@ pub fn run<T: EthSpec>(testnet_dir_path: PathBuf, matches: &ArgMatches) -> Resul
         "min-genesis-active-validator-count",
         min_genesis_active_validator_count
     );
-    maybe_update!("max-effective-balance", max_effective_balance);
+    maybe_update!("min-activation-balance", min_activation_balance);
     maybe_update!("effective-balance-increment", effective_balance_increment);
     maybe_update!("ejection-balance", ejection_balance);
     maybe_update!("eth1-follow-distance", eth1_follow_distance);
@@ -272,7 +272,7 @@ fn initialize_state_with_validators<T: EthSpec>(
             withdrawable_epoch: spec.far_future_epoch,
             effective_balance: std::cmp::min(
                 amount - amount % (spec.effective_balance_increment),
-                spec.max_effective_balance,
+                spec.min_activation_balance,
             ),
             slashed: false,
         };

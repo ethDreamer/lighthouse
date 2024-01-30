@@ -65,7 +65,8 @@ pub struct ChainSpec {
      *  Gwei values
      */
     pub min_deposit_amount: u64,
-    pub max_effective_balance: u64,
+    pub(crate) max_effective_balance_base: u64,
+    pub(crate) max_effective_balance_maxeb: u64,
     pub min_activation_balance: u64,
     pub ejection_balance: u64,
     pub effective_balance_increment: u64,
@@ -76,6 +77,7 @@ pub struct ChainSpec {
     pub genesis_fork_version: [u8; 4],
     pub bls_withdrawal_prefix_byte: u8,
     pub eth1_address_withdrawal_prefix_byte: u8,
+    pub compounding_withdrawal_prefix_byte: u8,
 
     /*
      * Time parameters
@@ -357,6 +359,15 @@ impl ChainSpec {
         }
     }
 
+    pub fn max_effective_balance(&self, fork: ForkName) -> u64 {
+        match fork {
+            ForkName::Base | ForkName::Altair | ForkName::Merge | ForkName::Capella => {
+                self.max_effective_balance_base
+            }
+            ForkName::Deneb => self.max_effective_balance_maxeb,
+        }
+    }
+
     /// Returns a full `Fork` struct for a given epoch.
     pub fn fork_at_epoch(&self, epoch: Epoch) -> Fork {
         let current_fork_name = self.fork_name_at_epoch(epoch);
@@ -563,7 +574,11 @@ impl ChainSpec {
                 u64::checked_pow(2, 0)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
-            max_effective_balance: option_wrapper(|| {
+            max_effective_balance_base: option_wrapper(|| {
+                u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
+            })
+            .expect("calculation does not overflow"),
+            max_effective_balance_maxeb: option_wrapper(|| {
                 u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
@@ -586,6 +601,7 @@ impl ChainSpec {
             genesis_fork_version: [0; 4],
             bls_withdrawal_prefix_byte: 0x00,
             eth1_address_withdrawal_prefix_byte: 0x01,
+            compounding_withdrawal_prefix_byte: 0x02,
 
             /*
              * Time parameters
@@ -826,7 +842,11 @@ impl ChainSpec {
                 u64::checked_pow(2, 0)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
-            max_effective_balance: option_wrapper(|| {
+            max_effective_balance_base: option_wrapper(|| {
+                u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
+            })
+            .expect("calculation does not overflow"),
+            max_effective_balance_maxeb: option_wrapper(|| {
                 u64::checked_pow(2, 5)?.checked_mul(u64::checked_pow(10, 9)?)
             })
             .expect("calculation does not overflow"),
@@ -849,6 +869,7 @@ impl ChainSpec {
             genesis_fork_version: [0x00, 0x00, 0x00, 0x64],
             bls_withdrawal_prefix_byte: 0x00,
             eth1_address_withdrawal_prefix_byte: 0x01,
+            compounding_withdrawal_prefix_byte: 0x02,
 
             /*
              * Time parameters

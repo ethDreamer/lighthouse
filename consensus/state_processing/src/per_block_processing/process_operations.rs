@@ -402,6 +402,15 @@ pub fn process_deposit<T: EthSpec>(
             return Ok(());
         }
 
+        let effective_balance = if state >= ForkName::Deneb {
+            0
+        } else {
+            std::cmp::min(
+                amount.safe_sub(amount.safe_rem(spec.effective_balance_increment)?)?,
+                spec.max_effective_balance(state.fork_name_unchecked()),
+            )
+        };
+
         // Create a new validator.
         let validator = Validator {
             pubkey: deposit.data.pubkey,
@@ -410,10 +419,7 @@ pub fn process_deposit<T: EthSpec>(
             activation_epoch: spec.far_future_epoch,
             exit_epoch: spec.far_future_epoch,
             withdrawable_epoch: spec.far_future_epoch,
-            effective_balance: std::cmp::min(
-                amount.safe_sub(amount.safe_rem(spec.effective_balance_increment)?)?,
-                spec.max_effective_balance,
-            ),
+            effective_balance,
             slashed: false,
         };
         state.validators_mut().push(validator)?;

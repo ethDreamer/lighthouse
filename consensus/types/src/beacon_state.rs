@@ -726,7 +726,7 @@ impl<T: EthSpec> BeaconState<T> {
             let effective_balance = self.get_effective_balance(candidate_index)?;
             if effective_balance.safe_mul(MAX_RANDOM_BYTE)?
                 >= spec
-                    .max_effective_balance
+                    .max_effective_balance(self.fork_name_unchecked())
                     .safe_mul(u64::from(random_byte))?
             {
                 return Ok(candidate_index);
@@ -918,7 +918,7 @@ impl<T: EthSpec> BeaconState<T> {
             let effective_balance = self.get_validator(candidate_index)?.effective_balance;
             if effective_balance.safe_mul(MAX_RANDOM_BYTE)?
                 >= spec
-                    .max_effective_balance
+                    .max_effective_balance(self.fork_name_unchecked())
                     .safe_mul(u64::from(random_byte))?
             {
                 sync_committee_indices.push(candidate_index);
@@ -1961,5 +1961,29 @@ impl<T: EthSpec> ForkVersionDeserialize for BeaconState<T> {
                 e
             )))?
         ))
+    }
+}
+
+impl<T: EthSpec> std::cmp::PartialEq<ForkName> for BeaconState<T> {
+    fn eq(&self, other: &ForkName) -> bool {
+        self.fork_name_unchecked() == *other
+    }
+}
+
+impl<T: EthSpec> std::cmp::PartialOrd<ForkName> for BeaconState<T> {
+    fn partial_cmp(&self, other: &ForkName) -> Option<std::cmp::Ordering> {
+        other.partial_cmp(&self.fork_name_unchecked())
+    }
+}
+
+impl<T: EthSpec> std::cmp::PartialEq<ForkName> for &mut BeaconState<T> {
+    fn eq(&self, other: &ForkName) -> bool {
+        self.fork_name_unchecked() == *other
+    }
+}
+
+impl<T: EthSpec> std::cmp::PartialOrd<ForkName> for &mut BeaconState<T> {
+    fn partial_cmp(&self, other: &ForkName) -> Option<std::cmp::Ordering> {
+        other.partial_cmp(&self.fork_name_unchecked())
     }
 }
