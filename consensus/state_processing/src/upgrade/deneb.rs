@@ -61,6 +61,11 @@ pub fn upgrade_to_deneb<E: EthSpec>(
         next_withdrawal_index: pre.next_withdrawal_index,
         next_withdrawal_validator_index: pre.next_withdrawal_validator_index,
         historical_summaries: pre.historical_summaries.clone(),
+        // MaxEB
+        deposit_balance_to_consume: 0u64.into(),
+        pending_balance_deposits: <_>::default(),
+        earliest_exit_epoch: 0u64.into(),
+        exit_balance_to_consume: 0u64.into(),
         // Caches
         total_active_balance: pre.total_active_balance,
         progressive_balances_cache: mem::take(&mut pre.progressive_balances_cache),
