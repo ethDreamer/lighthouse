@@ -890,6 +890,7 @@ where
             latest_seen_finality_update: <_>::default(),
             latest_seen_optimistic_update: <_>::default(),
             eth1_chain: self.eth1_chain,
+            effective_balances_cache: <_>::default(),
             execution_layer: self.execution_layer,
             genesis_validators_root,
             genesis_time,
