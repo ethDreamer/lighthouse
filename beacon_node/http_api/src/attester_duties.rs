@@ -6,7 +6,8 @@ use eth2::types::{self as api_types};
 use slot_clock::SlotClock;
 use state_processing::state_advance::partial_state_advance;
 use types::{
-    AttestationDuty, BeaconState, ChainSpec, CloneConfig, Epoch, EthSpec, Hash256, RelativeEpoch,
+    AttestationDuty, BeaconState, ChainSpec, CloneConfig, Epoch, EthSpec, ForkName, Hash256,
+    RelativeEpoch,
 };
 
 /// The struct that is returned to the requesting HTTP client.
@@ -223,7 +224,13 @@ fn convert_to_api_response<T: BeaconChainTypes>(
                 validator_index,
                 committees_at_slot: duty.committees_at_slot,
                 committee_index: duty.index,
-                committee_length: duty.committee_len as u64,
+                committee_length: if chain.spec.fork_name_at_slot::<T::EthSpec>(duty.slot)
+                    >= ForkName::Deneb
+                {
+                    todo!("compute total_committee_balance / aggregator_balance")
+                } else {
+                    duty.committee_len as u64
+                },
                 validator_committee_index: duty.committee_position as u64,
                 slot: duty.slot,
             })

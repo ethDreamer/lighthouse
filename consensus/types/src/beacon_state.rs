@@ -791,32 +791,6 @@ impl<T: EthSpec> BeaconState<T> {
         }
     }
 
-    /// Return `true` if the validator who produced `slot_signature` is eligible to aggregate.
-    ///
-    /// Spec v0.12.1
-    pub fn is_aggregator(
-        &self,
-        slot: Slot,
-        index: CommitteeIndex,
-        slot_signature: &Signature,
-        spec: &ChainSpec,
-    ) -> Result<bool, Error> {
-        let committee = self.get_beacon_committee(slot, index)?;
-        let modulo = std::cmp::max(
-            1,
-            (committee.committee.len() as u64).safe_div(spec.target_aggregators_per_committee)?,
-        );
-        let signature_hash = hash(&slot_signature.as_ssz_bytes());
-        let signature_hash_int = u64::from_le_bytes(
-            signature_hash
-                .get(0..8)
-                .and_then(|bytes| bytes.try_into().ok())
-                .ok_or(Error::IsAggregatorOutOfBounds)?,
-        );
-
-        Ok(signature_hash_int.safe_rem(modulo)? == 0)
-    }
-
     /// Returns the beacon proposer index for the `slot` in `self.current_epoch()`.
     ///
     /// Spec v0.12.1

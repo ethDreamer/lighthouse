@@ -547,8 +547,18 @@ impl<'a, T: BeaconChainTypes> IndexedAggregatedAttestation<'a, T> {
                 let selection_proof =
                     SelectionProof::from(signed_aggregate.message.selection_proof.clone());
 
+                let factor = if chain
+                    .spec
+                    .fork_name_at_slot::<T::EthSpec>(signed_aggregate.message.aggregate.data.slot)
+                    >= ForkName::Deneb
+                {
+                    todo!("compute total_committee_balance / aggregator_balance")
+                } else {
+                    committee.committee.len()
+                };
+
                 if !selection_proof
-                    .is_aggregator(committee.committee.len(), &chain.spec)
+                    .is_aggregator(factor, &chain.spec)
                     .map_err(|e| Error::BeaconChainError(e.into()))?
                 {
                     return Err(Error::InvalidSelectionProof { aggregator_index });
