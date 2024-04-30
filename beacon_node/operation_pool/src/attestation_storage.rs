@@ -71,12 +71,12 @@ impl<E: EthSpec> SplitAttestation<E> {
             target_root: attestation.data().target.root,
         };
 
-        let indexed = match attestation.clone() {
+        let indexed = match attestation {
             Attestation::Base(attn) => {
                 CompactIndexedAttestation::Base(CompactIndexedAttestationBase {
                     attesting_indices,
                     aggregation_bits: attn.aggregation_bits,
-                    signature: attestation.signature().clone(),
+                    signature: attn.signature,
                     index: data.index,
                 })
             }
