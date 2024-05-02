@@ -254,7 +254,7 @@ impl<I> SlotHashSet<I> {
     /// the given root and slot.
     pub fn is_known_subset<S: SlotData + SubsetItem<Item = I>>(
         &self,
-        item S,
+        item: S,
         root: Hash256,
     ) -> Result<bool, Error> {
         if item.get_slot() != self.slot {
