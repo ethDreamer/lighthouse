@@ -109,12 +109,20 @@ pub struct SigningContext {
 impl SigningContext {
     /// Returns the `Hash256` to be mixed-in with the signature.
     pub fn domain_hash(&self, spec: &ChainSpec) -> Hash256 {
-        spec.get_domain(
-            self.epoch,
-            self.domain,
-            &self.fork,
-            self.genesis_validators_root,
-        )
+        match self.domain {
+            // everything but Consolidation uses get_domain, otherwise compute_domain
+            Domain::Consolidation => spec.compute_domain(
+                Domain::Consolidation,
+                spec.genesis_fork_version,
+                self.genesis_validators_root,
+            ),
+            _ => spec.get_domain(
+                self.epoch,
+                self.domain,
+                &self.fork,
+                self.genesis_validators_root,
+            ),
+        }
     }
 }
 
