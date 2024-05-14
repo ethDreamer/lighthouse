@@ -18,12 +18,12 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use types::{
     attestation::Error as AttestationError, graffiti::GraffitiString, AbstractExecPayload, Address,
-    Attestation, BeaconBlock, BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch,
-    EthSpec, Fork, ForkName, Graffiti, Hash256, PublicKeyBytes, SelectionProof, Signature,
-    SignedBeaconBlock, SignedContributionAndProof, SignedRoot, SignedValidatorRegistrationData,
-    SignedVoluntaryExit, Slot, SyncAggregatorSelectionData, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
-    VoluntaryExit,
+    AggregateSignature, Attestation, BeaconBlock, BlindedPayload, ChainSpec, Consolidation,
+    ContributionAndProof, Domain, Epoch, EthSpec, Fork, ForkName, Graffiti, Hash256,
+    PublicKeyBytes, SelectionProof, Signature, SignedBeaconBlock, SignedConsolidation,
+    SignedContributionAndProof, SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit,
+    Slot, SyncAggregatorSelectionData, SyncCommitteeContribution, SyncCommitteeMessage,
+    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData, VoluntaryExit,
 };
 use types::{
     AggregateAndProof, AggregateAndProofBase, AggregateAndProofElectra, SignedAggregateAndProof,
@@ -44,6 +44,7 @@ pub enum Error {
     GreaterThanCurrentEpoch { epoch: Epoch, current_epoch: Epoch },
     UnableToSignAttestation(AttestationError),
     UnableToSign(SigningError),
+    ValidatorNotFound { index: u64 },
 }
 
 impl From<SigningError> for Error {
@@ -556,6 +557,64 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore<T, E> {
             } else {
                 None
             }
+        })
+    }
+
+    pub async fn sign_consolidation(
+        &self,
+        consolidation: Consolidation,
+    ) -> Result<SignedConsolidation, Error> {
+        let signing_epoch = consolidation.epoch;
+        // get the validator pubkey from the source index
+        let mut source_pubkey = None;
+        let mut target_pubkey = None;
+
+        for (pubkey, v) in self.validators.read().initialized_validators().iter() {
+            if v.get_index() == Some(consolidation.source_index) {
+                source_pubkey = Some(pubkey.clone());
+                if target_pubkey.is_some() {
+                    break;
+                }
+            }
+            if v.get_index() == Some(consolidation.target_index) {
+                target_pubkey = Some(pubkey.clone());
+                if source_pubkey.is_some() {
+                    break;
+                }
+            }
+        }
+
+        let source_pubkey = source_pubkey.ok_or(Error::ValidatorNotFound {
+            index: consolidation.source_index,
+        })?;
+        let target_pubkey = target_pubkey.ok_or(Error::ValidatorNotFound {
+            index: consolidation.target_index,
+        })?;
+
+        let pubkeys = [source_pubkey, target_pubkey];
+        let mut signatures = vec![];
+        for pubkey in pubkeys.iter() {
+            let signing_context = self.signing_context(Domain::Consolidation, signing_epoch);
+            let signing_method = self.doppelganger_bypassed_signing_method(pubkey.clone())?;
+            let signature = signing_method
+                .get_signature::<E, BlindedPayload<E>>(
+                    SignableMessage::Consolidation(&consolidation),
+                    signing_context,
+                    &self.spec,
+                    &self.task_executor,
+                )
+                .await?;
+            signatures.push(signature);
+        }
+
+        let mut signature = AggregateSignature::infinity();
+        for sig in signatures.iter() {
+            signature.add_assign(sig);
+        }
+
+        Ok(SignedConsolidation {
+            message: consolidation,
+            signature,
         })
     }
 

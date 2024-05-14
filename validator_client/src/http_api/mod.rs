@@ -43,7 +43,7 @@ use sysinfo::{System, SystemExt};
 use system_health::observe_system_health_vc;
 use task_executor::TaskExecutor;
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
-use types::{ChainSpec, ConfigAndPreset, EthSpec};
+use types::{ChainSpec, ConfigAndPreset, Consolidation, EthSpec};
 use validator_dir::Builder as ValidatorDirBuilder;
 use warp::{
     http::{
@@ -453,6 +453,40 @@ pub fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                             validators,
                         };
                         Ok(api_types::GenericResponse::from(response))
+                    } else {
+                        Err(warp_utils::reject::custom_server_error(
+                            "Lighthouse shutting down".into(),
+                        ))
+                    }
+                })
+            },
+        );
+
+    // POST lighthouse/sign_consolidation
+    let post_sign_consolidation = warp::path("lighthouse")
+        .and(warp::path("sign_consolidation"))
+        .and(warp::path::end())
+        .and(warp::body::json())
+        .and(validator_store_filter.clone())
+        .and(task_executor_filter.clone())
+        .and(signer.clone())
+        .and_then(
+            |consolidation: Consolidation,
+             validator_store: Arc<ValidatorStore<T, E>>,
+             task_executor: TaskExecutor,
+             signer| {
+                blocking_signed_json_task(signer, move || {
+                    if let Some(handle) = task_executor.handle() {
+                        Ok(api_types::GenericResponse::from(
+                            handle
+                                .block_on(validator_store.sign_consolidation(consolidation))
+                                .map_err(|e| {
+                                    warp_utils::reject::custom_server_error(format!(
+                                        "failed to sign consolidation: {:?}",
+                                        e
+                                    ))
+                                })?,
+                        ))
                     } else {
                         Err(warp_utils::reject::custom_server_error(
                             "Lighthouse shutting down".into(),
@@ -1323,6 +1357,7 @@ pub fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                 .or(warp::post().and(
                     post_validators
                         .or(post_validators_keystore)
+                        .or(post_sign_consolidation)
                         .or(post_validators_mnemonic)
                         .or(post_validators_web3signer)
                         .or(post_validators_voluntary_exits)

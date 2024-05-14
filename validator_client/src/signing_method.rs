@@ -38,6 +38,7 @@ pub enum SignableMessage<'a, E: EthSpec, Payload: AbstractExecPayload<E> = FullP
     RandaoReveal(Epoch),
     BeaconBlock(&'a BeaconBlock<E, Payload>),
     AttestationData(&'a AttestationData),
+    Consolidation(&'a Consolidation),
     SignedAggregateAndProof(AggregateAndProofRef<'a, E>),
     SelectionProof(Slot),
     SyncSelectionProof(&'a SyncAggregatorSelectionData),
@@ -60,6 +61,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> SignableMessage<'a, E, Pay
             SignableMessage::RandaoReveal(epoch) => epoch.signing_root(domain),
             SignableMessage::BeaconBlock(b) => b.signing_root(domain),
             SignableMessage::AttestationData(a) => a.signing_root(domain),
+            SignableMessage::Consolidation(c) => c.signing_root(domain),
             SignableMessage::SignedAggregateAndProof(a) => a.signing_root(domain),
             SignableMessage::SelectionProof(slot) => slot.signing_root(domain),
             SignableMessage::SyncSelectionProof(s) => s.signing_root(domain),
@@ -200,6 +202,7 @@ impl SigningMethod {
                     SignableMessage::SignedAggregateAndProof(a) => {
                         Web3SignerObject::AggregateAndProof(a)
                     }
+                    SignableMessage::Consolidation(_) => unimplemented!("lol"),
                     SignableMessage::SelectionProof(slot) => {
                         Web3SignerObject::AggregationSlot { slot }
                     }

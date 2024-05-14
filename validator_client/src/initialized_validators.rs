@@ -1431,6 +1431,10 @@ impl InitializedValidators {
         Ok(passwords)
     }
 
+    pub fn initialized_validators(&self) -> &HashMap<PublicKeyBytes, InitializedValidator> {
+        &self.validators
+    }
+
     /// Prefer other methods in production. Arbitrarily modifying a validator
     /// definition manually may result in inconsistencies.
     pub fn as_mut_slice_testing_only(&mut self) -> &mut [ValidatorDefinition] {
