@@ -5819,6 +5819,7 @@ dependencies = [
  "state_processing",
  "store",
  "tokio",
+ "tree_hash",
  "types",
 ]
 

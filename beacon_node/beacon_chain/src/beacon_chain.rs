@@ -5315,6 +5315,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 )
             }
             BeaconState::Electra(_) => {
+                let consolidations = self
+                    .op_pool
+                    .dequeue_consolidation()
+                    .map(|signed_consolidation| VariableList::from(vec![signed_consolidation]))
+                    .unwrap_or_else(VariableList::empty);
                 let (payload, kzg_commitments, maybe_blobs_and_proofs, execution_payload_value) =
                     block_contents
                         .ok_or(BlockProductionError::MissingExecutionPayload)?
@@ -5344,7 +5349,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             blob_kzg_commitments: kzg_commitments
                                 .ok_or(BlockProductionError::InvalidPayloadFork)?,
                             // TODO(electra): finish consolidations when they're more spec'd out
-                            consolidations: Vec::new().into(),
+                            consolidations,
                         },
                     }),
                     maybe_blobs_and_proofs,
