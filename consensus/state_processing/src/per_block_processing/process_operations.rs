@@ -682,105 +682,14 @@ pub fn process_consolidations<E: EthSpec>(
     }
 
     for signed_consolidation in consolidations {
-        let consolidation = signed_consolidation.message.clone();
+        let source_index = signed_consolidation.message.source_index as usize;
+        let target_index = signed_consolidation.message.target_index as usize;
 
-        // Verify that source != target, so a consolidation cannot be used as an exit.
-        block_verify! {
-            consolidation.source_index != consolidation.target_index,
-            BlockProcessingError::MatchingSourceTargetConsolidation  {
-                index: consolidation.source_index
-            }
-        }
-
-        let source_validator = state.get_validator(consolidation.source_index as usize)?;
-        let target_validator = state.get_validator(consolidation.target_index as usize)?;
-
-        // Verify the source and the target are active
-        let current_epoch = state.current_epoch();
-        block_verify! {
-            source_validator.is_active_at(current_epoch),
-            BlockProcessingError::InactiveConsolidationSource{
-                index: consolidation.source_index,
-                current_epoch
-            }
-        }
-        block_verify! {
-            target_validator.is_active_at(current_epoch),
-            BlockProcessingError::InactiveConsolidationTarget{
-                index: consolidation.target_index,
-                current_epoch
-            }
-        }
-
-        // Verify exits for source and target have not been initiated
-        block_verify! {
-            source_validator.exit_epoch == spec.far_future_epoch,
-            BlockProcessingError::SourceValidatorExiting{
-                index: consolidation.source_index,
-            }
-        }
-        block_verify! {
-            target_validator.exit_epoch == spec.far_future_epoch,
-            BlockProcessingError::TargetValidatorExiting{
-                index: consolidation.target_index,
-            }
-        }
-
-        // Consolidations must specify an epoch when they become valid; they are not valid before then
-        block_verify! {
-            current_epoch >= consolidation.epoch,
-            BlockProcessingError::FutureConsolidationEpoch {
-                current_epoch,
-                consolidation_epoch: consolidation.epoch
-            }
-        }
-
-        // Verify the source and the target have Execution layer withdrawal credentials
-        block_verify! {
-            source_validator.has_execution_withdrawal_credential(spec),
-            BlockProcessingError::NoSourceExecutionWithdrawalCredential {
-                index: consolidation.source_index,
-            }
-        }
-        block_verify! {
-            target_validator.has_execution_withdrawal_credential(spec),
-            BlockProcessingError::NoTargetExecutionWithdrawalCredential {
-                index: consolidation.target_index,
-            }
-        }
-
-        // Verify the same withdrawal address
-        let source_address = source_validator
-            .get_execution_withdrawal_address(spec)
-            .ok_or(BeaconStateError::NonExecutionAddresWithdrawalCredential)?;
-        let target_address = target_validator
-            .get_execution_withdrawal_address(spec)
-            .ok_or(BeaconStateError::NonExecutionAddresWithdrawalCredential)?;
-        block_verify! {
-            source_address == target_address,
-            BlockProcessingError::MismatchedWithdrawalCredentials {
-                source_address,
-                target_address
-            }
-        }
-
-        if verify_signatures.is_true() {
-            let signature_set = consolidation_signature_set(
-                state,
-                |i| get_pubkey_from_state(state, i),
-                signed_consolidation,
-                spec,
-            )?;
-            block_verify! {
-                signature_set.verify(),
-                BlockProcessingError::InavlidConsolidationSignature
-            }
-        }
-        let exit_epoch = state.compute_consolidation_epoch_and_update_churn(
-            source_validator.effective_balance,
-            spec,
-        )?;
-        let source_validator = state.get_validator_mut(consolidation.source_index as usize)?;
+        verify_consolidation(state, signed_consolidation, verify_signatures, spec)?;
+        let consolidation_balance = state.get_validator(source_index)?.effective_balance;
+        let exit_epoch =
+            state.compute_consolidation_epoch_and_update_churn(consolidation_balance, spec)?;
+        let source_validator = state.get_validator_mut(source_index)?;
         // Initiate source validator exit and append pending consolidation
         source_validator.exit_epoch = exit_epoch;
         source_validator.withdrawable_epoch = source_validator
@@ -789,9 +698,112 @@ pub fn process_consolidations<E: EthSpec>(
         state
             .pending_consolidations_mut()?
             .push(PendingConsolidation {
-                source_index: consolidation.source_index,
-                target_index: consolidation.target_index,
+                source_index: source_index as u64,
+                target_index: target_index as u64,
             })?;
+    }
+
+    Ok(())
+}
+
+pub fn verify_consolidation<E: EthSpec>(
+    state: &BeaconState<E>,
+    signed_consolidation: &SignedConsolidation,
+    verify_signatures: VerifySignatures,
+    spec: &ChainSpec,
+) -> Result<(), BlockProcessingError> {
+    let consolidation = &signed_consolidation.message;
+    // Verify that source != target, so a consolidation cannot be used as an exit.
+    block_verify! {
+        consolidation.source_index != consolidation.target_index,
+        BlockProcessingError::MatchingSourceTargetConsolidation  {
+            index: consolidation.source_index
+        }
+    }
+
+    let source_validator = state.get_validator(consolidation.source_index as usize)?;
+    let target_validator = state.get_validator(consolidation.target_index as usize)?;
+
+    // Verify the source and the target are active
+    let current_epoch = state.current_epoch();
+    block_verify! {
+        source_validator.is_active_at(current_epoch),
+        BlockProcessingError::InactiveConsolidationSource{
+            index: consolidation.source_index,
+            current_epoch
+        }
+    }
+    block_verify! {
+        target_validator.is_active_at(current_epoch),
+        BlockProcessingError::InactiveConsolidationTarget{
+            index: consolidation.target_index,
+            current_epoch
+        }
+    }
+
+    // Verify exits for source and target have not been initiated
+    block_verify! {
+        source_validator.exit_epoch == spec.far_future_epoch,
+        BlockProcessingError::SourceValidatorExiting{
+            index: consolidation.source_index,
+        }
+    }
+    block_verify! {
+        target_validator.exit_epoch == spec.far_future_epoch,
+        BlockProcessingError::TargetValidatorExiting{
+            index: consolidation.target_index,
+        }
+    }
+
+    // Consolidations must specify an epoch when they become valid; they are not valid before then
+    block_verify! {
+        current_epoch >= consolidation.epoch,
+        BlockProcessingError::FutureConsolidationEpoch {
+            current_epoch,
+            consolidation_epoch: consolidation.epoch
+        }
+    }
+
+    // Verify the source and the target have Execution layer withdrawal credentials
+    block_verify! {
+        source_validator.has_execution_withdrawal_credential(spec),
+        BlockProcessingError::NoSourceExecutionWithdrawalCredential {
+            index: consolidation.source_index,
+        }
+    }
+    block_verify! {
+        target_validator.has_execution_withdrawal_credential(spec),
+        BlockProcessingError::NoTargetExecutionWithdrawalCredential {
+            index: consolidation.target_index,
+        }
+    }
+
+    // Verify the same withdrawal address
+    let source_address = source_validator
+        .get_execution_withdrawal_address(spec)
+        .ok_or(BeaconStateError::NonExecutionAddresWithdrawalCredential)?;
+    let target_address = target_validator
+        .get_execution_withdrawal_address(spec)
+        .ok_or(BeaconStateError::NonExecutionAddresWithdrawalCredential)?;
+    block_verify! {
+        source_address == target_address,
+        BlockProcessingError::MismatchedWithdrawalCredentials {
+            source_address,
+            target_address
+        }
+    }
+
+    if verify_signatures.is_true() {
+        let signature_set = consolidation_signature_set(
+            state,
+            |i| get_pubkey_from_state(state, i),
+            signed_consolidation,
+            spec,
+        )?;
+        block_verify! {
+            signature_set.verify(),
+            BlockProcessingError::InavlidConsolidationSignature
+        }
     }
 
     Ok(())
