@@ -192,6 +192,7 @@ impl<E: EthSpec> PersistedOperationPool<E> {
             voluntary_exits,
             bls_to_execution_changes: RwLock::new(bls_to_execution_changes),
             reward_cache: Default::default(),
+            consolidations: Default::default(),
             _phantom: Default::default(),
         };
         Ok(op_pool)

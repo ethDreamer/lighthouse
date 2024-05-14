@@ -19,7 +19,7 @@ pub use persistence::{
 };
 pub use reward_cache::RewardCache;
 use state_processing::epoch_cache::is_epoch_cache_initialized;
-use types::EpochCacheError;
+use types::{EpochCacheError, SignedConsolidation};
 
 use crate::attestation_storage::{AttestationMap, CheckpointKey};
 use crate::bls_to_execution_changes::BlsToExecutionChanges;
@@ -34,14 +34,17 @@ use state_processing::per_block_processing::{
     get_slashable_indices_modular, verify_exit, VerifySignatures,
 };
 use state_processing::{SigVerifiedOp, VerifyOperation};
+use std::collections::BTreeMap;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::marker::PhantomData;
 use std::ptr;
+use tree_hash::TreeHash;
 use types::{
     sync_aggregate::Error as SyncAggregateError, typenum::Unsigned, AbstractExecPayload,
     Attestation, AttestationData, AttesterSlashing, BeaconState, BeaconStateError, ChainSpec,
-    Epoch, EthSpec, ForkName, ProposerSlashing, SignedBeaconBlock, SignedBlsToExecutionChange,
-    SignedVoluntaryExit, Slot, SyncAggregate, SyncCommitteeContribution, Validator,
+    Epoch, EthSpec, ForkName, Hash256, ProposerSlashing, SignedBeaconBlock,
+    SignedBlsToExecutionChange, SignedVoluntaryExit, Slot, SyncAggregate,
+    SyncCommitteeContribution, Validator,
 };
 
 type SyncContributions<E> = RwLock<HashMap<SyncAggregateId, Vec<SyncCommitteeContribution<E>>>>;
@@ -62,6 +65,8 @@ pub struct OperationPool<E: EthSpec + Default> {
     bls_to_execution_changes: RwLock<BlsToExecutionChanges<E>>,
     /// Reward cache for accelerating attestation packing.
     reward_cache: RwLock<RewardCache>,
+    /// Consolidations
+    consolidations: RwLock<BTreeMap<Hash256, SignedConsolidation>>,
     _phantom: PhantomData<E>,
 }
 
@@ -79,6 +84,7 @@ pub enum OpPoolError {
     IncorrectOpPoolVariant,
     EpochCacheNotInitialized,
     EpochCacheError(EpochCacheError),
+    ConsolidationAlreadyKnown,
 }
 
 #[derive(Default)]
@@ -372,6 +378,30 @@ impl<E: EthSpec> OperationPool<E> {
             verified_proposer_slashing.as_inner().proposer_index(),
             verified_proposer_slashing,
         );
+    }
+
+    pub fn insert_signed_consolidation(
+        &self,
+        signed_consolidation: SignedConsolidation,
+    ) -> Result<(), OpPoolError> {
+        let root = signed_consolidation.tree_hash_root();
+        if self
+            .consolidations
+            .write()
+            .insert(root, signed_consolidation)
+            .is_some()
+        {
+            Err(OpPoolError::ConsolidationAlreadyKnown)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn dequeue_consolidation(&self) -> Option<SignedConsolidation> {
+        self.consolidations
+            .write()
+            .pop_first()
+            .map(|(_, consolidation)| consolidation)
     }
 
     /// Insert an attester slashing into the pool.
