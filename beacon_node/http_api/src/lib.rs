@@ -61,6 +61,7 @@ use slog::{crit, debug, error, info, warn, Logger};
 use slot_clock::SlotClock;
 use ssz::Encode;
 pub use state_id::StateId;
+use state_processing::{verify_consolidation, VerifySignatures};
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -3882,6 +3883,34 @@ pub fn serve<T: BeaconChainTypes>(
             },
         );
 
+    // POST lighthouse/validate_consolidation
+    let post_lighthouse_validate_consolidation = warp::path("lighthouse")
+        .and(warp::path("validate_consolidation"))
+        .and(warp::path::end())
+        .and(warp_utils::json::json())
+        .and(task_spawner_filter.clone())
+        .and(chain_filter.clone())
+        .then(
+            |signed_consolidation: types::SignedConsolidation,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    // Ensure the request is for either the current, previous or next epoch.
+                    let head_state = &chain.canonical_head.cached_head().snapshot.beacon_state;
+
+                    verify_consolidation(
+                        head_state,
+                        &signed_consolidation,
+                        VerifySignatures::True,
+                        &chain.spec,
+                    )
+                    .map_err(|e| warp_utils::reject::custom_bad_request(format!("{:?}", e)))
+                    .map(api_types::GenericResponse::from)
+                    //.map(|()| warp::reply::json(&()))
+                })
+            },
+        );
+
     // GET lighthouse/health
     let get_lighthouse_health = warp::path("lighthouse")
         .and(warp::path("health"))
@@ -4589,6 +4618,7 @@ pub fn serve<T: BeaconChainTypes>(
                     .uor(post_validator_register_validator)
                     .uor(post_validator_liveness_epoch)
                     .uor(post_lighthouse_liveness)
+                    .uor(post_lighthouse_validate_consolidation)
                     .uor(post_lighthouse_database_reconstruct)
                     .uor(post_lighthouse_block_rewards)
                     .uor(post_lighthouse_ui_validator_metrics)
