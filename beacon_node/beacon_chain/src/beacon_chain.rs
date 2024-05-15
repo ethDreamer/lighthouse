@@ -5315,11 +5315,32 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 )
             }
             BeaconState::Electra(_) => {
-                let consolidations = self
-                    .op_pool
-                    .dequeue_consolidation()
-                    .map(|signed_consolidation| VariableList::from(vec![signed_consolidation]))
-                    .unwrap_or_else(VariableList::empty);
+                let mut consolidations = VariableList::empty();
+                while let Some(consolidation) = self.op_pool.dequeue_consolidation() {
+                    // validate this consolidation against the state
+                    match state_processing::verify_consolidation(
+                        &state,
+                        &consolidation,
+                        VerifySignatures::True,
+                        &self.spec,
+                    ) {
+                        Ok(_) => {
+                            consolidations
+                                .push(consolidation)
+                                .expect("no way consolidations is full");
+                            break;
+                        }
+                        Err(e) => {
+                            debug!(
+                                self.log,
+                                "Dropping invalid consolidation";
+                                "consolidation" => ?consolidation,
+                                "error" => ?e
+                            )
+                        }
+                    }
+                }
+
                 let (payload, kzg_commitments, maybe_blobs_and_proofs, execution_payload_value) =
                     block_contents
                         .ok_or(BlockProductionError::MissingExecutionPayload)?
