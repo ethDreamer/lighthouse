@@ -5331,7 +5331,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             break;
                         }
                         Err(e) => {
-                            debug!(
+                            info!(
                                 self.log,
                                 "Dropping invalid consolidation";
                                 "consolidation" => ?consolidation,

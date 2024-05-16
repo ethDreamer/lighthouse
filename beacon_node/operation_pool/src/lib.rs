@@ -34,8 +34,7 @@ use state_processing::per_block_processing::{
     get_slashable_indices_modular, verify_exit, VerifySignatures,
 };
 use state_processing::{SigVerifiedOp, VerifyOperation};
-use std::collections::BTreeMap;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::ptr;
 use tree_hash::TreeHash;
@@ -48,6 +47,30 @@ use types::{
 };
 
 type SyncContributions<E> = RwLock<HashMap<SyncAggregateId, Vec<SyncCommitteeContribution<E>>>>;
+
+#[derive(Default, Debug)]
+struct ConsolidationsQueue {
+    by_root: HashMap<Hash256, SignedConsolidation>,
+    ordered: VecDeque<Hash256>,
+}
+
+impl ConsolidationsQueue {
+    pub fn insert(&mut self, signed_consolidation: SignedConsolidation) -> Result<(), OpPoolError> {
+        let root = signed_consolidation.tree_hash_root();
+
+        if self.by_root.insert(root, signed_consolidation).is_some() {
+            return Err(OpPoolError::ConsolidationAlreadyKnown);
+        }
+        self.ordered.push_back(root);
+
+        Ok(())
+    }
+
+    pub fn pop(&mut self) -> Option<SignedConsolidation> {
+        let root = self.ordered.pop_front()?;
+        self.by_root.remove(&root)
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct OperationPool<E: EthSpec + Default> {
@@ -66,7 +89,7 @@ pub struct OperationPool<E: EthSpec + Default> {
     /// Reward cache for accelerating attestation packing.
     reward_cache: RwLock<RewardCache>,
     /// Consolidations
-    consolidations: RwLock<BTreeMap<Hash256, SignedConsolidation>>,
+    consolidations: RwLock<ConsolidationsQueue>,
     _phantom: PhantomData<E>,
 }
 
@@ -384,24 +407,11 @@ impl<E: EthSpec> OperationPool<E> {
         &self,
         signed_consolidation: SignedConsolidation,
     ) -> Result<(), OpPoolError> {
-        let root = signed_consolidation.tree_hash_root();
-        if self
-            .consolidations
-            .write()
-            .insert(root, signed_consolidation)
-            .is_some()
-        {
-            Err(OpPoolError::ConsolidationAlreadyKnown)
-        } else {
-            Ok(())
-        }
+        self.consolidations.write().insert(signed_consolidation)
     }
 
     pub fn dequeue_consolidation(&self) -> Option<SignedConsolidation> {
-        self.consolidations
-            .write()
-            .pop_first()
-            .map(|(_, consolidation)| consolidation)
+        self.consolidations.write().pop()
     }
 
     /// Insert an attester slashing into the pool.
