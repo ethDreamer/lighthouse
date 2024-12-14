@@ -27,6 +27,8 @@
 //! ```
 
 use crate::block_verification::{PayloadVerificationHandle, PayloadVerificationOutcome};
+use crate::data_availability_checker::MaybeAvailableEnvelope;
+use crate::envelope_verification_types::EnvelopeImportData;
 use crate::execution_payload::PayloadNotifier;
 use crate::NotifyExecutionLayer;
 use crate::{BeaconChain, BeaconChainError, BeaconChainTypes};
@@ -34,6 +36,10 @@ use derivative::Derivative;
 use safe_arith::ArithError;
 use slot_clock::SlotClock;
 use state_processing::per_block_processing::compute_timestamp_at_slot;
+use state_processing::per_block_processing::process_operations::{
+    process_consolidation_requests, process_deposit_requests, process_withdrawal_requests,
+};
+use state_processing::BlockProcessingError;
 use std::sync::Arc;
 use tree_hash::TreeHash;
 use types::{
@@ -49,9 +55,6 @@ macro_rules! block_verify {
         }
     };
 }
-
-// TODO: finish this properly
-pub type MaybeAvailableEnvelope<E> = Arc<SignedExecutionEnvelope<E>>;
 
 #[derive(Debug)]
 pub enum EnvelopeError {
@@ -111,6 +114,11 @@ pub enum EnvelopeError {
         max: usize,
         envelope: usize,
     },
+    // Invalid state root
+    InvalidStateRoot {
+        state: Hash256,
+        envelope: Hash256,
+    },
     // The payload was withheld but the block hash
     // matched the committed bid
     PayloadWithheldBlockHashMismatch,
@@ -120,6 +128,8 @@ pub enum EnvelopeError {
     BeaconStateError(BeaconStateError),
     // Some ArithError
     ArithError(ArithError),
+    // Some BlockProcessingError (for electra operations)
+    BlockProcessingError(BlockProcessingError),
 }
 
 impl From<BeaconChainError> for EnvelopeError {
@@ -140,18 +150,20 @@ impl From<ArithError> for EnvelopeError {
     }
 }
 
+impl From<BlockProcessingError> for EnvelopeError {
+    fn from(e: BlockProcessingError) -> Self {
+        EnvelopeError::BlockProcessingError(e)
+    }
+}
+
 /// A wrapper around a `SignedBeaconBlock` that indicates it has been approved for re-gossiping on
 /// the p2p network.
 #[derive(Derivative)]
 #[derivative(Debug(bound = "T: BeaconChainTypes"))]
 pub struct GossipVerifiedEnvelope<T: BeaconChainTypes> {
     pub signed_envelope: Arc<SignedExecutionEnvelope<T::EthSpec>>,
-    pub signed_block: Arc<SignedBlindedBeaconBlock<T::EthSpec>>,
+    pub parent_block: Arc<SignedBlindedBeaconBlock<T::EthSpec>>,
     pub pre_state: Box<BeaconState<T::EthSpec>>,
-    /*
-    parent: Option<PreProcessingSnapshot<T::EthSpec>>,
-    consensus_context: ConsensusContext<T::EthSpec>,
-    */
 }
 
 impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
@@ -172,11 +184,11 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         }
         drop(fork_choice_read_lock);
 
-        let signed_block = chain
+        let parent_block = chain
             .get_blinded_block(&block_root)?
             .ok_or_else(|| EnvelopeError::from(BeaconChainError::MissingBeaconBlock(block_root)))
             .map(Arc::new)?;
-        let execution_bid = &signed_block
+        let execution_bid = &parent_block
             .message()
             .body()
             .signed_execution_bid()?
@@ -202,12 +214,12 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
         let parent_state = chain
             .get_state(
-                &signed_block.message().state_root(),
-                Some(signed_block.slot()),
+                &parent_block.message().state_root(),
+                Some(parent_block.slot()),
             )?
             .ok_or_else(|| {
                 EnvelopeError::from(BeaconChainError::MissingBeaconState(
-                    signed_block.message().state_root(),
+                    parent_block.message().state_root(),
                 ))
             })?;
 
@@ -222,7 +234,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
         Ok(Self {
             signed_envelope,
-            signed_block,
+            parent_block,
             pre_state: Box::new(parent_state),
         })
     }
@@ -242,8 +254,7 @@ pub trait IntoExecutionPendingEnvelope<T: BeaconChainTypes>: Sized {
 
 pub struct ExecutionPendingEnvelope<T: BeaconChainTypes> {
     pub signed_envelope: MaybeAvailableEnvelope<T::EthSpec>,
-    pub signed_block: Arc<SignedBlindedBeaconBlock<T::EthSpec>>,
-    pub pre_state: Box<BeaconState<T::EthSpec>>,
+    pub import_data: EnvelopeImportData<T::EthSpec>,
     pub payload_verification_handle: PayloadVerificationHandle,
 }
 
@@ -363,7 +374,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
         let payload_notifier =
             PayloadNotifier::from_envelope(chain.clone(), envelope, notify_execution_layer)?;
         let block_root = envelope.beacon_block_root();
-        let slot = self.signed_block.slot();
+        let slot = self.parent_block.slot();
 
         let payload_verification_future = async move {
             let chain = payload_notifier.chain.clone();
@@ -394,13 +405,51 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             )
             .ok_or(BeaconChainError::RuntimeShutdown)?;
 
-        // TODO(EIP7732): process electra operations
+        // process electra operations
+        let spec = chain.spec.as_ref();
+        let execution_requests = envelope.execution_requests();
+        process_deposit_requests(&mut state, &execution_requests.deposits, spec)?;
+        process_withdrawal_requests(&mut state, &execution_requests.withdrawals, spec)?;
+        process_consolidation_requests(&mut state, &execution_requests.consolidations, spec)?;
+
+        // cache the latest block hash and full slot
+        *state.latest_block_hash_mut()? = payload.block_hash();
+        *state.latest_full_slot_mut()? = slot;
+
+        // TODO(EIP7732): if verify
+        block_verify!(
+            state.canonical_root()? == envelope.state_root(),
+            EnvelopeError::InvalidStateRoot {
+                state: state.canonical_root()?,
+                envelope: envelope.state_root(),
+            }
+        );
 
         Ok(ExecutionPendingEnvelope {
-            signed_envelope,
-            pre_state: Box::new(state),
-            signed_block: self.signed_block,
+            signed_envelope: MaybeAvailableEnvelope::AvailabilityPending {
+                block_root,
+                envelope: signed_envelope,
+            },
+            import_data: EnvelopeImportData {
+                block_root,
+                parent_block: self.parent_block,
+                post_state: Box::new(state),
+            },
             payload_verification_handle,
         })
+    }
+}
+
+impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T>
+    for Arc<SignedExecutionEnvelope<T::EthSpec>>
+{
+    fn into_execution_pending_envelope(
+        self,
+        chain: &Arc<BeaconChain<T>>,
+        notify_execution_layer: NotifyExecutionLayer,
+    ) -> Result<ExecutionPendingEnvelope<T>, EnvelopeError> {
+        // TODO(EIP7732): figure out how this should be refactored..
+        GossipVerifiedEnvelope::new(self, chain)?
+            .into_execution_pending_envelope(chain, notify_execution_layer)
     }
 }

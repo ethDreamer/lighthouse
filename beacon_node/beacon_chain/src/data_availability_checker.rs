@@ -18,7 +18,7 @@ use task_executor::TaskExecutor;
 use types::blob_sidecar::{BlobIdentifier, BlobSidecar, FixedBlobSidecarList};
 use types::{
     BlobSidecarList, ChainSpec, DataColumnIdentifier, DataColumnSidecar, DataColumnSidecarList,
-    Epoch, EthSpec, Hash256, RuntimeVariableList, SignedBeaconBlock,
+    Epoch, EthSpec, Hash256, RuntimeVariableList, SignedBeaconBlock, SignedExecutionEnvelope,
 };
 
 mod error;
@@ -828,4 +828,68 @@ impl<E: EthSpec> MaybeAvailableBlock<E> {
             Self::AvailabilityPending { block, .. } => block.clone(),
         }
     }
+}
+
+/// A fully available envelope that is ready to be imported into fork choice.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AvailableEnvelope<E: EthSpec> {
+    block_root: Hash256,
+    envelope: Arc<SignedExecutionEnvelope<E>>,
+    blobs: Option<BlobSidecarList<E>>,
+    data_columns: Option<DataColumnSidecarList<E>>,
+    /// Timestamp at which this block first became available (UNIX timestamp, time since 1970).
+    blobs_available_timestamp: Option<Duration>,
+    pub spec: Arc<ChainSpec>,
+}
+
+impl<E: EthSpec> AvailableEnvelope<E> {
+    pub fn envelope(&self) -> &SignedExecutionEnvelope<E> {
+        &self.envelope
+    }
+    pub fn block_cloned(&self) -> Arc<SignedExecutionEnvelope<E>> {
+        self.envelope.clone()
+    }
+
+    pub fn blobs(&self) -> Option<&BlobSidecarList<E>> {
+        self.blobs.as_ref()
+    }
+
+    pub fn blobs_available_timestamp(&self) -> Option<Duration> {
+        self.blobs_available_timestamp
+    }
+
+    pub fn data_columns(&self) -> Option<&DataColumnSidecarList<E>> {
+        self.data_columns.as_ref()
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn deconstruct(
+        self,
+    ) -> (
+        Hash256,
+        Arc<SignedExecutionEnvelope<E>>,
+        Option<BlobSidecarList<E>>,
+        Option<DataColumnSidecarList<E>>,
+    ) {
+        let AvailableEnvelope {
+            block_root,
+            envelope,
+            blobs,
+            data_columns,
+            blobs_available_timestamp: _,
+            ..
+        } = self;
+        (block_root, envelope, blobs, data_columns)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum MaybeAvailableEnvelope<E: EthSpec> {
+    /// This variant is fully available.
+    Available(AvailableEnvelope<E>),
+    /// This variant is not fully available and requires blobs to become fully available.
+    AvailabilityPending {
+        block_root: Hash256,
+        envelope: Arc<SignedExecutionEnvelope<E>>,
+    },
 }
