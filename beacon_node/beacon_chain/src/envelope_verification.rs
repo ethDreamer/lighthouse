@@ -35,11 +35,9 @@ use crate::{BeaconChain, BeaconChainError, BeaconChainTypes};
 use derivative::Derivative;
 use safe_arith::ArithError;
 use slot_clock::SlotClock;
+use state_processing::envelope_processing::{envelope_processing, EnvelopeProcessingError};
 use state_processing::per_block_processing::compute_timestamp_at_slot;
-use state_processing::per_block_processing::process_operations::{
-    process_consolidation_requests, process_deposit_requests, process_withdrawal_requests,
-};
-use state_processing::BlockProcessingError;
+use state_processing::{BlockProcessingError, VerifySignatures};
 use std::sync::Arc;
 use tree_hash::TreeHash;
 use types::{
@@ -48,7 +46,7 @@ use types::{
 };
 
 // TODO(EIP7732): don't use this redefinition..
-macro_rules! block_verify {
+macro_rules! envelope_verify {
     ($condition: expr, $result: expr) => {
         if !$condition {
             return Err($result);
@@ -150,9 +148,15 @@ impl From<ArithError> for EnvelopeError {
     }
 }
 
-impl From<BlockProcessingError> for EnvelopeError {
-    fn from(e: BlockProcessingError) -> Self {
-        EnvelopeError::BlockProcessingError(e)
+impl From<EnvelopeProcessingError> for EnvelopeError {
+    fn from(e: EnvelopeProcessingError) -> Self {
+        match e {
+            EnvelopeProcessingError::BadSignature => EnvelopeError::BadSignature,
+            EnvelopeProcessingError::BeaconStateError(e) => EnvelopeError::BeaconStateError(e),
+            EnvelopeProcessingError::BlockProcessingError(e) => {
+                EnvelopeError::BlockProcessingError(e)
+            }
+        }
     }
 }
 
@@ -224,11 +228,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
             })?;
 
         // verify the signature
-        if signed_envelope.verify_signature(
-            &parent_state,
-            chain.genesis_validators_root,
-            &chain.spec,
-        )? {
+        if !signed_envelope.verify_signature(&parent_state, &chain.spec)? {
             return Err(EnvelopeError::BadSignature);
         }
 
@@ -268,13 +268,10 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
         let envelope = signed_envelope.message();
         let payload = &envelope.payload();
 
-        // verify signature done
-
+        // verify signature already done
         let mut state = *self.pre_state;
-        let previous_state_root = state.canonical_root()?;
-        if state.latest_block_header().state_root == Hash256::default() {
-            state.latest_block_header_mut().state_root = previous_state_root;
-        }
+
+        // setting state.latest_block_header happens in envelope_processing
 
         // Verify consistency with the beacon block
         if !envelope.tree_hash_root() == state.latest_block_header().tree_hash_root() {
@@ -298,7 +295,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
 
         if !envelope.payload_withheld() {
             // Verify the withdrawals root
-            block_verify!(
+            envelope_verify!(
                 payload.withdrawals()?.tree_hash_root() == state.latest_withdrawals_root()?,
                 EnvelopeError::WithdrawalsRootMismatch {
                     state: state.latest_withdrawals_root()?,
@@ -308,7 +305,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             );
 
             // Verify the gas limit
-            block_verify!(
+            envelope_verify!(
                 payload.gas_limit() == committed_bid.gas_limit,
                 EnvelopeError::GasLimitMismatch {
                     committed_bid: committed_bid.gas_limit,
@@ -317,7 +314,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
                 .into()
             );
             // Verify the block hash
-            block_verify!(
+            envelope_verify!(
                 committed_bid.block_hash == payload.block_hash(),
                 EnvelopeError::BlockHashMismatch {
                     committed_bid: committed_bid.block_hash,
@@ -327,7 +324,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             );
 
             // Verify consistency of the parent hash with respect to the previous execution payload
-            block_verify!(
+            envelope_verify!(
                 payload.parent_hash() == state.latest_block_hash()?,
                 EnvelopeError::ParentHashMismatch {
                     state: state.latest_block_hash()?,
@@ -337,7 +334,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             );
 
             // Verify prev_randao
-            block_verify!(
+            envelope_verify!(
                 payload.prev_randao() == *state.get_randao_mix(state.current_epoch())?,
                 EnvelopeError::PrevRandaoMismatch {
                     state: *state.get_randao_mix(state.current_epoch())?,
@@ -349,7 +346,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             // Verify the timestamp
             let state_timestamp =
                 compute_timestamp_at_slot(&state, state.slot(), chain.spec.as_ref())?;
-            block_verify!(
+            envelope_verify!(
                 payload.timestamp() == state_timestamp,
                 EnvelopeError::TimestampMismatch {
                     state: state_timestamp,
@@ -359,7 +356,7 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             );
 
             // Verify the commitments are under limit
-            block_verify!(
+            envelope_verify!(
                 envelope.blob_kzg_commitments().len()
                     <= T::EthSpec::max_blob_commitments_per_block(),
                 EnvelopeError::BlobLimitExceeded {
@@ -405,19 +402,16 @@ impl<T: BeaconChainTypes> IntoExecutionPendingEnvelope<T> for GossipVerifiedEnve
             )
             .ok_or(BeaconChainError::RuntimeShutdown)?;
 
-        // process electra operations
-        let spec = chain.spec.as_ref();
-        let execution_requests = envelope.execution_requests();
-        process_deposit_requests(&mut state, &execution_requests.deposits, spec)?;
-        process_withdrawal_requests(&mut state, &execution_requests.withdrawals, spec)?;
-        process_consolidation_requests(&mut state, &execution_requests.consolidations, spec)?;
-
-        // cache the latest block hash and full slot
-        *state.latest_block_hash_mut()? = payload.block_hash();
-        *state.latest_full_slot_mut()? = slot;
+        // All the state modifications are done in envelope_processing
+        envelope_processing(
+            &mut state,
+            &signed_envelope,
+            VerifySignatures::False,
+            &chain.spec,
+        )?;
 
         // TODO(EIP7732): if verify
-        block_verify!(
+        envelope_verify!(
             state.canonical_root()? == envelope.state_root(),
             EnvelopeError::InvalidStateRoot {
                 state: state.canonical_root()?,

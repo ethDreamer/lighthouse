@@ -65,14 +65,13 @@ impl<E: EthSpec> SignedExecutionEnvelope<E> {
     pub fn verify_signature(
         &self,
         parent_state: &BeaconState<E>,
-        genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> Result<bool, BeaconStateError> {
         let domain = spec.get_domain(
             parent_state.current_epoch(),
             Domain::BeaconBuilder,
             &parent_state.fork(),
-            genesis_validators_root,
+            parent_state.genesis_validators_root(),
         );
         let pubkey = parent_state
             .validators()
