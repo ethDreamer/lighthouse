@@ -2,7 +2,7 @@ use crate::test_utils::TestRandom;
 use crate::ForkName;
 use crate::{
     beacon_block_body::BLOB_KZG_COMMITMENTS_INDEX, BeaconBlockHeader, BeaconStateError, Blob,
-    Epoch, EthSpec, FixedVector, Hash256, SignedBeaconBlockHeader, Slot, VariableList,
+    ChainSpec, Epoch, EthSpec, FixedVector, Hash256, SignedBeaconBlockHeader, Slot, VariableList,
 };
 use crate::{ForkVersionDeserialize, KzgProofs, SignedBeaconBlock};
 use bls::Signature;
@@ -223,6 +223,10 @@ impl<E: EthSpec> BlobSidecar<E> {
             },
             kzg_commitment_inclusion_proof: Default::default(),
         }
+    }
+
+    pub fn post_eip7732(&self, spec: &ChainSpec) -> bool {
+        spec.fork_name_at_slot::<E>(self.slot()).eip7732_enabled()
     }
 
     /// Verifies the kzg commitment inclusion merkle proof.

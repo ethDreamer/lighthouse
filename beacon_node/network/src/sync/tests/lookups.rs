@@ -1212,7 +1212,7 @@ impl TestRig {
             .put_pending_executed_block(executed_block)
             .unwrap()
         {
-            Availability::Available(_) => panic!("block removed from da_checker, available"),
+            Availability::AvailableBlock(_) => panic!("block removed from da_checker, available"),
             Availability::MissingComponents(block_root) => {
                 self.log(&format!("inserted block to da_checker {block_root:?}"))
             }
@@ -1227,7 +1227,7 @@ impl TestRig {
             .put_gossip_blob(GossipVerifiedBlob::__assumed_valid(blob.into()))
             .unwrap()
         {
-            Availability::Available(_) => panic!("blob removed from da_checker, available"),
+            Availability::AvailableBlock(_) => panic!("blob removed from da_checker, available"),
             Availability::MissingComponents(block_root) => {
                 self.log(&format!("inserted blob to da_checker {block_root:?}"))
             }

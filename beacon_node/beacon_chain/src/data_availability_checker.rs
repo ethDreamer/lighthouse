@@ -5,6 +5,7 @@ use crate::block_verification_types::{
 use crate::data_availability_checker::overflow_lru_cache::{
     DataAvailabilityCheckerInner, ReconstructColumnsDecision,
 };
+use crate::envelope_verification_types::AvailableExecutedEnvelope;
 use crate::{metrics, BeaconChain, BeaconChainTypes, BeaconStore};
 use kzg::Kzg;
 use slog::{debug, error, Logger};
@@ -93,7 +94,8 @@ pub enum DataColumnReconstructionResult<E: EthSpec> {
 #[derive(PartialEq)]
 pub enum Availability<E: EthSpec> {
     MissingComponents(Hash256),
-    Available(Box<AvailableExecutedBlock<E>>),
+    AvailableBlock(Box<AvailableExecutedBlock<E>>),
+    AvailableEnvelope(Box<AvailableExecutedEnvelope<E>>),
 }
 
 impl<E: EthSpec> Debug for Availability<E> {
@@ -102,7 +104,14 @@ impl<E: EthSpec> Debug for Availability<E> {
             Self::MissingComponents(block_root) => {
                 write!(f, "MissingComponents({})", block_root)
             }
-            Self::Available(block) => write!(f, "Available({:?})", block.import_data.block_root),
+            Self::AvailableBlock(block) => {
+                write!(f, "AvailableBlock({:?})", block.import_data.block_root)
+            }
+            Self::AvailableEnvelope(envelope) => write!(
+                f,
+                "AvailableEnvelope({:?})",
+                envelope.import_data.block_root
+            ),
         }
     }
 }

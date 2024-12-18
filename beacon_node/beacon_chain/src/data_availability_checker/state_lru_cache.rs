@@ -1,4 +1,5 @@
 use crate::block_verification_types::AsBlock;
+use crate::AvailabilityPendingExecutedEnvelope;
 use crate::{
     block_verification_types::BlockImportData,
     data_availability_checker::{AvailabilityCheckError, STATE_LRU_CAPACITY_NON_ZERO},
@@ -12,8 +13,28 @@ use state_processing::BlockReplayer;
 use std::sync::Arc;
 use store::OnDiskConsensusContext;
 use types::beacon_block_body::KzgCommitments;
-use types::{ssz_tagged_signed_beacon_block, ssz_tagged_signed_beacon_block_arc};
-use types::{BeaconState, BlindedPayload, ChainSpec, Epoch, EthSpec, Hash256, SignedBeaconBlock};
+use types::{
+    ssz_tagged_signed_beacon_block, ssz_tagged_signed_beacon_block_arc,
+    ssz_tagged_signed_execution_envelope_arc,
+};
+use types::{
+    BeaconState, BlindedPayload, ChainSpec, Epoch, EthSpec, Hash256, SignedBeaconBlock,
+    SignedBlindedBeaconBlock, SignedExecutionEnvelope,
+};
+
+// This mirrors everything in the `BlockImportData`, except that it
+// is much smaller because it contains only a state root instead of
+// a full `BeaconState`.
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub struct DietBlockImportData<E: EthSpec> {
+    pub block_root: Hash256,
+    pub state_root: Hash256,
+    #[ssz(with = "ssz_tagged_signed_beacon_block")]
+    pub parent_block: SignedBeaconBlock<E, BlindedPayload<E>>,
+    pub parent_eth1_finalization_data: Eth1FinalizationData,
+    pub confirmed_state_roots: Vec<Hash256>,
+    pub consensus_context: OnDiskConsensusContext<E>,
+}
 
 /// This mirrors everything in the `AvailabilityPendingExecutedBlock`, except
 /// that it is much smaller because it contains only a state root instead of
@@ -22,12 +43,25 @@ use types::{BeaconState, BlindedPayload, ChainSpec, Epoch, EthSpec, Hash256, Sig
 pub struct DietAvailabilityPendingExecutedBlock<E: EthSpec> {
     #[ssz(with = "ssz_tagged_signed_beacon_block_arc")]
     block: Arc<SignedBeaconBlock<E>>,
-    state_root: Hash256,
-    #[ssz(with = "ssz_tagged_signed_beacon_block")]
-    parent_block: SignedBeaconBlock<E, BlindedPayload<E>>,
-    parent_eth1_finalization_data: Eth1FinalizationData,
-    confirmed_state_roots: Vec<Hash256>,
-    consensus_context: OnDiskConsensusContext<E>,
+    import_data: DietBlockImportData<E>,
+    payload_verification_outcome: PayloadVerificationOutcome,
+}
+
+/// This is a smaller version of `EnvelopeImportData`
+#[derive(Encode, Decode, Clone)]
+pub struct DietEnvelopeImportData<E: EthSpec> {
+    pub block_root: Hash256,
+    #[ssz(with = "ssz_tagged_signed_beacon_block_arc")]
+    pub parent_block: Arc<SignedBlindedBeaconBlock<E>>,
+    pub post_state_root: Hash256,
+}
+
+/// This is a smaller version of `DietAvailabilityPendingExecutedEnvelope`
+#[derive(Encode, Decode, Clone)]
+pub struct DietAvailabilityPendingExecutedEnvelope<E: EthSpec> {
+    #[ssz(with = "ssz_tagged_signed_execution_envelope_arc")]
+    envelope: Arc<SignedExecutionEnvelope<E>>,
+    import_data: DietEnvelopeImportData<E>,
     payload_verification_outcome: PayloadVerificationOutcome,
 }
 
@@ -73,7 +107,7 @@ impl<E: EthSpec> DietAvailabilityPendingExecutedBlock<E> {
 /// will fail to recover the state when the cache overflows because it can't load
 /// the parent state!
 pub struct StateLRUCache<T: BeaconChainTypes> {
-    states: RwLock<LruCache<Hash256, BeaconState<T::EthSpec>>>,
+    states: RwLock<LruCache<Hash256, Box<BeaconState<T::EthSpec>>>>,
     store: BeaconStore<T>,
     spec: Arc<ChainSpec>,
 }
@@ -100,14 +134,45 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
 
         DietAvailabilityPendingExecutedBlock {
             block: executed_block.block,
-            state_root,
-            parent_block: executed_block.import_data.parent_block,
-            parent_eth1_finalization_data: executed_block.import_data.parent_eth1_finalization_data,
-            confirmed_state_roots: executed_block.import_data.confirmed_state_roots,
-            consensus_context: OnDiskConsensusContext::from_consensus_context(
-                executed_block.import_data.consensus_context,
-            ),
+            import_data: DietBlockImportData {
+                block_root: executed_block.import_data.block_root,
+                state_root,
+                parent_block: executed_block.import_data.parent_block,
+                parent_eth1_finalization_data: executed_block
+                    .import_data
+                    .parent_eth1_finalization_data,
+                confirmed_state_roots: executed_block.import_data.confirmed_state_roots,
+                consensus_context: OnDiskConsensusContext::from_consensus_context(
+                    executed_block.import_data.consensus_context,
+                ),
+            },
             payload_verification_outcome: executed_block.payload_verification_outcome,
+        }
+    }
+
+    /// This will store the state in the LRU cache and return a
+    /// `DietAvailabilityPendingExecutedEnvelope` which is much cheaper to
+    /// keep around in memory.
+    pub fn register_pending_executed_envelope(
+        &self,
+        executed_envelope: AvailabilityPendingExecutedEnvelope<T::EthSpec>,
+    ) -> DietAvailabilityPendingExecutedEnvelope<T::EthSpec> {
+        let AvailabilityPendingExecutedEnvelope {
+            envelope,
+            import_data,
+            payload_verification_outcome,
+        } = executed_envelope;
+        let state_root = envelope.message().state_root();
+        self.states.write().put(state_root, import_data.post_state);
+
+        DietAvailabilityPendingExecutedEnvelope {
+            envelope,
+            import_data: DietEnvelopeImportData {
+                block_root: import_data.block_root,
+                parent_block: import_data.parent_block,
+                post_state_root: state_root,
+            },
+            payload_verification_outcome,
         }
     }
 
@@ -119,10 +184,14 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
         &self,
         diet_executed_block: DietAvailabilityPendingExecutedBlock<T::EthSpec>,
     ) -> Result<AvailabilityPendingExecutedBlock<T::EthSpec>, AvailabilityCheckError> {
-        let state = if let Some(state) = self.states.write().pop(&diet_executed_block.state_root) {
+        let state = if let Some(state) = self
+            .states
+            .write()
+            .pop(&diet_executed_block.import_data.state_root)
+        {
             state
         } else {
-            self.reconstruct_state(&diet_executed_block)?
+            Box::new(self.reconstruct_state(&diet_executed_block)?)
         };
         let block_root = diet_executed_block.block.canonical_root();
         Ok(AvailabilityPendingExecutedBlock {
@@ -130,10 +199,13 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
             import_data: BlockImportData {
                 block_root,
                 state,
-                parent_block: diet_executed_block.parent_block,
-                parent_eth1_finalization_data: diet_executed_block.parent_eth1_finalization_data,
-                confirmed_state_roots: diet_executed_block.confirmed_state_roots,
+                parent_block: diet_executed_block.import_data.parent_block,
+                parent_eth1_finalization_data: diet_executed_block
+                    .import_data
+                    .parent_eth1_finalization_data,
+                confirmed_state_roots: diet_executed_block.import_data.confirmed_state_roots,
                 consensus_context: diet_executed_block
+                    .import_data
                     .consensus_context
                     .into_consensus_context(),
             },
@@ -147,13 +219,16 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
         &self,
         diet_executed_block: &DietAvailabilityPendingExecutedBlock<T::EthSpec>,
     ) -> Result<BeaconState<T::EthSpec>, AvailabilityCheckError> {
-        let parent_block_root = diet_executed_block.parent_block.canonical_root();
-        let parent_block_state_root = diet_executed_block.parent_block.state_root();
+        let parent_block_root = diet_executed_block
+            .import_data
+            .parent_block
+            .canonical_root();
+        let parent_block_state_root = diet_executed_block.import_data.parent_block.state_root();
         let (parent_state_root, parent_state) = self
             .store
             .get_advanced_hot_state(
                 parent_block_root,
-                diet_executed_block.parent_block.slot(),
+                diet_executed_block.import_data.parent_block.slot(),
                 parent_block_state_root,
             )
             .map_err(AvailabilityCheckError::StoreError)?
@@ -162,9 +237,12 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
             ))?;
 
         let state_roots = vec![
-            Ok((parent_state_root, diet_executed_block.parent_block.slot())),
             Ok((
-                diet_executed_block.state_root,
+                parent_state_root,
+                diet_executed_block.import_data.parent_block.slot(),
+            )),
+            Ok((
+                diet_executed_block.import_data.state_root,
                 diet_executed_block.block.slot(),
             )),
         ];
@@ -190,7 +268,7 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
     }
 
     /// returns the state cache for inspection
-    pub fn lru_cache(&self) -> &RwLock<LruCache<Hash256, BeaconState<T::EthSpec>>> {
+    pub fn lru_cache(&self) -> &RwLock<LruCache<Hash256, Box<BeaconState<T::EthSpec>>>> {
         &self.states
     }
 
@@ -215,15 +293,19 @@ impl<E: EthSpec> From<AvailabilityPendingExecutedBlock<E>>
     for DietAvailabilityPendingExecutedBlock<E>
 {
     fn from(mut value: AvailabilityPendingExecutedBlock<E>) -> Self {
+        let state_root = value.block.state_root();
         Self {
             block: value.block,
-            state_root: value.import_data.state.canonical_root().unwrap(),
-            parent_block: value.import_data.parent_block,
-            parent_eth1_finalization_data: value.import_data.parent_eth1_finalization_data,
-            confirmed_state_roots: value.import_data.confirmed_state_roots,
-            consensus_context: OnDiskConsensusContext::from_consensus_context(
-                value.import_data.consensus_context,
-            ),
+            import_data: DietBlockImportData {
+                block_root: value.import_data.block_root,
+                state_root,
+                parent_block: value.import_data.parent_block,
+                parent_eth1_finalization_data: value.import_data.parent_eth1_finalization_data,
+                confirmed_state_roots: value.import_data.confirmed_state_roots,
+                consensus_context: OnDiskConsensusContext::from_consensus_context(
+                    value.import_data.consensus_context,
+                ),
+            },
             payload_verification_outcome: value.payload_verification_outcome,
         }
     }

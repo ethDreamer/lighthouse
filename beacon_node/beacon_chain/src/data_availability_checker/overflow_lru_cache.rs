@@ -321,7 +321,7 @@ impl<E: EthSpec> PendingComponents<E> {
             blobs_available_timestamp,
             spec: spec.clone(),
         };
-        Ok(Availability::Available(Box::new(
+        Ok(Availability::AvailableBlock(Box::new(
             AvailableExecutedBlock::new(available_block, import_data, payload_verification_outcome),
         )))
     }
@@ -904,7 +904,7 @@ mod test {
             .expect("should put block");
         if blobs_expected == 0 {
             assert!(
-                matches!(availability, Availability::Available(_)),
+                matches!(availability, Availability::AvailableBlock(_)),
                 "block doesn't have blobs, should be available"
             );
             assert_eq!(
@@ -942,7 +942,7 @@ mod test {
                 .put_kzg_verified_blobs(root, kzg_verified_blobs.clone(), harness.logger())
                 .expect("should put blob");
             if blob_index == blobs_expected - 1 {
-                assert!(matches!(availability, Availability::Available(_)));
+                assert!(matches!(availability, Availability::AvailableBlock(_)));
             } else {
                 assert!(matches!(availability, Availability::MissingComponents(_)));
                 assert_eq!(cache.critical.read().len(), 1);
@@ -978,7 +978,7 @@ mod test {
             .put_pending_executed_block(pending_block, harness.logger())
             .expect("should put block");
         assert!(
-            matches!(availability, Availability::Available(_)),
+            matches!(availability, Availability::AvailableBlock(_)),
             "block should be available: {:?}",
             availability
         );

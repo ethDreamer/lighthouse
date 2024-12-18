@@ -3629,10 +3629,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         publish_fn: impl FnOnce() -> Result<(), BlockError>,
     ) -> Result<AvailabilityProcessingStatus, BlockError> {
         match availability {
-            Availability::Available(block) => {
+            Availability::AvailableBlock(block) => {
                 publish_fn()?;
                 // Block is fully available, import into fork choice
                 self.import_available_block(block, recv).await
+            }
+            Availability::AvailableEnvelope(_envelope) => {
+                todo!("Envelope import not yet implemented!");
             }
             Availability::MissingComponents(block_root) => Ok(
                 AvailabilityProcessingStatus::MissingComponents(slot, block_root),
@@ -3679,7 +3682,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     chain.import_block(
                         block,
                         block_root,
-                        state,
+                        *state,
                         confirmed_state_roots,
                         payload_verification_outcome.payload_verification_status,
                         parent_block,

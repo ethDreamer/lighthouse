@@ -89,3 +89,118 @@ impl<E: EthSpec> SignedExecutionEnvelope<E> {
         Ok(self.signature().verify(&pubkey, message))
     }
 }
+
+/// This module can be used to encode and decode a `SignedExecutionEnvelope` the same way it
+/// would be done if we had tagged the superstruct enum with
+/// `#[ssz(enum_behaviour = "union")]`
+/// This should _only_ be used *some* cases when storing these objects in the database
+/// and _NEVER_ for encoding / decoding blocks sent over the network!
+pub mod ssz_tagged_signed_execution_envelope {
+    use super::*;
+
+    #[derive(Debug, Clone, Encode, Decode, PartialEq)]
+    #[ssz(enum_behaviour = "union")]
+    pub enum SignedExecutionEnvelopeOnDisk<E: EthSpec> {
+        EIP7732(SignedExecutionEnvelopeEIP7732<E>),
+        NextFork(SignedExecutionEnvelopeNextFork<E>),
+    }
+
+    #[derive(Debug, Clone, Encode)]
+    #[ssz(enum_behaviour = "union")]
+    pub enum SignedExecutionEnvelopeRefOnDisk<'a, E: EthSpec> {
+        EIP7732(&'a SignedExecutionEnvelopeEIP7732<E>),
+        NextFork(&'a SignedExecutionEnvelopeNextFork<E>),
+    }
+
+    impl<E: EthSpec> From<SignedExecutionEnvelopeOnDisk<E>> for SignedExecutionEnvelope<E> {
+        fn from(e: SignedExecutionEnvelopeOnDisk<E>) -> Self {
+            match e {
+                SignedExecutionEnvelopeOnDisk::EIP7732(e) => SignedExecutionEnvelope::EIP7732(e),
+                SignedExecutionEnvelopeOnDisk::NextFork(e) => SignedExecutionEnvelope::NextFork(e),
+            }
+        }
+    }
+
+    impl<'a, E: EthSpec> From<SignedExecutionEnvelopeRef<'a, E>>
+        for SignedExecutionEnvelopeRefOnDisk<'a, E>
+    {
+        fn from(envelope: SignedExecutionEnvelopeRef<'a, E>) -> Self {
+            match envelope {
+                SignedExecutionEnvelopeRef::EIP7732(e) => Self::EIP7732(e),
+                SignedExecutionEnvelopeRef::NextFork(e) => Self::NextFork(e),
+            }
+        }
+    }
+
+    pub mod encode {
+        use super::*;
+        #[allow(unused_imports)]
+        use ssz::*;
+
+        pub fn is_ssz_fixed_len() -> bool {
+            false
+        }
+
+        pub fn ssz_fixed_len() -> usize {
+            BYTES_PER_LENGTH_OFFSET
+        }
+
+        pub fn ssz_bytes_len<E: EthSpec>(envelope: &SignedExecutionEnvelope<E>) -> usize {
+            SignedExecutionEnvelopeRefOnDisk::from(envelope.to_ref()).ssz_bytes_len()
+        }
+
+        pub fn ssz_append<E: EthSpec>(envelope: &SignedExecutionEnvelope<E>, buf: &mut Vec<u8>) {
+            SignedExecutionEnvelopeRefOnDisk::from(envelope.to_ref()).ssz_append(buf);
+        }
+
+        pub fn as_ssz_bytes<E: EthSpec>(envelope: &SignedExecutionEnvelope<E>) -> Vec<u8> {
+            let mut buf = vec![];
+            ssz_append(envelope, &mut buf);
+
+            buf
+        }
+    }
+
+    pub mod decode {
+        use super::*;
+        #[allow(unused_imports)]
+        use ssz::*;
+
+        pub fn is_ssz_fixed_len() -> bool {
+            false
+        }
+
+        pub fn ssz_fixed_len() -> usize {
+            BYTES_PER_LENGTH_OFFSET
+        }
+
+        pub fn from_ssz_bytes<E: EthSpec>(
+            bytes: &[u8],
+        ) -> Result<SignedExecutionEnvelope<E>, DecodeError> {
+            SignedExecutionEnvelopeOnDisk::from_ssz_bytes(bytes).map(Into::into)
+        }
+    }
+}
+
+pub mod ssz_tagged_signed_execution_envelope_arc {
+    use super::*;
+    pub mod encode {
+        pub use super::ssz_tagged_signed_execution_envelope::encode::*;
+    }
+
+    pub mod decode {
+        pub use super::ssz_tagged_signed_execution_envelope::decode::{
+            is_ssz_fixed_len, ssz_fixed_len,
+        };
+        use super::*;
+        #[allow(unused_imports)]
+        use ssz::*;
+        use std::sync::Arc;
+
+        pub fn from_ssz_bytes<E: EthSpec>(
+            bytes: &[u8],
+        ) -> Result<Arc<SignedExecutionEnvelope<E>>, DecodeError> {
+            ssz_tagged_signed_execution_envelope::decode::from_ssz_bytes(bytes).map(Arc::new)
+        }
+    }
+}

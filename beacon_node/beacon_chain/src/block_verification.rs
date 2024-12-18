@@ -1673,7 +1673,7 @@ impl<T: BeaconChainTypes> ExecutionPendingBlock<T> {
             block,
             import_data: BlockImportData {
                 block_root,
-                state,
+                state: Box::new(state),
                 parent_block: parent.beacon_block,
                 parent_eth1_finalization_data,
                 confirmed_state_roots,

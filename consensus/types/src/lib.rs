@@ -255,7 +255,10 @@ pub use crate::signed_beacon_block_header::SignedBeaconBlockHeader;
 pub use crate::signed_bls_to_execution_change::SignedBlsToExecutionChange;
 pub use crate::signed_contribution_and_proof::SignedContributionAndProof;
 pub use crate::signed_execution_bid::SignedExecutionBid;
-pub use crate::signed_execution_envelope::SignedExecutionEnvelope;
+pub use crate::signed_execution_envelope::{
+    ssz_tagged_signed_execution_envelope, ssz_tagged_signed_execution_envelope_arc,
+    SignedExecutionEnvelope,
+};
 pub use crate::signed_voluntary_exit::SignedVoluntaryExit;
 pub use crate::signing_data::{SignedRoot, SigningData};
 pub use crate::slot_epoch::{Epoch, Slot};

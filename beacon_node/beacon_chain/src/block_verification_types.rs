@@ -358,7 +358,7 @@ impl<E: EthSpec> AvailabilityPendingExecutedBlock<E> {
 #[derive(Debug, PartialEq)]
 pub struct BlockImportData<E: EthSpec> {
     pub block_root: Hash256,
-    pub state: BeaconState<E>,
+    pub state: Box<BeaconState<E>>,
     pub parent_block: SignedBeaconBlock<E, BlindedPayload<E>>,
     pub parent_eth1_finalization_data: Eth1FinalizationData,
     pub confirmed_state_roots: Vec<Hash256>,
@@ -373,7 +373,7 @@ impl<E: EthSpec> BlockImportData<E> {
     ) -> Self {
         Self {
             block_root,
-            state,
+            state: Box::new(state),
             parent_block,
             parent_eth1_finalization_data: Eth1FinalizationData {
                 eth1_data: <_>::default(),

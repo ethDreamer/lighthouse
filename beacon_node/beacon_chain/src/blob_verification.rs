@@ -18,7 +18,8 @@ use std::time::Duration;
 use tree_hash::TreeHash;
 use types::blob_sidecar::BlobIdentifier;
 use types::{
-    BeaconStateError, BlobSidecar, Epoch, EthSpec, Hash256, SignedBeaconBlockHeader, Slot,
+    BeaconStateError, BlobSidecar, ChainSpec, Epoch, EthSpec, Hash256, SignedBeaconBlockHeader,
+    Slot,
 };
 
 /// An error occurred while validating a gossip blob.
@@ -283,6 +284,10 @@ impl<E: EthSpec> KzgVerifiedBlob<E> {
     }
     pub fn seen_timestamp(&self) -> Duration {
         self.seen_timestamp
+    }
+
+    pub fn post_eip7732(&self, spec: &ChainSpec) -> bool {
+        self.blob.post_eip7732(spec)
     }
     /// Construct a `KzgVerifiedBlob` that is assumed to be valid.
     ///
