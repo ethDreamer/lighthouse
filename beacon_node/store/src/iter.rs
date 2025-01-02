@@ -1,10 +1,10 @@
 use crate::errors::HandleUnavailable;
-use crate::{Error, HotColdDB, ItemStore};
+use crate::{BlockOrEnvelope, Error, HotColdDB, ItemStore};
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use types::{
-    typenum::Unsigned, BeaconState, BeaconStateError, BlindedPayload, EthSpec, Hash256,
-    SignedBeaconBlock, Slot,
+    typenum::Unsigned, BeaconState, BeaconStateError, BlindedPayload, EthSpec, ExecutionBlockHash,
+    Hash256, SignedBeaconBlock, SignedExecutionEnvelope, Slot,
 };
 
 /// Implemented for types that have ancestors (e.g., blocks, states) that may be iterated over.
@@ -300,6 +300,128 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> Iterator
 
     fn next(&mut self) -> Option<Self::Item> {
         self.do_next().transpose()
+    }
+}
+
+enum CachedData<E: EthSpec> {
+    None,
+    ChildsParentBlockHash(ExecutionBlockHash),
+    BeaconBlock(Box<SignedBeaconBlock<E, BlindedPayload<E>>>),
+}
+
+impl<E: EthSpec> CachedData<E> {
+    fn childs_parent_hash_matches(&self, hash: ExecutionBlockHash) -> bool {
+        match self {
+            CachedData::ChildsParentBlockHash(h) => *h == hash,
+            _ => false,
+        }
+    }
+
+    // returns the block if it is cached leaving self as None
+    fn take_block(&mut self) -> Option<Box<SignedBeaconBlock<E, BlindedPayload<E>>>> {
+        match std::mem::replace(self, CachedData::None) {
+            CachedData::BeaconBlock(block) => Some(block),
+            other => {
+                // Restore the state for other variants
+                *self = other;
+                None
+            }
+        }
+    }
+}
+
+pub struct ParentRootBlockEnvelopeIterator<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> {
+    store: &'a HotColdDB<E, Hot, Cold>,
+    next_block_root: Hash256,
+    cached_data: CachedData<E>,
+    decode_any_variant: bool,
+    _phantom: PhantomData<E>,
+}
+
+impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
+    ParentRootBlockEnvelopeIterator<'a, E, Hot, Cold>
+{
+    pub fn new(store: &'a HotColdDB<E, Hot, Cold>, start_block_root: Hash256) -> Self {
+        Self {
+            store,
+            next_block_root: start_block_root,
+            cached_data: CachedData::None,
+            decode_any_variant: false,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Block iterator that is tolerant of blocks that have the wrong fork for their slot.
+    pub fn fork_tolerant(store: &'a HotColdDB<E, Hot, Cold>, start_block_root: Hash256) -> Self {
+        Self {
+            store,
+            next_block_root: start_block_root,
+            cached_data: CachedData::None,
+            decode_any_variant: true,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn retrieve_block(
+        &mut self,
+        block_root: Hash256,
+    ) -> Result<SignedBeaconBlock<E, BlindedPayload<E>>, Error> {
+        if let Some(block_ptr) = self.cached_data.take_block() {
+            return Ok(*block_ptr);
+        }
+
+        if self.decode_any_variant {
+            self.store.get_block_any_variant(&block_root)
+        } else {
+            self.store.get_blinded_block(&block_root)
+        }?
+        .ok_or(Error::BlockNotFound(block_root))
+    }
+
+    fn retrieve_envelope(&self, block_root: Hash256) -> Result<SignedExecutionEnvelope<E>, Error> {
+        self.store
+            .get_execution_envelope(&block_root)?
+            .ok_or(Error::EnvelopeNotFound(block_root))
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn do_next(&mut self) -> Result<Option<(Hash256, BlockOrEnvelope<E>)>, Error> {
+        // Stop once we reach the zero parent, otherwise we'll keep returning the genesis
+        // block forever.
+        if self.next_block_root.is_zero() {
+            Ok(None)
+        } else {
+            let block_root = self.next_block_root;
+            let block = self.retrieve_block(block_root)?;
+
+            if let Ok(bid) = block
+                .message()
+                .body()
+                .signed_execution_bid()
+                .map(|signed| &signed.message)
+            {
+                // post EIP-7732
+                let committed_block_hash = bid.block_hash;
+                // check if this block is full
+                if self
+                    .cached_data
+                    .childs_parent_hash_matches(committed_block_hash)
+                {
+                    // this block is full (payload revealed on time)
+                    // cache the beacon block for the next iteration and return the envelope
+                    let envelope = self.retrieve_envelope(block_root)?;
+                    self.cached_data = CachedData::BeaconBlock(Box::new(block));
+                    Ok(Some((block_root, BlockOrEnvelope::Envelope(envelope))))
+                } else {
+                    self.cached_data = CachedData::ChildsParentBlockHash(bid.parent_block_hash);
+                    self.next_block_root = block.message().parent_root();
+                    Ok(Some((block_root, BlockOrEnvelope::Block(block))))
+                }
+            } else {
+                self.next_block_root = block.message().parent_root();
+                Ok(Some((block_root, BlockOrEnvelope::Block(block))))
+            }
+        }
     }
 }
 

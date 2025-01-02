@@ -543,6 +543,28 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         ));
     }
 
+    /// Store an execution envelope
+    pub fn put_execution_envelope(
+        &self,
+        block_root: &Hash256,
+        envelope: SignedExecutionEnvelope<E>,
+    ) -> Result<(), Error> {
+        let op = self.execution_envelope_as_kv_store_ops(block_root, envelope);
+        self.hot_db.do_atomically(vec![op])
+    }
+
+    pub fn execution_envelope_as_kv_store_ops(
+        &self,
+        key: &Hash256,
+        envelope: SignedExecutionEnvelope<E>,
+    ) -> KeyValueStoreOp {
+        let db_key = get_key_for_col(DBColumn::ExecutionEnvelope.into(), key.as_slice());
+        KeyValueStoreOp::PutKeyValue(
+            db_key,
+            types::ssz_tagged_signed_execution_envelope::encode::as_ssz_bytes(&envelope),
+        )
+    }
+
     pub fn try_get_full_block(
         &self,
         block_root: &Hash256,
@@ -662,6 +684,18 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         self.hot_db
             .get_bytes(DBColumn::BeaconBlock.into(), block_root.as_slice())?
             .map(|block_bytes| decoder(&block_bytes))
+            .transpose()
+            .map_err(|e| e.into())
+    }
+
+    /// Fetch an execution envelope from the store
+    pub fn get_execution_envelope(
+        &self,
+        block_root: &Hash256,
+    ) -> Result<Option<SignedExecutionEnvelope<E>>, Error> {
+        self.hot_db
+            .get_bytes(DBColumn::ExecutionEnvelope.into(), block_root.as_slice())?
+            .map(|bytes| ssz_tagged_signed_execution_envelope::decode::from_ssz_bytes(&bytes))
             .transpose()
             .map_err(|e| e.into())
     }

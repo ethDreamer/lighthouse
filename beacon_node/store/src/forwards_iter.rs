@@ -1,9 +1,12 @@
 use crate::errors::{Error, Result};
 use crate::iter::{BlockRootsIterator, StateRootsIterator};
-use crate::{ColumnIter, DBColumn, HotColdDB, ItemStore};
+use crate::{BlockOrEnvelope, ColumnIter, DBColumn, HotColdDB, ItemStore};
 use itertools::process_results;
 use std::marker::PhantomData;
-use types::{BeaconState, EthSpec, Hash256, Slot};
+use types::{
+    BeaconState, BlindedPayload, EthSpec, ExecutionBlockHash, Hash256, SignedBeaconBlock,
+    SignedExecutionEnvelope, Slot,
+};
 
 pub type HybridForwardsBlockRootsIterator<'a, E, Hot, Cold> =
     HybridForwardsIterator<'a, E, Hot, Cold>;
@@ -353,6 +356,156 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> Iterator
     for HybridForwardsIterator<'_, E, Hot, Cold>
 {
     type Item = Result<(Hash256, Slot)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.do_next().transpose()
+    }
+}
+
+enum CachedData<E: EthSpec> {
+    ParentCommittedBlockHash(Box<(Hash256, ExecutionBlockHash)>),
+    BeaconBlock(Box<(Hash256, SignedBeaconBlock<E, BlindedPayload<E>>)>),
+    None,
+}
+
+pub struct ForwardsBlockEnvelopeIterator<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> {
+    store: &'a HotColdDB<E, Hot, Cold>,
+    block_roots_iter: HybridForwardsBlockRootsIterator<'a, E, Hot, Cold>,
+    decode_any_variant: bool,
+    cached_data: CachedData<E>,
+}
+
+impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
+    ForwardsBlockEnvelopeIterator<'a, E, Hot, Cold>
+{
+    pub fn new(
+        store: &'a HotColdDB<E, Hot, Cold>,
+        start_slot: Slot,
+        end_slot: Option<Slot>,
+        decode_any_variant: bool,
+        get_state: impl FnOnce() -> Result<(BeaconState<E>, Hash256)>,
+    ) -> Result<Self> {
+        let block_roots_iter = HybridForwardsBlockRootsIterator::new(
+            store,
+            DBColumn::BeaconBlockRoots,
+            start_slot,
+            end_slot,
+            get_state,
+        )?;
+        Ok(Self {
+            store,
+            block_roots_iter,
+            decode_any_variant,
+            cached_data: CachedData::None,
+        })
+    }
+
+    fn load_next_block(
+        &mut self,
+    ) -> Result<Option<(Hash256, SignedBeaconBlock<E, BlindedPayload<E>>)>> {
+        // Get the next block root.
+        let (block_root, _) = match self.block_roots_iter.next() {
+            Some(x) => x?,
+            None => return Ok(None),
+        };
+        if self.decode_any_variant {
+            self.store.get_block_any_variant(&block_root)
+        } else {
+            self.store.get_blinded_block(&block_root)
+        }?
+        .ok_or(Error::BlockNotFound(block_root))
+        .map(|block| Some((block_root, block)))
+    }
+
+    fn load_envelope(&mut self, block_root: Hash256) -> Result<SignedExecutionEnvelope<E>> {
+        self.store
+            .get_execution_envelope(&block_root)?
+            .ok_or(Error::EnvelopeNotFound(block_root))
+    }
+
+    fn cache_committed_block_hash(
+        &mut self,
+        block_root: Hash256,
+        block: &SignedBeaconBlock<E, BlindedPayload<E>>,
+    ) {
+        if let Ok(bid) = block
+            .message()
+            .body()
+            .signed_execution_bid()
+            .map(|signed| &signed.message)
+        {
+            // post EIP-7732
+            self.cached_data =
+                CachedData::ParentCommittedBlockHash(Box::new((block_root, bid.block_hash)));
+        }
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn do_next(&mut self) -> Result<Option<(Hash256, BlockOrEnvelope<E>)>> {
+        match std::mem::replace(&mut self.cached_data, CachedData::None) {
+            CachedData::None => {
+                let (block_root, block) = match self.load_next_block() {
+                    Ok(Some(pair)) => pair,
+                    Ok(None) => return Ok(None),
+                    Err(e) => return Err(e),
+                };
+                self.cache_committed_block_hash(block_root, &block);
+                // yield the block
+                Ok(Some((block_root, BlockOrEnvelope::Block(block))))
+            }
+            CachedData::ParentCommittedBlockHash(ptr) => {
+                let (parent_root, parent_committed_block_hash) = *ptr;
+                let (block_root, block) = match self.load_next_block() {
+                    Ok(Some(pair)) => pair,
+                    Ok(None) => {
+                        // yield the envelope
+                        match self.load_envelope(parent_root) {
+                            Ok(envelope) => {
+                                return Ok(Some((parent_root, BlockOrEnvelope::Envelope(envelope))))
+                            }
+                            // If the next block isn't found yet, good chance the envelope doesn't exist yet either.
+                            Err(_) => return Ok(None),
+                        }
+                    }
+                    Err(e) => return Err(e),
+                };
+                if let Ok(bid) = block
+                    .message()
+                    .body()
+                    .signed_execution_bid()
+                    .map(|signed| &signed.message)
+                {
+                    // post EIP-7732
+                    if bid.parent_block_hash == parent_committed_block_hash {
+                        // parent is full block, load and yield the envelope
+                        let envelope = self.load_envelope(parent_root)?;
+                        // cache this block as it will be yielded next
+                        self.cached_data = CachedData::BeaconBlock(Box::new((block_root, block)));
+                        Ok(Some((parent_root, BlockOrEnvelope::Envelope(envelope))))
+                    } else {
+                        // parent block is not full, yield this block
+                        Ok(Some((block_root, BlockOrEnvelope::Block(block))))
+                    }
+                } else {
+                    Err(Error::PleaseNotifyTheDevs(
+                        "Parent post EIP-7732 but somehow child is not.",
+                    ))
+                }
+            }
+            CachedData::BeaconBlock(ptr) => {
+                let (block_root, block) = *ptr;
+                self.cache_committed_block_hash(block_root, &block);
+                // yield the block loaded earlier
+                Ok(Some((block_root, BlockOrEnvelope::Block(block))))
+            }
+        }
+    }
+}
+
+impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> Iterator
+    for ForwardsBlockEnvelopeIterator<'_, E, Hot, Cold>
+{
+    type Item = Result<(Hash256, BlockOrEnvelope<E>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.do_next().transpose()

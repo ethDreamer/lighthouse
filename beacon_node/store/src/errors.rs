@@ -20,6 +20,7 @@ pub enum Error {
     },
     RlpError(String),
     BlockNotFound(Hash256),
+    EnvelopeNotFound(Hash256),
     NoContinuationData,
     SplitPointModified(Slot, Slot),
     ConfigError(StoreConfigError),
@@ -69,6 +70,7 @@ pub enum Error {
     RandaoMixOutOfBounds,
     GenesisStateUnknown,
     ArithError(safe_arith::ArithError),
+    PleaseNotifyTheDevs(&'static str),
 }
 
 pub trait HandleUnavailable<T> {

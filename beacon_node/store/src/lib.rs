@@ -51,6 +51,11 @@ pub type ColumnKeyIter<'a, K> = Box<dyn Iterator<Item = Result<K, Error>> + 'a>;
 pub type RawEntryIter<'a> = Box<dyn Iterator<Item = Result<(Vec<u8>, Vec<u8>), Error>> + 'a>;
 pub type RawKeyIter<'a> = Box<dyn Iterator<Item = Result<Vec<u8>, Error>> + 'a>;
 
+pub enum BlockOrEnvelope<E: EthSpec> {
+    Block(SignedBeaconBlock<E, BlindedPayload<E>>),
+    Envelope(SignedExecutionEnvelope<E>),
+}
+
 pub trait KeyValueStore<E: EthSpec>: Sync + Send + Sized + 'static {
     /// Retrieve some bytes in `column` with `key`.
     fn get_bytes(&self, column: &str, key: &[u8]) -> Result<Option<Vec<u8>>, Error>;
@@ -349,6 +354,9 @@ pub enum DBColumn {
     /// For helping persist eagerly computed light client bootstrap data
     #[strum(serialize = "scm")]
     SyncCommittee,
+    /// For storing ExecutionEnvelopes
+    #[strum(serialize = "eev")]
+    ExecutionEnvelope,
 }
 
 /// A block from the database, which might have an execution payload or not.
@@ -387,6 +395,7 @@ impl DBColumn {
             | Self::PubkeyCache
             | Self::BeaconRestorePoint
             | Self::DhtEnrs
+            | Self::ExecutionEnvelope
             | Self::OptimisticTransitionBlock => 32,
             Self::BeaconBlockRoots
             | Self::BeaconBlockRootsChunked
