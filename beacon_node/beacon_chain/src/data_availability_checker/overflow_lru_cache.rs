@@ -1,11 +1,17 @@
-use super::state_lru_cache::{DietAvailabilityPendingExecutedBlock, StateLRUCache};
+use super::state_lru_cache::{
+    AvailabilityPendingExecutedBlockOrEnvelope, DietAvailabilityPendingBlockOrEnvelope,
+    DietAvailabilityPendingExecutedBlock, DietAvailabilityPendingExecutedEnvelope, StateLRUCache,
+};
 use crate::beacon_chain::BeaconStore;
 use crate::blob_verification::KzgVerifiedBlob;
 use crate::block_verification_types::{
     AvailabilityPendingExecutedBlock, AvailableBlock, AvailableExecutedBlock,
 };
-use crate::data_availability_checker::{Availability, AvailabilityCheckError};
+use crate::data_availability_checker::{Availability, AvailabilityCheckError, AvailableEnvelope};
 use crate::data_column_verification::KzgVerifiedCustodyDataColumn;
+use crate::envelope_verification_types::{
+    AvailabilityPendingExecutedEnvelope, AvailableExecutedEnvelope,
+};
 use crate::BeaconChainTypes;
 use lru::LruCache;
 use parking_lot::RwLock;
@@ -30,13 +36,13 @@ pub struct PendingComponents<E: EthSpec> {
     pub block_root: Hash256,
     pub verified_blobs: FixedVector<Option<KzgVerifiedBlob<E>>, E::MaxBlobsPerBlock>,
     pub verified_data_columns: Vec<KzgVerifiedCustodyDataColumn<E>>,
-    pub executed_block: Option<DietAvailabilityPendingExecutedBlock<E>>,
+    pub executed_block: Option<DietAvailabilityPendingBlockOrEnvelope<E>>,
     pub reconstruction_started: bool,
 }
 
 impl<E: EthSpec> PendingComponents<E> {
     /// Returns an immutable reference to the cached block.
-    pub fn get_cached_block(&self) -> &Option<DietAvailabilityPendingExecutedBlock<E>> {
+    pub fn get_cached_block(&self) -> &Option<DietAvailabilityPendingBlockOrEnvelope<E>> {
         &self.executed_block
     }
 
@@ -59,7 +65,9 @@ impl<E: EthSpec> PendingComponents<E> {
     }
 
     /// Returns a mutable reference to the cached block.
-    pub fn get_cached_block_mut(&mut self) -> &mut Option<DietAvailabilityPendingExecutedBlock<E>> {
+    pub fn get_cached_block_mut(
+        &mut self,
+    ) -> &mut Option<DietAvailabilityPendingBlockOrEnvelope<E>> {
         &mut self.executed_block
     }
 
@@ -121,7 +129,12 @@ impl<E: EthSpec> PendingComponents<E> {
 
     /// Inserts a block into the cache.
     pub fn insert_block(&mut self, block: DietAvailabilityPendingExecutedBlock<E>) {
-        *self.get_cached_block_mut() = Some(block)
+        *self.get_cached_block_mut() = Some(DietAvailabilityPendingBlockOrEnvelope::Block(block))
+    }
+
+    pub fn insert_envelope(&mut self, envelope: DietAvailabilityPendingExecutedEnvelope<E>) {
+        *self.get_cached_block_mut() =
+            Some(DietAvailabilityPendingBlockOrEnvelope::Envelope(envelope))
     }
 
     /// Inserts a blob at a specific index in the cache.
@@ -185,6 +198,12 @@ impl<E: EthSpec> PendingComponents<E> {
     /// Blobs that don't match the new block's commitments are evicted.
     pub fn merge_block(&mut self, block: DietAvailabilityPendingExecutedBlock<E>) {
         self.insert_block(block);
+        let reinsert = std::mem::take(self.get_cached_blobs_mut());
+        self.merge_blobs(reinsert);
+    }
+
+    pub fn merge_envelope(&mut self, envelope: DietAvailabilityPendingExecutedEnvelope<E>) {
+        self.insert_envelope(envelope);
         let reinsert = std::mem::take(self.get_cached_blobs_mut());
         self.merge_blobs(reinsert);
     }
@@ -263,8 +282,9 @@ impl<E: EthSpec> PendingComponents<E> {
     ) -> Result<Availability<E>, AvailabilityCheckError>
     where
         R: FnOnce(
-            DietAvailabilityPendingExecutedBlock<E>,
-        ) -> Result<AvailabilityPendingExecutedBlock<E>, AvailabilityCheckError>,
+            DietAvailabilityPendingBlockOrEnvelope<E>,
+        )
+            -> Result<AvailabilityPendingExecutedBlockOrEnvelope<E>, AvailabilityCheckError>,
     {
         let Self {
             block_root,
@@ -280,11 +300,12 @@ impl<E: EthSpec> PendingComponents<E> {
             .map(|blob| blob.seen_timestamp())
             .max();
 
-        let Some(diet_executed_block) = executed_block else {
+        let Some(diet_block_or_envelope) = executed_block else {
             return Err(AvailabilityCheckError::Unexpected);
         };
 
-        let is_peer_das_enabled = spec.is_peer_das_enabled_for_epoch(diet_executed_block.epoch());
+        let is_peer_das_enabled =
+            spec.is_peer_das_enabled_for_epoch(diet_block_or_envelope.epoch());
         let (blobs, data_columns) = if is_peer_das_enabled {
             let data_columns = verified_data_columns
                 .into_iter()
@@ -292,7 +313,7 @@ impl<E: EthSpec> PendingComponents<E> {
                 .collect::<Vec<_>>();
             (None, Some(data_columns))
         } else {
-            let num_blobs_expected = diet_executed_block.num_blobs_expected();
+            let num_blobs_expected = diet_block_or_envelope.num_blobs_expected();
             let Some(verified_blobs) = verified_blobs
                 .into_iter()
                 .map(|b| b.map(|b| b.to_blob()))
@@ -305,32 +326,63 @@ impl<E: EthSpec> PendingComponents<E> {
             (Some(verified_blobs), None)
         };
 
-        let executed_block = recover(diet_executed_block)?;
+        let executed_block_or_envelope = recover(diet_block_or_envelope)?;
 
-        let AvailabilityPendingExecutedBlock {
-            block,
-            import_data,
-            payload_verification_outcome,
-        } = executed_block;
+        match executed_block_or_envelope {
+            AvailabilityPendingExecutedBlockOrEnvelope::Block(block) => {
+                let AvailabilityPendingExecutedBlock {
+                    block,
+                    import_data,
+                    payload_verification_outcome,
+                } = block;
 
-        let available_block = AvailableBlock {
-            block_root,
-            block,
-            blobs,
-            data_columns,
-            blobs_available_timestamp,
-            spec: spec.clone(),
-        };
-        Ok(Availability::AvailableBlock(Box::new(
-            AvailableExecutedBlock::new(available_block, import_data, payload_verification_outcome),
-        )))
+                let available_block = AvailableBlock {
+                    block_root,
+                    block,
+                    blobs,
+                    data_columns,
+                    blobs_available_timestamp,
+                    spec: spec.clone(),
+                };
+                Ok(Availability::AvailableBlock(Box::new(
+                    AvailableExecutedBlock::new(
+                        available_block,
+                        import_data,
+                        payload_verification_outcome,
+                    ),
+                )))
+            }
+            AvailabilityPendingExecutedBlockOrEnvelope::Envelope(envelope) => {
+                let AvailabilityPendingExecutedEnvelope {
+                    envelope,
+                    import_data,
+                    payload_verification_outcome,
+                } = envelope;
+
+                let available_envelope = AvailableEnvelope {
+                    block_root,
+                    envelope,
+                    blobs,
+                    data_columns,
+                    blobs_available_timestamp,
+                    spec: spec.clone(),
+                };
+                Ok(Availability::AvailableEnvelope(Box::new(
+                    AvailableExecutedEnvelope::new(
+                        available_envelope,
+                        import_data,
+                        payload_verification_outcome,
+                    ),
+                )))
+            }
+        }
     }
 
     /// Returns the epoch of the block if it is cached, otherwise returns the epoch of the first blob.
     pub fn epoch(&self) -> Option<Epoch> {
         self.executed_block
             .as_ref()
-            .map(|pending_block| pending_block.as_block().epoch())
+            .map(|pending_block| pending_block.epoch())
             .or_else(|| {
                 for maybe_blob in self.verified_blobs.iter() {
                     if maybe_blob.is_some() {
@@ -409,7 +461,15 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
                 pending_components
                     .executed_block
                     .as_ref()
-                    .map(|block| block.block_cloned())
+                    .and_then(|block_or_envelope| match block_or_envelope {
+                        DietAvailabilityPendingBlockOrEnvelope::Block(block) => {
+                            Some(block.block_cloned())
+                        }
+                        // TODO(EIP7732): Investigate what should be done here.. this is syncing code..
+                        DietAvailabilityPendingBlockOrEnvelope::Envelope(_) => {
+                            todo!("get_execution_valid_block()")
+                        }
+                    })
             })
     }
 
@@ -483,8 +543,9 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
             write_lock.put(block_root, pending_components.clone());
             // No need to hold the write lock anymore
             drop(write_lock);
-            pending_components.make_available(&self.spec, |diet_block| {
-                self.state_cache.recover_pending_executed_block(diet_block)
+            pending_components.make_available(&self.spec, |diet_block_envelope| {
+                self.state_cache
+                    .recover_pending_executed_block_or_envelope(diet_block_envelope)
             })
         } else {
             write_lock.put(block_root, pending_components);
@@ -516,8 +577,9 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
             write_lock.put(block_root, pending_components.clone());
             // No need to hold the write lock anymore
             drop(write_lock);
-            pending_components.make_available(&self.spec, |diet_block| {
-                self.state_cache.recover_pending_executed_block(diet_block)
+            pending_components.make_available(&self.spec, |diet_block_or_envelope| {
+                self.state_cache
+                    .recover_pending_executed_block_or_envelope(diet_block_or_envelope)
             })
         } else {
             write_lock.put(block_root, pending_components);
@@ -605,8 +667,9 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
             write_lock.put(block_root, pending_components.clone());
             // No need to hold the write lock anymore
             drop(write_lock);
-            pending_components.make_available(&self.spec, |diet_block| {
-                self.state_cache.recover_pending_executed_block(diet_block)
+            pending_components.make_available(&self.spec, |diet_block_envelope| {
+                self.state_cache
+                    .recover_pending_executed_block_or_envelope(diet_block_envelope)
             })
         } else {
             write_lock.put(block_root, pending_components);

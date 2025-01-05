@@ -1,9 +1,12 @@
 use crate::config::{OnDiskStoreConfig, StoreConfig};
-use crate::forwards_iter::{HybridForwardsBlockRootsIterator, HybridForwardsStateRootsIterator};
+use crate::forwards_iter::{
+    ForwardsBlockEnvelopeIterator, HybridForwardsBlockRootsIterator,
+    HybridForwardsStateRootsIterator,
+};
 use crate::hdiff::{HDiff, HDiffBuffer, HierarchyModuli, StorageStrategy};
 use crate::historic_state_cache::HistoricStateCache;
 use crate::impls::beacon_state::{get_full_state, store_full_state};
-use crate::iter::{BlockRootsIterator, ParentRootBlockIterator, RootsIterator};
+use crate::iter::{BlockRootsIterator, ParentRootBlockEnvelopeIterator, RootsIterator};
 use crate::leveldb_store::{BytesKey, LevelDB};
 use crate::memory_store::MemoryStore;
 use crate::metadata::{
@@ -1123,6 +1126,15 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         )
     }
 
+    pub fn forwards_block_envelopes_iterator_until(
+        &self,
+        start_slot: Slot,
+        end_slot: Slot,
+        get_state: impl FnOnce() -> Result<(BeaconState<E>, Hash256), Error>,
+    ) -> Result<ForwardsBlockEnvelopeIterator<E, Hot, Cold>, Error> {
+        ForwardsBlockEnvelopeIterator::new(self, start_slot, Some(end_slot), false, get_state)
+    }
+
     pub fn forwards_state_roots_iterator(
         &self,
         start_slot: Slot,
@@ -1865,7 +1877,7 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
             return Ok(base_state);
         }
 
-        let blocks = self.load_cold_blocks(base_state.slot() + 1, slot)?;
+        let block_envelopes = self.load_cold_block_envelopes(base_state.slot() + 1, slot)?;
 
         // Include state root for base state as it is required by block processing to not
         // have to hash the state.
@@ -1874,7 +1886,13 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
             self.forwards_state_roots_iterator_until(base_state.slot(), slot, || {
                 Err(Error::StateShouldNotBeRequired(slot))
             })?;
-        let state = self.replay_blocks(base_state, blocks, slot, Some(state_root_iter), None)?;
+        let state = self.replay_blocks(
+            base_state,
+            block_envelopes,
+            slot,
+            Some(state_root_iter),
+            None,
+        )?;
         debug!(
             self.log,
             "Replayed blocks for historic state";
@@ -1996,6 +2014,23 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         })?
     }
 
+    pub fn load_cold_block_envelopes(
+        &self,
+        start_slot: Slot,
+        end_slot: Slot,
+    ) -> Result<Vec<BlockOrEnvelope<E>>, Error> {
+        let _t = metrics::start_timer(&metrics::STORE_BEACON_LOAD_COLD_BLOCKS_TIME);
+
+        let block_envelope_iter =
+            self.forwards_block_envelopes_iterator_until(start_slot, end_slot, || {
+                Err(Error::StateShouldNotBeRequired(end_slot))
+            })?;
+
+        block_envelope_iter
+            .map(|res| res.map(|(_, block_env)| block_env))
+            .collect()
+    }
+
     /// Load the blocks between `start_slot` and `end_slot` by backtracking from `end_block_hash`.
     ///
     /// Blocks are returned in slot-ascending order, suitable for replaying on a state with slot
@@ -2005,9 +2040,9 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         start_slot: Slot,
         end_slot: Slot,
         end_block_hash: Hash256,
-    ) -> Result<Vec<SignedBeaconBlock<E, BlindedPayload<E>>>, Error> {
+    ) -> Result<Vec<BlockOrEnvelope<E>>, Error> {
         let _t = metrics::start_timer(&metrics::STORE_BEACON_LOAD_HOT_BLOCKS_TIME);
-        let mut blocks = ParentRootBlockIterator::new(self, end_block_hash)
+        let mut block_envelopes = ParentRootBlockEnvelopeIterator::new(self, end_block_hash)
             .map(|result| result.map(|(_, block)| block))
             // Include the block at the end slot (if any), it needs to be
             // replayed in order to construct the canonical state at `end_slot`.
@@ -2033,8 +2068,8 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
                 Err(_) => true,
             })
             .collect::<Result<Vec<_>, _>>()?;
-        blocks.reverse();
-        Ok(blocks)
+        block_envelopes.reverse();
+        Ok(block_envelopes)
     }
 
     /// Replay `blocks` on top of `state` until `target_slot` is reached.
@@ -2044,12 +2079,15 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
     pub fn replay_blocks(
         &self,
         state: BeaconState<E>,
-        blocks: Vec<SignedBeaconBlock<E, BlindedPayload<E>>>,
+        block_envelopes: Vec<BlockOrEnvelope<E>>,
         target_slot: Slot,
         state_root_iter: Option<impl Iterator<Item = Result<(Hash256, Slot), Error>>>,
         pre_slot_hook: Option<PreSlotHook<E, Error>>,
     ) -> Result<BeaconState<E>, Error> {
-        metrics::inc_counter_by(&metrics::STORE_BEACON_REPLAYED_BLOCKS, blocks.len() as u64);
+        metrics::inc_counter_by(
+            &metrics::STORE_BEACON_REPLAYED_BLOCKS,
+            block_envelopes.len() as u64,
+        );
 
         let mut block_replayer = BlockReplayer::new(state, &self.spec)
             .no_signature_verification()
@@ -2065,7 +2103,7 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
         }
 
         block_replayer
-            .apply_blocks(blocks, Some(target_slot))
+            .apply_blocks(block_envelopes, Some(target_slot))
             .map(|block_replayer| {
                 if have_state_root_iterator && block_replayer.state_root_miss() {
                     warn!(

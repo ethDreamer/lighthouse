@@ -3,6 +3,7 @@ use crate::AvailabilityPendingExecutedEnvelope;
 use crate::{
     block_verification_types::BlockImportData,
     data_availability_checker::{AvailabilityCheckError, STATE_LRU_CAPACITY_NON_ZERO},
+    envelope_verification_types::EnvelopeImportData,
     eth1_finalization_cache::Eth1FinalizationData,
     AvailabilityPendingExecutedBlock, BeaconChainTypes, BeaconStore, PayloadVerificationOutcome,
 };
@@ -18,8 +19,8 @@ use types::{
     ssz_tagged_signed_execution_envelope_arc,
 };
 use types::{
-    BeaconState, BlindedPayload, ChainSpec, Epoch, EthSpec, Hash256, SignedBeaconBlock,
-    SignedBlindedBeaconBlock, SignedExecutionEnvelope,
+    BeaconState, BlindedPayload, BlockOrEnvelope, ChainSpec, Epoch, EthSpec, Hash256,
+    SignedBeaconBlock, SignedBlindedBeaconBlock, SignedExecutionEnvelope,
 };
 
 // This mirrors everything in the `BlockImportData`, except that it
@@ -34,6 +35,48 @@ pub struct DietBlockImportData<E: EthSpec> {
     pub parent_eth1_finalization_data: Eth1FinalizationData,
     pub confirmed_state_roots: Vec<Hash256>,
     pub consensus_context: OnDiskConsensusContext<E>,
+}
+
+pub enum AvailabilityPendingExecutedBlockOrEnvelope<E: EthSpec> {
+    Block(AvailabilityPendingExecutedBlock<E>),
+    Envelope(AvailabilityPendingExecutedEnvelope<E>),
+}
+
+#[derive(Clone)]
+pub enum DietAvailabilityPendingBlockOrEnvelope<E: EthSpec> {
+    Block(DietAvailabilityPendingExecutedBlock<E>),
+    Envelope(DietAvailabilityPendingExecutedEnvelope<E>),
+}
+
+impl<E: EthSpec> DietAvailabilityPendingBlockOrEnvelope<E> {
+    pub fn get_commitments(&self) -> KzgCommitments<E> {
+        match self {
+            DietAvailabilityPendingBlockOrEnvelope::Block(block) => block.get_commitments(),
+            DietAvailabilityPendingBlockOrEnvelope::Envelope(envelope) => {
+                envelope.envelope.message().blob_kzg_commitments().clone()
+            }
+        }
+    }
+
+    pub fn epoch(&self) -> Epoch {
+        match self {
+            DietAvailabilityPendingBlockOrEnvelope::Block(block) => block.epoch(),
+            DietAvailabilityPendingBlockOrEnvelope::Envelope(envelope) => envelope
+                .import_data
+                .parent_block
+                .slot()
+                .epoch(E::slots_per_epoch()),
+        }
+    }
+
+    pub fn num_blobs_expected(&self) -> usize {
+        match self {
+            DietAvailabilityPendingBlockOrEnvelope::Block(block) => block.num_blobs_expected(),
+            DietAvailabilityPendingBlockOrEnvelope::Envelope(envelope) => {
+                envelope.envelope.message().blob_kzg_commitments().len()
+            }
+        }
+    }
 }
 
 /// This mirrors everything in the `AvailabilityPendingExecutedBlock`, except
@@ -56,7 +99,7 @@ pub struct DietEnvelopeImportData<E: EthSpec> {
     pub post_state_root: Hash256,
 }
 
-/// This is a smaller version of `DietAvailabilityPendingExecutedEnvelope`
+/// This is a smaller version of `AvailabilityPendingExecutedEnvelope`
 #[derive(Encode, Decode, Clone)]
 pub struct DietAvailabilityPendingExecutedEnvelope<E: EthSpec> {
     #[ssz(with = "ssz_tagged_signed_execution_envelope_arc")]
@@ -176,11 +219,57 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
         }
     }
 
+    pub fn recover_pending_executed_block_or_envelope(
+        &self,
+        diet_block_or_envelope: DietAvailabilityPendingBlockOrEnvelope<T::EthSpec>,
+    ) -> Result<AvailabilityPendingExecutedBlockOrEnvelope<T::EthSpec>, AvailabilityCheckError>
+    {
+        match diet_block_or_envelope {
+            DietAvailabilityPendingBlockOrEnvelope::Block(diet_block) => {
+                let executed_block = self.recover_pending_executed_block(diet_block)?;
+                Ok(AvailabilityPendingExecutedBlockOrEnvelope::Block(
+                    executed_block,
+                ))
+            }
+            DietAvailabilityPendingBlockOrEnvelope::Envelope(diet_envelope) => {
+                let executed_envelope = self.recover_pending_executed_envelope(diet_envelope)?;
+                Ok(AvailabilityPendingExecutedBlockOrEnvelope::Envelope(
+                    executed_envelope,
+                ))
+            }
+        }
+    }
+
+    fn recover_pending_executed_envelope(
+        &self,
+        diet_envelope: DietAvailabilityPendingExecutedEnvelope<T::EthSpec>,
+    ) -> Result<AvailabilityPendingExecutedEnvelope<T::EthSpec>, AvailabilityCheckError> {
+        let state = if let Some(state) = self
+            .states
+            .write()
+            .pop(&diet_envelope.import_data.post_state_root)
+        {
+            state
+        } else {
+            Box::new(self.reconstruct_state_from_envelope(&diet_envelope)?)
+        };
+
+        Ok(AvailabilityPendingExecutedEnvelope {
+            envelope: diet_envelope.envelope,
+            import_data: EnvelopeImportData {
+                block_root: diet_envelope.import_data.block_root,
+                parent_block: diet_envelope.import_data.parent_block,
+                post_state: state,
+            },
+            payload_verification_outcome: diet_envelope.payload_verification_outcome,
+        })
+    }
+
     /// Recover the `AvailabilityPendingExecutedBlock` from the diet version.
     /// This method will first check the cache and if the state is not found
     /// it will reconstruct the state by loading the parent state from disk and
     /// replaying the block.
-    pub fn recover_pending_executed_block(
+    fn recover_pending_executed_block(
         &self,
         diet_executed_block: DietAvailabilityPendingExecutedBlock<T::EthSpec>,
     ) -> Result<AvailabilityPendingExecutedBlock<T::EthSpec>, AvailabilityCheckError> {
@@ -191,7 +280,7 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
         {
             state
         } else {
-            Box::new(self.reconstruct_state(&diet_executed_block)?)
+            Box::new(self.reconstruct_state_from_block(&diet_executed_block)?)
         };
         let block_root = diet_executed_block.block.canonical_root();
         Ok(AvailabilityPendingExecutedBlock {
@@ -215,7 +304,7 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
 
     /// Reconstruct the state by loading the parent state from disk and replaying
     /// the block.
-    fn reconstruct_state(
+    fn reconstruct_state_from_block(
         &self,
         diet_executed_block: &DietAvailabilityPendingExecutedBlock<T::EthSpec>,
     ) -> Result<BeaconState<T::EthSpec>, AvailabilityCheckError> {
@@ -254,7 +343,65 @@ impl<T: BeaconChainTypes> StateLRUCache<T> {
                 .minimal_block_root_verification();
 
         block_replayer
-            .apply_blocks(vec![diet_executed_block.block.clone_as_blinded()], None)
+            .apply_blocks(
+                vec![BlockOrEnvelope::Block(
+                    diet_executed_block.block.clone_as_blinded(),
+                )],
+                None,
+            )
+            .map(|block_replayer| block_replayer.into_state())
+            .and_then(|mut state| {
+                state
+                    .build_exit_cache(&self.spec)
+                    .map_err(AvailabilityCheckError::RebuildingStateCaches)?;
+                state
+                    .update_tree_hash_cache()
+                    .map_err(AvailabilityCheckError::RebuildingStateCaches)?;
+                Ok(state)
+            })
+    }
+
+    fn reconstruct_state_from_envelope(
+        &self,
+        diet_executed_envelope: &DietAvailabilityPendingExecutedEnvelope<T::EthSpec>,
+    ) -> Result<BeaconState<T::EthSpec>, AvailabilityCheckError> {
+        let parent_block_root = diet_executed_envelope
+            .import_data
+            .parent_block
+            .canonical_root();
+        let parent_block_state_root = diet_executed_envelope.import_data.parent_block.state_root();
+        let (parent_state_root, parent_state) = self
+            .store
+            .get_advanced_hot_state(
+                parent_block_root,
+                diet_executed_envelope.import_data.parent_block.slot(),
+                parent_block_state_root,
+            )
+            .map_err(AvailabilityCheckError::StoreError)?
+            .ok_or(AvailabilityCheckError::ParentStateMissing(
+                parent_block_state_root,
+            ))?;
+
+        let state_roots = vec![Ok((
+            parent_state_root,
+            diet_executed_envelope.import_data.parent_block.slot(),
+        ))];
+
+        let slot = parent_state.slot();
+        let block_replayer: BlockReplayer<'_, T::EthSpec, AvailabilityCheckError, _> =
+            BlockReplayer::new(parent_state, &self.spec)
+                .no_signature_verification()
+                .state_root_iter(state_roots.into_iter())
+                .minimal_block_root_verification();
+
+        block_replayer
+            .apply_blocks(
+                vec![BlockOrEnvelope::Envelope(
+                    diet_executed_envelope.envelope.as_ref().clone(),
+                    slot,
+                )],
+                None,
+            )
             .map(|block_replayer| block_replayer.into_state())
             .and_then(|mut state| {
                 state

@@ -61,6 +61,29 @@ pub struct ExecutionEnvelope<E: EthSpec> {
     pub state_root: Hash256,
 }
 
+// This is used for replaying blocks
+#[derive(PartialEq)]
+pub enum BlockOrEnvelope<E: EthSpec> {
+    Block(SignedBeaconBlock<E, BlindedPayload<E>>),
+    Envelope(SignedExecutionEnvelope<E>, Slot),
+}
+
+impl<E: EthSpec> BlockOrEnvelope<E> {
+    pub fn slot(&self) -> Slot {
+        match self {
+            BlockOrEnvelope::Block(block) => block.slot(),
+            BlockOrEnvelope::Envelope(_, slot) => *slot,
+        }
+    }
+
+    pub fn state_root(&self) -> Hash256 {
+        match self {
+            BlockOrEnvelope::Block(block) => block.state_root(),
+            BlockOrEnvelope::Envelope(envelope, _) => envelope.message().state_root(),
+        }
+    }
+}
+
 impl<'a, E: EthSpec> SignedRoot for ExecutionEnvelopeRef<'a, E> {}
 
 impl<'a, E: EthSpec> ExecutionEnvelopeRef<'a, E> {

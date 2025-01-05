@@ -10,7 +10,9 @@ use state_processing::{
 use std::sync::Arc;
 use std::time::Duration;
 use store::{iter::ParentRootBlockIterator, HotColdDB, ItemStore};
-use types::{BeaconState, ChainSpec, EthSpec, ForkName, Hash256, SignedBeaconBlock, Slot};
+use types::{
+    BeaconState, BlockOrEnvelope, ChainSpec, EthSpec, ForkName, Hash256, SignedBeaconBlock, Slot,
+};
 
 const CORRUPT_DB_MESSAGE: &str = "The database could be corrupt. Check its file permissions or \
                                   consider deleting it by running with the --purge-db flag.";
@@ -166,6 +168,10 @@ pub fn reset_fork_choice_to_finalization<E: EthSpec, Hot: ItemStore<E>, Cold: It
 
     let mut state = finalized_snapshot.beacon_state;
     for block in blocks {
+        let BlockOrEnvelope::Block(block) = block else {
+            todo!("handle this once we're modifying fork choice");
+        };
+
         complete_state_advance(&mut state, None, block.slot(), spec)
             .map_err(|e| format!("State advance failed: {:?}", e))?;
 

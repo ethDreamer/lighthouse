@@ -1,14 +1,15 @@
+use crate::envelope_processing::{envelope_processing, EnvelopeProcessingError};
 use crate::{
     per_block_processing, per_epoch_processing::EpochProcessingSummary, per_slot_processing,
     BlockProcessingError, BlockSignatureStrategy, ConsensusContext, SlotProcessingError,
-    VerifyBlockRoot,
+    VerifyBlockRoot, VerifySignatures,
 };
 use itertools::Itertools;
 use std::iter::Peekable;
 use std::marker::PhantomData;
 use types::{
-    BeaconState, BeaconStateError, BlindedPayload, ChainSpec, EthSpec, Hash256, SignedBeaconBlock,
-    Slot,
+    BeaconState, BeaconStateError, BlindedPayload, BlockOrEnvelope, ChainSpec, EthSpec, Hash256,
+    SignedBeaconBlock, Slot,
 };
 
 pub type PreBlockHook<'a, E, Error> = Box<
@@ -50,6 +51,7 @@ pub struct BlockReplayer<
 pub enum BlockReplayError {
     SlotProcessing(SlotProcessingError),
     BlockProcessing(BlockProcessingError),
+    EnvelopeProcessing(EnvelopeProcessingError),
     BeaconState(BeaconStateError),
 }
 
@@ -68,6 +70,12 @@ impl From<BlockProcessingError> for BlockReplayError {
 impl From<BeaconStateError> for BlockReplayError {
     fn from(e: BeaconStateError) -> Self {
         Self::BeaconState(e)
+    }
+}
+
+impl From<EnvelopeProcessingError> for BlockReplayError {
+    fn from(e: EnvelopeProcessingError) -> Self {
+        Self::EnvelopeProcessing(e)
     }
 }
 
@@ -164,8 +172,8 @@ where
     /// Compute the state root for `self.state` as efficiently as possible.
     ///
     /// This function MUST only be called when `self.state` is a post-state, i.e. it MUST not be
-    /// called between advancing a state with `per_slot_processing` and applying the block for that
-    /// slot.
+    /// called between advancing a state with `per_slot_processing` and applying the block or envelope
+    /// for that slot.
     ///
     /// The `blocks` should be the full list of blocks being applied and `i` should be the index of
     /// the next block that will be applied, or `blocks.len()` if all blocks have already been
@@ -175,7 +183,7 @@ where
     /// be computed from `self.state` and a state root iterator miss will be recorded.
     fn get_state_root(
         &mut self,
-        blocks: &[SignedBeaconBlock<E, BlindedPayload<E>>],
+        block_envelopes: &[BlockOrEnvelope<E>],
         i: usize,
     ) -> Result<Hash256, Error> {
         let slot = self.state.slot();
@@ -194,9 +202,9 @@ where
 
         // Otherwise try to source a root from the previous block.
         if let Some(prev_i) = i.checked_sub(1) {
-            if let Some(prev_block) = blocks.get(prev_i) {
-                if prev_block.slot() == slot {
-                    return Ok(prev_block.state_root());
+            if let Some(prev_block_env) = block_envelopes.get(prev_i) {
+                if prev_block_env.slot() == slot {
+                    return Ok(prev_block_env.state_root());
                 }
             }
         }
@@ -215,63 +223,78 @@ where
     /// after the blocks have been applied.
     pub fn apply_blocks(
         mut self,
-        blocks: Vec<SignedBeaconBlock<E, BlindedPayload<E>>>,
+        block_envelopes: Vec<BlockOrEnvelope<E>>,
         target_slot: Option<Slot>,
     ) -> Result<Self, Error> {
-        for (i, block) in blocks.iter().enumerate() {
-            // Allow one additional block at the start which is only used for its state root.
-            if i == 0 && block.slot() <= self.state.slot() {
-                continue;
-            }
+        for (i, block_envelope) in block_envelopes.iter().enumerate() {
+            match block_envelope {
+                BlockOrEnvelope::Block(block) => {
+                    // Allow one additional block at the start which is only used for its state root.
+                    if i == 0 && block.slot() <= self.state.slot() {
+                        continue;
+                    }
+                    while self.state.slot() < block.slot() {
+                        let state_root = self.get_state_root(&block_envelopes, i)?;
 
-            while self.state.slot() < block.slot() {
-                let state_root = self.get_state_root(&blocks, i)?;
+                        if let Some(ref mut pre_slot_hook) = self.pre_slot_hook {
+                            pre_slot_hook(state_root, &mut self.state)?;
+                        }
 
-                if let Some(ref mut pre_slot_hook) = self.pre_slot_hook {
-                    pre_slot_hook(state_root, &mut self.state)?;
-                }
+                        let summary =
+                            per_slot_processing(&mut self.state, Some(state_root), self.spec)
+                                .map_err(BlockReplayError::from)?;
 
-                let summary = per_slot_processing(&mut self.state, Some(state_root), self.spec)
+                        if let Some(ref mut post_slot_hook) = self.post_slot_hook {
+                            let is_skipped_slot = self.state.slot() < block.slot();
+                            post_slot_hook(&mut self.state, summary, is_skipped_slot)?;
+                        }
+                    }
+
+                    if let Some(ref mut pre_block_hook) = self.pre_block_hook {
+                        pre_block_hook(&mut self.state, block)?;
+                    }
+
+                    // If no explicit policy is set, verify only the first 1 or 2 block roots.
+                    let verify_block_root = self.verify_block_root.unwrap_or(if i <= 1 {
+                        VerifyBlockRoot::True
+                    } else {
+                        VerifyBlockRoot::False
+                    });
+                    // Proposer index was already checked when this block was originally processed, we
+                    // can omit recomputing it during replay.
+                    let mut ctxt = ConsensusContext::new(block.slot())
+                        .set_proposer_index(block.message().proposer_index());
+                    per_block_processing(
+                        &mut self.state,
+                        block,
+                        self.block_sig_strategy,
+                        verify_block_root,
+                        &mut ctxt,
+                        self.spec,
+                    )
                     .map_err(BlockReplayError::from)?;
 
-                if let Some(ref mut post_slot_hook) = self.post_slot_hook {
-                    let is_skipped_slot = self.state.slot() < block.slot();
-                    post_slot_hook(&mut self.state, summary, is_skipped_slot)?;
+                    if let Some(ref mut post_block_hook) = self.post_block_hook {
+                        post_block_hook(&mut self.state, block)?;
+                    }
                 }
-            }
-
-            if let Some(ref mut pre_block_hook) = self.pre_block_hook {
-                pre_block_hook(&mut self.state, block)?;
-            }
-
-            // If no explicit policy is set, verify only the first 1 or 2 block roots.
-            let verify_block_root = self.verify_block_root.unwrap_or(if i <= 1 {
-                VerifyBlockRoot::True
-            } else {
-                VerifyBlockRoot::False
-            });
-            // Proposer index was already checked when this block was originally processed, we
-            // can omit recomputing it during replay.
-            let mut ctxt = ConsensusContext::new(block.slot())
-                .set_proposer_index(block.message().proposer_index());
-            per_block_processing(
-                &mut self.state,
-                block,
-                self.block_sig_strategy,
-                verify_block_root,
-                &mut ctxt,
-                self.spec,
-            )
-            .map_err(BlockReplayError::from)?;
-
-            if let Some(ref mut post_block_hook) = self.post_block_hook {
-                post_block_hook(&mut self.state, block)?;
+                BlockOrEnvelope::Envelope(envelope, _) => {
+                    // TODO(EIP7732): add pre and post envelope hooks here
+                    envelope_processing(
+                        &mut self.state,
+                        envelope,
+                        // TODO(EIP7732): set this
+                        VerifySignatures::False,
+                        &self.spec,
+                    )
+                    .map_err(BlockReplayError::from)?;
+                }
             }
         }
 
         if let Some(target_slot) = target_slot {
             while self.state.slot() < target_slot {
-                let state_root = self.get_state_root(&blocks, blocks.len())?;
+                let state_root = self.get_state_root(&block_envelopes, block_envelopes.len())?;
 
                 if let Some(ref mut pre_slot_hook) = self.pre_slot_hook {
                     pre_slot_hook(state_root, &mut self.state)?;

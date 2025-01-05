@@ -3938,6 +3938,7 @@ dependencies = [
  "futures",
  "genesis",
  "hex",
+ "itertools 0.10.5",
  "lighthouse_network",
  "lighthouse_version",
  "logging",

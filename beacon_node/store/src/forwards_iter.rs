@@ -363,7 +363,7 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> Iterator
 }
 
 enum CachedData<E: EthSpec> {
-    ParentCommittedBlockHash(Box<(Hash256, ExecutionBlockHash)>),
+    ParentCommittedBlockHash(Box<(Hash256, ExecutionBlockHash, Slot)>),
     BeaconBlock(Box<(Hash256, SignedBeaconBlock<E, BlindedPayload<E>>)>),
     None,
 }
@@ -398,6 +398,19 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
             decode_any_variant,
             cached_data: CachedData::None,
         })
+    }
+
+    pub fn from_block_roots_iter(
+        store: &'a HotColdDB<E, Hot, Cold>,
+        block_roots_iter: HybridForwardsBlockRootsIterator<'a, E, Hot, Cold>,
+        decode_any_variant: bool,
+    ) -> Self {
+        Self {
+            store,
+            block_roots_iter,
+            decode_any_variant,
+            cached_data: CachedData::None,
+        }
     }
 
     fn load_next_block(
@@ -435,8 +448,11 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
             .map(|signed| &signed.message)
         {
             // post EIP-7732
-            self.cached_data =
-                CachedData::ParentCommittedBlockHash(Box::new((block_root, bid.block_hash)));
+            self.cached_data = CachedData::ParentCommittedBlockHash(Box::new((
+                block_root,
+                bid.block_hash,
+                block.slot(),
+            )));
         }
     }
 
@@ -454,14 +470,17 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
                 Ok(Some((block_root, BlockOrEnvelope::Block(block))))
             }
             CachedData::ParentCommittedBlockHash(ptr) => {
-                let (parent_root, parent_committed_block_hash) = *ptr;
+                let (parent_root, parent_committed_block_hash, slot) = *ptr;
                 let (block_root, block) = match self.load_next_block() {
                     Ok(Some(pair)) => pair,
                     Ok(None) => {
                         // yield the envelope
                         match self.load_envelope(parent_root) {
                             Ok(envelope) => {
-                                return Ok(Some((parent_root, BlockOrEnvelope::Envelope(envelope))))
+                                return Ok(Some((
+                                    parent_root,
+                                    BlockOrEnvelope::Envelope(envelope, slot),
+                                )))
                             }
                             // If the next block isn't found yet, good chance the envelope doesn't exist yet either.
                             Err(_) => return Ok(None),
@@ -481,7 +500,10 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
                         let envelope = self.load_envelope(parent_root)?;
                         // cache this block as it will be yielded next
                         self.cached_data = CachedData::BeaconBlock(Box::new((block_root, block)));
-                        Ok(Some((parent_root, BlockOrEnvelope::Envelope(envelope))))
+                        Ok(Some((
+                            parent_root,
+                            BlockOrEnvelope::Envelope(envelope, slot),
+                        )))
                     } else {
                         // parent block is not full, yield this block
                         Ok(Some((block_root, BlockOrEnvelope::Block(block))))

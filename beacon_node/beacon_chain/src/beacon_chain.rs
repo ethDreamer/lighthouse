@@ -802,6 +802,40 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         })
     }
 
+    // TODO(EIP7732): find a way to not duplicate the code in the function above
+    pub fn forwards_iter_block_envelopes_until(
+        &self,
+        start_slot: Slot,
+        end_slot: Slot,
+    ) -> Result<
+        impl Iterator<Item = Result<(Hash256, BlockOrEnvelope<T::EthSpec>), Error>> + '_,
+        Error,
+    > {
+        let oldest_block_slot = self.store.get_oldest_block_slot();
+        if start_slot < oldest_block_slot {
+            return Err(Error::HistoricalBlockOutOfRange {
+                slot: start_slot,
+                oldest_block_slot,
+            });
+        }
+
+        self.with_head(move |head| {
+            let iter =
+                self.store
+                    .forwards_block_envelopes_iterator_until(start_slot, end_slot, || {
+                        Ok((head.beacon_state.clone(), head.beacon_block_root))
+                    })?;
+            Ok(iter
+                .map(|result| result.map_err(Into::into))
+                .take_while(move |result| {
+                    // TODO(EIP7732): why is this necessary?
+                    result
+                        .as_ref()
+                        .map_or(true, |(_, block_env)| block_env.slot() <= end_slot)
+                }))
+        })
+    }
+
     /// Traverse backwards from `block_root` to find the block roots of its ancestors.
     ///
     /// ## Notes

@@ -410,8 +410,12 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
                     // this block is full (payload revealed on time)
                     // cache the beacon block for the next iteration and return the envelope
                     let envelope = self.retrieve_envelope(block_root)?;
+                    let slot = block.slot();
                     self.cached_data = CachedData::BeaconBlock(Box::new(block));
-                    Ok(Some((block_root, BlockOrEnvelope::Envelope(envelope))))
+                    Ok(Some((
+                        block_root,
+                        BlockOrEnvelope::Envelope(envelope, slot),
+                    )))
                 } else {
                     self.cached_data = CachedData::ChildsParentBlockHash(bid.parent_block_hash);
                     self.next_block_root = block.message().parent_root();
@@ -422,6 +426,16 @@ impl<'a, E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>>
                 Ok(Some((block_root, BlockOrEnvelope::Block(block))))
             }
         }
+    }
+}
+
+impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> Iterator
+    for ParentRootBlockEnvelopeIterator<'_, E, Hot, Cold>
+{
+    type Item = Result<(Hash256, BlockOrEnvelope<E>), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.do_next().transpose()
     }
 }
 

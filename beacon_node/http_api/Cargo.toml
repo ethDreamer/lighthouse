@@ -12,6 +12,7 @@ tokio = { workspace = true }
 tokio-stream = { workspace = true }
 types = { workspace = true }
 hex = { workspace = true }
+itertools = { workspace = true }
 beacon_chain = { workspace = true }
 eth2 = { workspace = true }
 slog = { workspace = true }

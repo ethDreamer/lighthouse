@@ -5,6 +5,7 @@ use crate::BlockProcessingError;
 use crate::VerifySignatures;
 use types::{BeaconState, BeaconStateError, ChainSpec, EthSpec, Hash256, SignedExecutionEnvelope};
 
+#[derive(Debug)]
 pub enum EnvelopeProcessingError {
     /// Bad Signature
     BadSignature,

@@ -2,6 +2,7 @@ use beacon_chain::{BeaconChain, BeaconChainError, BeaconChainTypes};
 use eth2::lighthouse::{
     BlockPackingEfficiency, BlockPackingEfficiencyQuery, ProposerInfo, UniqueAttestation,
 };
+use itertools::Itertools;
 use parking_lot::Mutex;
 use state_processing::{
     per_epoch_processing::EpochProcessingSummary, BlockReplayError, BlockReplayer,
@@ -11,12 +12,12 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use types::{
     AttestationRef, BeaconCommittee, BeaconState, BeaconStateError, BlindedPayload, ChainSpec,
-    Epoch, EthSpec, Hash256, OwnedBeaconCommittee, RelativeEpoch, SignedBeaconBlock, Slot,
+    Epoch, EthSpec, OwnedBeaconCommittee, RelativeEpoch, SignedBeaconBlock, Slot,
 };
 use warp_utils::reject::{beacon_chain_error, custom_bad_request, custom_server_error};
 
 /// Load blocks from block roots in chunks to reduce load on memory.
-const BLOCK_ROOT_CHUNK_SIZE: usize = 100;
+const BLOCK_ENVELOPE_CHUNK_SIZE: usize = 64;
 
 #[derive(Debug)]
 // We don't use the inner values directly, but they're used in the Debug impl.
@@ -260,20 +261,28 @@ pub fn get_block_packing_efficiency<T: BeaconChainTypes>(
     let prior_epoch = start_epoch - 1;
     let start_slot_of_prior_epoch = prior_epoch.start_slot(T::EthSpec::slots_per_epoch());
 
-    // Load block roots.
-    let mut block_roots: Vec<Hash256> = chain
-        .forwards_iter_block_roots_until(start_slot_of_prior_epoch, end_slot)
+    let mut block_envelopes_iter = chain
+        .forwards_iter_block_envelopes_until(start_slot_of_prior_epoch, end_slot)
         .map_err(beacon_chain_error)?
-        .collect::<Result<Vec<(Hash256, Slot)>, _>>()
-        .map_err(beacon_chain_error)?
-        .iter()
-        .map(|(root, _)| *root)
-        .collect();
-    block_roots.dedup();
+        .peekable();
 
-    let first_block_root = block_roots
-        .first()
-        .ok_or_else(|| custom_server_error("no blocks were loaded".to_string()))?;
+    // Load first block so we can get its parent.
+    let first_block_root = block_envelopes_iter
+        .peek()
+        .ok_or_else(|| {
+            custom_server_error(
+                "No blocks roots could be loaded. Ensure the beacon node is synced.".to_string(),
+            )
+        })?
+        .as_ref()
+        .map(|(root, _)| root)
+        .or_else(|e| {
+            // TODO(EIP7732): cant return &BeaconChainError so this is a workaround..
+            Err(custom_server_error(format!(
+                "Error loading block roots: {:?}",
+                e
+            )))
+        })?;
 
     let first_block = chain
         .get_blinded_block(first_block_root)
@@ -381,24 +390,20 @@ pub fn get_block_packing_efficiency<T: BeaconChainTypes>(
         .post_slot_hook(Box::new(post_slot_hook))
         .pre_block_hook(Box::new(pre_block_hook));
 
-    // Iterate through the block roots, loading blocks in chunks to reduce load on memory.
-    for block_root_chunks in block_roots.chunks(BLOCK_ROOT_CHUNK_SIZE) {
-        // Load blocks from the block root chunks.
-        let blocks = block_root_chunks
-            .iter()
-            .map(|root| {
-                chain
-                    .get_blinded_block(root)
-                    .and_then(|maybe_block| {
-                        maybe_block.ok_or(BeaconChainError::MissingBeaconBlock(*root))
-                    })
-                    .map_err(beacon_chain_error)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+    // Iterate through blocks in chunks to reduce load on memory.
+    for block_envelope_chunk in &block_envelopes_iter
+        .map(|res| res.map(|(_, block_env)| block_env))
+        .chunks(BLOCK_ENVELOPE_CHUNK_SIZE)
+    {
+        let mut block_envelopes = block_envelope_chunk
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(beacon_chain_error)?;
+        // TODO(EIP7732): why is this necessary? And there's potential bug here with chunks..
+        block_envelopes.dedup();
 
         replayer = replayer
-            .apply_blocks(blocks, None)
-            .map_err(|e: PackingEfficiencyError| custom_server_error(format!("{:?}", e)))?;
+            .apply_blocks(block_envelopes, None)
+            .map_err(|e| custom_server_error(format!("{:?}", e)))?;
     }
 
     drop(replayer);
