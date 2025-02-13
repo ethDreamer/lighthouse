@@ -21,7 +21,7 @@ use types::{
     EmptyBlock, EthSpec, EthSpecId, ForkContext, ForkName, LightClientBootstrap,
     LightClientBootstrapAltair, LightClientFinalityUpdate, LightClientFinalityUpdateAltair,
     LightClientOptimisticUpdate, LightClientOptimisticUpdateAltair, LightClientUpdate,
-    MainnetEthSpec, MinimalEthSpec, Signature, SignedBeaconBlock,
+    MainnetEthSpec, MinimalEthSpec, Signature, SignedBeaconBlock, Slot,
 };
 
 // Note: Hardcoding the `EthSpec` type for `SignedBeaconBlock` as min/max values is
@@ -741,13 +741,15 @@ impl<E: EthSpec> RequestType<E> {
     /* These functions are used in the handler for stream management */
 
     /// Maximum number of responses expected for this request.
-    pub fn max_responses(&self, current_fork: ForkName, spec: &ChainSpec) -> u64 {
+    pub fn max_responses(&self, _current_fork: ForkName, spec: &ChainSpec) -> u64 {
         match self {
             RequestType::Status(_) => 1,
             RequestType::Goodbye(_) => 0,
             RequestType::BlocksByRange(req) => *req.count(),
             RequestType::BlocksByRoot(req) => req.block_roots().len() as u64,
-            RequestType::BlobsByRange(req) => req.max_blobs_requested(current_fork, spec),
+            RequestType::BlobsByRange(req) => {
+                req.max_blobs_requested(Slot::new(req.start_slot).epoch(E::slots_per_epoch()), spec)
+            }
             RequestType::BlobsByRoot(req) => req.blob_ids.len() as u64,
             RequestType::DataColumnsByRoot(req) => req.data_column_ids.len() as u64,
             RequestType::DataColumnsByRange(req) => req.max_requested::<E>(),

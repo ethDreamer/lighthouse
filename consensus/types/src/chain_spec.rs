@@ -651,12 +651,46 @@ impl ChainSpec {
 
     /// Return the value of `MAX_BLOBS_PER_BLOCK` appropriate for the fork at `epoch`.
     pub fn max_blobs_per_block(&self, epoch: Epoch) -> u64 {
-        self.max_blobs_per_block_by_fork(self.fork_name_at_epoch(epoch))
+        let additional_epochs = 1u64;
+        let bpo_epoch = self
+            .fulu_fork_epoch
+            .map(|epoch| epoch.saturating_add(additional_epochs));
+        let bpo_max_blobs = self.max_blobs_per_block_electra.safe_mul(4).unwrap();
+        let fulu_max_blobs = self.max_blobs_per_block_electra.safe_mul(2).unwrap();
+
+        if bpo_epoch
+            .map(|bpo_epoch| epoch >= bpo_epoch)
+            .unwrap_or(false)
+        {
+            bpo_max_blobs
+        } else if self
+            .fulu_fork_epoch
+            .map(|fulu_epoch| epoch >= fulu_epoch)
+            .unwrap_or(false)
+        {
+            fulu_max_blobs
+        } else if self
+            .electra_fork_epoch
+            .map(|electra_epoch| epoch >= electra_epoch)
+            .unwrap_or(false)
+        {
+            self.max_blobs_per_block_electra
+        } else if self
+            .deneb_fork_epoch
+            .map(|deneb_epoch| epoch >= deneb_epoch)
+            .unwrap_or(false)
+        {
+            self.max_blobs_per_block
+        } else {
+            0
+        }
     }
 
     /// Return the value of `MAX_BLOBS_PER_BLOCK` appropriate for `fork`.
     pub fn max_blobs_per_block_by_fork(&self, fork_name: ForkName) -> u64 {
-        if fork_name.electra_enabled() {
+        if fork_name.fulu_enabled() {
+            self.max_blobs_per_block_electra.safe_mul(4).unwrap()
+        } else if fork_name.electra_enabled() {
             self.max_blobs_per_block_electra
         } else {
             self.max_blobs_per_block
