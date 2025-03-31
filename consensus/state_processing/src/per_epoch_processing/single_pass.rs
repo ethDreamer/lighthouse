@@ -460,7 +460,31 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             next_epoch_cache.into_epoch_cache(next_epoch_activation_queue, spec)?;
     }
 
+    // New in Fulu:EIP-7917
+    if fork_name.fulu_enabled() {
+        process_proposer_lookahead(state, spec)?;
+    }
+
     Ok(summary)
+}
+
+fn process_proposer_lookahead<E: EthSpec>(
+    state: &mut BeaconState<E>,
+    spec: &ChainSpec,
+) -> Result<(), Error> {
+    // TODO: define this in terms of spec constants
+    let target_epoch = state.current_epoch().safe_add(Epoch::new(2))?;
+    let last_epoch_proposers = state.compute_proposer_indices(target_epoch, spec)?;
+
+    let proposer_lookahead = state.proposer_lookahead_mut()?;
+    // Remove the first epoch's worth of proposers
+    proposer_lookahead.pop_front(E::SlotsPerEpoch::to_usize())?;
+    // Fill in the last epoch with new proposer indices
+    for proposer in last_epoch_proposers {
+        proposer_lookahead.push(proposer)?;
+    }
+
+    Ok(())
 }
 
 fn process_single_inactivity_update(

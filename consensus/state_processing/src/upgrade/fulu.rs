@@ -26,7 +26,7 @@ pub fn upgrade_state_to_fulu<E: EthSpec>(
     //
     // Fixed size vectors get cloned because replacing them would require the same size
     // allocation as cloning.
-    let post = BeaconState::Fulu(BeaconStateFulu {
+    let mut post = BeaconState::Fulu(BeaconStateFulu {
         // Versioning
         genesis_time: pre.genesis_time,
         genesis_validators_root: pre.genesis_validators_root,
@@ -81,6 +81,8 @@ pub fn upgrade_state_to_fulu<E: EthSpec>(
         pending_deposits: pre.pending_deposits.clone(),
         pending_partial_withdrawals: pre.pending_partial_withdrawals.clone(),
         pending_consolidations: pre.pending_consolidations.clone(),
+        // Fulu
+        proposer_lookahead: Default::default(),
         // Caches
         total_active_balance: pre.total_active_balance,
         progressive_balances_cache: mem::take(&mut pre.progressive_balances_cache),
@@ -90,5 +92,8 @@ pub fn upgrade_state_to_fulu<E: EthSpec>(
         slashings_cache: mem::take(&mut pre.slashings_cache),
         epoch_cache: mem::take(&mut pre.epoch_cache),
     });
+
+    post.initialize_proposer_lookahead(spec)?;
+
     Ok(post)
 }

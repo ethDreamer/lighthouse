@@ -171,6 +171,7 @@ pub enum Error {
     AggregatorNotInCommittee {
         aggregator_index: u64,
     },
+    PleaseNotifyTheDevs(&'static str),
 }
 
 /// Control whether an epoch-indexed field can be indexed at the next epoch or not.
@@ -542,6 +543,12 @@ where
     #[test_random(default)]
     #[superstruct(only(Electra, Fulu))]
     pub pending_consolidations: List<PendingConsolidation, E::PendingConsolidationsLimit>,
+
+    // Fulu
+    #[compare_fields(as_iter)]
+    #[test_random(default)]
+    #[superstruct(only(Fulu))]
+    pub proposer_lookahead: List<u64, E::ProposerLookaheadSize>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -1070,10 +1077,24 @@ impl<E: EthSpec> BeaconState<E> {
             return Err(Error::SlotOutOfBounds);
         }
 
-        let seed = self.get_beacon_proposer_seed(slot, spec)?;
-        let indices = self.get_active_validator_indices(epoch, spec)?;
+        match self {
+            Self::Fulu(fulu_state) => {
+                let index = slot.as_usize().safe_rem(E::SlotsPerEpoch::to_usize())?;
+                fulu_state
+                    .proposer_lookahead
+                    .get(index)
+                    .ok_or(Error::PleaseNotifyTheDevs(
+                        "Proposer lookahead out of bounds",
+                    ))
+                    .map(|index| *index as usize)
+            }
+            _ => {
+                let seed = self.get_beacon_proposer_seed(slot, spec)?;
+                let indices = self.get_active_validator_indices(epoch, spec)?;
 
-        self.compute_proposer_index(&indices, &seed, spec)
+                self.compute_proposer_index(&indices, &seed, spec)
+            }
+        }
     }
 
     /// Returns the beacon proposer index for each `slot` in `self.current_epoch()`.
@@ -2250,6 +2271,61 @@ impl<E: EthSpec> BeaconState<E> {
             pending_balance.safe_add_assign(withdrawal.amount)?;
         }
         Ok(pending_balance)
+    }
+
+    /// Compute the proposer indices for the given epoch.
+    /// Note: FixedVector is just easier to work with than List.
+    pub fn compute_proposer_indices(
+        &self,
+        epoch: Epoch,
+        spec: &ChainSpec,
+    ) -> Result<FixedVector<u64, E::ProposerLookaheadSize>, Error> {
+        if !self.fork_name_unchecked().fulu_enabled() {
+            return Err(Error::IncorrectStateVariant);
+        }
+
+        let epoch_seed = self
+            .get_seed(epoch, Domain::BeaconProposer, spec)?
+            .as_slice()
+            .to_vec();
+        let start_slot = epoch.start_slot(E::slots_per_epoch());
+
+        let mut seeds = Vec::with_capacity(E::SlotsPerEpoch::to_usize());
+        for i in 0..E::slots_per_epoch() {
+            let slot = start_slot.safe_add(Slot::new(i))?;
+            let mut preimage = epoch_seed.clone();
+            preimage.append(&mut int_to_bytes8(slot.as_u64()));
+            seeds.push(hash(&preimage));
+        }
+
+        let indices = self.get_active_validator_indices(epoch, spec)?;
+        seeds
+            .iter()
+            .map(|seed| {
+                self.compute_proposer_index(&indices, seed, spec)
+                    .map(|idx| idx as u64)
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(FixedVector::new)?
+            .map_err(Into::into)
+    }
+
+    // TODO: should this be moved? It might only be used during fulu epoch transition
+    pub fn initialize_proposer_lookahead(&mut self, spec: &ChainSpec) -> Result<(), Error> {
+        let current_epoch = self.current_epoch();
+        let mut lookahead = List::try_from_iter(
+            (0..2)
+                .map(|i| {
+                    let epoch = current_epoch.safe_add(Epoch::new(i))?;
+                    self.compute_proposer_indices(epoch, spec)
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .flat_map(|fixed| fixed.into_iter()),
+        )?;
+
+        self.proposer_lookahead_mut()
+            .map(|ptr| std::mem::swap(ptr, &mut lookahead))
     }
 
     // ******* Electra mutators *******

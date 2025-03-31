@@ -163,6 +163,7 @@ pub trait EthSpec:
     type MaxAttestationsElectra: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxWithdrawalRequestsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxPendingDepositsPerEpoch: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type ProposerLookaheadSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     fn default_spec() -> ChainSpec;
 
@@ -375,6 +376,11 @@ pub trait EthSpec:
         Self::MaxPendingDepositsPerEpoch::to_usize()
     }
 
+    /// Returns the `PROPOSER_LOOKAHEAD_SIZE` constant for this specification.
+    fn proposer_lookahead_size() -> usize {
+        Self::ProposerLookaheadSize::to_usize()
+    }
+
     fn kzg_commitments_inclusion_proof_depth() -> usize {
         Self::KzgCommitmentsInclusionProofDepth::to_usize()
     }
@@ -443,6 +449,7 @@ impl EthSpec for MainnetEthSpec {
     type MaxAttestationsElectra = U8;
     type MaxWithdrawalRequestsPerPayload = U16;
     type MaxPendingDepositsPerEpoch = U16;
+    type ProposerLookaheadSize = U64;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -507,6 +514,7 @@ impl EthSpec for MinimalEthSpec {
         BytesPerFieldElement,
         PendingDepositsLimit,
         MaxPendingDepositsPerEpoch,
+        ProposerLookaheadSize,
         MaxConsolidationRequestsPerPayload,
         MaxAttesterSlashingsElectra,
         MaxAttestationsElectra
@@ -571,6 +579,7 @@ impl EthSpec for GnosisEthSpec {
     type MaxAttestationsElectra = U8;
     type MaxWithdrawalRequestsPerPayload = U16;
     type MaxPendingDepositsPerEpoch = U16;
+    type ProposerLookaheadSize = U64; // TODO: check this for gnosis
     type FieldElementsPerCell = U64;
     type FieldElementsPerExtBlob = U8192;
     type MaxCellsPerBlock = U33554432;
