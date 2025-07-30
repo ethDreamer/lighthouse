@@ -15,7 +15,6 @@ pub struct PayloadAttestationData {
     pub slot: Slot,
     pub payload_present: bool,
 }
-// todo(eip-7732): Mark's implementation  has PayloadStatus as an enum, but spec calls for a bool. Need to clarify this.
 
 impl SignedRoot for PayloadAttestationData {}
 

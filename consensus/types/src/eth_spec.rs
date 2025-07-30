@@ -75,7 +75,6 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     type EpochsPerSlashingsVector: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type HistoricalRootsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type ValidatorRegistryLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-    type BuilderPendingWithdrawalsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     /*
      * Max operations per block
      */
@@ -169,6 +168,7 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
      */
     type PTCSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxPayloadAttestations: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type BuilderPendingWithdrawalsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     fn default_spec() -> ChainSpec;
 
@@ -469,7 +469,7 @@ impl EthSpec for MainnetEthSpec {
     type MaxAttestationsElectra = U8;
     type MaxWithdrawalRequestsPerPayload = U16;
     type MaxPendingDepositsPerEpoch = U16;
-    type PTCSize = U64; // todo: verify if needs to be U512 for some reason like in Mark's OG implementation
+    type PTCSize = U512;
     type MaxPayloadAttestations = U2;
 
     fn default_spec() -> ChainSpec {
@@ -612,7 +612,7 @@ impl EthSpec for GnosisEthSpec {
     type BytesPerCell = U2048;
     type KzgCommitmentsInclusionProofDepth = U4;
     type ProposerLookaheadSlots = U32; // Derived from (MIN_SEED_LOOKAHEAD + 1) * SLOTS_PER_EPOCH
-    type PTCSize = U64; // todo: verify if needs to be U512 for some reason like in Mark's OG implementation
+    type PTCSize = U512;
     type MaxPayloadAttestations = U2;
 
     fn default_spec() -> ChainSpec {

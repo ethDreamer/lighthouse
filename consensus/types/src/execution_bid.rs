@@ -6,16 +6,7 @@ use test_random_derive::TestRandom;
 use tree_hash_derive::TreeHash;
 
 #[derive(
-    Default,
-    Debug,
-    Clone,
-    Serialize,
-    Encode,
-    Decode,
-    Deserialize,
-    TreeHash,
-    Derivative,
-    TestRandom,
+    Default, Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, Derivative, TestRandom,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derivative(PartialEq, Hash)]
@@ -26,7 +17,7 @@ pub struct ExecutionBid {
     pub parent_block_root: Hash256,
     pub block_hash: ExecutionBlockHash,
     #[serde(with = "serde_utils::address_hex")]
-    pub fee_recipient: Address, // todo(eip-7732): verify if this needs address_hex serialization
+    pub fee_recipient: Address,
     #[serde(with = "serde_utils::quoted_u64")]
     pub gas_limit: u64,
     #[serde(with = "serde_utils::quoted_u64")]
