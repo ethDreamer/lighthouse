@@ -28,6 +28,8 @@ pub enum Domain {
     SyncCommittee,
     ContributionAndProof,
     SyncCommitteeSelectionProof,
+    BeaconBuilder,
+    PTCAttester,
     ApplicationMask(ApplicationDomain),
 }
 
@@ -81,6 +83,7 @@ pub struct ChainSpec {
     pub bls_withdrawal_prefix_byte: u8,
     pub eth1_address_withdrawal_prefix_byte: u8,
     pub compounding_withdrawal_prefix_byte: u8,
+    pub builder_withdrawal_prefix_byte: u8,
 
     /*
      * Time parameters
@@ -113,6 +116,8 @@ pub struct ChainSpec {
     pub(crate) domain_voluntary_exit: u32,
     pub(crate) domain_selection_proof: u32,
     pub(crate) domain_aggregate_and_proof: u32,
+    pub(crate) domain_beacon_builder: u32,
+    pub(crate) domain_ptc_attester: u32,
 
     /*
      * Fork choice
@@ -215,6 +220,8 @@ pub struct ChainSpec {
     pub gloas_fork_version: [u8; 4],
     /// The Gloas fork epoch is optional, with `None` representing "Gloas never happens".
     pub gloas_fork_epoch: Option<Epoch>,
+    pub builder_payment_threshold_numerator: u64,
+    pub builder_payment_threshold_denominator: u64,
 
     /*
      * Networking
@@ -514,6 +521,8 @@ impl ChainSpec {
             Domain::VoluntaryExit => self.domain_voluntary_exit,
             Domain::SelectionProof => self.domain_selection_proof,
             Domain::AggregateAndProof => self.domain_aggregate_and_proof,
+            Domain::BeaconBuilder => self.domain_beacon_builder,
+            Domain::PTCAttester => self.domain_ptc_attester,
             Domain::SyncCommittee => self.domain_sync_committee,
             Domain::ContributionAndProof => self.domain_contribution_and_proof,
             Domain::SyncCommitteeSelectionProof => self.domain_sync_committee_selection_proof,
@@ -924,6 +933,7 @@ impl ChainSpec {
             bls_withdrawal_prefix_byte: 0x00,
             eth1_address_withdrawal_prefix_byte: 0x01,
             compounding_withdrawal_prefix_byte: 0x02,
+            builder_withdrawal_prefix_byte: 0x03,
 
             /*
              * Time parameters
@@ -957,6 +967,8 @@ impl ChainSpec {
             domain_voluntary_exit: 4,
             domain_selection_proof: 5,
             domain_aggregate_and_proof: 6,
+            domain_beacon_builder: 0x1B,
+            domain_ptc_attester: 0x0C,
 
             /*
              * Fork choice
@@ -1078,6 +1090,8 @@ impl ChainSpec {
              */
             gloas_fork_version: [0x07, 0x00, 0x00, 0x00],
             gloas_fork_epoch: None,
+            builder_payment_threshold_numerator: 6,
+            builder_payment_threshold_denominator: 10,
 
             /*
              * Network specific
@@ -1271,6 +1285,7 @@ impl ChainSpec {
             bls_withdrawal_prefix_byte: 0x00,
             eth1_address_withdrawal_prefix_byte: 0x01,
             compounding_withdrawal_prefix_byte: 0x02,
+            builder_withdrawal_prefix_byte: 0x03,
 
             /*
              * Time parameters
@@ -1304,6 +1319,8 @@ impl ChainSpec {
             domain_voluntary_exit: 4,
             domain_selection_proof: 5,
             domain_aggregate_and_proof: 6,
+            domain_beacon_builder: 0x1B,
+            domain_ptc_attester: 0x0C,
 
             /*
              * Fork choice
@@ -1425,6 +1442,8 @@ impl ChainSpec {
              */
             gloas_fork_version: [0x07, 0x00, 0x00, 0x64],
             gloas_fork_epoch: None,
+            builder_payment_threshold_numerator: 6,
+            builder_payment_threshold_denominator: 10,
 
             /*
              * Network specific
@@ -1694,6 +1713,12 @@ pub struct Config {
     #[serde(serialize_with = "serialize_fork_epoch")]
     #[serde(deserialize_with = "deserialize_fork_epoch")]
     pub gloas_fork_epoch: Option<MaybeQuoted<Epoch>>,
+    #[serde(default = "default_builder_payment_threshold_numerator")]
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub builder_payment_threshold_numerator: u64,
+    #[serde(default = "default_builder_payment_threshold_denominator")]
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub builder_payment_threshold_denominator: u64,
 
     #[serde(with = "serde_utils::quoted_u64")]
     seconds_per_slot: u64,
@@ -1858,6 +1883,14 @@ fn default_fulu_fork_version() -> [u8; 4] {
 fn default_gloas_fork_version() -> [u8; 4] {
     // This value shouldn't be used.
     [0xff, 0xff, 0xff, 0xff]
+}
+
+fn default_builder_payment_threshold_numerator() -> u64 {
+    6
+}
+
+fn default_builder_payment_threshold_denominator() -> u64 {
+    10
 }
 
 /// Placeholder value: 2^256-2^10 (115792089237316195423570985008687907853269984665640564039457584007913129638912).
@@ -2172,6 +2205,9 @@ impl Config {
                 .gloas_fork_epoch
                 .map(|epoch| MaybeQuoted { value: epoch }),
 
+            builder_payment_threshold_numerator: spec.builder_payment_threshold_numerator,
+            builder_payment_threshold_denominator: spec.builder_payment_threshold_denominator,
+
             seconds_per_slot: spec.seconds_per_slot,
             seconds_per_eth1_block: spec.seconds_per_eth1_block,
             min_validator_withdrawability_delay: spec.min_validator_withdrawability_delay,
@@ -2264,6 +2300,8 @@ impl Config {
             fulu_fork_version,
             gloas_fork_version,
             gloas_fork_epoch,
+            builder_payment_threshold_numerator,
+            builder_payment_threshold_denominator,
             seconds_per_slot,
             seconds_per_eth1_block,
             min_validator_withdrawability_delay,
@@ -2338,6 +2376,8 @@ impl Config {
             fulu_fork_version,
             gloas_fork_version,
             gloas_fork_epoch: gloas_fork_epoch.map(|q| q.value),
+            builder_payment_threshold_numerator,
+            builder_payment_threshold_denominator,
             seconds_per_slot,
             seconds_per_eth1_block,
             min_validator_withdrawability_delay,
@@ -2465,6 +2505,8 @@ mod tests {
             spec.domain_aggregate_and_proof,
             &spec,
         );
+        test_domain(Domain::BeaconBuilder, spec.domain_beacon_builder, &spec);
+        test_domain(Domain::PTCAttester, spec.domain_ptc_attester, &spec);
         test_domain(Domain::SyncCommittee, spec.domain_sync_committee, &spec);
 
         // The builder domain index is zero

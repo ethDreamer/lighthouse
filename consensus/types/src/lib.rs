@@ -26,6 +26,8 @@ pub mod beacon_response;
 pub mod beacon_state;
 pub mod bls_to_execution_change;
 pub mod builder_bid;
+pub mod builder_pending_payment;
+pub mod builder_pending_withdrawal;
 pub mod chain_spec;
 pub mod checkpoint;
 pub mod consolidation_request;
@@ -39,8 +41,10 @@ pub mod deposit_tree_snapshot;
 pub mod enr_fork_id;
 pub mod eth1_data;
 pub mod eth_spec;
+pub mod execution_bid;
 pub mod execution_block_hash;
 pub mod execution_payload;
+pub mod execution_payload_envelope;
 pub mod execution_payload_header;
 pub mod fork;
 pub mod fork_data;
@@ -49,10 +53,15 @@ pub mod graffiti;
 pub mod historical_batch;
 pub mod historical_summary;
 pub mod indexed_attestation;
+pub mod indexed_payload_attestation;
 pub mod light_client_bootstrap;
 pub mod light_client_finality_update;
 pub mod light_client_optimistic_update;
 pub mod light_client_update;
+pub mod payload;
+pub mod payload_attestation;
+pub mod payload_attestation_data;
+pub mod payload_attestation_message;
 pub mod pending_attestation;
 pub mod pending_consolidation;
 pub mod pending_deposit;
@@ -67,6 +76,8 @@ pub mod signed_beacon_block;
 pub mod signed_beacon_block_header;
 pub mod signed_bls_to_execution_change;
 pub mod signed_contribution_and_proof;
+pub mod signed_execution_bid;
+pub mod signed_execution_payload_envelope;
 pub mod signed_voluntary_exit;
 pub mod signing_data;
 pub mod sync_committee_subscription;
@@ -84,7 +95,6 @@ pub mod execution_block_header;
 pub mod execution_requests;
 pub mod fork_context;
 pub mod participation_flags;
-pub mod payload;
 pub mod preset;
 pub mod slot_epoch;
 pub mod subnet_id;
@@ -144,6 +154,8 @@ pub use crate::beacon_response::{
 pub use crate::beacon_state::{Error as BeaconStateError, *};
 pub use crate::blob_sidecar::{BlobIdentifier, BlobSidecar, BlobSidecarList, BlobsList};
 pub use crate::bls_to_execution_change::BlsToExecutionChange;
+pub use crate::builder_pending_payment::BuilderPendingPayment;
+pub use crate::builder_pending_withdrawal::BuilderPendingWithdrawal;
 pub use crate::chain_spec::{ChainSpec, Config, Domain};
 pub use crate::checkpoint::Checkpoint;
 pub use crate::config_and_preset::{
@@ -165,12 +177,17 @@ pub use crate::enr_fork_id::EnrForkId;
 pub use crate::epoch_cache::{EpochCache, EpochCacheError, EpochCacheKey};
 pub use crate::eth1_data::Eth1Data;
 pub use crate::eth_spec::EthSpecId;
+pub use crate::execution_bid::ExecutionBid;
 pub use crate::execution_block_hash::ExecutionBlockHash;
 pub use crate::execution_block_header::{EncodableExecutionBlockHeader, ExecutionBlockHeader};
 pub use crate::execution_payload::{
     ExecutionPayload, ExecutionPayloadBellatrix, ExecutionPayloadCapella, ExecutionPayloadDeneb,
     ExecutionPayloadElectra, ExecutionPayloadFulu, ExecutionPayloadGloas, ExecutionPayloadRef,
     Transaction, Transactions, Withdrawals,
+};
+pub use crate::execution_payload_envelope::{
+    ExecutionPayloadEnvelope, ExecutionPayloadEnvelopeGloas, ExecutionPayloadEnvelopeNextFork,
+    ExecutionPayloadEnvelopeRef,
 };
 pub use crate::execution_payload_header::{
     ExecutionPayloadHeader, ExecutionPayloadHeaderBellatrix, ExecutionPayloadHeaderCapella,
@@ -187,6 +204,7 @@ pub use crate::historical_batch::HistoricalBatch;
 pub use crate::indexed_attestation::{
     IndexedAttestation, IndexedAttestationBase, IndexedAttestationElectra, IndexedAttestationRef,
 };
+pub use crate::indexed_payload_attestation::IndexedPayloadAttestation;
 pub use crate::light_client_bootstrap::{
     LightClientBootstrap, LightClientBootstrapAltair, LightClientBootstrapCapella,
     LightClientBootstrapDeneb, LightClientBootstrapElectra, LightClientBootstrapFulu,
@@ -220,6 +238,9 @@ pub use crate::payload::{
     FullPayloadCapella, FullPayloadDeneb, FullPayloadElectra, FullPayloadFulu, FullPayloadGloas,
     FullPayloadRef, OwnedExecPayload,
 };
+pub use crate::payload_attestation::PayloadAttestation;
+pub use crate::payload_attestation_data::PayloadAttestationData;
+pub use crate::payload_attestation_message::PayloadAttestationMessage;
 pub use crate::pending_attestation::PendingAttestation;
 pub use crate::pending_consolidation::PendingConsolidation;
 pub use crate::pending_deposit::PendingDeposit;
@@ -247,6 +268,8 @@ pub use crate::signed_beacon_block::{
 pub use crate::signed_beacon_block_header::SignedBeaconBlockHeader;
 pub use crate::signed_bls_to_execution_change::SignedBlsToExecutionChange;
 pub use crate::signed_contribution_and_proof::SignedContributionAndProof;
+pub use crate::signed_execution_bid::SignedExecutionBid;
+pub use crate::signed_execution_payload_envelope::SignedExecutionPayloadEnvelope;
 pub use crate::signed_voluntary_exit::SignedVoluntaryExit;
 pub use crate::signing_data::{SignedRoot, SigningData};
 pub use crate::slot_epoch::{Epoch, Slot};
