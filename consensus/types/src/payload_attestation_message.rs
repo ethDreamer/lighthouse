@@ -5,17 +5,7 @@ use ssz_derive::{Decode, Encode};
 use test_random_derive::TestRandom;
 use tree_hash_derive::TreeHash;
 
-#[derive(
-    TestRandom,
-    TreeHash,
-    Debug,
-    Clone,
-    PartialEq,
-    Encode,
-    Decode,
-    Serialize,
-    Deserialize,
-)]
+#[derive(TestRandom, TreeHash, Debug, Clone, PartialEq, Encode, Decode, Serialize, Deserialize)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[context_deserialize(ForkName)]
 pub struct PayloadAttestationMessage {

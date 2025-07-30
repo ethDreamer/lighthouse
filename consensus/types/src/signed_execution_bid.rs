@@ -7,15 +7,7 @@ use test_random_derive::TestRandom;
 use tree_hash_derive::TreeHash;
 
 #[derive(
-    TestRandom,
-    TreeHash,
-    Debug,
-    Clone,
-    Encode,
-    Decode,
-    Serialize,
-    Deserialize,
-    Derivative,
+    TestRandom, TreeHash, Debug, Clone, Encode, Decode, Serialize, Deserialize, Derivative,
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derivative(PartialEq, Hash)]
