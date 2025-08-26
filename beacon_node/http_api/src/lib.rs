@@ -85,7 +85,7 @@ use tokio_stream::{
     StreamExt,
     wrappers::{BroadcastStream, errors::BroadcastStreamRecvError},
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn, Instrument};
 use types::{
     Attestation, AttestationData, AttestationShufflingId, AttesterSlashing, BeaconStateError,
     ChainSpec, Checkpoint, CommitteeCache, ConfigAndPreset, Epoch, EthSpec, ForkName, Hash256,
@@ -2735,6 +2735,11 @@ pub fn serve<T: BeaconChainTypes>(
         .then(
             move |task_spawner: TaskSpawner<T::EthSpec>, chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let _span = tracing::info_span!("http_api_endpoint",
+                        method = "GET",
+                        path = "/eth/v1/config/spec",
+                        priority = "P0"
+                    ).entered();
                     let config_and_preset =
                         ConfigAndPreset::from_chain_spec::<T::EthSpec>(&chain.spec);
                     Ok(api_types::GenericResponse::from(config_and_preset))
@@ -3085,6 +3090,11 @@ pub fn serve<T: BeaconChainTypes>(
                         })
                         .await
                 }
+                .instrument(tracing::info_span!("http_api_endpoint",
+                    method = "GET",
+                    path = "/eth/v1/node/syncing",
+                    priority = "P0"
+                ))
             },
         );
 
@@ -3318,6 +3328,11 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let _span = tracing::info_span!("http_api_endpoint",
+                        method = "GET",
+                        path = "/eth/v1/validator/duties/proposer/epoch",
+                        priority = "P0"
+                    ).entered();
                     not_synced_filter?;
                     proposer_duties::proposer_duties(epoch, &chain)
                 })
@@ -3476,6 +3491,11 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let _span = tracing::info_span!("http_api_endpoint",
+                        method = "POST",
+                        path = "/eth/v1/validator/duties/attester/epoch",
+                        priority = "P0"
+                    ).entered();
                     not_synced_filter?;
                     attester_duties::attester_duties(epoch, &indices.0, &chain)
                 })
@@ -3504,6 +3524,11 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let _span = tracing::info_span!("http_api_endpoint",
+                        method = "POST",
+                        path = "/eth/v1/validator/duties/sync/epoch",
+                        priority = "P0"
+                    ).entered();
                     not_synced_filter?;
                     sync_committees::sync_committee_duties(epoch, &indices.0, &chain)
                 })
@@ -3831,7 +3856,13 @@ pub fn serve<T: BeaconChainTypes>(
                     }
 
                     Ok::<_, warp::reject::Rejection>(warp::reply::json(&()).into_response())
-                })
+                }
+                .instrument(tracing::info_span!("http_api_endpoint",
+                    method = "POST",
+                    path = "/eth/v1/validator/prepare_beacon_proposer",
+                    priority = "P0"
+                ))
+                )
             },
         );
 
