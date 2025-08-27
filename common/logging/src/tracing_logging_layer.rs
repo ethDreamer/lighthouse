@@ -52,6 +52,13 @@ where
         let mut visitor = FieldVisitor::new();
         attrs.record(&mut visitor);
 
+        // TEST: Only for http_api_endpoint spans - should see both lines or neither
+        if attrs.metadata().name() == "http_api_endpoint" {
+            println!("TRACING TEST: http_api_endpoint span created (println)");
+            let mut writer = self.non_blocking_writer.clone();
+            let _ = writer.write_all(b"TRACING TEST: http_api_endpoint span created (writer)\n");
+        }
+
         if let Some(span) = ctx.span(id) {
             let mut extensions = span.extensions_mut();
 
@@ -61,6 +68,30 @@ where
             };
 
             extensions.replace(span_data);
+        }
+    }
+
+    fn on_enter(&self, id: &Id, ctx: Context<S>) {
+        if let Some(span) = ctx.span(id) {
+            let extensions = span.extensions();
+            if let Some(span_data) = extensions.get::<SpanData>() {
+                if span_data.name == "http_api_endpoint" {
+                    let mut writer = self.non_blocking_writer.clone();
+                    let _ = writer.write_all(b"DEBUG: http_api_endpoint span entered\n");
+                }
+            }
+        }
+    }
+
+    fn on_close(&self, id: Id, ctx: Context<S>) {
+        if let Some(span) = ctx.span(&id) {
+            let extensions = span.extensions();
+            if let Some(span_data) = extensions.get::<SpanData>() {
+                if span_data.name == "http_api_endpoint" {
+                    let mut writer = self.non_blocking_writer.clone();
+                    let _ = writer.write_all(b"DEBUG: http_api_endpoint span closed\n");
+                }
+            }
         }
     }
 
