@@ -709,12 +709,22 @@ fn run<E: EthSpec>(
         .build()?;
 
     if let Some(telemetry_collector_url) = matches.get_one::<String>("telemetry-collector-url") {
+        println!(
+            "TELEMETRY DEBUG: Starting telemetry setup with URL: {}",
+            telemetry_collector_url
+        );
         let telemetry_layer = environment.runtime().block_on(async {
+            println!("TELEMETRY DEBUG: Creating OTLP exporter...");
             let exporter = opentelemetry_otlp::SpanExporter::builder()
                 .with_tonic()
                 .with_endpoint(telemetry_collector_url)
                 .build()
-                .map_err(|e| format!("Failed to create OTLP exporter: {:?}", e))?;
+                .map_err(|e| {
+                    let error_msg = format!("Failed to create OTLP exporter: {:?}", e);
+                    println!("TELEMETRY DEBUG ERROR: {}", error_msg);
+                    error_msg
+                })?;
+            println!("TELEMETRY DEBUG: OTLP exporter created successfully");
 
             let service_name = matches
                 .get_one::<String>("telemetry-service-name")
@@ -725,6 +735,10 @@ fn run<E: EthSpec>(
                     _ => "lighthouse".to_string(),
                 });
 
+            println!(
+                "TELEMETRY DEBUG: Creating tracer provider with service name: {}",
+                service_name
+            );
             let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
                 .with_batch_exporter(exporter)
                 .with_resource(
@@ -735,6 +749,7 @@ fn run<E: EthSpec>(
                 .build();
 
             let tracer = provider.tracer("lighthouse");
+            println!("TELEMETRY DEBUG: Tracer created successfully");
             Ok::<_, String>(
                 tracing_opentelemetry::layer()
                     .with_tracer(tracer)
@@ -743,6 +758,9 @@ fn run<E: EthSpec>(
         })?;
 
         logging_layers.push(telemetry_layer.boxed());
+        println!("TELEMETRY DEBUG: Telemetry layer added to logging system");
+    } else {
+        println!("TELEMETRY DEBUG: No telemetry-collector-url provided, skipping telemetry setup");
     }
 
     #[cfg(feature = "console-subscriber")]
