@@ -739,13 +739,19 @@ fn run<E: EthSpec>(
                 "TELEMETRY DEBUG: Creating tracer provider with service name: {}",
                 service_name
             );
+            let resource = opentelemetry_sdk::Resource::builder()
+                .with_service_name(service_name.clone())
+                .build();
+
+            // Log all resource attributes that will be sent to Tempo
+            println!("TELEMETRY RESOURCE ATTRIBUTES:");
+            for (key, value) in resource.iter() {
+                println!("  {}={}", key, value);
+            }
+
             let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
                 .with_batch_exporter(exporter)
-                .with_resource(
-                    opentelemetry_sdk::Resource::builder()
-                        .with_service_name(service_name)
-                        .build(),
-                )
+                .with_resource(resource)
                 .build();
 
             let tracer = provider.tracer("lighthouse");

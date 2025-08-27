@@ -88,7 +88,22 @@ where
             let extensions = span.extensions();
             if let Some(span_data) = extensions.get::<SpanData>() {
                 if span_data.name == "http_api_endpoint" {
+                    // Log what we're sending to telemetry
+                    let mut fields_debug = String::new();
+                    for (key, value) in &span_data.fields {
+                        if !fields_debug.is_empty() {
+                            fields_debug.push_str(", ");
+                        }
+                        fields_debug.push_str(&format!("{}={}", key, value));
+                    }
+
+                    let debug_msg = format!(
+                        "TELEMETRY SPAN: name='{}' fields=[{}]\n",
+                        span_data.name, fields_debug
+                    );
+
                     let mut writer = self.non_blocking_writer.clone();
+                    let _ = writer.write_all(debug_msg.as_bytes());
                     let _ = writer.write_all(b"DEBUG: http_api_endpoint span closed\n");
                 }
             }
