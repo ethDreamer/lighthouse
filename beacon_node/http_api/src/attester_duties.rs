@@ -5,12 +5,14 @@ use beacon_chain::{BeaconChain, BeaconChainError, BeaconChainTypes};
 use eth2::types::{self as api_types};
 use slot_clock::SlotClock;
 use state_processing::state_advance::partial_state_advance;
+use tracing::instrument;
 use types::{AttestationDuty, BeaconState, ChainSpec, Epoch, EthSpec, Hash256, RelativeEpoch};
 
 /// The struct that is returned to the requesting HTTP client.
 type ApiDuties = api_types::DutiesResponse<Vec<api_types::AttesterData>>;
 
 /// Handles a request from the HTTP API for attester duties.
+#[instrument(skip_all, level = "debug")]
 pub fn attester_duties<T: BeaconChainTypes>(
     request_epoch: Epoch,
     request_indices: &[u64],
@@ -57,6 +59,7 @@ pub fn attester_duties<T: BeaconChainTypes>(
     }
 }
 
+#[instrument(skip_all, level = "debug")]
 fn cached_attestation_duties<T: BeaconChainTypes>(
     request_epoch: Epoch,
     request_indices: &[u64],
@@ -79,6 +82,7 @@ fn cached_attestation_duties<T: BeaconChainTypes>(
 
 /// Compute some attester duties by reading a `BeaconState` from disk, completely ignoring the
 /// shuffling cache.
+#[instrument(skip_all, level = "debug")]
 fn compute_historic_attester_duties<T: BeaconChainTypes>(
     request_epoch: Epoch,
     request_indices: &[u64],
@@ -167,6 +171,7 @@ fn compute_historic_attester_duties<T: BeaconChainTypes>(
     )
 }
 
+#[instrument(skip_all, level = "debug")]
 fn ensure_state_knows_attester_duties_for_epoch<E: EthSpec>(
     state: &mut BeaconState<E>,
     state_root: Hash256,

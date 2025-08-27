@@ -85,7 +85,7 @@ use tokio_stream::{
     StreamExt,
     wrappers::{BroadcastStream, errors::BroadcastStreamRecvError},
 };
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{Instrument, debug, error, info, warn};
 use types::{
     Attestation, AttestationData, AttestationShufflingId, AttesterSlashing, BeaconStateError,
     ChainSpec, Checkpoint, CommitteeCache, ConfigAndPreset, Epoch, EthSpec, ForkName, Hash256,
@@ -2735,11 +2735,13 @@ pub fn serve<T: BeaconChainTypes>(
         .then(
             move |task_spawner: TaskSpawner<T::EthSpec>, chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
-                    let _span = tracing::info_span!("http_api_endpoint",
+                    let _span = tracing::info_span!(
+                        "http_api_endpoint",
                         method = "GET",
                         path = "/eth/v1/config/spec",
                         priority = "P0"
-                    ).entered();
+                    )
+                    .entered();
                     let config_and_preset =
                         ConfigAndPreset::from_chain_spec::<T::EthSpec>(&chain.spec);
                     Ok(api_types::GenericResponse::from(config_and_preset))
@@ -3090,7 +3092,8 @@ pub fn serve<T: BeaconChainTypes>(
                         })
                         .await
                 }
-                .instrument(tracing::info_span!("http_api_endpoint",
+                .instrument(tracing::info_span!(
+                    "http_api_endpoint",
                     method = "GET",
                     path = "/eth/v1/node/syncing",
                     priority = "P0"
@@ -3328,11 +3331,13 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
-                    let _span = tracing::info_span!("http_api_endpoint",
+                    let _span = tracing::info_span!(
+                        "http_api_endpoint",
                         method = "GET",
                         path = "/eth/v1/validator/duties/proposer/epoch",
                         priority = "P0"
-                    ).entered();
+                    )
+                    .entered();
                     not_synced_filter?;
                     proposer_duties::proposer_duties(epoch, &chain)
                 })
@@ -3491,11 +3496,13 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
-                    let _span = tracing::info_span!("http_api_endpoint",
+                    let _span = tracing::info_span!(
+                        "http_api_endpoint",
                         method = "POST",
                         path = "/eth/v1/validator/duties/attester/epoch",
                         priority = "P0"
-                    ).entered();
+                    )
+                    .entered();
                     not_synced_filter?;
                     attester_duties::attester_duties(epoch, &indices.0, &chain)
                 })
@@ -3524,11 +3531,13 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
-                    let _span = tracing::info_span!("http_api_endpoint",
+                    let _span = tracing::info_span!(
+                        "http_api_endpoint",
                         method = "POST",
                         path = "/eth/v1/validator/duties/sync/epoch",
                         priority = "P0"
-                    ).entered();
+                    )
+                    .entered();
                     not_synced_filter?;
                     sync_committees::sync_committee_duties(epoch, &indices.0, &chain)
                 })
@@ -3779,89 +3788,99 @@ pub fn serve<T: BeaconChainTypes>(
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>,
              preparation_data: Vec<ProposerPreparationData>| {
-                task_spawner.spawn_async_with_rejection(Priority::P0, async move {
-                    not_synced_filter?;
-                    let execution_layer = chain
-                        .execution_layer
-                        .as_ref()
-                        .ok_or(BeaconChainError::ExecutionLayerMissing)
-                        .map_err(warp_utils::reject::unhandled_error)?;
+                task_spawner.spawn_async_with_rejection(
+                    Priority::P0,
+                    async move {
+                        not_synced_filter?;
+                        let execution_layer = chain
+                            .execution_layer
+                            .as_ref()
+                            .ok_or(BeaconChainError::ExecutionLayerMissing)
+                            .map_err(warp_utils::reject::unhandled_error)?;
 
-                    let current_slot = chain
-                        .slot_clock
-                        .now_or_genesis()
-                        .ok_or(BeaconChainError::UnableToReadSlot)
-                        .map_err(warp_utils::reject::unhandled_error)?;
-                    let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+                        let current_slot = chain
+                            .slot_clock
+                            .now_or_genesis()
+                            .ok_or(BeaconChainError::UnableToReadSlot)
+                            .map_err(warp_utils::reject::unhandled_error)?;
+                        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
 
-                    debug!(
-                        count = preparation_data.len(),
-                        "Received proposer preparation data"
-                    );
+                        debug!(
+                            count = preparation_data.len(),
+                            "Received proposer preparation data"
+                        );
 
-                    execution_layer
-                        .update_proposer_preparation(
-                            current_epoch,
-                            preparation_data.iter().map(|data| (data, &None)),
-                        )
-                        .await;
+                        execution_layer
+                            .update_proposer_preparation(
+                                current_epoch,
+                                preparation_data.iter().map(|data| (data, &None)),
+                            )
+                            .await;
 
-                    chain
-                        .prepare_beacon_proposer(current_slot)
-                        .await
-                        .map_err(|e| {
-                            warp_utils::reject::custom_bad_request(format!(
-                                "error updating proposer preparations: {:?}",
-                                e
-                            ))
-                        })?;
+                        chain
+                            .prepare_beacon_proposer(current_slot)
+                            .await
+                            .map_err(|e| {
+                                warp_utils::reject::custom_bad_request(format!(
+                                    "error updating proposer preparations: {:?}",
+                                    e
+                                ))
+                            })?;
 
-                    if chain.spec.is_peer_das_scheduled() {
-                        let (finalized_beacon_state, _, _) =
-                            StateId(CoreStateId::Finalized).state(&chain)?;
-                        let validators_and_balances = preparation_data
-                            .iter()
-                            .filter_map(|preparation| {
-                                if let Ok(effective_balance) = finalized_beacon_state
-                                    .get_effective_balance(preparation.validator_index as usize)
-                                {
-                                    Some((preparation.validator_index as usize, effective_balance))
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>();
+                        if chain.spec.is_peer_das_scheduled() {
+                            let (finalized_beacon_state, _, _) =
+                                StateId(CoreStateId::Finalized).state(&chain)?;
+                            let validators_and_balances = preparation_data
+                                .iter()
+                                .filter_map(|preparation| {
+                                    if let Ok(effective_balance) = finalized_beacon_state
+                                        .get_effective_balance(preparation.validator_index as usize)
+                                    {
+                                        Some((
+                                            preparation.validator_index as usize,
+                                            effective_balance,
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>();
 
-                        let current_slot =
-                            chain.slot().map_err(warp_utils::reject::unhandled_error)?;
-                        if let Some(cgc_change) = chain
-                            .data_availability_checker
-                            .custody_context()
-                            .register_validators(validators_and_balances, current_slot, &chain.spec)
-                        {
-                            chain.update_data_column_custody_info(Some(
-                                cgc_change
-                                    .effective_epoch
-                                    .start_slot(T::EthSpec::slots_per_epoch()),
-                            ));
+                            let current_slot =
+                                chain.slot().map_err(warp_utils::reject::unhandled_error)?;
+                            if let Some(cgc_change) = chain
+                                .data_availability_checker
+                                .custody_context()
+                                .register_validators(
+                                    validators_and_balances,
+                                    current_slot,
+                                    &chain.spec,
+                                )
+                            {
+                                chain.update_data_column_custody_info(Some(
+                                    cgc_change
+                                        .effective_epoch
+                                        .start_slot(T::EthSpec::slots_per_epoch()),
+                                ));
 
-                            network_tx.send(NetworkMessage::CustodyCountChanged {
+                                network_tx.send(NetworkMessage::CustodyCountChanged {
                                 new_custody_group_count: cgc_change.new_custody_group_count,
                                 sampling_count: cgc_change.sampling_count,
                             }).unwrap_or_else(|e| {
                                 debug!(error = %e, "Could not send message to the network service. \
                                 Likely shutdown")
                             });
+                            }
                         }
-                    }
 
-                    Ok::<_, warp::reject::Rejection>(warp::reply::json(&()).into_response())
-                }
-                .instrument(tracing::info_span!("http_api_endpoint",
-                    method = "POST",
-                    path = "/eth/v1/validator/prepare_beacon_proposer",
-                    priority = "P0"
-                ))
+                        Ok::<_, warp::reject::Rejection>(warp::reply::json(&()).into_response())
+                    }
+                    .instrument(tracing::info_span!(
+                        "http_api_endpoint",
+                        method = "POST",
+                        path = "/eth/v1/validator/prepare_beacon_proposer",
+                        priority = "P0"
+                    )),
                 )
             },
         );

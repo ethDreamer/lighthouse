@@ -17,6 +17,7 @@ use state_processing::state_advance::partial_state_advance;
 use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
+use tracing::instrument;
 use types::non_zero_usize::new_non_zero_usize;
 use types::{
     BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec, Fork, Hash256, Slot, Unsigned,
@@ -156,6 +157,7 @@ impl BeaconProposerCache {
 }
 
 /// Compute the proposer duties using the head state without cache.
+#[instrument(skip_all, level = "debug")]
 pub fn compute_proposer_duties_from_head<T: BeaconChainTypes>(
     request_epoch: Epoch,
     chain: &BeaconChain<T>,

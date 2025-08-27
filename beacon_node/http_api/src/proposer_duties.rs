@@ -9,13 +9,14 @@ use eth2::types::{self as api_types};
 use safe_arith::SafeArith;
 use slot_clock::SlotClock;
 use std::cmp::Ordering;
-use tracing::debug;
+use tracing::{debug, instrument};
 use types::{Epoch, EthSpec, Hash256, Slot};
 
 /// The struct that is returned to the requesting HTTP client.
 type ApiDuties = api_types::DutiesResponse<Vec<api_types::ProposerData>>;
 
 /// Handles a request from the HTTP API for proposer duties.
+#[instrument(skip_all, level = "debug")]
 pub fn proposer_duties<T: BeaconChainTypes>(
     request_epoch: Epoch,
     chain: &BeaconChain<T>,
@@ -152,6 +153,7 @@ fn try_proposer_duties_from_cache<T: BeaconChainTypes>(
 ///
 /// The `current_epoch` value should equal the current epoch on the slot clock, otherwise we risk
 /// washing out the proposer cache at the expense of block processing.
+#[instrument(skip_all, level = "debug")]
 fn compute_and_cache_proposer_duties<T: BeaconChainTypes>(
     current_epoch: Epoch,
     chain: &BeaconChain<T>,
@@ -179,6 +181,7 @@ fn compute_and_cache_proposer_duties<T: BeaconChainTypes>(
 
 /// Compute some proposer duties by reading a `BeaconState` from disk, completely ignoring the
 /// `beacon_proposer_cache`.
+#[instrument(skip_all, level = "debug")]
 fn compute_historic_proposer_duties<T: BeaconChainTypes>(
     epoch: Epoch,
     chain: &BeaconChain<T>,

@@ -1163,6 +1163,7 @@ impl<E: EthSpec> BeaconState<E> {
     /// Returns the beacon proposer index for each `slot` in `epoch`.
     ///
     /// The returned `Vec` contains one proposer index for each slot in the epoch.
+    #[instrument(skip_all, level = "debug")]
     pub fn get_beacon_proposer_indices(
         &self,
         epoch: Epoch,
