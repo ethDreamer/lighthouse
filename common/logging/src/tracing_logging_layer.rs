@@ -52,13 +52,6 @@ where
         let mut visitor = FieldVisitor::new();
         attrs.record(&mut visitor);
 
-        // TEST: Only for http_api_endpoint spans - should see both lines or neither
-        if attrs.metadata().name() == "http_api_endpoint" {
-            println!("TRACING TEST: http_api_endpoint span created (println)");
-            let mut writer = self.non_blocking_writer.clone();
-            let _ = writer.write_all(b"TRACING TEST: http_api_endpoint span created (writer)\n");
-        }
-
         if let Some(span) = ctx.span(id) {
             let mut extensions = span.extensions_mut();
 
@@ -68,45 +61,6 @@ where
             };
 
             extensions.replace(span_data);
-        }
-    }
-
-    fn on_enter(&self, id: &Id, ctx: Context<S>) {
-        if let Some(span) = ctx.span(id) {
-            let extensions = span.extensions();
-            if let Some(span_data) = extensions.get::<SpanData>() {
-                if span_data.name == "http_api_endpoint" {
-                    let mut writer = self.non_blocking_writer.clone();
-                    let _ = writer.write_all(b"DEBUG: http_api_endpoint span entered\n");
-                }
-            }
-        }
-    }
-
-    fn on_close(&self, id: Id, ctx: Context<S>) {
-        if let Some(span) = ctx.span(&id) {
-            let extensions = span.extensions();
-            if let Some(span_data) = extensions.get::<SpanData>() {
-                if span_data.name == "http_api_endpoint" {
-                    // Log what we're sending to telemetry
-                    let mut fields_debug = String::new();
-                    for (key, value) in &span_data.fields {
-                        if !fields_debug.is_empty() {
-                            fields_debug.push_str(", ");
-                        }
-                        fields_debug.push_str(&format!("{}={}", key, value));
-                    }
-
-                    let debug_msg = format!(
-                        "TELEMETRY SPAN: name='{}' fields=[{}]\n",
-                        span_data.name, fields_debug
-                    );
-
-                    let mut writer = self.non_blocking_writer.clone();
-                    let _ = writer.write_all(debug_msg.as_bytes());
-                    let _ = writer.write_all(b"DEBUG: http_api_endpoint span closed\n");
-                }
-            }
         }
     }
 
