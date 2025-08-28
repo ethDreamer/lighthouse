@@ -3055,6 +3055,14 @@ pub fn serve<T: BeaconChainTypes>(
 
                     task_spawner
                         .blocking_json_task(Priority::P0, move || {
+                            let _span = tracing::info_span!(
+                                "http_api_endpoint",
+                                method = "GET",
+                                path = "/eth/v1/node/syncing",
+                                priority = "P0"
+                            )
+                            .entered();
+
                             let (head, head_execution_status) = chain
                                 .canonical_head
                                 .head_and_execution_status()
@@ -3093,7 +3101,7 @@ pub fn serve<T: BeaconChainTypes>(
                         .await
                 }
                 .instrument(tracing::info_span!(
-                    "http_api_endpoint",
+                    "http_api_total",
                     method = "GET",
                     path = "/eth/v1/node/syncing",
                     priority = "P0"
@@ -3876,7 +3884,7 @@ pub fn serve<T: BeaconChainTypes>(
                         Ok::<_, warp::reject::Rejection>(warp::reply::json(&()).into_response())
                     }
                     .instrument(tracing::info_span!(
-                        "http_api_endpoint",
+                        "http_api_total",
                         method = "POST",
                         path = "/eth/v1/validator/prepare_beacon_proposer",
                         priority = "P0"
