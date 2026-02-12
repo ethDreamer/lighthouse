@@ -1,16 +1,18 @@
 use self::errors::ExecutionPayloadBidInvalid;
 use crate::consensus_context::ConsensusContext;
-use errors::{BlockOperationError, BlockProcessingError, HeaderInvalid};
+use errors::{
+    BlockOperationError, BlockProcessingError, ExecutionPayloadBidInvalid, HeaderInvalid,
+};
 use rayon::prelude::*;
-use safe_arith::{ArithError, SafeArith, SafeArithIter};
+use safe_arith::{ArithError, SafeArith};
 use signature_sets::{
-    block_proposal_signature_set, execution_payload_bid_signature_set, get_pubkey_from_state,
-    randao_signature_set,
+    block_proposal_signature_set, execution_payload_bid_signature_set,
+    get_builder_pubkey_from_state, get_pubkey_from_state, randao_signature_set,
 };
 use std::borrow::Cow;
 use tree_hash::TreeHash;
 use typenum::Unsigned;
-use types::*;
+use types::{consts::gloas::BUILDER_INDEX_SELF_BUILD, *};
 
 pub use self::verify_attester_slashing::{
     get_slashable_indices, get_slashable_indices_modular, verify_attester_slashing,
@@ -29,9 +31,11 @@ pub use verify_deposit::{
     get_existing_validator_index, is_valid_deposit_signature, verify_deposit_merkle_proof,
 };
 pub use verify_exit::verify_exit;
+pub use withdrawals::get_expected_withdrawals;
 
 pub mod altair;
 pub mod block_signature_verifier;
+pub mod builder;
 pub mod deneb;
 pub mod errors;
 mod is_valid_indexed_attestation;
@@ -47,6 +51,7 @@ mod verify_deposit;
 mod verify_exit;
 mod verify_payload_attestation;
 mod verify_proposer_slashing;
+pub mod withdrawals;
 
 use crate::common::update_progressive_balances_cache::{
     initialize_progressive_balances_cache, update_progressive_balances_metrics,
@@ -180,14 +185,16 @@ pub fn per_block_processing<E: EthSpec, Payload: AbstractExecPayload<E>>(
     if is_execution_enabled(state, block.body()) {
         let body = block.body();
         if state.fork_name_unchecked().gloas_enabled() {
-            process_withdrawals::gloas::process_withdrawals::<E>(state, spec)?;
+            withdrawals::gloas::process_withdrawals::<E>(state, spec)?;
             process_execution_payload_bid(state, block, verify_signatures, spec)?;
         } else {
-            process_withdrawals::capella::process_withdrawals::<E, Payload>(
-                state,
-                body.execution_payload()?,
-                spec,
-            )?;
+            if state.fork_name_unchecked().capella_enabled() {
+                withdrawals::capella_electra::process_withdrawals::<E, Payload>(
+                    state,
+                    body.execution_payload()?,
+                    spec,
+                )?;
+            }
             process_execution_payload::<E, Payload>(state, body, spec)?;
         }
     }
@@ -522,183 +529,28 @@ pub fn compute_timestamp_at_slot<E: EthSpec>(
 ) -> Result<u64, ArithError> {
     let slots_since_genesis = block_slot.as_u64().safe_sub(spec.genesis_slot.as_u64())?;
     slots_since_genesis
-        .safe_mul(spec.seconds_per_slot)
+        .safe_mul(spec.get_slot_duration().as_secs())
         .and_then(|since_genesis| state.genesis_time().safe_add(since_genesis))
 }
 
-/// Compute the next batch of withdrawals which should be included in a block.
-///
-/// https://ethereum.github.io/consensus-specs/specs/gloas/beacon-chain/#modified-get_expected_withdrawals
-#[allow(clippy::type_complexity)]
-pub fn get_expected_withdrawals<E: EthSpec>(
+pub fn can_builder_cover_bid<E: EthSpec>(
     state: &BeaconState<E>,
+    builder_index: BuilderIndex,
+    builder: &Builder,
+    bid_amount: u64,
     spec: &ChainSpec,
-) -> Result<(Withdrawals<E>, Option<usize>, Option<usize>), BlockProcessingError> {
-    let epoch = state.current_epoch();
-    let mut withdrawal_index = state.next_withdrawal_index()?;
-    let mut validator_index = state.next_withdrawal_validator_index()?;
-    let mut withdrawals = Vec::<Withdrawal>::with_capacity(E::max_withdrawals_per_payload());
-    let fork_name = state.fork_name_unchecked();
-
-    // [New in Gloas:EIP7732]
-    // Sweep for builder payments
-    let processed_builder_withdrawals_count =
-        if let Ok(builder_pending_withdrawals) = state.builder_pending_withdrawals() {
-            let mut processed_builder_withdrawals_count = 0;
-            for withdrawal in builder_pending_withdrawals {
-                if withdrawal.withdrawable_epoch > epoch
-                    || withdrawals.len().safe_add(1)? == E::max_withdrawals_per_payload()
-                {
-                    break;
-                }
-
-                if process_withdrawals::is_builder_payment_withdrawable(state, withdrawal)? {
-                    let total_withdrawn = withdrawals
-                        .iter()
-                        .filter_map(|w| {
-                            (w.validator_index == withdrawal.builder_index).then_some(w.amount)
-                        })
-                        .safe_sum()?;
-                    let balance = state
-                        .get_balance(withdrawal.builder_index as usize)?
-                        .safe_sub(total_withdrawn)?;
-                    let builder = state.get_validator(withdrawal.builder_index as usize)?;
-
-                    let withdrawable_balance = if builder.slashed {
-                        std::cmp::min(balance, withdrawal.amount)
-                    } else if balance > spec.min_activation_balance {
-                        std::cmp::min(
-                            balance.safe_sub(spec.min_activation_balance)?,
-                            withdrawal.amount,
-                        )
-                    } else {
-                        0
-                    };
-
-                    if withdrawable_balance > 0 {
-                        withdrawals.push(Withdrawal {
-                            index: withdrawal_index,
-                            validator_index: withdrawal.builder_index,
-                            address: withdrawal.fee_recipient,
-                            amount: withdrawable_balance,
-                        });
-                        withdrawal_index.safe_add_assign(1)?;
-                    }
-                }
-                processed_builder_withdrawals_count.safe_add_assign(1)?;
-            }
-            Some(processed_builder_withdrawals_count)
-        } else {
-            None
-        };
-
-    // [New in Electra:EIP7251]
-    // Consume pending partial withdrawals
-    let processed_partial_withdrawals_count =
-        if let Ok(pending_partial_withdrawals) = state.pending_partial_withdrawals() {
-            let mut processed_partial_withdrawals_count = 0;
-            for withdrawal in pending_partial_withdrawals {
-                if withdrawal.withdrawable_epoch > epoch
-                    || withdrawals.len() == spec.max_pending_partials_per_withdrawals_sweep as usize
-                {
-                    break;
-                }
-
-                let validator = state.get_validator(withdrawal.validator_index as usize)?;
-
-                let has_sufficient_effective_balance =
-                    validator.effective_balance >= spec.min_activation_balance;
-                let total_withdrawn = withdrawals
-                    .iter()
-                    .filter_map(|w| {
-                        (w.validator_index == withdrawal.validator_index).then_some(w.amount)
-                    })
-                    .safe_sum()?;
-                let balance = state
-                    .get_balance(withdrawal.validator_index as usize)?
-                    .safe_sub(total_withdrawn)?;
-                let has_excess_balance = balance > spec.min_activation_balance;
-
-                if validator.exit_epoch == spec.far_future_epoch
-                    && has_sufficient_effective_balance
-                    && has_excess_balance
-                {
-                    let withdrawable_balance = std::cmp::min(
-                        balance.safe_sub(spec.min_activation_balance)?,
-                        withdrawal.amount,
-                    );
-                    withdrawals.push(Withdrawal {
-                        index: withdrawal_index,
-                        validator_index: withdrawal.validator_index,
-                        address: validator
-                            .get_execution_withdrawal_address(spec, state.fork_name_unchecked())
-                            .ok_or(BeaconStateError::NonExecutionAddressWithdrawalCredential)?,
-                        amount: withdrawable_balance,
-                    });
-                    withdrawal_index.safe_add_assign(1)?;
-                }
-                processed_partial_withdrawals_count.safe_add_assign(1)?;
-            }
-            Some(processed_partial_withdrawals_count)
-        } else {
-            None
-        };
-
-    let bound = std::cmp::min(
-        state.validators().len() as u64,
-        spec.max_validators_per_withdrawals_sweep,
-    );
-    for _ in 0..bound {
-        let validator = state.get_validator(validator_index as usize)?;
-        let partially_withdrawn_balance = withdrawals
-            .iter()
-            .filter_map(|withdrawal| {
-                (withdrawal.validator_index == validator_index).then_some(withdrawal.amount)
-            })
-            .safe_sum()?;
-        let balance = state
-            .balances()
-            .get(validator_index as usize)
-            .ok_or(BeaconStateError::BalancesOutOfBounds(
-                validator_index as usize,
-            ))?
-            .safe_sub(partially_withdrawn_balance)?;
-        if validator.is_fully_withdrawable_validator(balance, epoch, spec, fork_name) {
-            withdrawals.push(Withdrawal {
-                index: withdrawal_index,
-                validator_index,
-                address: validator
-                    .get_execution_withdrawal_address(spec, state.fork_name_unchecked())
-                    .ok_or(BlockProcessingError::WithdrawalCredentialsInvalid)?,
-                amount: balance,
-            });
-            withdrawal_index.safe_add_assign(1)?;
-        } else if validator.is_partially_withdrawable_validator(balance, spec, fork_name) {
-            withdrawals.push(Withdrawal {
-                index: withdrawal_index,
-                validator_index,
-                address: validator
-                    .get_execution_withdrawal_address(spec, state.fork_name_unchecked())
-                    .ok_or(BlockProcessingError::WithdrawalCredentialsInvalid)?,
-                amount: balance.safe_sub(validator.get_max_effective_balance(spec, fork_name))?,
-            });
-            withdrawal_index.safe_add_assign(1)?;
-        }
-        if withdrawals.len() == E::max_withdrawals_per_payload() {
-            break;
-        }
-        validator_index = validator_index
-            .safe_add(1)?
-            .safe_rem(state.validators().len() as u64)?;
+) -> Result<bool, BlockProcessingError> {
+    let builder_balance = builder.balance;
+    let pending_withdrawals_amount =
+        state.get_pending_balance_to_withdraw_for_builder(builder_index)?;
+    let min_balance = spec
+        .min_deposit_amount
+        .safe_add(pending_withdrawals_amount)?;
+    if builder_balance < min_balance {
+        Ok(false)
+    } else {
+        Ok(builder_balance.safe_sub(min_balance)? >= bid_amount)
     }
-
-    Ok((
-        withdrawals
-            .try_into()
-            .map_err(BlockProcessingError::SszTypesError)?,
-        processed_builder_withdrawals_count,
-        processed_partial_withdrawals_count,
-    ))
 }
 
 pub fn process_execution_payload_bid<E: EthSpec, Payload: AbstractExecPayload<E>>(
@@ -713,96 +565,71 @@ pub fn process_execution_payload_bid<E: EthSpec, Payload: AbstractExecPayload<E>
     let bid = &signed_bid.message;
     let amount = bid.value;
     let builder_index = bid.builder_index;
-    let builder = state.get_validator(builder_index as usize)?;
 
     // For self-builds, amount must be zero regardless of withdrawal credential prefix
-    if builder_index == block.proposer_index() {
-        block_verify!(amount == 0, ExecutionPayloadBidInvalid::BadAmount.into());
-        // TODO(EIP-7732): check with team if we should use ExecutionPayloadBidInvalid::BadSignature or a new error variant for this, like BadSelfBuildSignature
+    if builder_index == BUILDER_INDEX_SELF_BUILD {
+        block_verify!(
+            amount == 0,
+            ExecutionPayloadBidInvalid::SelfBuildNonZeroAmount.into()
+        );
         block_verify!(
             signed_bid.signature.is_infinity(),
             ExecutionPayloadBidInvalid::BadSignature.into()
         );
     } else {
-        // Non-self builds require builder withdrawal credential
+        let builder = state.get_builder(builder_index)?;
+
+        // Verify that the builder is active
         block_verify!(
-            builder.has_builder_withdrawal_credential(spec),
-            ExecutionPayloadBidInvalid::BadWithdrawalCredentials.into()
+            builder.is_active_at_finalized_epoch(state.finalized_checkpoint().epoch, spec),
+            ExecutionPayloadBidInvalid::BuilderNotActive(builder_index).into()
         );
+
+        // Verify that the builder has funds to cover the bid
+        block_verify!(
+            can_builder_cover_bid(state, builder_index, builder, amount, spec)?,
+            ExecutionPayloadBidInvalid::InsufficientBalance {
+                builder_index,
+                builder_balance: builder.balance,
+                bid_value: amount,
+            }
+            .into()
+        );
+
         if verify_signatures.is_true() {
             block_verify!(
+                // We know this is NOT a self-build, so there MUST be a signature set (func does not
+                // return None).
                 execution_payload_bid_signature_set(
                     state,
-                    |i| get_pubkey_from_state(state, i),
+                    |i| get_builder_pubkey_from_state(state, i),
                     signed_bid,
                     spec
                 )?
+                .ok_or(ExecutionPayloadBidInvalid::BadSignature)?
                 .verify(),
                 ExecutionPayloadBidInvalid::BadSignature.into()
             );
         }
     }
 
-    // Verify builder is active and not slashed
+    // Verify commitments are under limit
+    let max_blobs_per_block = spec.max_blobs_per_block(state.current_epoch()) as usize;
     block_verify!(
-        builder.is_active_at(state.current_epoch()),
-        ExecutionPayloadBidInvalid::BuilderNotActive(builder_index).into()
+        bid.blob_kzg_commitments.len() <= max_blobs_per_block,
+        ExecutionPayloadBidInvalid::ExcessBlobCommitments {
+            max: max_blobs_per_block,
+            bid: bid.blob_kzg_commitments.len(),
+        }
+        .into()
     );
-    block_verify!(
-        !builder.slashed,
-        ExecutionPayloadBidInvalid::BuilderSlashed(builder_index).into()
-    );
-
-    // Only perform payment related checks if amount > 0
-    if amount > 0 {
-        // Check that the builder has funds to cover the bid
-        let pending_payments = state
-            .builder_pending_payments()?
-            .iter()
-            .filter_map(|payment| {
-                if payment.withdrawal.builder_index == builder_index {
-                    Some(payment.withdrawal.amount)
-                } else {
-                    None
-                }
-            })
-            .safe_sum()?;
-
-        let pending_withdrawals = state
-            .builder_pending_withdrawals()?
-            .iter()
-            .filter_map(|withdrawal| {
-                if withdrawal.builder_index == builder_index {
-                    Some(withdrawal.amount)
-                } else {
-                    None
-                }
-            })
-            .safe_sum()?;
-
-        let builder_balance = state.get_balance(builder_index as usize)?;
-
-        block_verify!(
-            builder_balance
-                >= amount
-                    .safe_add(pending_payments)?
-                    .safe_add(pending_withdrawals)?
-                    .safe_add(spec.min_activation_balance)?,
-            ExecutionPayloadBidInvalid::InsufficientBalance {
-                builder_index,
-                builder_balance,
-                bid_value: amount,
-            }
-            .into()
-        );
-    }
 
     // Verify that the bid is for the current slot
     block_verify!(
         bid.slot == block.slot(),
         ExecutionPayloadBidInvalid::SlotMismatch {
-            state_slot: block.slot(),
             bid_slot: bid.slot,
+            block_slot: block.slot(),
         }
         .into()
     );
@@ -827,6 +654,16 @@ pub fn process_execution_payload_bid<E: EthSpec, Payload: AbstractExecPayload<E>
         .into()
     );
 
+    let expected_randao = *state.get_randao_mix(state.current_epoch())?;
+    block_verify!(
+        bid.prev_randao == expected_randao,
+        ExecutionPayloadBidInvalid::PrevRandaoMismatch {
+            expected: expected_randao,
+            bid: bid.prev_randao,
+        }
+        .into()
+    );
+
     // Record the pending payment if there is some payment
     if amount > 0 {
         let pending_payment = BuilderPendingPayment {
@@ -835,19 +672,17 @@ pub fn process_execution_payload_bid<E: EthSpec, Payload: AbstractExecPayload<E>
                 fee_recipient: bid.fee_recipient,
                 amount,
                 builder_index,
-                withdrawable_epoch: spec.far_future_epoch,
             },
         };
 
-        let payment_index = (E::slots_per_epoch()
-            .safe_add(bid.slot.as_u64().safe_rem(E::slots_per_epoch())?)?)
-            as usize;
+        let payment_index = E::SlotsPerEpoch::to_usize()
+            .safe_add(bid.slot.as_usize().safe_rem(E::SlotsPerEpoch::to_usize())?)?;
 
         *state
             .builder_pending_payments_mut()?
             .get_mut(payment_index)
             .ok_or(BlockProcessingError::BeaconStateError(
-                BeaconStateError::BuilderPendingPaymentsIndexNotSupported(payment_index),
+                BeaconStateError::InvalidBuilderPendingPaymentsIndex(payment_index),
             ))? = pending_payment;
     }
 

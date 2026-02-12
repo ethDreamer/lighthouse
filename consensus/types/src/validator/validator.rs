@@ -352,7 +352,6 @@ pub fn is_compounding_withdrawal_credential(
         .unwrap_or(false)
 }
 
-/// Check if the withdrawal credential has the builder withdrawal prefix (0x03).
 pub fn is_builder_withdrawal_credential(withdrawal_credentials: Hash256, spec: &ChainSpec) -> bool {
     withdrawal_credentials
         .as_slice()

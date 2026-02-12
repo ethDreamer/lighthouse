@@ -9,7 +9,7 @@ use fixed_bytes::FixedBytesExtended;
 use int_to_bytes::{int_to_bytes4, int_to_bytes8};
 use metastruct::{NumFields, metastruct};
 use milhouse::{List, Vector};
-use safe_arith::{ArithError, SafeArith};
+use safe_arith::{ArithError, SafeArith, SafeArithIter};
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz::{Decode, DecodeError, Encode, ssz_encode};
 use ssz_derive::{Decode, Encode};
@@ -23,12 +23,13 @@ use tree_hash_derive::TreeHash;
 use typenum::Unsigned;
 
 use crate::{
-    BuilderPendingPayment, BuilderPendingWithdrawal, ExecutionBlockHash, ExecutionPayloadBid,
+    Address, ExecutionBlockHash, ExecutionPayloadBid, Withdrawal,
     attestation::{
-        AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex, PTC, ParticipationFlags,
-        PendingAttestation,
+        AttestationData, AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex, PTC,
+        ParticipationFlags, PendingAttestation,
     },
     block::{BeaconBlock, BeaconBlockHeader, SignedBeaconBlockHash},
+    builder::{Builder, BuilderIndex, BuilderPendingPayment, BuilderPendingWithdrawal},
     consolidation::PendingConsolidation,
     core::{ChainSpec, Domain, Epoch, EthSpec, Hash256, RelativeEpoch, RelativeEpochError, Slot},
     deposit::PendingDeposit,
@@ -54,8 +55,20 @@ use crate::{
 };
 
 pub const CACHED_EPOCHS: usize = 3;
+
+// Pre-electra WS calculations are not supported. On mainnet, pre-electra epochs are outside the weak subjectivity
+// period. The default pre-electra WS value is set to 256 to allow for `basic-sim``, `fallback-sim`` test case `revert_minority_fork_on_resume`
+// to pass. 256 is a small enough number to trigger the WS safety check pre-electra on mainnet.
+pub const DEFAULT_PRE_ELECTRA_WS_PERIOD: u64 = 256;
+
 const MAX_RANDOM_BYTE: u64 = (1 << 8) - 1;
 const MAX_RANDOM_VALUE: u64 = (1 << 16) - 1;
+
+// `SAFETY_DECAY` is defined as the maximum percentage tolerable loss in the one-third
+// safety margin of FFG finality. Thus, any attack exploiting the Weak Subjectivity Period has
+// a safety margin of at least `1/3 - SAFETY_DECAY/100`.
+// Spec: https://github.com/ethereum/consensus-specs/blob/1937aff86b41b5171a9bc3972515986f1bbbf303/specs/phase0/weak-subjectivity.md?plain=1#L50-L71
+const SAFETY_DECAY: u64 = 10;
 
 pub type Validators<E> = List<Validator, <E as EthSpec>::ValidatorRegistryLimit>;
 pub type Balances<E> = List<u64, <E as EthSpec>::ValidatorRegistryLimit>;
@@ -67,6 +80,7 @@ pub enum BeaconStateError {
     EpochOutOfBounds,
     SlotOutOfBounds,
     UnknownValidator(usize),
+    UnknownBuilder(BuilderIndex),
     UnableToDetermineProducer,
     InvalidBitfield,
     EmptyCommittee,
@@ -173,8 +187,12 @@ pub enum BeaconStateError {
     MerkleTreeError(merkle_proof::MerkleTreeError),
     PartialWithdrawalCountInvalid(usize),
     NonExecutionAddressWithdrawalCredential,
+    WithdrawalCredentialMissingVersion,
+    WithdrawalCredentialMissingAddress,
     NoCommitteeFound(CommitteeIndex),
     InvalidCommitteeIndex(CommitteeIndex),
+    /// `Attestation.data.index` field is invalid in overloaded data index scenario.
+    BadOverloadedDataIndex(u64),
     InvalidSelectionProof {
         aggregator_index: u64,
     },
@@ -196,8 +214,13 @@ pub enum BeaconStateError {
     ProposerLookaheadOutOfBounds {
         i: usize,
     },
+    SignedEnvelopeIncorrectEpoch {
+        state_epoch: Epoch,
+        envelope_epoch: Epoch,
+    },
     InvalidIndicesCount,
-    PleaseNotifyTheDevs(String),
+    InvalidBuilderPendingPaymentsIndex(usize),
+    InvalidExecutionPayloadAvailabilityIndex(usize),
 }
 
 /// Control whether an epoch-indexed field can be indexed at the next epoch or not.
@@ -548,7 +571,7 @@ where
     pub latest_execution_payload_header: ExecutionPayloadHeaderFulu<E>,
     #[superstruct(only(Gloas))]
     #[metastruct(exclude_from(tree_lists))]
-    pub latest_execution_payload_bid: ExecutionPayloadBid,
+    pub latest_execution_payload_bid: ExecutionPayloadBid<E>,
     #[superstruct(only(Capella, Deneb, Electra, Fulu, Gloas), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     #[metastruct(exclude_from(tree_lists))]
@@ -605,8 +628,17 @@ where
     #[superstruct(only(Fulu, Gloas))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_fixed_vec")]
     pub proposer_lookahead: Vector<u64, E::ProposerLookaheadSlots>,
-
     // Gloas
+    #[compare_fields(as_iter)]
+    #[test_random(default)]
+    #[superstruct(only(Gloas))]
+    pub builders: List<Builder, E::BuilderRegistryLimit>,
+
+    #[metastruct(exclude_from(tree_lists))]
+    #[serde(with = "serde_utils::quoted_u64")]
+    #[superstruct(only(Gloas), partial_getter(copy))]
+    pub next_withdrawal_builder_index: BuilderIndex,
+
     #[test_random(default)]
     #[superstruct(only(Gloas))]
     #[metastruct(exclude_from(tree_lists))]
@@ -628,10 +660,10 @@ where
     #[metastruct(exclude_from(tree_lists))]
     pub latest_block_hash: ExecutionBlockHash,
 
+    #[compare_fields(as_iter)]
     #[test_random(default)]
     #[superstruct(only(Gloas))]
-    #[metastruct(exclude_from(tree_lists))]
-    pub latest_withdrawals_root: Hash256,
+    pub payload_expected_withdrawals: List<Withdrawal, E::MaxWithdrawalsPerPayload>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -845,7 +877,7 @@ impl<E: EthSpec> BeaconState<E> {
         relative_epoch: RelativeEpoch,
     ) -> Result<u64, BeaconStateError> {
         let cache = self.committee_cache(relative_epoch)?;
-        Ok(cache.epoch_committee_count() as u64)
+        Ok(cache.epoch_committee_count()? as u64)
     }
 
     /// Return the cached active validator indices at some epoch.
@@ -1908,6 +1940,15 @@ impl<E: EthSpec> BeaconState<E> {
             .ok_or(BeaconStateError::UnknownValidator(validator_index))
     }
 
+    /// Safe indexer for the `builders` list.
+    ///
+    /// Will return an error pre-Gloas, or for out-of-bounds indices.
+    pub fn get_builder(&self, builder_index: BuilderIndex) -> Result<&Builder, BeaconStateError> {
+        self.builders()?
+            .get(builder_index as usize)
+            .ok_or(BeaconStateError::UnknownBuilder(builder_index))
+    }
+
     /// Add a validator to the registry and return the validator index that was allocated for it.
     pub fn add_validator_to_registry(
         &mut self,
@@ -1952,6 +1993,64 @@ impl<E: EthSpec> BeaconState<E> {
         }
 
         Ok(index)
+    }
+
+    /// Add a builder to the registry and return the builder index that was allocated for it.
+    pub fn add_builder_to_registry(
+        &mut self,
+        pubkey: PublicKeyBytes,
+        withdrawal_credentials: Hash256,
+        amount: u64,
+        slot: Slot,
+        spec: &ChainSpec,
+    ) -> Result<BuilderIndex, BeaconStateError> {
+        // We are not yet using the spec's `set_or_append_list`, but could consider it if it crops
+        // up elsewhere. It has been retconned into the spec to support index reuse but so far
+        // index reuse is only relevant for builders.
+        let builder_index = self.get_index_for_new_builder()?;
+        let builders = self.builders_mut()?;
+
+        let version = *withdrawal_credentials
+            .as_slice()
+            .first()
+            .ok_or(BeaconStateError::WithdrawalCredentialMissingVersion)?;
+        let execution_address = withdrawal_credentials
+            .as_slice()
+            .get(12..)
+            .and_then(|bytes| Address::try_from(bytes).ok())
+            .ok_or(BeaconStateError::WithdrawalCredentialMissingAddress)?;
+
+        let builder = Builder {
+            pubkey,
+            version,
+            execution_address,
+            balance: amount,
+            deposit_epoch: slot.epoch(E::slots_per_epoch()),
+            withdrawable_epoch: spec.far_future_epoch,
+        };
+
+        if builder_index == builders.len() as u64 {
+            builders.push(builder)?;
+        } else {
+            *builders
+                .get_mut(builder_index as usize)
+                .ok_or(BeaconStateError::UnknownBuilder(builder_index))? = builder;
+        }
+        Ok(builder_index)
+    }
+
+    // TODO(gloas): Optimize this function if we see a lot of registered builders on-chain.
+    // A cache here could be quite fiddly because this calculation depends on withdrawable epoch
+    // and balance - a cache for this would need to be updated whenever either of those fields
+    // changes.
+    pub fn get_index_for_new_builder(&self) -> Result<BuilderIndex, BeaconStateError> {
+        let current_epoch = self.current_epoch();
+        for (index, builder) in self.builders()?.iter().enumerate() {
+            if builder.withdrawable_epoch <= current_epoch && builder.balance == 0 {
+                return Ok(index as u64);
+            }
+        }
+        Ok(self.builders()?.len() as u64)
     }
 
     /// Safe copy-on-write accessor for the `validators` list.
@@ -2052,7 +2151,26 @@ impl<E: EthSpec> BeaconState<E> {
     ) -> Result<Option<AttestationDuty>, BeaconStateError> {
         let cache = self.committee_cache(relative_epoch)?;
 
-        Ok(cache.get_attestation_duties(validator_index))
+        Ok(cache.get_attestation_duties(validator_index)?)
+    }
+
+    /// Check if the attestation is for the block proposed at the attestation slot.
+    ///
+    /// Returns `true` if the attestation's block root matches the block root at the
+    /// attestation's slot, and the block root differs from the previous slot's root.
+    pub fn is_attestation_same_slot(
+        &self,
+        data: &AttestationData,
+    ) -> Result<bool, BeaconStateError> {
+        if data.slot == 0 {
+            return Ok(true);
+        }
+
+        let block_root = data.beacon_block_root;
+        let slot_block_root = *self.get_block_root(data.slot)?;
+        let prev_block_root = *self.get_block_root(data.slot.safe_sub(1)?)?;
+
+        Ok(block_root == slot_block_root && block_root != prev_block_root)
     }
 
     /// Compute the total active balance cache from scratch.
@@ -2659,6 +2777,30 @@ impl<E: EthSpec> BeaconState<E> {
         Ok(pending_balance)
     }
 
+    pub fn get_pending_balance_to_withdraw_for_builder(
+        &self,
+        builder_index: BuilderIndex,
+    ) -> Result<u64, BeaconStateError> {
+        let pending_withdrawals_total = self
+            .builder_pending_withdrawals()?
+            .iter()
+            .filter_map(|withdrawal| {
+                (withdrawal.builder_index == builder_index).then_some(withdrawal.amount)
+            })
+            .safe_sum()?;
+        let pending_payments_total = self
+            .builder_pending_payments()?
+            .iter()
+            .filter_map(|payment| {
+                (payment.withdrawal.builder_index == builder_index)
+                    .then_some(payment.withdrawal.amount)
+            })
+            .safe_sum()?;
+        pending_withdrawals_total
+            .safe_add(pending_payments_total)
+            .map_err(Into::into)
+    }
+
     // ******* Electra mutators *******
 
     pub fn queue_excess_active_balance(
@@ -2794,7 +2936,6 @@ impl<E: EthSpec> BeaconState<E> {
         }
     }
 
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn rebase_on(&mut self, base: &Self, spec: &ChainSpec) -> Result<(), BeaconStateError> {
         // Required for macros (which use type-hints internally).
 
@@ -2929,7 +3070,28 @@ impl<E: EthSpec> BeaconState<E> {
         Ok(())
     }
 
-    /// Get the PTC
+    /// Returns the weak subjectivity period for `self`
+    pub fn compute_weak_subjectivity_period(
+        &self,
+        spec: &ChainSpec,
+    ) -> Result<Epoch, BeaconStateError> {
+        let total_active_balance = self.get_total_active_balance()?;
+        let fork_name = self.fork_name_unchecked();
+
+        if fork_name.electra_enabled() {
+            let balance_churn_limit = self.get_balance_churn_limit(spec)?;
+            compute_weak_subjectivity_period_electra(
+                total_active_balance,
+                balance_churn_limit,
+                spec,
+            )
+        } else {
+            Ok(Epoch::new(DEFAULT_PRE_ELECTRA_WS_PERIOD))
+        }
+    }
+
+    /// Get the payload timeliness committee for the given `slot`.
+    ///
     /// Requires the committee cache to be initialized.
     /// TODO(EIP-7732): definitely gonna have to cache this..
     pub fn get_ptc(&self, slot: Slot, spec: &ChainSpec) -> Result<PTC<E>, BeaconStateError> {
@@ -2954,8 +3116,6 @@ impl<E: EthSpec> BeaconState<E> {
     }
 
     /// Compute the seed to use for the ptc attester selection at the given `slot`.
-    ///
-    /// Spec v0.12.1
     pub fn get_ptc_attester_seed(
         &self,
         slot: Slot,
@@ -2988,10 +3148,10 @@ impl<E: EthSpec> BeaconState<E> {
         }
 
         let mut selected = Vec::with_capacity(size);
-        let mut count = 0usize;
+        let mut i = 0usize;
 
         while selected.len() < size {
-            let mut next_index = count.safe_rem(total)?;
+            let mut next_index = i.safe_rem(total)?;
 
             if shuffle_indices {
                 next_index =
@@ -3003,11 +3163,11 @@ impl<E: EthSpec> BeaconState<E> {
                 .get(next_index)
                 .ok_or(BeaconStateError::InvalidIndicesCount)?;
 
-            if self.compute_balance_weighted_acceptance(*candidate_index, seed, count, spec)? {
+            if self.compute_balance_weighted_acceptance(*candidate_index, seed, i, spec)? {
                 selected.push(*candidate_index);
             }
 
-            count.safe_add_assign(1)?;
+            i.safe_add_assign(1)?;
         }
 
         Ok(selected)
@@ -3029,17 +3189,9 @@ impl<E: EthSpec> BeaconState<E> {
         // Currently, we can't test if making the change would work since the test suite is not ready for gloas.
         let effective_balance = self.get_effective_balance(index)?;
         let max_effective_balance = spec.max_effective_balance_for_fork(self.fork_name_unchecked());
-
         let random_value = self.shuffling_random_value(iteration, seed)?;
 
-        // this codepath should technically never be hit pre-gloas, but added this defensively
-        let max_random_value = if self.fork_name_unchecked().electra_enabled() {
-            MAX_RANDOM_VALUE
-        } else {
-            MAX_RANDOM_BYTE
-        };
-
-        Ok(effective_balance.safe_mul(max_random_value)?
+        Ok(effective_balance.safe_mul(MAX_RANDOM_VALUE)?
             >= max_effective_balance.safe_mul(random_value)?)
     }
 }
@@ -3092,7 +3244,6 @@ impl<E: EthSpec> BeaconState<E> {
         ))
     }
 
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn apply_pending_mutations(&mut self) -> Result<(), BeaconStateError> {
         match self {
             Self::Base(inner) => {
@@ -3195,7 +3346,6 @@ impl<E: EthSpec> BeaconState<E> {
 
     pub fn get_beacon_state_leaves(&self) -> Vec<Hash256> {
         let mut leaves = vec![];
-        #[allow(clippy::arithmetic_side_effects)]
         match self {
             BeaconState::Base(state) => {
                 map_beacon_state_base_fields!(state, |_, field| {
@@ -3311,5 +3461,77 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for BeaconState<E> {
             Self,
             serde::Deserialize::deserialize(deserializer)?
         ))
+    }
+}
+
+/// Spec: https://github.com/ethereum/consensus-specs/blob/1937aff86b41b5171a9bc3972515986f1bbbf303/specs/electra/weak-subjectivity.md?plain=1#L30
+pub fn compute_weak_subjectivity_period_electra(
+    total_active_balance: u64,
+    balance_churn_limit: u64,
+    spec: &ChainSpec,
+) -> Result<Epoch, BeaconStateError> {
+    let epochs_for_validator_set_churn = SAFETY_DECAY
+        .safe_mul(total_active_balance)?
+        .safe_div(balance_churn_limit.safe_mul(200)?)?;
+    let ws_period = spec
+        .min_validator_withdrawability_delay
+        .safe_add(epochs_for_validator_set_churn)?;
+
+    Ok(ws_period)
+}
+
+#[cfg(test)]
+mod weak_subjectivity_tests {
+    use crate::state::beacon_state::compute_weak_subjectivity_period_electra;
+    use crate::{ChainSpec, Epoch, EthSpec, MainnetEthSpec};
+
+    const GWEI_PER_ETH: u64 = 1_000_000_000;
+
+    #[test]
+    fn test_compute_weak_subjectivity_period_electra() {
+        let mut spec = MainnetEthSpec::default_spec();
+        spec.altair_fork_epoch = Some(Epoch::new(0));
+        spec.bellatrix_fork_epoch = Some(Epoch::new(0));
+        spec.capella_fork_epoch = Some(Epoch::new(0));
+        spec.deneb_fork_epoch = Some(Epoch::new(0));
+        spec.electra_fork_epoch = Some(Epoch::new(0));
+
+        // A table of some expected values:
+        // https://github.com/ethereum/consensus-specs/blob/1937aff86b41b5171a9bc3972515986f1bbbf303/specs/electra/weak-subjectivity.md?plain=1#L44-L54
+        // (total_active_balance, expected_ws_period)
+        let expected_values: Vec<(u64, u64)> = vec![
+            (1_048_576 * GWEI_PER_ETH, 665),
+            (2_097_152 * GWEI_PER_ETH, 1_075),
+            (4_194_304 * GWEI_PER_ETH, 1_894),
+            (8_388_608 * GWEI_PER_ETH, 3_532),
+            (16_777_216 * GWEI_PER_ETH, 3_532),
+            (33_554_432 * GWEI_PER_ETH, 3_532),
+            // This value cross referenced w/
+            // beacon_chain/tests/tests.rs:test_compute_weak_subjectivity_period
+            (1536 * GWEI_PER_ETH, 256),
+        ];
+
+        for (total_active_balance, expected_ws_period) in expected_values {
+            let balance_churn_limit = get_balance_churn_limit(total_active_balance, &spec);
+
+            let calculated_ws_period = compute_weak_subjectivity_period_electra(
+                total_active_balance,
+                balance_churn_limit,
+                &spec,
+            )
+            .unwrap();
+
+            assert_eq!(calculated_ws_period, expected_ws_period);
+        }
+    }
+
+    // caclulate the balance_churn_limit without dealing with states
+    // and without initializing the active balance cache
+    fn get_balance_churn_limit(total_active_balance: u64, spec: &ChainSpec) -> u64 {
+        let churn = std::cmp::max(
+            spec.min_per_epoch_churn_limit_electra,
+            total_active_balance / spec.churn_limit_quotient,
+        );
+        churn - (churn % spec.effective_balance_increment)
     }
 }

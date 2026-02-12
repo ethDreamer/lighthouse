@@ -1,9 +1,11 @@
 use crate::test_utils::TestRandom;
 use crate::{
     BeaconState, BeaconStateError, ChainSpec, Domain, Epoch, EthSpec, ExecutionBlockHash,
-    ExecutionPayloadEnvelope, Fork, Hash256, SignedRoot, Slot,
+    ExecutionPayloadEnvelope, Fork, ForkName, Hash256, SignedRoot, Slot,
+    consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use bls::{PublicKey, Signature};
+use context_deserialize::context_deserialize;
 use educe::Educe;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
@@ -13,6 +15,7 @@ use tree_hash_derive::TreeHash;
 #[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TestRandom, TreeHash, Educe)]
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(bound = "E: EthSpec")]
+#[context_deserialize(ForkName)]
 pub struct SignedExecutionPayloadEnvelope<E: EthSpec> {
     pub message: ExecutionPayloadEnvelope<E>,
     pub signature: Signature,
@@ -36,37 +39,6 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
     }
 
     /// Verify `self.signature`.
-    ///
-    /// The `parent_state` is the post-state of the beacon block with
-    /// block_root = self.message.beacon_block_root
-    /// TODO(EIP-7732): maybe delete this function later (it is inefficient)
-    pub fn verify_signature_with_state(
-        &self,
-        parent_state: &BeaconState<E>,
-        spec: &ChainSpec,
-    ) -> Result<bool, BeaconStateError> {
-        let proposer_index = parent_state.latest_block_header().proposer_index;
-        let builder_index = self.message.builder_index(proposer_index) as usize;
-        let domain = spec.get_domain(
-            parent_state.current_epoch(),
-            Domain::BeaconBuilder,
-            &parent_state.fork(),
-            parent_state.genesis_validators_root(),
-        );
-        let pubkey = parent_state
-            .validators()
-            .get(builder_index)
-            .and_then(|v| {
-                let pk: Option<PublicKey> = v.pubkey.decompress().ok();
-                pk
-            })
-            .ok_or(BeaconStateError::UnknownValidator(builder_index))?;
-        let message = self.message.signing_root(domain);
-
-        Ok(self.signature.verify(&pubkey, message))
-    }
-
-    /// Verify `self.signature`.
     pub fn verify_signature(
         &self,
         pubkey: &PublicKey,
@@ -86,6 +58,43 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
         let message = self.message.signing_root(domain);
 
         self.signature.verify(pubkey, message)
+    }
+
+    /// Verify `self.signature` using keys drawn from the beacon state.
+    pub fn verify_signature_with_state(
+        &self,
+        state: &BeaconState<E>,
+        spec: &ChainSpec,
+    ) -> Result<bool, BeaconStateError> {
+        // TODO(gloas): clean up this logic
+        let builder_index = self.message.raw_builder_index();
+
+        let pubkey_bytes = if builder_index == BUILDER_INDEX_SELF_BUILD {
+            let validator_index = state.latest_block_header().proposer_index;
+            state.get_validator(validator_index as usize)?.pubkey
+        } else {
+            state.get_builder(builder_index)?.pubkey
+        };
+
+        // TODO(gloas): Could use pubkey cache on state here, but it probably isn't worth
+        // it because this function is rarely used. Almost always the envelope should be signature
+        // verified prior to consensus code running.
+        let pubkey = pubkey_bytes.decompress()?;
+
+        // Ensure the state's epoch matches the message's epoch before determining the Fork.
+        if self.epoch() != state.current_epoch() {
+            return Err(BeaconStateError::SignedEnvelopeIncorrectEpoch {
+                state_epoch: state.current_epoch(),
+                envelope_epoch: self.epoch(),
+            });
+        }
+
+        Ok(self.verify_signature(
+            &pubkey,
+            &state.fork(),
+            state.genesis_validators_root(),
+            spec,
+        ))
     }
 }
 

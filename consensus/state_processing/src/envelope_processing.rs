@@ -2,16 +2,16 @@ use crate::BlockProcessingError;
 use crate::VerifySignatures;
 use crate::per_block_processing::compute_timestamp_at_slot;
 use crate::per_block_processing::process_operations::{
-    process_consolidation_requests, process_deposit_requests, process_withdrawal_requests,
+    process_consolidation_requests, process_deposit_requests_post_gloas,
+    process_withdrawal_requests,
 };
 use safe_arith::{ArithError, SafeArith};
 use tree_hash::TreeHash;
 use types::{
-    BeaconState, BeaconStateError, BuilderPendingPayment, ChainSpec, EthSpec, ExecutionBlockHash,
-    Hash256, SignedExecutionPayloadEnvelope, Slot,
+    BeaconState, BeaconStateError, BuilderIndex, BuilderPendingPayment, ChainSpec, EthSpec,
+    ExecutionBlockHash, Hash256, SignedExecutionPayloadEnvelope, Slot,
 };
 
-// TODO(EIP-7732): don't use this redefinition..
 macro_rules! envelope_verify {
     ($condition: expr, $result: expr) => {
         if !$condition {
@@ -37,10 +37,15 @@ pub enum EnvelopeProcessingError {
         envelope_slot: Slot,
         parent_state_slot: Slot,
     },
-    /// The withdrawals root doesn't match the state's latest withdrawals root
+    /// The payload withdrawals don't match the state's payload withdrawals.
     WithdrawalsRootMismatch {
         state: Hash256,
-        envelope: Hash256,
+        payload: Hash256,
+    },
+    // The builder index doesn't match the committed bid.
+    BuilderIndexMismatch {
+        committed_bid: BuilderIndex,
+        envelope: BuilderIndex,
     },
     // The gas limit doesn't match the committed bid
     GasLimitMismatch {
@@ -57,25 +62,15 @@ pub enum EnvelopeProcessingError {
         state: ExecutionBlockHash,
         envelope: ExecutionBlockHash,
     },
-    /// The blob KZG commitments root doesn't match the committed bid
-    BlobKzgCommitmentsRootMismatch {
-        committed_bid: Hash256,
-        envelope: Hash256,
-    },
     // The previous randao didn't match the payload
     PrevRandaoMismatch {
-        state: Hash256,
+        committed_bid: Hash256,
         envelope: Hash256,
     },
     // The timestamp didn't match the payload
     TimestampMismatch {
         state: u64,
         envelope: u64,
-    },
-    // Blob committments exceeded the maximum
-    BlobLimitExceeded {
-        max: usize,
-        envelope: usize,
     },
     // Invalid state root
     InvalidStateRoot {
@@ -86,6 +81,8 @@ pub enum EnvelopeProcessingError {
     BitFieldError(ssz::BitfieldError),
     // Some kind of error calculating the builder payment index
     BuilderPaymentIndexOutOfBounds(usize),
+    /// The envelope was deemed invalid by the execution engine.
+    ExecutionInvalid,
 }
 
 impl From<BeaconStateError> for EnvelopeProcessingError {
@@ -109,7 +106,7 @@ impl From<ArithError> for EnvelopeProcessingError {
 /// Processes a `SignedExecutionPayloadEnvelope`
 ///
 /// This function does all the state modifications inside `process_execution_payload()`
-pub fn envelope_processing<E: EthSpec>(
+pub fn process_execution_payload_envelope<E: EthSpec>(
     state: &mut BeaconState<E>,
     parent_state_root: Option<Hash256>,
     signed_envelope: &SignedExecutionPayloadEnvelope<E>,
@@ -118,7 +115,6 @@ pub fn envelope_processing<E: EthSpec>(
 ) -> Result<(), EnvelopeProcessingError> {
     if verify_signatures.is_true() {
         // Verify Signed Envelope Signature
-        // TODO(EIP-7732): there is probably a more efficient way to do this..
         if !signed_envelope.verify_signature_with_state(state, spec)? {
             return Err(EnvelopeProcessingError::BadSignature);
         }
@@ -137,11 +133,12 @@ pub fn envelope_processing<E: EthSpec>(
     }
 
     // Verify consistency with the beacon block
+    let latest_block_header_root = state.latest_block_header().tree_hash_root();
     envelope_verify!(
-        envelope.beacon_block_root == state.latest_block_header().tree_hash_root(),
+        envelope.beacon_block_root == latest_block_header_root,
         EnvelopeProcessingError::LatestBlockHeaderMismatch {
             envelope_root: envelope.beacon_block_root,
-            block_header_root: state.latest_block_header().tree_hash_root(),
+            block_header_root: latest_block_header_root,
         }
     );
     envelope_verify!(
@@ -154,26 +151,41 @@ pub fn envelope_processing<E: EthSpec>(
 
     // Verify consistency with the committed bid
     let committed_bid = state.latest_execution_payload_bid()?;
-    // builder index match already verified
-    if committed_bid.blob_kzg_commitments_root != envelope.blob_kzg_commitments.tree_hash_root() {
-        return Err(EnvelopeProcessingError::BlobKzgCommitmentsRootMismatch {
-            committed_bid: committed_bid.blob_kzg_commitments_root,
-            envelope: envelope.blob_kzg_commitments.tree_hash_root(),
-        });
-    };
-
-    // Verify the withdrawals root
     envelope_verify!(
-        payload.withdrawals.tree_hash_root() == *state.latest_withdrawals_root()?,
+        envelope.builder_index == committed_bid.builder_index,
+        EnvelopeProcessingError::BuilderIndexMismatch {
+            committed_bid: committed_bid.builder_index,
+            envelope: envelope.builder_index,
+        }
+    );
+    envelope_verify!(
+        committed_bid.prev_randao == payload.prev_randao,
+        EnvelopeProcessingError::PrevRandaoMismatch {
+            committed_bid: committed_bid.prev_randao,
+            envelope: payload.prev_randao,
+        }
+    );
+
+    // Verify consistency with expected withdrawals
+    // NOTE: we don't bother hashing here except in case of error, because we can just compare for
+    // equality directly. This equality check could be more straight-forward if the types were
+    // changed to match (currently we are comparing VariableList to List). This could happen
+    // coincidentally when we adopt ProgressiveList.
+    envelope_verify!(
+        payload.withdrawals.len() == state.payload_expected_withdrawals()?.len()
+            && payload
+                .withdrawals
+                .iter()
+                .eq(state.payload_expected_withdrawals()?.iter()),
         EnvelopeProcessingError::WithdrawalsRootMismatch {
-            state: *state.latest_withdrawals_root()?,
-            envelope: payload.withdrawals.tree_hash_root(),
+            state: state.payload_expected_withdrawals()?.tree_hash_root(),
+            payload: payload.withdrawals.tree_hash_root(),
         }
     );
 
     // Verify the gas limit
     envelope_verify!(
-        payload.gas_limit == committed_bid.gas_limit,
+        committed_bid.gas_limit == payload.gas_limit,
         EnvelopeProcessingError::GasLimitMismatch {
             committed_bid: committed_bid.gas_limit,
             envelope: payload.gas_limit,
@@ -198,16 +210,7 @@ pub fn envelope_processing<E: EthSpec>(
         }
     );
 
-    // Verify prev_randao
-    envelope_verify!(
-        payload.prev_randao == *state.get_randao_mix(state.current_epoch())?,
-        EnvelopeProcessingError::PrevRandaoMismatch {
-            state: *state.get_randao_mix(state.current_epoch())?,
-            envelope: payload.prev_randao,
-        }
-    );
-
-    // Verify the timestamp
+    // Verify timestamp
     let state_timestamp = compute_timestamp_at_slot(state, state.slot(), spec)?;
     envelope_verify!(
         payload.timestamp == state_timestamp,
@@ -217,65 +220,56 @@ pub fn envelope_processing<E: EthSpec>(
         }
     );
 
-    // Verify the commitments are under limit
-    let max_blobs = spec.max_blobs_per_block(state.current_epoch()) as usize;
-    envelope_verify!(
-        envelope.blob_kzg_commitments.len() <= max_blobs,
-        EnvelopeProcessingError::BlobLimitExceeded {
-            max: max_blobs,
-            envelope: envelope.blob_kzg_commitments.len(),
-        }
-    );
+    // TODO(gloas): newPayload happens here in the spec, ensure we wire that up correctly
 
-    // process electra operations
-    process_deposit_requests(state, &execution_requests.deposits, spec)?;
+    process_deposit_requests_post_gloas(state, &execution_requests.deposits, spec)?;
+
+    // TODO(gloas): gotta update these
     process_withdrawal_requests(state, &execution_requests.withdrawals, spec)?;
     process_consolidation_requests(state, &execution_requests.consolidations, spec)?;
 
-    // queue the builder payment
+    // Queue the builder payment
     let payment_index = E::slots_per_epoch()
         .safe_add(state.slot().as_u64().safe_rem(E::slots_per_epoch())?)?
         as usize;
-    let mut payment = state
-        .builder_pending_payments()?
-        .get(payment_index)
-        .ok_or(EnvelopeProcessingError::BuilderPaymentIndexOutOfBounds(
-            payment_index,
-        ))?
-        .clone();
-    let amount = payment.withdrawal.amount;
-    if amount > 0 {
-        let exit_queue_epoch = state.compute_exit_epoch_and_update_churn(amount, spec)?;
-        payment.withdrawal.withdrawable_epoch =
-            exit_queue_epoch.safe_add(spec.min_validator_withdrawability_delay)?;
-        state
-            .builder_pending_withdrawals_mut()?
-            .push(payment.withdrawal)
-            .map_err(|e| EnvelopeProcessingError::BeaconStateError(e.into()))?;
-    }
-    *state
+    let payment_mut = state
         .builder_pending_payments_mut()?
         .get_mut(payment_index)
         .ok_or(EnvelopeProcessingError::BuilderPaymentIndexOutOfBounds(
             payment_index,
-        ))? = BuilderPendingPayment::default();
+        ))?;
 
-    // cache the execution payload hash
+    // We have re-ordered the blanking out of the pending payment to avoid a double-lookup.
+    // This is semantically equivalent to the ordering used by the spec because we have taken a
+    // clone of the payment prior to doing the write.
+    let payment_withdrawal = payment_mut.withdrawal.clone();
+    *payment_mut = BuilderPendingPayment::default();
+
+    let amount = payment_withdrawal.amount;
+    if amount > 0 {
+        state
+            .builder_pending_withdrawals_mut()?
+            .push(payment_withdrawal)
+            .map_err(|e| EnvelopeProcessingError::BeaconStateError(e.into()))?;
+    }
+
+    // Cache the execution payload hash
     let availability_index = state
         .slot()
-        .safe_rem(E::slots_per_historical_root() as u64)?
-        .as_usize();
+        .as_usize()
+        .safe_rem(E::slots_per_historical_root())?;
     state
         .execution_payload_availability_mut()?
         .set(availability_index, true)
         .map_err(EnvelopeProcessingError::BitFieldError)?;
     *state.latest_block_hash_mut()? = payload.block_hash;
 
-    // verify the state root
+    // Verify the state root
+    let state_root = state.canonical_root()?;
     envelope_verify!(
-        envelope.state_root == state.canonical_root()?,
+        envelope.state_root == state_root,
         EnvelopeProcessingError::InvalidStateRoot {
-            state: state.canonical_root()?,
+            state: state_root,
             envelope: envelope.state_root,
         }
     );

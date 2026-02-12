@@ -94,10 +94,20 @@ pub enum BlockProcessingError {
         found: Hash256,
     },
     WithdrawalCredentialsInvalid,
+    /// This should be unreachable unless there's a logical flaw in the spec for withdrawals.
+    WithdrawalsLimitExceeded {
+        limit: usize,
+        prior_withdrawals: usize,
+    },
+    /// Unreachable unless there's a logic error in LH.
+    IncorrectExpectedWithdrawalsVariant,
+    MissingLastWithdrawal,
     PendingAttestationInElectra,
     ExecutionPayloadBidInvalid {
         reason: ExecutionPayloadBidInvalid,
     },
+    /// Builder payment index out of bounds (Gloas)
+    BuilderPaymentIndexOutOfBounds(usize),
 }
 
 impl From<BeaconStateError> for BlockProcessingError {
@@ -378,6 +388,8 @@ pub enum AttestationInvalid {
     BadSignature,
     /// The indexed attestation created from this attestation was found to be invalid.
     BadIndexedAttestation(IndexedAttestationInvalid),
+    /// The overloaded "data.index" field is invalid (post-Gloas).
+    BadOverloadedDataIndex,
 }
 
 impl From<BlockOperationError<IndexedAttestationInvalid>>
@@ -508,24 +520,20 @@ pub enum ExitInvalid {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExecutionPayloadBidInvalid {
-    /// The builder sent a 0 amount
-    BadAmount,
+    /// The validator set a non-zero amount for a self-build.
+    SelfBuildNonZeroAmount,
     /// The signature is invalid.
     BadSignature,
-    /// The builder's withdrawal credential is invalid
-    BadWithdrawalCredentials,
-    /// The builder is not an active validator.
+    /// The builder is not active.
     BuilderNotActive(u64),
-    /// The builder is slashed
-    BuilderSlashed(u64),
     /// The builder has insufficient balance to cover the bid
     InsufficientBalance {
         builder_index: u64,
         builder_balance: u64,
         bid_value: u64,
     },
-    /// Bid slot doesn't match state slot
-    SlotMismatch { state_slot: Slot, bid_slot: Slot },
+    /// Bid slot doesn't match block slot
+    SlotMismatch { bid_slot: Slot, block_slot: Slot },
     /// The bid's parent block hash doesn't match the state's latest block hash
     ParentBlockHashMismatch {
         state_block_hash: ExecutionBlockHash,
@@ -536,6 +544,10 @@ pub enum ExecutionPayloadBidInvalid {
         block_parent_root: Hash256,
         bid_parent_root: Hash256,
     },
+    /// The bid's prev randao doesn't match the state.
+    PrevRandaoMismatch { expected: Hash256, bid: Hash256 },
+    /// The bid contains more than the maximum number of kzg blob commitments.
+    ExcessBlobCommitments { max: usize, bid: usize },
 }
 
 #[derive(Debug, PartialEq, Clone)]
