@@ -13,6 +13,20 @@ pub struct BuilderPreferencesRequestV1 {
     auth: SignedRequestAuthV1,
 }
 
+impl BuilderPreferencesRequestV1 {
+    pub fn new(preferences: BuilderPreferencesV1, auth: SignedRequestAuthV1) -> Self {
+        Self { preferences, auth }
+    }
+
+    pub fn preferences(&self) -> &BuilderPreferencesV1 {
+        &self.preferences
+    }
+
+    pub fn auth(&self) -> &SignedRequestAuthV1 {
+        &self.auth
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2070,6 +2070,23 @@ impl BeaconNodeHttpClient {
         Ok(())
     }
 
+    /// 'POST validator/builder_preferences
+    pub async fn post_validator_builder_preferences(
+        &self,
+        preference_requests: &[SubmitBuilderPreferencesRequest],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("builder_preferences");
+
+        self.post(path, &preference_requests).await?;
+
+        Ok(())
+    }
+
     /// `GET config/fork_schedule`
     pub async fn get_config_fork_schedule(&self) -> Result<GenericResponse<Vec<Fork>>, Error> {
         let mut path = self.eth_path(V1)?;

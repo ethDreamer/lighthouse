@@ -22,5 +22,5 @@ pub use builder_pending_withdrawal::BuilderPendingWithdrawal;
 pub use builder_preferences::BuilderPreferencesV1;
 pub use builder_preferences_request::BuilderPreferencesRequestV1;
 pub use proposer_preferences::{ProposerPreferences, SignedProposerPreferences};
-pub use request_auth::{MaxDataSize, RequestAuthV1};
+pub use request_auth::{MaxDataSize, RequestAuthUrl, RequestAuthV1};
 pub use signed_request_auth::SignedRequestAuthV1;

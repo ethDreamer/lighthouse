@@ -22,12 +22,13 @@ use types::{
     AbstractExecPayload, Address, AggregateAndProof, Attestation, AttestationData, BeaconBlock,
     BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, EthSpec,
     ExecutionPayloadEnvelope, Fork, FullPayload, Graffiti, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
-    SignedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit,
-    SingleAttestation, Slot, SyncAggregatorSelectionData, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
-    VoluntaryExit, graffiti::GraffitiString,
+    PayloadAttestationMessage, ProposerPreferences, RequestAuthV1, SelectionProof,
+    SignedAggregateAndProof, SignedBeaconBlock, SignedContributionAndProof,
+    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedRequestAuthV1, SignedRoot,
+    SignedValidatorRegistrationData, SignedVoluntaryExit, SingleAttestation, Slot,
+    SyncAggregatorSelectionData, SyncCommitteeContribution, SyncCommitteeMessage,
+    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData, VoluntaryExit,
+    graffiti::GraffitiString,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -1499,6 +1500,31 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
 
         Ok(SignedProposerPreferences {
             message: preferences,
+            signature,
+        })
+    }
+
+    async fn sign_request_auth_v1(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        request_auth_v1: RequestAuthV1,
+    ) -> Result<SignedRequestAuthV1, Error> {
+        // TODO: gotta verify this..
+        let domain_hash = self.spec.get_builder_application_domain();
+        let signing_root = request_auth_v1.signing_root(domain_hash);
+
+        let signing_method = self.doppelganger_bypassed_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature_from_root::<E, BlindedPayload<E>>(
+                SignableMessage::RequestAuthV1(&request_auth_v1),
+                signing_root,
+                &self.task_executor,
+                None,
+            )
+            .await?;
+
+        Ok(SignedRequestAuthV1 {
+            message: request_auth_v1,
             signature,
         })
     }

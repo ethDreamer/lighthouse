@@ -23,6 +23,7 @@ pub enum MessageType {
     ExecutionPayloadEnvelope,
     PayloadAttestation,
     ProposerPreferences,
+    RequestAuthV1,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize)]
@@ -83,6 +84,7 @@ pub enum Web3SignerObject<'a, E: EthSpec, Payload: AbstractExecPayload<E>> {
     ExecutionPayloadEnvelope(&'a ExecutionPayloadEnvelope<E>),
     PayloadAttestationData(&'a PayloadAttestationData),
     ProposerPreferences(&'a ProposerPreferences),
+    RequestAuthV1(&'a RequestAuthV1),
 }
 
 impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> Web3SignerObject<'a, E, Payload> {
@@ -156,6 +158,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> Web3SignerObject<'a, E, Pa
             Web3SignerObject::ExecutionPayloadEnvelope(_) => MessageType::ExecutionPayloadEnvelope,
             Web3SignerObject::PayloadAttestationData(_) => MessageType::PayloadAttestation,
             Web3SignerObject::ProposerPreferences(_) => MessageType::ProposerPreferences,
+            Web3SignerObject::RequestAuthV1(_) => MessageType::RequestAuthV1,
         }
     }
 }

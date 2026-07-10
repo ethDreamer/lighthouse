@@ -581,6 +581,13 @@ pub struct BuildersRequestBody {
     pub statuses: Option<Vec<BuilderStatus>>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubmitBuilderPreferencesRequest {
+    pub preferences: BuilderPreferencesRequestV1,
+    pub pubkey: PublicKeyBytes,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CommitteeData {
     #[serde(with = "serde_utils::quoted_u64")]

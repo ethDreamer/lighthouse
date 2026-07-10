@@ -1707,6 +1707,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "builder_store"
+version = "0.1.0"
+dependencies = [
+ "account_utils",
+ "bls",
+ "filesystem",
+ "hex",
+ "parking_lot",
+ "sensitive_url",
+ "serde",
+ "tempfile",
+ "tracing",
+ "types",
+ "yaml_serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9755,6 +9772,7 @@ version = "8.2.1"
 dependencies = [
  "account_utils",
  "beacon_node_fallback",
+ "builder_store",
  "clap",
  "clap_utils",
  "directory",
@@ -9920,6 +9938,7 @@ version = "0.1.0"
 dependencies = [
  "beacon_node_fallback",
  "bls",
+ "builder_store",
  "either",
  "eth2",
  "futures",
