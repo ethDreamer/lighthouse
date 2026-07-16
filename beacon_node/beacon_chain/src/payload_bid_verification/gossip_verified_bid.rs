@@ -235,10 +235,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
         let gossip_verified_bid = GossipVerifiedPayloadBid { signed_bid };
 
         ctx.gossip_verified_payload_bid_cache
-            .insert_seen_builder(&gossip_verified_bid);
-
-        ctx.gossip_verified_payload_bid_cache
-            .insert_highest_bid(gossip_verified_bid.clone());
+            .observe_bid(gossip_verified_bid.clone());
 
         Ok(gossip_verified_bid)
     }

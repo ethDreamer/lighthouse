@@ -358,7 +358,7 @@ fn builder_already_seen_for_slot() {
     let verified = GossipVerifiedPayloadBid {
         signed_bid: bid.clone(),
     };
-    ctx.bid_cache.insert_seen_builder(&verified);
+    ctx.bid_cache.observe_bid(verified);
 
     let result = GossipVerifiedPayloadBid::new(bid, &gossip);
     assert!(matches!(
@@ -383,7 +383,7 @@ fn bid_value_below_cached() {
     let high_bid = GossipVerifiedPayloadBid {
         signed_bid: ctx.make_signed_bid(slot, 99, Address::ZERO, 30_000_000, 500, Hash256::ZERO),
     };
-    ctx.bid_cache.insert_highest_bid(high_bid);
+    ctx.bid_cache.observe_bid(high_bid);
 
     let low_bid = ctx.make_signed_bid(slot, 1, Address::ZERO, 30_000_000, 100, Hash256::ZERO);
     let result = GossipVerifiedPayloadBid::new(low_bid, &gossip);
@@ -817,7 +817,7 @@ fn bid_equal_to_cached_value_rejected() {
             ctx.genesis_block_root,
         ),
     };
-    ctx.bid_cache.insert_highest_bid(high_bid);
+    ctx.bid_cache.observe_bid(high_bid);
 
     // Submit a bid with exactly the same value — should be rejected.
     let equal_bid = ctx.make_signed_bid(
