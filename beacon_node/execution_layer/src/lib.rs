@@ -10,7 +10,7 @@ use arc_swap::ArcSwapOption;
 use auth::{Auth, JwtKey, strip_prefix};
 pub use block_hash::calculate_execution_block_hash;
 use bls::{PublicKeyBytes, Signature};
-use builder_client::BuilderHttpClient;
+use builder_client::PreGloasBuilderHttpClient;
 pub use engine_api::EngineCapabilities;
 use engine_api::Error as ApiError;
 pub use engine_api::*;
@@ -464,7 +464,7 @@ type PayloadContentsRefTuple<'a, E> = (ExecutionPayloadRef<'a, E>, Option<&'a Bl
 
 struct Inner<E: EthSpec> {
     engine: Arc<Engine>,
-    builder: ArcSwapOption<BuilderHttpClient>,
+    builder: ArcSwapOption<PreGloasBuilderHttpClient>,
     execution_engine_forkchoice_lock: Mutex<()>,
     suggested_fee_recipient: Option<Address>,
     proposer_preparation_data: Mutex<HashMap<u64, ProposerPreparationDataEntry>>,
@@ -603,7 +603,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         &self.inner.engine
     }
 
-    pub fn builder(&self) -> Option<Arc<BuilderHttpClient>> {
+    pub fn builder(&self) -> Option<Arc<PreGloasBuilderHttpClient>> {
         self.inner.builder.load_full()
     }
 
@@ -618,7 +618,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         builder_header_timeout: Option<Duration>,
         disable_ssz: bool,
     ) -> Result<(), Error> {
-        let builder_client = BuilderHttpClient::new(
+        let builder_client = PreGloasBuilderHttpClient::new(
             builder_url.clone(),
             builder_user_agent,
             builder_header_timeout,
@@ -1045,7 +1045,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     /// Fetches local and builder paylaods concurrently, Logs and returns results.
     async fn fetch_builder_and_local_payloads(
         &self,
-        builder: &BuilderHttpClient,
+        builder: &PreGloasBuilderHttpClient,
         builder_params: &BuilderParams,
         payload_parameters: PayloadParameters<'_>,
     ) -> (
