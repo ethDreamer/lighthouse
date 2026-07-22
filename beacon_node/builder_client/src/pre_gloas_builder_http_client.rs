@@ -507,12 +507,12 @@ impl PreGloasBuilderHttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
     use arbitrary::Arbitrary;
     use bls::Signature;
     use eth2::types::MainnetEthSpec;
     use eth2::types::builder::{BuilderBid, BuilderBidFulu};
     use mockito::{Matcher, Server, ServerGuard};
+    use std::str::FromStr;
 
     type E = MainnetEthSpec;
 

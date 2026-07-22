@@ -3,10 +3,12 @@ use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, SSZ_CONTENT_TYPE_HEADE
 use reqwest::header::HeaderMap;
 use std::str::FromStr;
 
-pub mod pre_gloas_builder_client;
+pub mod builder_http_client;
+pub mod pre_gloas_builder_http_client;
 
+pub use builder_http_client::{BuilderHttpClient, GloasBidResponse};
 pub use eth2::Error;
-pub use pre_gloas_builder_client::PreGloasBuilderHttpClient;
+pub use pre_gloas_builder_http_client::PreGloasBuilderHttpClient;
 
 /// Default timeout for builder requests without a more specific timeout.
 pub const DEFAULT_TIMEOUT_MILLIS: u64 = 15000;
