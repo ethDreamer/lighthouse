@@ -9,7 +9,9 @@ bls = { workspace = true }
 context_deserialize = { workspace = true }
 eth2 = { workspace = true }
 ethereum_ssz = { workspace = true }
+futures = { workspace = true }
 lighthouse_version = { workspace = true }
+parking_lot = { workspace = true }
 reqwest = { workspace = true }
 sensitive_url = { workspace = true }
 serde = { workspace = true }
