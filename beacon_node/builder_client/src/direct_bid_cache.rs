@@ -208,7 +208,9 @@ mod tests {
         assert!(highest.ssz_response);
         assert_eq!(
             highest.builder_url.expose_full(),
-            SensitiveUrl::from_str("http://c.com").unwrap().expose_full()
+            SensitiveUrl::from_str("http://c.com")
+                .unwrap()
+                .expose_full()
         );
     }
 
@@ -219,8 +221,9 @@ mod tests {
 
         let mut bid_a = direct_bid(1, 100, 0, 0, "http://a.com", false);
         // Give this bid a different parent hash so it occupies a separate cache slot.
-        Arc::make_mut(&mut bid_a.signed_bid).message.parent_block_hash =
-            ExecutionBlockHash::repeat_byte(9);
+        Arc::make_mut(&mut bid_a.signed_bid)
+            .message
+            .parent_block_hash = ExecutionBlockHash::repeat_byte(9);
         cache.observe_bid(bid_a);
         cache.observe_bid(direct_bid(1, 200, 0, 0, "http://b.com", false));
 

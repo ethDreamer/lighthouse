@@ -19,6 +19,9 @@ use types::{
 
 /// Verify that an execution payload bid is consistent with the current chain state
 /// and proposer preferences.
+///
+/// These checks are shared by gossip and direct bids. Source-specific checks (e.g. the gossip-only
+/// requirement that `execution_payment == 0`) are applied by the caller.
 pub(crate) fn verify_bid_consistency<E: EthSpec>(
     bid: &ExecutionPayloadBid<E>,
     current_slot: Slot,
@@ -30,14 +33,6 @@ pub(crate) fn verify_bid_consistency<E: EthSpec>(
 
     if bid_slot != current_slot && bid_slot != current_slot.saturating_add(1u64) {
         return Err(PayloadBidError::InvalidBidSlot { bid_slot });
-    }
-
-    // Execution payments are used by off protocol builders. In protocol bids
-    // should always have this value set to zero.
-    if bid.execution_payment != 0 {
-        return Err(PayloadBidError::ExecutionPaymentNonZero {
-            execution_payment: bid.execution_payment,
-        });
     }
 
     if bid.fee_recipient != proposer_preferences.message.fee_recipient {
@@ -110,6 +105,14 @@ impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
         let bid_parent_block_hash = signed_bid.message.parent_block_hash;
         let bid_parent_block_root = signed_bid.message.parent_block_root;
         let bid_value = signed_bid.message.value;
+
+        // Execution payments are used by off-protocol builders. In-protocol (gossip) bids should
+        // always have this value set to zero.
+        if signed_bid.message.execution_payment != 0 {
+            return Err(PayloadBidError::ExecutionPaymentNonZero {
+                execution_payment: signed_bid.message.execution_payment,
+            });
+        }
 
         if ctx
             .gossip_verified_payload_bid_cache
@@ -404,23 +407,6 @@ mod tests {
         assert!(matches!(
             result,
             Err(PayloadBidError::InvalidBidSlot { .. })
-        ));
-    }
-
-    #[test]
-    fn test_execution_payment_nonzero() {
-        let (state, spec) = state_and_spec();
-        let current_slot = Slot::new(10);
-        let mut bid = make_bid(current_slot, Address::ZERO, 30_000_000);
-        bid.execution_payment = 42;
-        let prefs = make_preferences(Address::ZERO, 30_000_000);
-
-        let result = verify_bid_consistency::<E>(&bid, current_slot, &prefs, &state, &spec);
-        assert!(matches!(
-            result,
-            Err(PayloadBidError::ExecutionPaymentNonZero {
-                execution_payment: 42
-            })
         ));
     }
 

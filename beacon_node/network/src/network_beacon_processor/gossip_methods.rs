@@ -4086,7 +4086,6 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                 PayloadBidError::BadSignature
                 | PayloadBidError::InvalidBuilder { .. }
                 | PayloadBidError::InvalidBuilderVersion { .. }
-                | PayloadBidError::InvalidFeeRecipient
                 | PayloadBidError::ExecutionPaymentNonZero { .. }
                 | PayloadBidError::InvalidBlobKzgCommitments { .. }
                 | PayloadBidError::BidNotDescendantOfParent { .. }
@@ -4101,6 +4100,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             }
             Err(
                 PayloadBidError::NoProposerPreferences { .. }
+                | PayloadBidError::InvalidFeeRecipient
                 | PayloadBidError::BuilderAlreadySeen { .. }
                 | PayloadBidError::BidValueBelowCached { .. }
                 | PayloadBidError::ParentBlockRootUnknown { .. }
@@ -4112,6 +4112,19 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                 | PayloadBidError::InvalidBidSlot { .. }
                 | PayloadBidError::UnableToReadSlot,
             ) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+            }
+            // `InvalidParentBlockHash` / `InvalidParentBlockRoot` are equality checks against the
+            // producer's selected parent, produced only by direct (block-production) verification —
+            // never by gossip, which instead does parent fork-choice *membership* checks (the
+            // `ParentBlockRoot*` variants above). They're handled here only because `PayloadBidError`
+            // is shared; reaching this arm indicates a wiring bug, so log it, and ignore rather than
+            // penalize the peer.
+            Err(
+                PayloadBidError::InvalidParentBlockHash { .. }
+                | PayloadBidError::InvalidParentBlockRoot { .. },
+            ) => {
+                error!("Direct-bid validation error from gossip payload bid verification");
                 self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
             }
         }

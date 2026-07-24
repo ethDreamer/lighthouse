@@ -10,8 +10,9 @@
 //!    GossipVerifiedPayloadBid -------> Insert into GossipVerifiedPayloadBidCache
 //! ```
 
-use types::{BeaconStateError, Hash256, Slot};
+use types::{BeaconStateError, ExecutionBlockHash, Hash256, Slot};
 
+pub mod direct_verified_bid;
 pub mod gossip_verified_bid;
 pub mod payload_bid_cache;
 
@@ -24,6 +25,13 @@ pub enum PayloadBidError {
     ParentBlockRootUnknown { parent_block_root: Hash256 },
     /// The bid's parent block root is known but not on the canonical chain.
     ParentBlockRootNotCanonical { parent_block_root: Hash256 },
+    /// The bid's parent block hash does not match the parent selected for the block being produced.
+    InvalidParentBlockHash {
+        bid: ExecutionBlockHash,
+        expected: ExecutionBlockHash,
+    },
+    /// The bid's parent block root does not match the parent selected for the block being produced.
+    InvalidParentBlockRoot { bid: Hash256, expected: Hash256 },
     /// The signature is invalid.
     BadSignature,
     /// A bid for this builder at this slot has already been seen.

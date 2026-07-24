@@ -1,14 +1,22 @@
 use crate::{BuilderHttpClient, DirectBid, DirectBidCache, GloasBidResponse};
 use bls::PublicKeyBytes;
-use eth2::types::{BuilderPreferencesRequestV1, EthSpec, ExecutionBlockHash, Hash256, Slot};
+use eth2::types::{
+    BuilderPreferencesRequestV1, EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
+    Slot,
+};
 use futures::future::join_all;
 use sensitive_url::SensitiveUrl;
 use std::collections::HashSet;
+use std::fmt::Display;
+use std::future::Future;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-/// The per-proposal context shared across all direct builder bid requests.
+/// The per-proposal parameters used to address each `getExecutionPayloadBid` request.
+///
+/// Validation of returned bids is performed entirely by the caller's `validate` callback (which has
+/// the beacon-chain state), so this only carries what's needed to build the request.
 #[derive(Clone)]
 pub struct DirectBidRequest {
     pub slot: Slot,
@@ -37,20 +45,34 @@ impl<E: EthSpec> BuilderService<E> {
         &self.cache
     }
 
-    /// Request bids from every configured builder concurrently and record them in the cache.
+    /// Request bids from every configured builder concurrently, validate them, and record the valid
+    /// ones in the cache.
     ///
     /// Each preference's builder URL is decoded from its request-auth `data` field. Empty-URL
     /// entries (the gossip default) and preferences with a malformed or non-http(s) URL are
-    /// skipped, and duplicate URLs are requested only once. A failure, timeout, or empty (204)
-    /// response from one builder is isolated: it is logged and skipped without affecting the others.
+    /// skipped, and duplicate URLs are requested only once.
     ///
-    /// Returns the number of bids received and observed into the cache. The block producer reads
-    /// the winning bid later via [`DirectBidCache::get_highest_bid`].
-    pub async fn request_and_cache_bids(
+    /// Each builder runs in its own pipeline — request, then the producer-supplied `validate`
+    /// callback, which performs *all* bid validation against the block producer's advanced beacon
+    /// state (consensus consistency, builder eligibility, collateral, and the BLS signature). These
+    /// pipelines run **concurrently across builders**, so a slow builder or an expensive validation
+    /// for one bid does not hold up the others. A failure, timeout, empty (204) response, or
+    /// validation error for one builder is isolated: it is logged and that bid is skipped, never
+    /// entering the cache.
+    ///
+    /// Returns the number of bids that passed validation and were observed into the cache. The
+    /// block producer reads the winning bid later via [`DirectBidCache::get_highest_bid`].
+    pub async fn request_and_cache_bids<F, Fut, Err>(
         &self,
         ctx: &DirectBidRequest,
         preferences: &[BuilderPreferencesRequestV1],
-    ) -> usize {
+        validate: F,
+    ) -> usize
+    where
+        F: Fn(Arc<SignedExecutionPayloadBid<E>>) -> Fut,
+        Fut: Future<Output = Result<(), Err>>,
+        Err: Display,
+    {
         // Resolve each preference to a `(url, max_execution_payment, auth)` target, filtering out
         // invalid entries and de-duplicating by normalized URL.
         let mut seen = HashSet::new();
@@ -80,39 +102,56 @@ impl<E: EthSpec> BuilderService<E> {
             targets.push((url, preference.preferences().max_execution_payment, auth));
         }
 
-        // Fan out to every builder concurrently. Each request carries its own timeout, so a slow
+        // Run one pipeline per builder — request, then the producer's `validate` callback — and let
+        // them run concurrently across builders. Each request carries its own timeout, so a slow
         // builder cannot delay the others.
-        let bid_requests = targets.iter().map(|(url, _cap, auth)| {
-            self.client.get_execution_payload_bid::<E>(
-                url,
-                ctx.slot,
-                ctx.parent_hash,
-                ctx.parent_root,
-                &ctx.proposer_pubkey,
-                Some(*auth),
-            )
-        });
-        let results = join_all(bid_requests).await;
+        let client = &self.client;
+        let validate = &validate;
+        let pipelines = targets
+            .iter()
+            .map(|(url, max_execution_payment, auth)| async move {
+                let response = client
+                    .get_execution_payload_bid::<E>(
+                        url,
+                        ctx.slot,
+                        ctx.parent_hash,
+                        ctx.parent_root,
+                        &ctx.proposer_pubkey,
+                        Some(*auth),
+                    )
+                    .await;
+
+                match response {
+                    Ok(Some(GloasBidResponse { bid, ssz_response })) => {
+                        let bid = Arc::new(bid);
+                        if let Err(error) = validate(bid.clone()).await {
+                            warn!(url = ?url, %error, "Builder bid failed validation");
+                            return None;
+                        }
+                        Some(DirectBid::new(
+                            bid,
+                            url.clone(),
+                            ssz_response,
+                            *max_execution_payment,
+                        ))
+                    }
+                    Ok(None) => {
+                        debug!(url = ?url, "Builder returned no bid");
+                        None
+                    }
+                    Err(error) => {
+                        warn!(url = ?url, error = %error, "Builder bid request failed");
+                        None
+                    }
+                }
+            });
+
+        let validated_bids = join_all(pipelines).await;
 
         let mut received = 0;
-        for ((url, max_execution_payment, _auth), result) in targets.iter().zip(results) {
-            match result {
-                Ok(Some(GloasBidResponse { bid, ssz_response })) => {
-                    self.cache.observe_bid(DirectBid::new(
-                        Arc::new(bid),
-                        url.clone(),
-                        ssz_response,
-                        *max_execution_payment,
-                    ));
-                    received += 1;
-                }
-                Ok(None) => {
-                    debug!(url = ?url, "Builder returned no bid");
-                }
-                Err(e) => {
-                    warn!(url = ?url, error = %e, "Builder bid request failed");
-                }
-            }
+        for bid in validated_bids.into_iter().flatten() {
+            self.cache.observe_bid(bid);
+            received += 1;
         }
         received
     }
@@ -206,7 +245,9 @@ mod tests {
             preference(&server_b.url(), 1000),
         ];
 
-        let received = service.request_and_cache_bids(&context(), &prefs).await;
+        let received = service
+            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .await;
         assert_eq!(received, 2);
 
         let highest = service
@@ -221,7 +262,9 @@ mod tests {
         let service = service();
         let prefs = vec![preference("", 1000)];
 
-        let received = service.request_and_cache_bids(&context(), &prefs).await;
+        let received = service
+            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .await;
         assert_eq!(received, 0);
         assert!(
             service
@@ -242,8 +285,32 @@ mod tests {
             preference(&server.url(), 1000),
         ];
 
-        let received = service.request_and_cache_bids(&context(), &prefs).await;
+        let received = service
+            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .await;
         assert_eq!(received, 1);
         mock.assert();
+    }
+
+    #[tokio::test]
+    async fn rejects_bid_failing_producer_validation() {
+        let mut server = Server::new_async().await;
+        mock_bid(&mut server, 100);
+
+        let service = service();
+        let prefs = vec![preference(&server.url(), 1000)];
+        // The producer callback rejects the bid (e.g. a failed signature or ineligible builder).
+        let received = service
+            .request_and_cache_bids(&context(), &prefs, |_bid| async {
+                Err::<(), String>("rejected by producer".to_string())
+            })
+            .await;
+        assert_eq!(received, 0);
+        assert!(
+            service
+                .cache()
+                .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
+                .is_none()
+        );
     }
 }
