@@ -2,39 +2,50 @@ use crate::duties_service::DutiesService;
 use crate::request_auth_cache::RequestAuthCache;
 use beacon_node_fallback::BeaconNodeFallback;
 use bls::PublicKeyBytes;
-use builder_store::BuilderStore;
-use eth2::types::SubmitBuilderPreferencesRequest;
+use builder_store::{BuilderStore, DirectBuilder};
+use eth2::types::BuilderPreferenceEntryV1;
 use slot_clock::SlotClock;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{error, info};
-use types::{BuilderPreferencesRequestV1, BuilderPreferencesV1, RequestAuthV1};
-use types::{ChainSpec, EthSpec, Slot, builder::RequestAuthUrl};
+use types::builder::BuilderUrl;
+use types::{ChainSpec, EthSpec, RequestAuthData, RequestAuthV1, Slot};
 use validator_store::ValidatorStore;
 
-// TODO: if batching becomes real when the beacon api is finalized, consider
-// making this a cli flag similar to validator_registration_batch_size
-const BUILDER_PREFERENCES_BATCH_SIZE: usize = 64;
-
+/// The non-slot part of a published entry's identity: the proposer pubkey plus the decomposed
+/// `BuilderPreferenceEntryV1` with its `slot` factored out to the enclosing map's key.
+/// - `pubkey`: the proposer the entry was submitted for
+/// - `url`: `entry.url`
+/// - `auth_data`: `entry.auth.message.data`
+/// - `max_execution_payment`: `entry.max_execution_payment`
+///
+/// See [`PublishedBuilderPreferencesCache`] for how `entry.auth` decomposes into `auth_data` here
+/// and `slot` at the map level, and why the `auth` signature is dropped.
 #[derive(PartialEq, Eq, Hash)]
 struct InnerPreferencesKey {
     pubkey: PublicKeyBytes,
-    builder_url: RequestAuthUrl,
+    url: BuilderUrl,
+    auth_data: RequestAuthData,
     max_execution_payment: u64,
 }
 
-impl From<&SubmitBuilderPreferencesRequest> for InnerPreferencesKey {
-    fn from(request: &SubmitBuilderPreferencesRequest) -> Self {
-        Self {
-            pubkey: request.pubkey,
-            builder_url: request.preferences.auth().message.data.clone(),
-            max_execution_payment: request.preferences.preferences().max_execution_payment,
-        }
-    }
-}
-
+/// De-duplicates the `BuilderPreferenceEntryV1`s we've already published, so we don't re-send one.
+///
+/// The identity of a published entry is `(proposer_pubkey, decompose(entry))`. That decomposition is
+/// split across the two levels of this map:
+/// - `entry.auth.message.slot` becomes the outer `BTreeMap<Slot, _>` key;
+/// - the rest — `proposer_pubkey`, `entry.url`, `entry.auth.message.data`, and
+///   `entry.max_execution_payment` — forms the [`InnerPreferencesKey`] held in the per-slot set.
+///
+/// So `entry.auth` decomposes into its `slot` (the map key) and its `data`/`auth_data` (in the inner
+/// key); the `auth` signature is dropped, as it is a deterministic function of the proposer, the
+/// `auth_data`, and the slot and so adds no identity.
+///
+/// Operators may change their builder config at any time. Because this identity captures every entry
+/// field that reaches a builder, any edit yields a new key that won't match a previously-sent entry,
+/// so the updated preference is published again.
 #[derive(Default)]
 struct PublishedBuilderPreferencesCache {
     entries: BTreeMap<Slot, HashSet<InnerPreferencesKey>>,
@@ -49,21 +60,33 @@ impl PublishedBuilderPreferencesCache {
         &self,
         slot: Slot,
         pubkey: PublicKeyBytes,
-        builder_url: RequestAuthUrl,
+        url: &BuilderUrl,
+        auth_data: &RequestAuthData,
         max_execution_payment: u64,
     ) -> bool {
         self.entries.get(&slot).is_some_and(|set| {
             set.contains(&InnerPreferencesKey {
                 pubkey,
-                builder_url,
+                url: url.clone(),
+                auth_data: auth_data.clone(),
                 max_execution_payment,
             })
         })
     }
 
-    pub fn mark_sent(&mut self, request: &SubmitBuilderPreferencesRequest) {
-        let slot = request.preferences.auth().message.slot;
-        self.entries.entry(slot).or_default().insert(request.into());
+    pub fn mark_sent(
+        &mut self,
+        pubkey: PublicKeyBytes,
+        builder_preferences_entry: BuilderPreferenceEntryV1,
+    ) {
+        let slot = builder_preferences_entry.auth.message.slot;
+        let inner_key = InnerPreferencesKey {
+            pubkey,
+            url: builder_preferences_entry.url,
+            auth_data: builder_preferences_entry.auth.message.data,
+            max_execution_payment: builder_preferences_entry.max_execution_payment,
+        };
+        self.entries.entry(slot).or_default().insert(inner_key);
     }
 
     pub fn prune(&mut self, current_slot: Slot) {
@@ -158,14 +181,15 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
     }
 
     /// Publish builder preferences for `current_epoch` and `current_epoch + 1`.
-    /// Will only publish preferences for a given epoch once per dependent root.
+    /// Will only publish a given `(proposer, builder, max_execution_payment)` preference once.
     async fn poll_and_publish_preferences(
         &self,
         current_slot: Slot,
         published_preferences: &mut PublishedBuilderPreferencesCache,
     ) {
         let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
-        let mut unsent_requests = Vec::new();
+        let mut pending_requests: HashMap<PublicKeyBytes, Vec<BuilderPreferenceEntryV1>> =
+            HashMap::new();
 
         for (epoch, fork_name) in [
             (
@@ -187,31 +211,26 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
             };
 
             for proposer_data in &proposers {
-                for (builder_url, max_execution_payment) in
-                    self.inner.configured_builders.enabled_builders()
-                {
+                for direct_builder in self.inner.configured_builders.direct_builders() {
                     if published_preferences.contains(
                         proposer_data.slot,
                         proposer_data.pubkey,
-                        builder_url.clone(),
-                        max_execution_payment,
+                        &direct_builder.url,
+                        &direct_builder.auth_data,
+                        direct_builder.max_execution_payment,
                     ) {
                         // already published, skip
                         continue;
                     }
 
                     match self
-                        .get_submit_builder_preferences_request(
-                            proposer_data.slot,
-                            proposer_data.pubkey,
-                            builder_url,
-                            max_execution_payment,
-                        )
+                        .build_entry(proposer_data.slot, proposer_data.pubkey, &direct_builder)
                         .await
                     {
-                        Ok(builder_preferences) => {
-                            unsent_requests.push(builder_preferences);
-                        }
+                        Ok(builder_preferences_entry) => pending_requests
+                            .entry(proposer_data.pubkey)
+                            .or_default()
+                            .push(builder_preferences_entry),
                         Err(e) => {
                             error!(
                                 error = ?e,
@@ -224,20 +243,25 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
             }
         }
 
-        for batch in unsent_requests.chunks(BUILDER_PREFERENCES_BATCH_SIZE) {
+        for (pubkey, entries) in pending_requests {
+            let pubkey_ref = &pubkey;
+            let entries_ref = entries.as_slice();
+
             match self
                 .inner
                 .beacon_nodes
                 // first success is okay here because later we'll be
                 // resending the auths when we publish the beacon block
                 .first_success(|beacon_node| async move {
-                    beacon_node.post_validator_builder_preferences(batch).await
+                    beacon_node
+                        .post_validator_builder_preferences(pubkey_ref, entries_ref)
+                        .await
                 })
                 .await
             {
                 Ok(()) => {
-                    for request in batch {
-                        published_preferences.mark_sent(request);
+                    for entry in entries {
+                        published_preferences.mark_sent(pubkey, entry);
                     }
                 }
                 Err(e) => error!(error = %e, "Failed to publish builder preferences"),
@@ -245,22 +269,23 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
         }
     }
 
-    async fn get_submit_builder_preferences_request(
+    /// Build a `BuilderPreferenceEntryV1` for a proposer/builder, signing (and caching) the request
+    /// auth over the builder's opaque `auth_data` if it hasn't been signed for this slot yet.
+    async fn build_entry(
         &self,
         slot: Slot,
         pubkey: PublicKeyBytes,
-        builder_url: RequestAuthUrl,
-        max_execution_payment: u64,
-    ) -> Result<SubmitBuilderPreferencesRequest, validator_store::Error<S::Error>> {
+        direct_builder: &DirectBuilder,
+    ) -> Result<BuilderPreferenceEntryV1, validator_store::Error<S::Error>> {
         let signed_auth = if let Some(signed_auth) =
             self.inner
                 .request_auth_cache
-                .get(slot, pubkey, &builder_url)
+                .get(slot, pubkey, &direct_builder.auth_data)
         {
             signed_auth
         } else {
             let request_auth_v1 = RequestAuthV1 {
-                data: builder_url.clone(),
+                data: direct_builder.auth_data.clone(),
                 slot,
             };
             let signed_request_auth = self
@@ -271,22 +296,16 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
             self.inner.request_auth_cache.insert(
                 slot,
                 pubkey,
-                builder_url,
+                direct_builder.auth_data.clone(),
                 signed_request_auth.clone(),
             );
             signed_request_auth
         };
 
-        let preferences = BuilderPreferencesRequestV1::new(
-            BuilderPreferencesV1 {
-                max_execution_payment,
-            },
+        Ok(BuilderPreferenceEntryV1::new(
+            direct_builder.url.clone(),
             signed_auth,
-        );
-
-        Ok(SubmitBuilderPreferencesRequest {
-            preferences,
-            pubkey,
-        })
+            direct_builder.max_execution_payment,
+        ))
     }
 }

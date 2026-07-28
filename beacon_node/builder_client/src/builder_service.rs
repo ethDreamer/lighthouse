@@ -117,7 +117,7 @@ impl<E: EthSpec> BuilderService<E> {
                         ctx.parent_hash,
                         ctx.parent_root,
                         &ctx.proposer_pubkey,
-                        Some(*auth),
+                        auth,
                     )
                     .await;
 
@@ -164,7 +164,7 @@ mod tests {
     use eth2::types::beacon_response::EmptyMetadata;
     use eth2::types::{
         BuilderPreferencesV1, ExecutionPayloadBid, ForkName, ForkVersionedResponse, MainnetEthSpec,
-        RequestAuthUrl, RequestAuthV1, SignedExecutionPayloadBid, SignedRequestAuthV1,
+        RequestAuthData, RequestAuthV1, SignedExecutionPayloadBid, SignedRequestAuthV1,
     };
     use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER};
     use mockito::{Matcher, Mock, Server, ServerGuard};
@@ -180,7 +180,7 @@ mod tests {
             },
             SignedRequestAuthV1 {
                 message: RequestAuthV1 {
-                    data: RequestAuthUrl::new(url.as_bytes().to_vec()).unwrap(),
+                    data: RequestAuthData::new(url.as_bytes().to_vec()).unwrap(),
                     slot: Slot::new(1),
                 },
                 signature: Signature::empty(),

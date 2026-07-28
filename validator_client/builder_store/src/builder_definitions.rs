@@ -1,10 +1,11 @@
 use account_utils::write_file_via_temporary;
+use bls::PublicKeyBytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{File, create_dir_all};
 use std::io;
 use std::path::{Path, PathBuf};
-use types::builder::RequestAuthUrl;
+use types::builder::{BuilderUrl, RequestAuthData};
 
 /// The file name for the serialized `BuilderDefinitions` struct.
 pub const BUILDERS_FILENAME: &str = "builder_definitions.yml";
@@ -26,23 +27,48 @@ pub enum Error {
     /// The validator directory could not be created.
     UnableToCreateValidatorDir(PathBuf),
     /// A builder with the given URL already exists.
-    DuplicateBuilder,
+    DuplicateBuilderAuth(BuilderUrl),
     /// A builder with the given URL does not exist.
     UnknownBuilder,
+    /// A builder with the given URL did not supply a builder pubkey
+    BuilderPubkeyAndURLNotSpecified,
+    /// A builder with the given pubkey already exists.
+    DuplicateBuilderPubkey(PublicKeyBytes),
 }
 
-/// A single entry in the builders file.
+/// A single definition in the builders file.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub struct BuilderEntry {
+pub struct BuilderDefinition {
+    /// Indicates whether this definition is enabled or disabled.
     pub enabled: bool,
-    pub builder_url: RequestAuthUrl,
+    /// The URL the beacon node uses to contact this builder. Routing metadata; never signed.
+    #[serde(default)]
+    pub url: Option<BuilderUrl>,
+    /// Opaque authentication data signed into `RequestAuthV1.data`, agreed with the builder out of
+    /// band. When unset, it defaults to the UTF-8 bytes of `url` (the builder-specs #165 default).
+    #[serde(default)]
+    pub auth_data: Option<RequestAuthData>,
+    /// The builder's BLS public key.
+    #[serde(default)]
+    pub builder_pubkey: Option<PublicKeyBytes>,
+    /// The maximum execution payment, in gwei, that we're willing to accept from this builder.
     pub max_execution_payment: u64,
+    /// The minimum total payment, in gwei, for us to accept a bid from this builder.
+    #[serde(default)]
+    pub min_bid: u64,
+    /// Percentage multiplier applied to this bid when comparing against a local payload
+    #[serde(default = "default_builder_boost_factor")]
+    pub builder_boost_factor: u64,
 }
 
-/// A list of `BuilderEntry` that serves as a serde-able configuration file which defines a
+fn default_builder_boost_factor() -> u64 {
+    100
+}
+
+/// A list of `BuilderDefinition` that serves as a serde-able configuration file which defines a
 /// list of builders that the validator client will request bids from.
 #[derive(Default, Serialize, Deserialize)]
-pub struct BuilderDefinitions(Vec<BuilderEntry>);
+pub struct BuilderDefinitions(Vec<BuilderDefinition>);
 
 impl BuilderDefinitions {
     /// Open an existing file or create a new, empty one if it does not exist.
@@ -68,7 +94,14 @@ impl BuilderDefinitions {
             .open(config_path)
             .map_err(Error::UnableToOpenFile)?;
         let definitions: Self = yaml_serde::from_reader(file).map_err(Error::UnableToParseFile)?;
-        definitions.validate_no_duplicates()?;
+        definitions.validate()?;
+        Ok(definitions)
+    }
+
+    /// Initialize a new `BuilderDefinitions` instance from a Vec<BuilderDefinition>.
+    pub fn try_from_vec(definitions: Vec<BuilderDefinition>) -> Result<Self, Error> {
+        let definitions = Self(definitions);
+        definitions.validate()?;
         Ok(definitions)
     }
 
@@ -88,28 +121,51 @@ impl BuilderDefinitions {
         Ok(())
     }
 
-    pub fn as_slice(&self) -> &[BuilderEntry] {
+    pub fn as_slice(&self) -> &[BuilderDefinition] {
         &self.0
     }
 
-    pub fn push(&mut self, definition: BuilderEntry) {
+    pub fn push(&mut self, definition: BuilderDefinition) {
         self.0.push(definition);
     }
 
-    pub fn retain(&mut self, f: impl FnMut(&BuilderEntry) -> bool) {
+    pub fn retain(&mut self, f: impl FnMut(&BuilderDefinition) -> bool) {
         self.0.retain(f);
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, BuilderEntry> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, BuilderDefinition> {
         self.0.iter_mut()
     }
 
-    fn validate_no_duplicates(&self) -> Result<(), Error> {
-        let mut seen = HashSet::new();
+    pub fn validate(&self) -> Result<(), Error> {
+        let mut p2p_policy_builder_pubkeys = HashSet::new();
+        let mut direct_bid_auth_urls = HashSet::new();
 
         for definition in &self.0 {
-            if !seen.insert(definition.builder_url.clone()) {
-                return Err(Error::DuplicateBuilder);
+            if !definition.enabled {
+                // ignore disabled builders
+                continue;
+            }
+            if let Some(url) = &definition.url {
+                let auth = definition
+                    .auth_data
+                    .clone()
+                    .unwrap_or_else(|| url.to_default_auth_data());
+                // two entries cannot contain the same url and auth data
+                let key = (url.clone(), auth);
+                if !direct_bid_auth_urls.insert(key) {
+                    return Err(Error::DuplicateBuilderAuth(url.clone()));
+                }
+            } else {
+                // Entry specifies P2P policy
+                // builder pubkey MUST be specified
+                let Some(pubkey) = &definition.builder_pubkey else {
+                    return Err(Error::BuilderPubkeyAndURLNotSpecified);
+                };
+
+                if !p2p_policy_builder_pubkeys.insert(*pubkey) {
+                    return Err(Error::DuplicateBuilderPubkey(*pubkey));
+                }
             }
         }
 
@@ -118,8 +174,8 @@ impl BuilderDefinitions {
 }
 
 impl<'a> IntoIterator for &'a BuilderDefinitions {
-    type Item = &'a BuilderEntry;
-    type IntoIter = std::slice::Iter<'a, BuilderEntry>;
+    type Item = &'a BuilderDefinition;
+    type IntoIter = std::slice::Iter<'a, BuilderDefinition>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

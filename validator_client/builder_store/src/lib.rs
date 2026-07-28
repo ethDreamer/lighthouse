@@ -1,10 +1,21 @@
 mod builder_definitions;
 use builder_definitions::BuilderDefinitions;
-pub use builder_definitions::{BuilderEntry, Error};
+pub use builder_definitions::{BuilderDefinition, Error};
 use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use types::builder::RequestAuthUrl;
+use types::builder::{BuilderUrl, RequestAuthData};
+
+/// Contains the precursors for constructing a `BuilderPreferenceEntry`.
+#[derive(Clone)]
+pub struct DirectBuilder {
+    /// The builder URL: routing identity, dedup key, and (via `to_sensitive_url`) request target.
+    pub url: BuilderUrl,
+    /// The opaque authentication data to sign for this builder.
+    pub auth_data: RequestAuthData,
+    /// The maximum trusted execution payment accepted from this builder.
+    pub max_execution_payment: u64,
+}
 
 #[derive(Clone)]
 pub struct BuilderStore {
@@ -24,70 +35,39 @@ impl BuilderStore {
         })
     }
 
-    pub fn enabled_builders(&self) -> Vec<(RequestAuthUrl, u64)> {
+    /// Returns the precursors for constructing a BuilderPreferenceEntry for
+    /// the enabled builders that have a URL defined.
+    pub fn direct_builders(&self) -> Vec<DirectBuilder> {
         self.definitions
             .read()
             .into_iter()
             .filter(|entry| entry.enabled)
-            .map(|entry| (entry.builder_url.clone(), entry.max_execution_payment))
+            // we only care about builders where the URL is defined
+            .filter_map(|entry| {
+                entry.url.as_ref().map(|url| DirectBuilder {
+                    url: url.clone(),
+                    auth_data: entry
+                        .auth_data
+                        .clone()
+                        .unwrap_or_else(|| url.to_default_auth_data()),
+                    max_execution_payment: entry.max_execution_payment,
+                })
+            })
             .collect()
     }
 
-    pub fn builders(&self) -> Vec<BuilderEntry> {
+    pub fn builder_definitions(&self) -> Vec<BuilderDefinition> {
         self.definitions.read().as_slice().to_vec()
     }
 
-    pub fn insert(&self, builder: BuilderEntry) -> Result<(), Error> {
+    pub fn insert(&self, builder: BuilderDefinition) -> Result<(), Error> {
         let mut definitions = self.definitions.write();
+        let mut copied_vec = definitions.as_slice().to_vec();
+        copied_vec.push(builder);
 
-        if definitions
-            .as_slice()
-            .iter()
-            .any(|existing| existing.builder_url == builder.builder_url)
-        {
-            return Err(Error::DuplicateBuilder);
-        }
+        let new_definitions = BuilderDefinitions::try_from_vec(copied_vec)?;
 
-        definitions.push(builder);
-        definitions.save(&self.validators_dir)
-    }
-
-    pub fn remove(&self, builder_url: &RequestAuthUrl) -> Result<(), Error> {
-        let mut definitions = self.definitions.write();
-        let original_len = definitions.as_slice().len();
-
-        definitions.retain(|definition| &definition.builder_url != builder_url);
-
-        if definitions.as_slice().len() == original_len {
-            return Err(Error::UnknownBuilder);
-        }
-
-        definitions.save(&self.validators_dir)
-    }
-
-    pub fn set_enabled(&self, builder_url: &RequestAuthUrl, enabled: bool) -> Result<(), Error> {
-        let mut definitions = self.definitions.write();
-        let definition = definitions
-            .iter_mut()
-            .find(|definition| &definition.builder_url == builder_url)
-            .ok_or(Error::UnknownBuilder)?;
-
-        definition.enabled = enabled;
-        definitions.save(&self.validators_dir)
-    }
-
-    pub fn set_max_execution_payment(
-        &self,
-        builder_url: &RequestAuthUrl,
-        max_execution_payment: u64,
-    ) -> Result<(), Error> {
-        let mut definitions = self.definitions.write();
-        let definition = definitions
-            .iter_mut()
-            .find(|definition| &definition.builder_url == builder_url)
-            .ok_or(Error::UnknownBuilder)?;
-
-        definition.max_execution_payment = max_execution_payment;
+        *definitions = new_definitions;
         definitions.save(&self.validators_dir)
     }
 }

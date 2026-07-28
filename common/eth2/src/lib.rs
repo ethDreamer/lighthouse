@@ -26,6 +26,7 @@ pub use sensitive_url::SensitiveUrl;
 
 use self::mixin::{RequestAccept, ResponseOptional};
 use self::types::*;
+use bls::PublicKeyBytes;
 use bls::SignatureBytes;
 use context_deserialize::ContextDeserialize;
 use educe::Educe;
@@ -2070,19 +2071,25 @@ impl BeaconNodeHttpClient {
         Ok(())
     }
 
-    /// 'POST validator/builder_preferences
+    /// `POST validator/builder_preferences/{pubkey}`
+    ///
+    /// Ask the beacon node to submit this proposer's per-builder preferences ahead of the bid
+    /// request (beacon-APIs #630). The proposer is identified by the `pubkey` path parameter; the
+    /// body is the list of that proposer's builder entries.
     pub async fn post_validator_builder_preferences(
         &self,
-        preference_requests: &[SubmitBuilderPreferencesRequest],
+        pubkey: &PublicKeyBytes,
+        entries: &[BuilderPreferenceEntryV1],
     ) -> Result<(), Error> {
         let mut path = self.eth_path(V1)?;
 
         path.path_segments_mut()
             .map_err(|()| Error::InvalidUrl(self.server.clone()))?
             .push("validator")
-            .push("builder_preferences");
+            .push("builder_preferences")
+            .push(&pubkey.to_string());
 
-        self.post(path, &preference_requests).await?;
+        self.post(path, &entries).await?;
 
         Ok(())
     }

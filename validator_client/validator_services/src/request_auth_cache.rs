@@ -3,12 +3,18 @@ use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use types::Slot;
-use types::builder::{RequestAuthUrl, SignedRequestAuthV1};
+use types::builder::{RequestAuthData, SignedRequestAuthV1};
 
+/// Caches signed `RequestAuthV1` objects so a given proposer/auth-data/slot combination is only
+/// signed once.
+///
+/// The signed authorization is a pure function of the proposer pubkey, the opaque `auth_data`, and
+/// the proposal `slot`, so those form the cache key. The builder URL is deliberately *not* part of
+/// the key: two builders configured with the same `auth_data` share one signature.
 #[derive(Hash, PartialEq, Eq)]
 struct RequestAuthInnerKey {
     pubkey: PublicKeyBytes,
-    builder_url: RequestAuthUrl,
+    auth_data: RequestAuthData,
 }
 
 #[derive(Default)]
@@ -34,12 +40,12 @@ impl RequestAuthCache {
         &self,
         slot: Slot,
         pubkey: PublicKeyBytes,
-        builder_url: &RequestAuthUrl,
+        auth_data: &RequestAuthData,
     ) -> Option<SignedRequestAuthV1> {
         self.inner.read().entries.get(&slot).and_then(|entries| {
             let key = RequestAuthInnerKey {
                 pubkey,
-                builder_url: builder_url.clone(),
+                auth_data: auth_data.clone(),
             };
             entries.get(&key).cloned()
         })
@@ -49,13 +55,10 @@ impl RequestAuthCache {
         &self,
         slot: Slot,
         pubkey: PublicKeyBytes,
-        builder_url: RequestAuthUrl,
+        auth_data: RequestAuthData,
         signed_request_auth: SignedRequestAuthV1,
     ) {
-        let key = RequestAuthInnerKey {
-            pubkey,
-            builder_url,
-        };
+        let key = RequestAuthInnerKey { pubkey, auth_data };
 
         self.inner
             .write()

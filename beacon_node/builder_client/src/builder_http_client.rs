@@ -76,11 +76,14 @@ impl BuilderHttpClient {
     /// Sets three headers:
     /// - `Accept`: requests SSZ (with JSON fallback) for the response, or JSON only when
     ///   `disable_ssz` is set. This governs the (larger) bid response encoding only.
-    /// - `X-Timeout-Ms`: advertises our request timeout so the builder can bound its own work.
-    /// - `Date-Milliseconds`: the Unix ms send time, letting the builder measure one-way latency.
+    /// - `X-Timeout-Ms`: the proposer's request timeout, measured from `Date-Milliseconds`. The
+    ///   builder must respond within this window; required by the builder spec.
+    /// - `Date-Milliseconds`: the Unix ms send time, letting the builder estimate transit delay;
+    ///   required by the builder spec.
     ///
-    /// A header that cannot be constructed is logged and skipped rather than failing the request,
-    /// since all three are optional per the builder spec.
+    /// The `Accept` header is best-effort (logged and skipped if it cannot be constructed). The two
+    /// required timing headers are built from a static timeout and the system clock, so their
+    /// construction cannot realistically fail.
     fn compute_get_execution_payload_bid_headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
 
@@ -126,9 +129,10 @@ impl BuilderHttpClient {
     /// Request a bid from a single builder. Returns `Ok(None)` if the builder has no bid available
     /// (HTTP 204).
     ///
-    /// The optional `SignedRequestAuthV1` body is small and always sent as JSON; SSZ is only
-    /// negotiated for the (larger) response via the `Accept` header. The response's encoding is
-    /// reported via [`GloasBidResponse::ssz_response`].
+    /// The `SignedRequestAuthV1` body is required by the builder spec (a builder returns 400 if it
+    /// is missing). It is small and always sent as JSON; SSZ is only negotiated for the (larger)
+    /// response via the `Accept` header. The response's encoding is reported via
+    /// [`GloasBidResponse::ssz_response`].
     #[allow(clippy::too_many_arguments)]
     pub async fn get_execution_payload_bid<E: EthSpec>(
         &self,
@@ -137,7 +141,7 @@ impl BuilderHttpClient {
         parent_hash: ExecutionBlockHash,
         parent_root: Hash256,
         proposer_pubkey: &PublicKeyBytes,
-        signed_request_auth: Option<&SignedRequestAuthV1>,
+        signed_request_auth: &SignedRequestAuthV1,
     ) -> Result<Option<GloasBidResponse<E>>, Error> {
         let mut path = builder_url.expose_full().clone();
 
@@ -154,13 +158,14 @@ impl BuilderHttpClient {
 
         let timeout = Duration::from_millis(DEFAULT_GET_EXECUTION_PAYLOAD_BID_TIMEOUT_MILLIS);
         let headers = self.compute_get_execution_payload_bid_headers();
-        let mut request = self.client.post(path).timeout(timeout).headers(headers);
-
         // The auth body is tiny; always send it as JSON. SSZ-encoding it buys nothing and avoids
         // having to probe the builder's SSZ request-ingest support.
-        if let Some(auth) = signed_request_auth {
-            request = request.json(auth);
-        }
+        let request = self
+            .client
+            .post(path)
+            .timeout(timeout)
+            .headers(headers)
+            .json(signed_request_auth);
 
         let response = ok_or_error(request.send().await.map_err(Error::from)?).await?;
 
@@ -191,18 +196,18 @@ impl BuilderHttpClient {
         }
     }
 
-    /// `POST /eth/v1/builder/builder_preferences/{validator_pubkey}`
+    /// `POST /eth/v1/builder/builder_preferences/{proposer_pubkey}`
     ///
     /// Submit a proposer's builder preferences to a builder ahead of the bid request (typically in
     /// the epoch before the proposal, so the builder has them before `getExecutionPayloadBid`
     /// arrives). Success is HTTP 202.
     ///
-    /// The body is small and always sent as JSON, so the `Eth-Consensus-Version` header (only
-    /// required for SSZ request bodies) is omitted.
+    /// `BuilderPreferencesRequestV1` is not fork-versioned, so no `Eth-Consensus-Version` header is
+    /// required; the body is small and sent as JSON.
     pub async fn submit_builder_preferences(
         &self,
         builder_url: &SensitiveUrl,
-        validator_pubkey: &PublicKeyBytes,
+        proposer_pubkey: &PublicKeyBytes,
         preferences: &BuilderPreferencesRequestV1,
     ) -> Result<(), Error> {
         let mut path = builder_url.expose_full().clone();
@@ -213,7 +218,7 @@ impl BuilderHttpClient {
             .push("v1")
             .push("builder")
             .push("builder_preferences")
-            .push(validator_pubkey.as_hex_string().as_str());
+            .push(proposer_pubkey.as_hex_string().as_str());
 
         let timeout = Duration::from_millis(DEFAULT_SUBMIT_TIMEOUT_MILLIS);
         let request = self.client.post(path).timeout(timeout).json(preferences);
@@ -296,6 +301,7 @@ impl BuilderHttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arbitrary::Arbitrary;
     use eth2::types::beacon_response::EmptyMetadata;
     use eth2::types::{ForkName, MainnetEthSpec};
     use mockito::{Matcher, Server, ServerGuard};
@@ -309,6 +315,11 @@ mod tests {
 
     fn builder_url(server: &ServerGuard) -> SensitiveUrl {
         SensitiveUrl::from_str(&server.url()).unwrap()
+    }
+
+    fn signed_request_auth() -> SignedRequestAuthV1 {
+        let mut u = types::test_utils::test_unstructured();
+        SignedRequestAuthV1::arbitrary(&mut u).unwrap()
     }
 
     fn empty_bid_response() -> ForkVersionedResponse<SignedExecutionPayloadBid<E>> {
@@ -346,7 +357,7 @@ mod tests {
                 ExecutionBlockHash::repeat_byte(1),
                 Hash256::repeat_byte(2),
                 &PublicKeyBytes::empty(),
-                None,
+                &signed_request_auth(),
             )
             .await
             .expect("bid request should succeed")

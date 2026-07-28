@@ -14,7 +14,6 @@ bls = { workspace = true }
 filesystem = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
-sensitive_url = { workspace = true }
 tracing = { workspace = true }
 types = { workspace = true }
 yaml_serde = { workspace = true }
