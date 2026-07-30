@@ -1,6 +1,7 @@
 //! This module exposes a superset of the `types` crate. It adds additional types that are only
 //! required for the HTTP API.
 
+pub use builder_types::*;
 pub use types::*;
 
 use crate::{

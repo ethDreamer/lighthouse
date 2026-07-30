@@ -1,5 +1,6 @@
 use account_utils::validator_definitions::{PasswordStorage, ValidatorDefinition};
 use bls::{AggregateSignature, PublicKeyBytes, Signature};
+use builder_types::{RequestAuthV1, SignedRequestAuthV1};
 use doppelganger_service::DoppelgangerService;
 use eth2::types::PublishBlockRequest;
 use futures::{Stream, future::join_all, stream};
@@ -22,13 +23,12 @@ use types::{
     AbstractExecPayload, Address, AggregateAndProof, Attestation, AttestationData, BeaconBlock,
     BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, EthSpec,
     ExecutionPayloadEnvelope, Fork, FullPayload, Graffiti, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, ProposerPreferences, RequestAuthV1, SelectionProof,
-    SignedAggregateAndProof, SignedBeaconBlock, SignedContributionAndProof,
-    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedRequestAuthV1, SignedRoot,
-    SignedValidatorRegistrationData, SignedVoluntaryExit, SingleAttestation, Slot,
-    SyncAggregatorSelectionData, SyncCommitteeContribution, SyncCommitteeMessage,
-    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData, VoluntaryExit,
-    graffiti::GraffitiString,
+    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
+    SignedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
+    SignedProposerPreferences, SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit,
+    SingleAttestation, Slot, SyncAggregatorSelectionData, SyncCommitteeContribution,
+    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    VoluntaryExit, graffiti::GraffitiString,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,

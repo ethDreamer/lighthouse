@@ -1,4 +1,4 @@
-use crate::builder::{BuilderUrl, SignedRequestAuthV1};
+use crate::{BuilderUrl, SignedRequestAuthV1};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;

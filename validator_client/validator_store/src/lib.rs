@@ -1,4 +1,5 @@
 use bls::{PublicKeyBytes, Signature};
+use builder_types::{RequestAuthV1, SignedRequestAuthV1};
 use eth2::types::{FullBlockContents, PublishBlockRequest};
 use futures::Stream;
 use slashing_protection::NotSafe;
@@ -8,11 +9,10 @@ use std::sync::Arc;
 use types::{
     Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, EthSpec,
     ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
-    ProposerPreferences, RequestAuthV1, SelectionProof, SignedAggregateAndProof,
-    SignedBlindedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedRequestAuthV1, SignedValidatorRegistrationData,
-    SingleAttestation, Slot, SyncCommitteeContribution, SyncCommitteeMessage, SyncSelectionProof,
-    SyncSubnetId, ValidatorRegistrationData,
+    ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedBlindedBeaconBlock,
+    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
+    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeContribution,
+    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
 };
 
 #[derive(Debug, PartialEq, Clone)]

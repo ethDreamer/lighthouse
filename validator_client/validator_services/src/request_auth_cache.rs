@@ -1,9 +1,9 @@
 use bls::PublicKeyBytes;
+use builder_types::{RequestAuthData, SignedRequestAuthV1};
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use types::Slot;
-use types::builder::{RequestAuthData, SignedRequestAuthV1};
 
 /// Caches signed `RequestAuthV1` objects so a given proposer/auth-data/slot combination is only
 /// signed once.

@@ -1,11 +1,9 @@
-use crate::SignedRoot;
-use crate::core::Slot;
-use crate::fork::ForkName;
 use context_deserialize::context_deserialize;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use ssz_types::VariableList;
 use tree_hash_derive::TreeHash;
+use types::{ForkName, SignedRoot, Slot};
 
 // I would like to avoid defining this on the EthSpec if we can get away with it.
 // Since it's outside the consensus-spec and is generically named..

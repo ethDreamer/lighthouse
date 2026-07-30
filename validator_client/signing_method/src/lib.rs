@@ -4,6 +4,7 @@
 //! - Via a remote signer (Web3Signer)
 
 use bls::{Keypair, PublicKey, Signature};
+use builder_types::RequestAuthV1;
 use eth2_keystore::Keystore;
 use lockfile::Lockfile;
 use parking_lot::Mutex;

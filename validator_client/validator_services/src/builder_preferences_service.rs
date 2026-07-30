@@ -3,6 +3,7 @@ use crate::request_auth_cache::RequestAuthCache;
 use beacon_node_fallback::BeaconNodeFallback;
 use bls::PublicKeyBytes;
 use builder_store::{BuilderStore, DirectBuilder};
+use builder_types::{BuilderUrl, RequestAuthData, RequestAuthV1};
 use eth2::types::BuilderPreferenceEntryV1;
 use slot_clock::SlotClock;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -10,8 +11,7 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{error, info};
-use types::builder::BuilderUrl;
-use types::{ChainSpec, EthSpec, RequestAuthData, RequestAuthV1, Slot};
+use types::{ChainSpec, EthSpec, Slot};
 use validator_store::ValidatorStore;
 
 /// The non-slot part of a published entry's identity: the proposer pubkey plus the decomposed

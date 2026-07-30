@@ -1,11 +1,11 @@
 use account_utils::write_file_via_temporary;
 use bls::PublicKeyBytes;
+use builder_types::{BuilderUrl, RequestAuthData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{File, create_dir_all};
 use std::io;
 use std::path::{Path, PathBuf};
-use types::builder::{BuilderUrl, RequestAuthData};
 
 /// The file name for the serialized `BuilderDefinitions` struct.
 pub const BUILDERS_FILENAME: &str = "builder_definitions.yml";

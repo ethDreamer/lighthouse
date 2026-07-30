@@ -2,6 +2,7 @@
 
 use super::Error;
 use bls::{PublicKeyBytes, Signature};
+use builder_types::RequestAuthV1;
 use serde::{Deserialize, Serialize};
 use types::*;
 

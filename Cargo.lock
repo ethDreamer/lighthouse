@@ -1715,6 +1715,7 @@ version = "0.1.0"
 dependencies = [
  "account_utils",
  "bls",
+ "builder_types",
  "filesystem",
  "hex",
  "parking_lot",
@@ -1723,6 +1724,27 @@ dependencies = [
  "tracing",
  "types",
  "yaml_serde",
+]
+
+[[package]]
+name = "builder_types"
+version = "0.1.0"
+dependencies = [
+ "arbitrary",
+ "bls",
+ "builder_types",
+ "context_deserialize",
+ "ethereum_serde_utils",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
+ "sensitive_url",
+ "serde",
+ "serde_json",
+ "ssz_types",
+ "tree_hash",
+ "tree_hash_derive",
+ "typenum",
+ "types",
 ]
 
 [[package]]
@@ -3234,6 +3256,7 @@ version = "0.1.0"
 dependencies = [
  "arbitrary",
  "bls",
+ "builder_types",
  "context_deserialize",
  "educe",
  "eip_3076",
@@ -5651,6 +5674,7 @@ dependencies = [
  "account_utils",
  "beacon_node_fallback",
  "bls",
+ "builder_types",
  "doppelganger_service",
  "either",
  "environment",
@@ -8410,6 +8434,7 @@ name = "signing_method"
 version = "0.1.0"
 dependencies = [
  "bls",
+ "builder_types",
  "eth2_keystore",
  "ethereum_serde_utils",
  "lockfile",
@@ -9612,7 +9637,6 @@ dependencies = [
  "rpds",
  "rusqlite",
  "safe_arith",
- "sensitive_url",
  "serde",
  "serde_json",
  "smallvec",
@@ -9942,6 +9966,7 @@ dependencies = [
  "beacon_node_fallback",
  "bls",
  "builder_store",
+ "builder_types",
  "either",
  "eth2",
  "futures",
@@ -9966,6 +9991,7 @@ name = "validator_store"
 version = "0.1.0"
 dependencies = [
  "bls",
+ "builder_types",
  "eth2",
  "futures",
  "slashing_protection",

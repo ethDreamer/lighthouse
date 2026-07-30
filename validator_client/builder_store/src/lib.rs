@@ -1,10 +1,10 @@
 mod builder_definitions;
 use builder_definitions::BuilderDefinitions;
 pub use builder_definitions::{BuilderDefinition, Error};
+use builder_types::{BuilderUrl, RequestAuthData};
 use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use types::builder::{BuilderUrl, RequestAuthData};
 
 /// Contains the precursors for constructing a `BuilderPreferenceEntry`.
 #[derive(Clone)]
