@@ -138,7 +138,8 @@ pub enum Error {
     NoEngine,
     NoPayloadBuilder,
     ApiError(ApiError),
-    Builder(builder_client::Error),
+    // The pre-Gloas builder client uses the beacon-node API client's error type.
+    Builder(eth2::Error),
     NoHeaderFromBuilder,
     CannotProduceHeader,
     EngineError(Box<EngineError>),
@@ -1049,7 +1050,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         builder_params: &BuilderParams,
         payload_parameters: PayloadParameters<'_>,
     ) -> (
-        Result<Option<ForkVersionedResponse<SignedBuilderBid<E>>>, builder_client::Error>,
+        Result<Option<ForkVersionedResponse<SignedBuilderBid<E>>>, eth2::Error>,
         Result<GetPayloadResponse<E>, Error>,
     ) {
         let slot = builder_params.slot;

@@ -2682,6 +2682,12 @@ pub async fn serve<T: BeaconChainTypes>(
         chain_filter.clone(),
         task_spawner_filter.clone(),
     );
+    // POST validator/builder_preferences/{pubkey}
+    let post_validator_builder_preferences = post_validator_builder_preferences(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        task_spawner_filter.clone(),
+    );
     // POST validator/sync_committee_subscriptions
     let post_validator_sync_committee_subscriptions = post_validator_sync_committee_subscriptions(
         eth_v1.clone(),
@@ -3498,6 +3504,7 @@ pub async fn serve<T: BeaconChainTypes>(
                     .uor(post_validator_sync_committee_subscriptions)
                     .uor(post_validator_prepare_beacon_proposer)
                     .uor(post_validator_register_validator)
+                    .uor(post_validator_builder_preferences)
                     .uor(post_validator_liveness_epoch)
                     .uor(post_lighthouse_liveness)
                     .uor(post_lighthouse_database_reconstruct)

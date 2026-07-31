@@ -1,15 +1,14 @@
-use crate::{BuilderHttpClient, DirectBid, DirectBidCache, GloasBidResponse};
+use crate::{
+    BuilderHttpClient, DirectBid, DirectBidCache, Error as BuilderClientError, GloasBidResponse,
+};
 use bls::PublicKeyBytes;
 use eth2::types::{
-    BuilderPreferencesRequestV1, EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
-    Slot,
+    BuilderEntryV1, BuilderPreferenceEntryV1, BuilderPreferencesRequestV1, BuilderPreferencesV1,
+    EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid, Slot,
 };
 use futures::future::join_all;
-use sensitive_url::SensitiveUrl;
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::future::Future;
-use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
@@ -35,6 +34,14 @@ pub struct BuilderService<E: EthSpec> {
     cache: Arc<DirectBidCache<E>>,
 }
 
+/// A single failed builder-preference submission, identified by its position in the submitted list.
+pub struct SubmissionFailure {
+    /// Index of the failing entry in the submitted list.
+    pub index: usize,
+    /// Why the submission failed.
+    pub error: BuilderClientError,
+}
+
 impl<E: EthSpec> BuilderService<E> {
     pub fn new(client: Arc<BuilderHttpClient>, cache: Arc<DirectBidCache<E>>) -> Self {
         Self { client, cache }
@@ -45,61 +52,67 @@ impl<E: EthSpec> BuilderService<E> {
         &self.cache
     }
 
-    /// Request bids from every configured builder concurrently, validate them, and record the valid
-    /// ones in the cache.
+    /// The Builder API HTTP client. It is stateless w.r.t. the target builder — each request takes
+    /// the builder URL as a parameter — so a single client fans out to any builder.
+    pub fn client(&self) -> &Arc<BuilderHttpClient> {
+        &self.client
+    }
+
+    /// Request bids from every builder in `entries` concurrently, validate them, and record the
+    /// valid ones in the cache.
     ///
-    /// Each preference's builder URL is decoded from its request-auth `data` field. Empty-URL
-    /// entries (the gossip default) and preferences with a malformed or non-http(s) URL are
-    /// skipped, and duplicate URLs are requested only once.
+    /// Only entries with a `url` are bid requests; a url-less entry supplies p2p policy and is
+    /// skipped, as are entries whose `url` is malformed or not http(s). One request is made **per
+    /// entry** — several entries MAY share a `url` with different `auth`, so requests are not
+    /// de-duplicated by URL (beacon-APIs #630 forbids two entries sharing both a `url` and their
+    /// `auth`'s `data`).
     ///
-    /// Each builder runs in its own pipeline — request, then the producer-supplied `validate`
-    /// callback, which performs *all* bid validation against the block producer's advanced beacon
-    /// state (consensus consistency, builder eligibility, collateral, and the BLS signature). These
-    /// pipelines run **concurrently across builders**, so a slow builder or an expensive validation
-    /// for one bid does not hold up the others. A failure, timeout, empty (204) response, or
-    /// validation error for one builder is isolated: it is logged and that bid is skipped, never
-    /// entering the cache.
+    /// Each builder runs in its own pipeline — request, then a `min_bid` check that drops any bid
+    /// whose (clamped) proposer value is below the entry's `min_bid`, then the producer-supplied
+    /// `validate` callback, which performs *all* bid validation against the block producer's
+    /// advanced beacon state (consensus consistency, builder eligibility, collateral, and the BLS
+    /// signature). The entry's expected `builder_pubkey` (`None` when the entry omits one) is passed
+    /// to `validate`
+    /// so it can enforce that the bid is signed by the expected builder — the state and signing
+    /// domain that check needs live on the producer side, not here. These pipelines run
+    /// **concurrently across builders**, so a slow builder or an expensive validation for one bid
+    /// does not hold up the others. A failure, timeout, empty (204) response, or validation error
+    /// for one builder is isolated: it is logged and that bid is skipped, never entering the cache.
     ///
     /// Returns the number of bids that passed validation and were observed into the cache. The
     /// block producer reads the winning bid later via [`DirectBidCache::get_highest_bid`].
     pub async fn request_and_cache_bids<F, Fut, Err>(
         &self,
         ctx: &DirectBidRequest,
-        preferences: &[BuilderPreferencesRequestV1],
+        entries: &[BuilderEntryV1],
         validate: F,
     ) -> usize
     where
-        F: Fn(Arc<SignedExecutionPayloadBid<E>>) -> Fut,
+        F: Fn(Arc<SignedExecutionPayloadBid<E>>, Option<PublicKeyBytes>) -> Fut,
         Fut: Future<Output = Result<(), Err>>,
         Err: Display,
     {
-        // Resolve each preference to a `(url, max_execution_payment, auth)` target, filtering out
-        // invalid entries and de-duplicating by normalized URL.
-        let mut seen = HashSet::new();
+        // Resolve each bid-request entry to a `(resolved_url, entry)` target. A url-less entry
+        // supplies p2p policy rather than a direct request, so it is skipped, as are malformed or
+        // non-http(s) URLs. One request is made per entry (no URL de-duplication).
         let mut targets = Vec::new();
-        for preference in preferences {
-            let auth = preference.auth();
-            let url_bytes = &auth.message.data[..];
-            if url_bytes.is_empty() {
-                // Empty-URL entry: applies to the gossip default, not a direct builder.
-                continue;
-            }
-            let Some(url) = std::str::from_utf8(url_bytes)
-                .ok()
-                .and_then(|url| SensitiveUrl::from_str(url).ok())
-            else {
-                warn!("Skipping builder preference with a malformed URL");
+        for entry in entries {
+            let Some(url) = entry.url() else {
+                // Url-less entry: p2p policy, not a direct request.
                 continue;
             };
+            let url = match url.to_sensitive_url() {
+                Ok(url) => url,
+                Err(e) => {
+                    warn!(error = ?e, "Skipping builder entry with a malformed URL");
+                    continue;
+                }
+            };
             if !matches!(url.expose_full().scheme(), "http" | "https") {
-                warn!(url = ?url, "Skipping builder preference with an unsupported URL scheme");
+                warn!(url = ?url, "Skipping builder entry with an unsupported URL scheme");
                 continue;
             }
-            if !seen.insert(url.expose_full().as_str().to_string()) {
-                // Already requesting this builder.
-                continue;
-            }
-            targets.push((url, preference.preferences().max_execution_payment, auth));
+            targets.push((url, entry));
         }
 
         // Run one pipeline per builder — request, then the producer's `validate` callback — and let
@@ -107,44 +120,57 @@ impl<E: EthSpec> BuilderService<E> {
         // builder cannot delay the others.
         let client = &self.client;
         let validate = &validate;
-        let pipelines = targets
-            .iter()
-            .map(|(url, max_execution_payment, auth)| async move {
-                let response = client
-                    .get_execution_payload_bid::<E>(
-                        url,
-                        ctx.slot,
-                        ctx.parent_hash,
-                        ctx.parent_root,
-                        &ctx.proposer_pubkey,
-                        auth,
-                    )
-                    .await;
+        let pipelines = targets.iter().map(|(url, entry)| async move {
+            let response = client
+                .get_execution_payload_bid::<E>(
+                    url,
+                    ctx.slot,
+                    ctx.parent_hash,
+                    ctx.parent_root,
+                    &ctx.proposer_pubkey,
+                    &entry.auth,
+                )
+                .await;
 
-                match response {
-                    Ok(Some(GloasBidResponse { bid, ssz_response })) => {
-                        let bid = Arc::new(bid);
-                        if let Err(error) = validate(bid.clone()).await {
-                            warn!(url = ?url, %error, "Builder bid failed validation");
-                            return None;
-                        }
-                        Some(DirectBid::new(
-                            bid,
-                            url.clone(),
-                            ssz_response,
-                            *max_execution_payment,
-                        ))
+            match response {
+                Ok(Some(GloasBidResponse { bid, ssz_response })) => {
+                    let direct_bid = DirectBid::new(
+                        Arc::new(bid),
+                        url.clone(),
+                        ssz_response,
+                        entry.max_execution_payment,
+                        entry.builder_boost_factor,
+                    );
+
+                    // Reject bids whose (clamped) proposer value is below the entry's `min_bid`.
+                    if direct_bid.proposer_value() < entry.min_bid {
+                        debug!(
+                            url = ?url,
+                            proposer_value = direct_bid.proposer_value(),
+                            min_bid = entry.min_bid,
+                            "Skipping builder bid below min_bid"
+                        );
+                        return None;
                     }
-                    Ok(None) => {
-                        debug!(url = ?url, "Builder returned no bid");
-                        None
+
+                    if let Err(error) =
+                        validate(direct_bid.signed_bid.clone(), entry.builder_pubkey()).await
+                    {
+                        warn!(url = ?url, %error, "Builder bid failed validation");
+                        return None;
                     }
-                    Err(error) => {
-                        warn!(url = ?url, error = %error, "Builder bid request failed");
-                        None
-                    }
+                    Some(direct_bid)
                 }
-            });
+                Ok(None) => {
+                    debug!(url = ?url, "Builder returned no bid");
+                    None
+                }
+                Err(error) => {
+                    warn!(url = ?url, error = %error, "Builder bid request failed");
+                    None
+                }
+            }
+        });
 
         let validated_bids = join_all(pipelines).await;
 
@@ -155,6 +181,58 @@ impl<E: EthSpec> BuilderService<E> {
         }
         received
     }
+
+    /// Submit a proposer's builder preferences to each entry's builder, concurrently and
+    /// best-effort.
+    ///
+    /// One submission is made per entry — entries are **not** de-duplicated by URL, since
+    /// beacon-APIs #630 allows several entries to share a `url`. Each submission is isolated: a
+    /// malformed URL or a failed request is recorded against that entry's index and never aborts the
+    /// others. The submissions run **concurrently**, so a slow builder cannot delay the rest.
+    ///
+    /// Returns `Ok(())` when every entry was submitted, or the per-entry [`SubmissionFailure`]s by
+    /// index.
+    pub async fn submit_preferences(
+        &self,
+        proposer_pubkey: &PublicKeyBytes,
+        entries: Vec<BuilderPreferenceEntryV1>,
+    ) -> Result<(), Vec<SubmissionFailure>> {
+        let client = &self.client;
+        let submissions = entries
+            .into_iter()
+            .enumerate()
+            .map(|(index, entry)| async move {
+                let url = entry
+                    .url
+                    .to_sensitive_url()
+                    .map_err(|e| SubmissionFailure {
+                        index,
+                        error: e.into(),
+                    })?;
+                let request = BuilderPreferencesRequestV1::new(
+                    BuilderPreferencesV1 {
+                        max_execution_payment: entry.max_execution_payment,
+                    },
+                    entry.auth,
+                );
+                client
+                    .submit_builder_preferences(&url, proposer_pubkey, &request)
+                    .await
+                    .map_err(|error| SubmissionFailure { index, error })
+            });
+
+        let failures: Vec<SubmissionFailure> = join_all(submissions)
+            .await
+            .into_iter()
+            .filter_map(Result::err)
+            .collect();
+
+        if failures.is_empty() {
+            Ok(())
+        } else {
+            Err(failures)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -163,8 +241,8 @@ mod tests {
     use bls::Signature;
     use eth2::types::beacon_response::EmptyMetadata;
     use eth2::types::{
-        BuilderPreferencesV1, ExecutionPayloadBid, ForkName, ForkVersionedResponse, MainnetEthSpec,
-        RequestAuthData, RequestAuthV1, SignedExecutionPayloadBid, SignedRequestAuthV1,
+        ExecutionPayloadBid, ForkName, ForkVersionedResponse, MainnetEthSpec, RequestAuthData,
+        RequestAuthV1, SignedExecutionPayloadBid, SignedRequestAuthV1,
     };
     use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER};
     use mockito::{Matcher, Mock, Server, ServerGuard};
@@ -173,19 +251,21 @@ mod tests {
 
     const BID_PATH: &str = r"^/eth/v1/builder/execution_payload_bid/.+$";
 
-    fn preference(url: &str, max_execution_payment: u64) -> BuilderPreferencesRequestV1 {
-        BuilderPreferencesRequestV1::new(
-            BuilderPreferencesV1 {
-                max_execution_payment,
-            },
-            SignedRequestAuthV1 {
+    fn entry(url: &str, max_execution_payment: u64) -> BuilderEntryV1 {
+        BuilderEntryV1 {
+            url: url.parse().unwrap(),
+            auth: SignedRequestAuthV1 {
                 message: RequestAuthV1 {
-                    data: RequestAuthData::new(url.as_bytes().to_vec()).unwrap(),
+                    data: RequestAuthData::default(),
                     slot: Slot::new(1),
                 },
                 signature: Signature::empty(),
             },
-        )
+            builder_pubkey: PublicKeyBytes::empty(),
+            max_execution_payment,
+            min_bid: 0,
+            builder_boost_factor: 100,
+        }
     }
 
     fn bid_body(value: u64) -> String {
@@ -240,13 +320,12 @@ mod tests {
         mock_bid(&mut server_b, 200);
 
         let service = service();
-        let prefs = vec![
-            preference(&server_a.url(), 1000),
-            preference(&server_b.url(), 1000),
-        ];
+        let entries = vec![entry(&server_a.url(), 1000), entry(&server_b.url(), 1000)];
 
         let received = service
-            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+                Ok::<(), String>(())
+            })
             .await;
         assert_eq!(received, 2);
 
@@ -254,16 +333,19 @@ mod tests {
             .cache()
             .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
             .unwrap();
-        assert_eq!(highest.proposer_value, 200);
+        assert_eq!(highest.proposer_value(), 200);
     }
 
     #[tokio::test]
-    async fn skips_empty_url_preference() {
+    async fn skips_empty_url_entry() {
         let service = service();
-        let prefs = vec![preference("", 1000)];
+        // A url-less entry is p2p policy, not a direct bid request.
+        let entries = vec![entry("", 1000)];
 
         let received = service
-            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+                Ok::<(), String>(())
+            })
             .await;
         assert_eq!(received, 0);
         assert!(
@@ -275,21 +357,49 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deduplicates_repeated_urls() {
+    async fn requests_each_entry_even_when_url_is_shared() {
         let mut server = Server::new_async().await;
-        let mock = mock_bid(&mut server, 100).expect(1);
+        // Two entries share a URL but carry different `auth`, so both are requested (one per entry).
+        let mock = mock_bid(&mut server, 100).expect(2);
 
         let service = service();
-        let prefs = vec![
-            preference(&server.url(), 1000),
-            preference(&server.url(), 1000),
-        ];
+        let entry_a = entry(&server.url(), 1000);
+        let mut entry_b = entry(&server.url(), 1000);
+        entry_b.auth.message.slot = Slot::new(2);
+        let entries = vec![entry_a, entry_b];
 
         let received = service
-            .request_and_cache_bids(&context(), &prefs, |_bid| async { Ok::<(), String>(()) })
+            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+                Ok::<(), String>(())
+            })
             .await;
-        assert_eq!(received, 1);
+        assert_eq!(received, 2);
         mock.assert();
+    }
+
+    #[tokio::test]
+    async fn skips_bid_below_min_bid() {
+        let mut server = Server::new_async().await;
+        // Bid value 100, no execution payment, so the (clamped) proposer value is 100.
+        mock_bid(&mut server, 100);
+
+        let service = service();
+        let mut entry = entry(&server.url(), 1000);
+        entry.min_bid = 500;
+        let entries = vec![entry];
+
+        let received = service
+            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+                Ok::<(), String>(())
+            })
+            .await;
+        assert_eq!(received, 0);
+        assert!(
+            service
+                .cache()
+                .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -298,10 +408,10 @@ mod tests {
         mock_bid(&mut server, 100);
 
         let service = service();
-        let prefs = vec![preference(&server.url(), 1000)];
+        let entries = vec![entry(&server.url(), 1000)];
         // The producer callback rejects the bid (e.g. a failed signature or ineligible builder).
         let received = service
-            .request_and_cache_bids(&context(), &prefs, |_bid| async {
+            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
                 Err::<(), String>("rejected by producer".to_string())
             })
             .await;

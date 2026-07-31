@@ -32,6 +32,7 @@ mod test_macros {
     }
 }
 
+mod builder_entry;
 mod builder_preference_entry;
 mod builder_preferences;
 mod builder_preferences_request;
@@ -39,6 +40,7 @@ mod builder_url;
 mod request_auth;
 mod signed_request_auth;
 
+pub use builder_entry::BuilderEntryV1;
 pub use builder_preference_entry::BuilderPreferenceEntryV1;
 pub use builder_preferences::BuilderPreferencesV1;
 pub use builder_preferences_request::BuilderPreferencesRequestV1;

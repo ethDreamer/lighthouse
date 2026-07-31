@@ -1,9 +1,12 @@
 use crate::{
-    DEFAULT_TIMEOUT_MILLIS, DEFAULT_USER_AGENT, Error, JSON_ACCEPT_VALUE, PREFERENCE_ACCEPT_VALUE,
+    DEFAULT_TIMEOUT_MILLIS, DEFAULT_USER_AGENT, JSON_ACCEPT_VALUE, PREFERENCE_ACCEPT_VALUE,
     content_type_from_header, fork_name_from_header,
 };
 use bls::PublicKeyBytes;
+// The pre-Gloas builder client keeps the beacon-node API client's error type, unlike the Gloas
+// `BuilderHttpClient` which has its own builder-spec-aligned `crate::Error`.
 use context_deserialize::ContextDeserialize;
+use eth2::Error;
 use eth2::types::beacon_response::EmptyMetadata;
 use eth2::types::builder::SignedBuilderBid;
 use eth2::types::{

@@ -1304,6 +1304,7 @@ dependencies = [
  "beacon_chain",
  "bitvec",
  "bls",
+ "builder_client",
  "criterion",
  "educe",
  "eth2",
@@ -1693,6 +1694,7 @@ version = "0.1.0"
 dependencies = [
  "arbitrary",
  "bls",
+ "builder_types",
  "context_deserialize",
  "eth2",
  "ethereum_ssz",
@@ -1700,6 +1702,7 @@ dependencies = [
  "lighthouse_version",
  "mockito",
  "parking_lot",
+ "pretty_reqwest_error",
  "reqwest",
  "sensitive_url",
  "serde",
@@ -2030,6 +2033,7 @@ version = "0.2.0"
 dependencies = [
  "beacon_chain",
  "beacon_processor",
+ "builder_client",
  "directory",
  "dirs",
  "environment",

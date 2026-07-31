@@ -20,46 +20,70 @@ pub struct DirectBid<E: EthSpec> {
     /// Reused to choose the request-body encoding for `submit_signed_beacon_block`, so we don't
     /// have to re-probe the builder's SSZ support.
     pub ssz_response: bool,
-    /// The proposer's value for this bid, used to rank bids for the same tuple.
+    /// The proposer's `max_execution_payment` cap for this bid's builder, from its `BuilderEntry`.
     ///
-    /// This is `bid.value + min(max_execution_payment, bid.execution_payment)`, where
-    /// `max_execution_payment` is the proposer's cap for this builder from its
-    /// [`BuilderPreferences`](https://github.com/ethereum/beacon-APIs/pull/625): the on-chain
-    /// `value` plus however much of the (off-chain) `execution_payment` the proposer is willing to
-    /// accept from this builder.
-    pub proposer_value: u64,
+    /// The proposer accepts at most this much of the (off-chain) `execution_payment` from this
+    /// builder; it bounds [`proposer_value`](Self::proposer_value).
+    pub max_execution_payment: u64,
+    /// The proposer's `builder_boost_factor` for this bid's builder, from its `BuilderEntry`.
+    ///
+    /// Scales the bid via [`boosted_value`](Self::boosted_value), which is the cache's ranking key
+    /// and the value the block producer compares against the locally-built payload at selection.
+    pub builder_boost_factor: u64,
 }
 
 impl<E: EthSpec> DirectBid<E> {
-    /// Build a [`DirectBid`], computing its [`proposer_value`](Self::proposer_value) from the bid
-    /// and the proposer's `max_execution_payment` cap for the builder that returned it.
+    /// Build a [`DirectBid`] from a bid and the proposer's per-builder inputs.
     pub fn new(
         signed_bid: Arc<SignedExecutionPayloadBid<E>>,
         builder_url: SensitiveUrl,
         ssz_response: bool,
         max_execution_payment: u64,
+        builder_boost_factor: u64,
     ) -> Self {
-        let bid = &signed_bid.message;
-        let proposer_value = bid
-            .value
-            .saturating_add(bid.execution_payment.min(max_execution_payment));
         Self {
             signed_bid,
             builder_url,
             ssz_response,
-            proposer_value,
+            max_execution_payment,
+            builder_boost_factor,
         }
+    }
+
+    /// The proposer's value for this bid: the on-chain `value` plus however much of the (off-chain)
+    /// `execution_payment` the proposer accepts from this builder, i.e.
+    /// `bid.value + min(max_execution_payment, bid.execution_payment)`.
+    ///
+    /// This is the value the proposer actually receives. Bids are *ranked* by
+    /// [`boosted_value`](Self::boosted_value), which scales this by `builder_boost_factor`.
+    pub fn proposer_value(&self) -> u64 {
+        let bid = &self.signed_bid.message;
+        bid.value
+            .saturating_add(bid.execution_payment.min(self.max_execution_payment))
+    }
+
+    /// The bid's boosted value — the cache's ranking key, and the value the block producer compares
+    /// against the locally-built payload: `builder_boost_factor * (proposer_value // 100)`.
+    ///
+    /// Per beacon-APIs #630 the highest-boosted bid is the one that competes with the local payload.
+    /// Uses saturating multiplication so a large `builder_boost_factor` (up to `u64::MAX`, i.e.
+    /// "always prefer this builder") cannot overflow. Note the `// 100` gives the ranking 100-Gwei
+    /// granularity, and a `builder_boost_factor` of `0` boosts to `0` (prefer the local payload).
+    pub fn boosted_value(&self) -> u64 {
+        self.builder_boost_factor
+            .saturating_mul(self.proposer_value() / 100)
     }
 }
 
-/// The highest-value direct bid seen per `(slot, parent_block_hash, parent_block_root)` tuple.
+/// The highest-[`boosted_value`](DirectBid::boosted_value) direct bid seen per
+/// `(slot, parent_block_hash, parent_block_root)` tuple.
 ///
 /// Keyed first by `Slot` (in a `BTreeMap`, so stale slots can be pruned cheaply via `split_off`),
 /// then by the `(parent_block_hash, parent_block_root)` of the block the bid builds on.
 type HighestBidMap<E> = BTreeMap<Slot, HashMap<(ExecutionBlockHash, Hash256), DirectBid<E>>>;
 
-/// A cache of direct builder bids, retaining the highest-value bid (and its provenance) for each
-/// `(slot, parent_block_hash, parent_block_root)` tuple.
+/// A cache of direct builder bids, retaining the highest-[`boosted_value`](DirectBid::boosted_value)
+/// bid (and its provenance) for each `(slot, parent_block_hash, parent_block_root)` tuple.
 ///
 /// This mirrors the gossip bid cache, but caches bids fetched directly from builders via
 /// `getExecutionPayloadBid` and additionally records each winning bid's provenance. Unlike the
@@ -118,7 +142,7 @@ impl<E: EthSpec> DirectBidCache<E> {
                 true
             }
             hash_map::Entry::Occupied(mut entry) => {
-                if entry.get().proposer_value >= bid.proposer_value {
+                if entry.get().boosted_value() >= bid.boosted_value() {
                     return false;
                 }
                 entry.insert(bid);
@@ -171,6 +195,8 @@ mod tests {
             SensitiveUrl::from_str(url).unwrap(),
             ssz_response,
             max_execution_payment,
+            // Boost factor is not exercised by the cache-ranking tests.
+            100,
         )
     }
 
@@ -178,12 +204,12 @@ mod tests {
     fn proposer_value_caps_execution_payment() {
         // execution_payment above the cap is limited to the cap: 100 + min(200, 500) = 300.
         assert_eq!(
-            direct_bid(1, 100, 500, 200, "http://a.com", false).proposer_value,
+            direct_bid(1, 100, 500, 200, "http://a.com", false).proposer_value(),
             300
         );
         // execution_payment below the cap is fully counted: 100 + min(200, 50) = 150.
         assert_eq!(
-            direct_bid(1, 100, 50, 200, "http://a.com", false).proposer_value,
+            direct_bid(1, 100, 50, 200, "http://a.com", false).proposer_value(),
             150
         );
     }
@@ -204,7 +230,7 @@ mod tests {
         assert!(cache.observe_bid(direct_bid(1, 150, 100, 100, "http://c.com", true)));
 
         let highest = cache.get_highest_bid(Slot::new(1), hash, root).unwrap();
-        assert_eq!(highest.proposer_value, 250);
+        assert_eq!(highest.proposer_value(), 250);
         assert!(highest.ssz_response);
         assert_eq!(
             highest.builder_url.expose_full(),
@@ -212,6 +238,26 @@ mod tests {
                 .unwrap()
                 .expose_full()
         );
+    }
+
+    #[test]
+    fn observe_ranks_by_boosted_value() {
+        let cache = DirectBidCache::<E>::new();
+        let hash = ExecutionBlockHash::zero();
+        let root = Hash256::ZERO;
+
+        // Bid A: proposer_value 300, default boost 100 -> boosted 100 * (300 / 100) = 300.
+        assert!(cache.observe_bid(direct_bid(1, 300, 0, 0, "http://a.com", false)));
+
+        // Bid B: lower proposer_value 200, but boost 200 -> boosted 200 * (200 / 100) = 400, so it
+        // wins despite the lower raw value.
+        let mut bid_b = direct_bid(1, 200, 0, 0, "http://b.com", false);
+        bid_b.builder_boost_factor = 200;
+        assert!(cache.observe_bid(bid_b));
+
+        let highest = cache.get_highest_bid(Slot::new(1), hash, root).unwrap();
+        assert_eq!(highest.proposer_value(), 200);
+        assert_eq!(highest.builder_boost_factor, 200);
     }
 
     #[test]
@@ -231,14 +277,14 @@ mod tests {
             cache
                 .get_highest_bid(Slot::new(1), ExecutionBlockHash::repeat_byte(9), root)
                 .unwrap()
-                .proposer_value,
+                .proposer_value(),
             100
         );
         assert_eq!(
             cache
                 .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), root)
                 .unwrap()
-                .proposer_value,
+                .proposer_value(),
             200
         );
     }

@@ -28,6 +28,10 @@ pub enum Error {
     UnableToCreateValidatorDir(PathBuf),
     /// A builder with the given URL already exists.
     DuplicateBuilderAuth(BuilderUrl),
+    /// A builder URL could not be parsed as a URL.
+    InvalidBuilderUrl(BuilderUrl),
+    /// A builder URL does not use an `http`/`https` scheme.
+    UnsupportedUrlScheme(BuilderUrl),
     /// A builder with the given URL does not exist.
     UnknownBuilder,
     /// A builder with the given URL did not supply a builder pubkey
@@ -147,6 +151,15 @@ impl BuilderDefinitions {
                 continue;
             }
             if let Some(url) = &definition.url {
+                // Reject malformed or non-http(s) builder URLs here, at config load, rather than
+                // silently skipping them during block proposal.
+                let sensitive_url = url
+                    .to_sensitive_url()
+                    .map_err(|_| Error::InvalidBuilderUrl(url.clone()))?;
+                if !matches!(sensitive_url.expose_full().scheme(), "http" | "https") {
+                    return Err(Error::UnsupportedUrlScheme(url.clone()));
+                }
+
                 let auth = definition
                     .auth_data
                     .clone()

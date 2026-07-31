@@ -16,9 +16,10 @@ use bytes::Bytes;
 use context_deserialize::ContextDeserialize;
 use eth2::CONSENSUS_VERSION_HEADER;
 use eth2::types::{
-    Accept, BeaconCommitteeSubscription, EndpointVersion, Failure, GenericResponse,
-    StandardLivenessResponseData, StateId as CoreStateId, ValidatorAggregateAttestationQuery,
-    ValidatorAttestationDataQuery, ValidatorBlocksQuery, ValidatorIndexData, ValidatorStatus,
+    Accept, BeaconCommitteeSubscription, BuilderPreferenceEntryV1, EndpointVersion, Failure,
+    GenericResponse, StandardLivenessResponseData, StateId as CoreStateId,
+    ValidatorAggregateAttestationQuery, ValidatorAttestationDataQuery, ValidatorBlocksQuery,
+    ValidatorIndexData, ValidatorStatus,
 };
 use lighthouse_network::PubsubMessage;
 use network::{NetworkMessage, ValidatorSubscriptionMessage};
@@ -736,6 +737,82 @@ pub fn post_validator_register_validator<T: BeaconChainTypes>(
 
                 // Await a response from the builder without blocking a
                 // `BeaconProcessor` worker.
+                convert_rejection(rx.await.unwrap_or_else(|_| {
+                    Ok(warp::reply::with_status(
+                        warp::reply::json(&"No response from channel"),
+                        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                    .into_response())
+                }))
+                .await
+            },
+        )
+        .boxed()
+}
+
+// POST validator/builder_preferences/{pubkey}
+pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("builder_preferences"))
+        .and(warp::path::param::<PublicKeyBytes>())
+        .and(warp::path::end())
+        .and(task_spawner_filter.clone())
+        .and(chain_filter.clone())
+        .and(warp_utils::json::json())
+        .then(
+            |pubkey: PublicKeyBytes,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>,
+             entries: Vec<BuilderPreferenceEntryV1>| async move {
+                let (tx, rx) = oneshot::channel();
+
+                let initial_result = task_spawner
+                    .spawn_async_with_rejection_no_conversion(Priority::P0, async move {
+                        // The builder service is only present when the Gloas fork is scheduled.
+                        let builder_service = chain
+                            .builder_service
+                            .as_ref()
+                            .ok_or(BeaconChainError::BuilderMissing)
+                            .map_err(warp_utils::reject::unhandled_error)?
+                            .clone();
+
+                        debug!(
+                            count = entries.len(),
+                            "Received submit builder preferences request"
+                        );
+
+                        // Submitting to a builder can be slow (they frequently time out), so the
+                        // fan-out runs in a detached task rather than holding a `BeaconProcessor`
+                        // worker. The service submits each entry independently and best-effort,
+                        // returning the failures by index (per beacon-APIs #630).
+                        tokio::task::spawn(async move {
+                            let response =
+                                match builder_service.submit_preferences(&pubkey, entries).await {
+                                    Ok(()) => Ok(warp::reply::reply().into_response()),
+                                    Err(failures) => Err(warp_utils::reject::indexed_bad_request(
+                                        "error submitting builder preferences".to_string(),
+                                        failures
+                                            .into_iter()
+                                            .map(|f| Failure::new(f.index, f.error.to_string()))
+                                            .collect(),
+                                    )),
+                                };
+                            let _ = tx.send(response);
+                        });
+
+                        Ok(warp::reply::reply().into_response())
+                    })
+                    .await;
+
+                if initial_result.is_err() {
+                    return convert_rejection(initial_result).await;
+                }
+
                 convert_rejection(rx.await.unwrap_or_else(|_| {
                     Ok(warp::reply::with_status(
                         warp::reply::json(&"No response from channel"),

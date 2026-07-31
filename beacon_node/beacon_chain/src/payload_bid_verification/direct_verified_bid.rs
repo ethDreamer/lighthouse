@@ -2,6 +2,7 @@ use crate::payload_bid_verification::{
     PayloadBidError,
     gossip_verified_bid::{is_gas_limit_target_compatible, verify_bid_consistency},
 };
+use bls::PublicKeyBytes;
 use state_processing::signature_sets::{
     execution_payload_bid_signature_set, get_builder_pubkey_from_state,
 };
@@ -27,11 +28,13 @@ use types::{
 /// `state` must be the beacon state the block is being produced against — the parent block's
 /// post-state advanced to `proposal_slot` — and `parent_block_hash` / `parent_block_root` the
 /// FULL/EMPTY parent the producer selected.
+#[allow(clippy::too_many_arguments)]
 pub fn verify_direct_bid<E: EthSpec>(
     signed_bid: &SignedExecutionPayloadBid<E>,
     proposal_slot: Slot,
     parent_block_hash: ExecutionBlockHash,
     parent_block_root: Hash256,
+    expected_builder_pubkey: Option<PublicKeyBytes>,
     proposer_preferences: &SignedProposerPreferences,
     state: &BeaconState<E>,
     spec: &ChainSpec,
@@ -76,6 +79,23 @@ pub fn verify_direct_bid<E: EthSpec>(
 
     // Consensus-consistency checks shared with the gossip verifier.
     verify_bid_consistency(bid, proposal_slot, proposer_preferences, state, spec)?;
+
+    // If the requesting `BuilderEntry` named an expected builder, the bid must come from it: the
+    // builder at `bid.builder_index` must have that pubkey (the `builder_pubkey` response filter
+    // from beacon-APIs #630).
+    if let Some(expected) = expected_builder_pubkey {
+        let actual = state
+            .get_builder(bid.builder_index)
+            .map_err(|_| PayloadBidError::InvalidBuilder {
+                builder_index: bid.builder_index,
+            })?
+            .pubkey;
+        if actual != expected {
+            return Err(PayloadBidError::UnexpectedBuilder {
+                builder_index: bid.builder_index,
+            });
+        }
+    }
 
     // Verify the builder's signature.
     execution_payload_bid_signature_set(
@@ -150,6 +170,7 @@ mod tests {
             Slot::new(1),
             ExecutionBlockHash::zero(),
             Hash256::ZERO,
+            None,
             &preferences(),
             &state,
             &spec,
@@ -174,6 +195,7 @@ mod tests {
             Slot::new(1),
             ExecutionBlockHash::zero(),
             Hash256::ZERO,
+            None,
             &preferences(),
             &state,
             &spec,
@@ -198,6 +220,7 @@ mod tests {
             Slot::new(1),
             ExecutionBlockHash::zero(),
             Hash256::ZERO,
+            None,
             &preferences(),
             &state,
             &spec,
@@ -223,6 +246,7 @@ mod tests {
             Slot::new(1),
             ExecutionBlockHash::zero(),
             Hash256::ZERO,
+            None,
             &preferences(),
             &state,
             &spec,

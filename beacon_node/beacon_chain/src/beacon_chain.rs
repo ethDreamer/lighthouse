@@ -88,6 +88,7 @@ use crate::{
     CachedHead, metrics,
 };
 use bls::{PublicKey, PublicKeyBytes, Signature};
+use builder_client::BuilderService;
 use eth2::beacon_response::ForkVersionedResponse;
 use eth2::types::{
     EventKind, PtcDuty, SseBlobSidecar, SseBlock, SseDataColumnSidecar,
@@ -450,6 +451,9 @@ pub struct BeaconChain<T: BeaconChainTypes> {
         Mutex<ObservedOperations<SignedBlsToExecutionChange, T::EthSpec>>,
     /// Interfaces with the execution client.
     pub execution_layer: Option<ExecutionLayer<T::EthSpec>>,
+    /// Orchestrates direct builder bid requests and preference submissions over the Gloas Builder
+    /// API. Present only when the Gloas fork is scheduled.
+    pub builder_service: Option<Arc<BuilderService<T::EthSpec>>>,
     /// Stores information about the canonical head and finalized/justified checkpoints of the
     /// chain. Also contains the fork choice struct, for computing the canonical head.
     pub canonical_head: CanonicalHead<T>,

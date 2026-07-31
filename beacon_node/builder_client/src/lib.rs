@@ -6,12 +6,13 @@ use std::str::FromStr;
 pub mod builder_http_client;
 pub mod builder_service;
 pub mod direct_bid_cache;
+pub mod error;
 pub mod pre_gloas_builder_http_client;
 
 pub use builder_http_client::{BuilderHttpClient, GloasBidResponse};
-pub use builder_service::{BuilderService, DirectBidRequest};
+pub use builder_service::{BuilderService, DirectBidRequest, SubmissionFailure};
 pub use direct_bid_cache::{DirectBid, DirectBidCache};
-pub use eth2::Error;
+pub use error::{Error, ok_or_error, success_or_error};
 pub use pre_gloas_builder_http_client::PreGloasBuilderHttpClient;
 
 /// Default timeout for builder requests without a more specific timeout.

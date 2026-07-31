@@ -1,5 +1,6 @@
 use crate::{
-    DEFAULT_USER_AGENT, Error, JSON_ACCEPT_VALUE, PREFERENCE_ACCEPT_VALUE, content_type_from_header,
+    DEFAULT_USER_AGENT, Error, JSON_ACCEPT_VALUE, PREFERENCE_ACCEPT_VALUE,
+    content_type_from_header, ok_or_error, success_or_error,
 };
 use bls::PublicKeyBytes;
 use eth2::types::{
@@ -8,7 +9,7 @@ use eth2::types::{
 };
 use eth2::{
     CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER,
-    SSZ_CONTENT_TYPE_HEADER, ok_or_error, success_or_error,
+    SSZ_CONTENT_TYPE_HEADER,
 };
 use reqwest::StatusCode;
 use reqwest::header::{ACCEPT, HeaderMap, HeaderName, HeaderValue};
