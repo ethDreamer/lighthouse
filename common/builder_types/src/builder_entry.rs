@@ -4,22 +4,18 @@ use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
-/// A per-builder input the validator client supplies on a block-production request, per
+/// A per-builder bid request the validator client supplies on a block-production request, per
 /// [beacon-APIs #630](https://github.com/ethereum/beacon-APIs/pull/630).
 ///
-/// At least one of `url` and `builder_pubkey` must be present:
-/// - An entry with a `url` is a **bid request** (and must also carry an `auth`): the beacon node
-///   calls `getExecutionPayloadBid` at that URL. One request is made per entry, so several entries
-///   MAY share a `url` with different `auth`.
-/// - An entry with no `url` supplies **p2p policy** for the builder identified by `builder_pubkey`:
-///   no request is made, but its `min_bid`/`builder_boost_factor` apply to that builder's gossiped
-///   bids.
+/// Each entry is a direct bid request: the beacon node calls `getExecutionPayloadBid` at `url`,
+/// authenticated by `auth`. One request is made per entry, so several entries MAY share a `url`
+/// with different `auth`. `min_bid`/`builder_boost_factor`/`max_execution_payment` are this
+/// builder's per-request selection policy; p2p bids are governed by the global values on the
+/// enclosing config, not here.
 ///
-/// SSZ cannot express absence, so each optional field carries a sentinel "unset" value: a
-/// zero-length `url` ([`BuilderUrl::empty`]), an all-zero `builder_pubkey` (not a valid BLS key),
-/// and an unset `auth` ([`SignedRequestAuthV1::unset`]). Prefer the [`url`](Self::url) and
-/// [`builder_pubkey`](Self::builder_pubkey) accessors, which resolve the sentinels to `Option`s,
-/// over inspecting the fields directly.
+/// `builder_pubkey` is optional (its all-zero value means unset — resolve it via the
+/// [`builder_pubkey`](Self::builder_pubkey) accessor). When set, it filters the response: a bid not
+/// signed by it MUST NOT be accepted. SSZ cannot express absence, hence the sentinel.
 ///
 /// Field order matches the SSZ `BuilderEntryV1` container:
 /// ```text
@@ -34,20 +30,12 @@ use tree_hash_derive::TreeHash;
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 pub struct BuilderEntryV1 {
-    /// Where this entry's bid request is sent. Unset (zero-length) makes it a p2p-policy entry.
-    #[serde(
-        default = "BuilderUrl::empty",
-        skip_serializing_if = "BuilderUrl::is_empty"
-    )]
+    /// Where this entry's bid request is sent.
     pub url: BuilderUrl,
-    /// Authenticates this entry's bid request. Required when `url` is present; unset otherwise.
-    #[serde(
-        default = "SignedRequestAuthV1::unset",
-        skip_serializing_if = "SignedRequestAuthV1::is_unset"
-    )]
+    /// Authenticates this entry's bid request.
     pub auth: SignedRequestAuthV1,
-    /// On a `url` entry, the returned bid must be signed by this key; on a p2p entry it identifies
-    /// the builder this policy applies to. Unset is all-zero.
+    /// If set, the returned bid must be signed by this key or it MUST NOT be accepted. Unset is
+    /// all-zero.
     #[serde(
         default = "PublicKeyBytes::empty",
         skip_serializing_if = "pubkey_is_unset"
@@ -65,13 +53,7 @@ pub struct BuilderEntryV1 {
 }
 
 impl BuilderEntryV1 {
-    /// The builder URL for a bid-request entry, or `None` when unset (a p2p-policy entry).
-    pub fn url(&self) -> Option<&BuilderUrl> {
-        (!self.url.is_empty()).then_some(&self.url)
-    }
-
-    /// The builder pubkey this entry constrains — used to validate a `url` entry's bid response, or
-    /// to identify the target of a p2p-policy entry — or `None` when unset.
+    /// The builder pubkey the bid response must be signed by, or `None` when unset.
     pub fn builder_pubkey(&self) -> Option<PublicKeyBytes> {
         (!pubkey_is_unset(&self.builder_pubkey)).then_some(self.builder_pubkey)
     }
@@ -92,7 +74,7 @@ mod tests {
 
     fn entry() -> BuilderEntryV1 {
         BuilderEntryV1 {
-            url: BuilderUrl::empty(),
+            url: "http://builder.example.com".parse().unwrap(),
             auth: SignedRequestAuthV1::unset(),
             builder_pubkey: PublicKeyBytes::empty(),
             max_execution_payment: 1,
@@ -102,17 +84,16 @@ mod tests {
     }
 
     #[test]
-    fn json_omits_unset_optional_fields() {
-        // A p2p-style entry with every optional field unset serializes to only the required fields.
+    fn json_omits_unset_builder_pubkey() {
+        // `url` and `auth` are always present; only an unset `builder_pubkey` is omitted.
         let entry = entry();
         let json = serde_json::to_value(&entry).unwrap();
         let obj = json.as_object().unwrap();
-        assert!(!obj.contains_key("url"));
-        assert!(!obj.contains_key("auth"));
+        assert!(obj.contains_key("url"));
+        assert!(obj.contains_key("auth"));
         assert!(!obj.contains_key("builder_pubkey"));
-        assert!(obj.contains_key("max_execution_payment"));
 
-        // Omitted fields deserialize back to their unset sentinels.
+        // The omitted `builder_pubkey` deserializes back to its unset sentinel.
         assert_eq!(
             serde_json::from_value::<BuilderEntryV1>(json).unwrap(),
             entry
@@ -120,15 +101,11 @@ mod tests {
     }
 
     #[test]
-    fn json_includes_set_optional_fields() {
+    fn json_includes_set_builder_pubkey() {
         let mut entry = entry();
-        entry.url = "http://builder.example.com".parse().unwrap();
+        entry.builder_pubkey = PublicKeyBytes::deserialize(&[1u8; 48]).unwrap();
         let json = serde_json::to_value(&entry).unwrap();
-        let obj = json.as_object().unwrap();
-        // A set `url` is serialized; the still-unset `auth`/`builder_pubkey` are omitted.
-        assert!(obj.contains_key("url"));
-        assert!(!obj.contains_key("auth"));
-        assert!(!obj.contains_key("builder_pubkey"));
+        assert!(json.as_object().unwrap().contains_key("builder_pubkey"));
 
         assert_eq!(
             serde_json::from_value::<BuilderEntryV1>(json).unwrap(),

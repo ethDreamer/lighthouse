@@ -15,8 +15,7 @@ pub struct SignedRequestAuthV1 {
 }
 
 impl SignedRequestAuthV1 {
-    /// The "unset" auth: zero-length `data`, slot `0`, and an all-zero signature. On a
-    /// `BuilderEntry` this marks an entry that carries no authenticated bid request.
+    /// An auth with zero-length `data`, slot `0`, and an all-zero signature.
     pub fn unset() -> Self {
         Self {
             message: RequestAuthV1 {
@@ -25,11 +24,6 @@ impl SignedRequestAuthV1 {
             },
             signature: Signature::empty(),
         }
-    }
-
-    /// Whether this auth is unset (empty `data` and an all-zero signature).
-    pub fn is_unset(&self) -> bool {
-        self.message.data.is_empty() && self.signature.is_empty()
     }
 }
 

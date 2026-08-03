@@ -40,18 +40,6 @@ pub enum BuilderUrlError {
 }
 
 impl BuilderUrl {
-    /// The "unset" URL: a zero-length byte list. On a `BuilderEntry` this marks a p2p-policy entry.
-    pub fn empty() -> Self {
-        Self {
-            bytes: VariableList::default(),
-        }
-    }
-
-    /// Whether this URL is unset (zero-length).
-    pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
-    }
-
     /// The URL's raw UTF-8 bytes.
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes

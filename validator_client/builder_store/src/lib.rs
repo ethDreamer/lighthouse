@@ -43,15 +43,13 @@ impl BuilderStore {
             .into_iter()
             .filter(|entry| entry.enabled)
             // we only care about builders where the URL is defined
-            .filter_map(|entry| {
-                entry.url.as_ref().map(|url| DirectBuilder {
-                    url: url.clone(),
-                    auth_data: entry
-                        .auth_data
-                        .clone()
-                        .unwrap_or_else(|| url.to_default_auth_data()),
-                    max_execution_payment: entry.max_execution_payment,
-                })
+            .map(|entry| DirectBuilder {
+                url: entry.url.clone(),
+                auth_data: entry
+                    .auth_data
+                    .clone()
+                    .unwrap_or_else(|| entry.url.to_default_auth_data()),
+                max_execution_payment: entry.max_execution_payment,
             })
             .collect()
     }

@@ -97,11 +97,7 @@ impl<E: EthSpec> BuilderService<E> {
         // non-http(s) URLs. One request is made per entry (no URL de-duplication).
         let mut targets = Vec::new();
         for entry in entries {
-            let Some(url) = entry.url() else {
-                // Url-less entry: p2p policy, not a direct request.
-                continue;
-            };
-            let url = match url.to_sensitive_url() {
+            let url = match entry.url.to_sensitive_url() {
                 Ok(url) => url,
                 Err(e) => {
                     warn!(error = ?e, "Skipping builder entry with a malformed URL");

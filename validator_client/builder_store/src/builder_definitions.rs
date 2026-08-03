@@ -32,12 +32,6 @@ pub enum Error {
     InvalidBuilderUrl(BuilderUrl),
     /// A builder URL does not use an `http`/`https` scheme.
     UnsupportedUrlScheme(BuilderUrl),
-    /// A builder with the given URL does not exist.
-    UnknownBuilder,
-    /// A builder with the given URL did not supply a builder pubkey
-    BuilderPubkeyAndURLNotSpecified,
-    /// A builder with the given pubkey already exists.
-    DuplicateBuilderPubkey(PublicKeyBytes),
 }
 
 /// A single definition in the builders file.
@@ -46,8 +40,7 @@ pub struct BuilderDefinition {
     /// Indicates whether this definition is enabled or disabled.
     pub enabled: bool,
     /// The URL the beacon node uses to contact this builder. Routing metadata; never signed.
-    #[serde(default)]
-    pub url: Option<BuilderUrl>,
+    pub url: BuilderUrl,
     /// Opaque authentication data signed into `RequestAuthV1.data`, agreed with the builder out of
     /// band. When unset, it defaults to the UTF-8 bytes of `url` (the builder-specs #165 default).
     #[serde(default)]
@@ -142,43 +135,31 @@ impl BuilderDefinitions {
     }
 
     pub fn validate(&self) -> Result<(), Error> {
-        let mut p2p_policy_builder_pubkeys = HashSet::new();
-        let mut direct_bid_auth_urls = HashSet::new();
+        let mut seen_auth_urls = HashSet::new();
 
         for definition in &self.0 {
             if !definition.enabled {
                 // ignore disabled builders
                 continue;
             }
-            if let Some(url) = &definition.url {
-                // Reject malformed or non-http(s) builder URLs here, at config load, rather than
-                // silently skipping them during block proposal.
-                let sensitive_url = url
-                    .to_sensitive_url()
-                    .map_err(|_| Error::InvalidBuilderUrl(url.clone()))?;
-                if !matches!(sensitive_url.expose_full().scheme(), "http" | "https") {
-                    return Err(Error::UnsupportedUrlScheme(url.clone()));
-                }
+            let url = &definition.url;
+            // Reject malformed or non-http(s) builder URLs here, at config load, rather than
+            // silently skipping them during block proposal.
+            let sensitive_url = url
+                .to_sensitive_url()
+                .map_err(|_| Error::InvalidBuilderUrl(url.clone()))?;
+            if !matches!(sensitive_url.expose_full().scheme(), "http" | "https") {
+                return Err(Error::UnsupportedUrlScheme(url.clone()));
+            }
 
-                let auth = definition
-                    .auth_data
-                    .clone()
-                    .unwrap_or_else(|| url.to_default_auth_data());
-                // two entries cannot contain the same url and auth data
-                let key = (url.clone(), auth);
-                if !direct_bid_auth_urls.insert(key) {
-                    return Err(Error::DuplicateBuilderAuth(url.clone()));
-                }
-            } else {
-                // Entry specifies P2P policy
-                // builder pubkey MUST be specified
-                let Some(pubkey) = &definition.builder_pubkey else {
-                    return Err(Error::BuilderPubkeyAndURLNotSpecified);
-                };
-
-                if !p2p_policy_builder_pubkeys.insert(*pubkey) {
-                    return Err(Error::DuplicateBuilderPubkey(*pubkey));
-                }
+            let auth = definition
+                .auth_data
+                .clone()
+                .unwrap_or_else(|| url.to_default_auth_data());
+            // two entries cannot contain the same url and auth data
+            let key = (url.clone(), auth);
+            if !seen_auth_urls.insert(key) {
+                return Err(Error::DuplicateBuilderAuth(url.clone()));
             }
         }
 
