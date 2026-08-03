@@ -727,7 +727,15 @@ pub async fn proposer_boost_re_org_test(
     let (block_c, block_c_blobs) = {
         let (response, _) = tester
             .client
-            .get_validator_blocks_v4::<E>(slot_c, &randao_reveal, None, false, None, None)
+            .post_validator_blocks_v4::<E>(
+                slot_c,
+                &randao_reveal,
+                None,
+                false,
+                None,
+                &eth2::types::BuilderConfigV1::empty(),
+                None,
+            )
             .await
             .unwrap();
         (

@@ -1,7 +1,8 @@
 use bls::PublicKeyBytes;
-use builder_types::{RequestAuthData, SignedRequestAuthV1};
+use builder_types::{RequestAuthData, RequestAuthV1, SignedRequestAuthV1};
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashMap};
+use std::future::Future;
 use std::sync::Arc;
 use types::Slot;
 
@@ -66,6 +67,36 @@ impl RequestAuthCache {
             .entry(slot)
             .or_default()
             .insert(key, signed_request_auth);
+    }
+
+    /// Return the cached signature for `(slot, pubkey, auth_data)`, or produce it via `sign` (and
+    /// cache the result) on a miss.
+    ///
+    /// The signature is a pure function of the proposer, `auth_data`, and slot, so a hit returns
+    /// immediately without invoking `sign`. `sign` receives the fully-formed `RequestAuthV1` to
+    /// sign — in practice `ValidatorStore::sign_request_auth_v1`.
+    pub async fn get_or_sign<F, Fut, E>(
+        &self,
+        slot: Slot,
+        pubkey: PublicKeyBytes,
+        auth_data: RequestAuthData,
+        sign: F,
+    ) -> Result<SignedRequestAuthV1, E>
+    where
+        F: FnOnce(RequestAuthV1) -> Fut,
+        Fut: Future<Output = Result<SignedRequestAuthV1, E>>,
+    {
+        if let Some(signed) = self.get(slot, pubkey, &auth_data) {
+            return Ok(signed);
+        }
+
+        let signed = sign(RequestAuthV1 {
+            data: auth_data.clone(),
+            slot,
+        })
+        .await?;
+        self.insert(slot, pubkey, auth_data, signed.clone());
+        Ok(signed)
     }
 
     pub fn prune(&self, current_slot: Slot) {

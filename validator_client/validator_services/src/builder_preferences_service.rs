@@ -3,9 +3,7 @@ use crate::request_auth_cache::RequestAuthCache;
 use beacon_node_fallback::BeaconNodeFallback;
 use bls::PublicKeyBytes;
 use builder_store::BuilderStore;
-use builder_types::{
-    BuilderEntryV1, BuilderUrl, RequestAuthData, RequestAuthV1, SignedRequestAuthV1,
-};
+use builder_types::{BuilderEntryV1, BuilderUrl, RequestAuthData};
 use eth2::types::BuilderPreferenceEntryV1;
 use slot_clock::SlotClock;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -221,7 +219,18 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
                 let config = self
                     .inner
                     .configured_builders
-                    .builder_config(|auth_data| self.signed_request_auth(slot, pubkey, auth_data))
+                    .builder_config(|auth_data| {
+                        self.inner.request_auth_cache.get_or_sign(
+                            slot,
+                            pubkey,
+                            auth_data,
+                            |request_auth_v1| {
+                                self.inner
+                                    .validator_store
+                                    .sign_request_auth_v1(pubkey, request_auth_v1)
+                            },
+                        )
+                    })
                     .await;
 
                 // A `BuilderPreferenceEntry` is a `BuilderEntry` narrowed to what a builder may see:
@@ -279,32 +288,5 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
                 Err(e) => error!(error = %e, "Failed to publish builder preferences"),
             }
         }
-    }
-
-    /// Sign (and cache) the request auth over `auth_data` for `pubkey` at `slot`, returning the
-    /// cached signature if one already exists for this `(slot, pubkey, auth_data)`.
-    async fn signed_request_auth(
-        &self,
-        slot: Slot,
-        pubkey: PublicKeyBytes,
-        auth_data: RequestAuthData,
-    ) -> Result<SignedRequestAuthV1, validator_store::Error<S::Error>> {
-        if let Some(signed_auth) = self.inner.request_auth_cache.get(slot, pubkey, &auth_data) {
-            return Ok(signed_auth);
-        }
-
-        let request_auth_v1 = RequestAuthV1 {
-            data: auth_data.clone(),
-            slot,
-        };
-        let signed_request_auth = self
-            .inner
-            .validator_store
-            .sign_request_auth_v1(pubkey, request_auth_v1)
-            .await?;
-        self.inner
-            .request_auth_cache
-            .insert(slot, pubkey, auth_data, signed_request_auth.clone());
-        Ok(signed_request_auth)
     }
 }

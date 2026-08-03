@@ -31,6 +31,21 @@ pub struct BuilderConfigV1 {
     pub builder_boost_factor: u64,
 }
 
+impl BuilderConfigV1 {
+    /// An empty config: no direct builders, with the documented compatibility defaults for the
+    /// p2p bid policy (`min_bid = 0`, `builder_boost_factor = 100`).
+    ///
+    /// Sent when the validator has no builder support configured, so a Gloas proposal still falls
+    /// back to local and p2p payloads.
+    pub fn empty() -> Self {
+        Self {
+            builders: VariableList::default(),
+            min_bid: 0,
+            builder_boost_factor: 100,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

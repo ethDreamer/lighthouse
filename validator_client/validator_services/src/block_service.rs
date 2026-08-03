@@ -1,5 +1,7 @@
+use crate::request_auth_cache::RequestAuthCache;
 use beacon_node_fallback::{ApiTopic, BeaconNodeFallback, Error as FallbackError, Errors};
 use bls::PublicKeyBytes;
+use builder_store::BuilderStore;
 use eth2::BeaconNodeHttpClient;
 use eth2::types::GraffitiPolicy;
 use graffiti_file::{GraffitiFile, determine_graffiti};
@@ -53,6 +55,8 @@ pub struct BlockServiceBuilder<S, T> {
     graffiti: Option<Graffiti>,
     graffiti_file: Option<GraffitiFile>,
     graffiti_policy: Option<GraffitiPolicy>,
+    configured_builders: Option<BuilderStore>,
+    request_auth_cache: Option<RequestAuthCache>,
 }
 
 impl<S: ValidatorStore, T: SlotClock + 'static> BlockServiceBuilder<S, T> {
@@ -67,6 +71,8 @@ impl<S: ValidatorStore, T: SlotClock + 'static> BlockServiceBuilder<S, T> {
             graffiti: None,
             graffiti_file: None,
             graffiti_policy: None,
+            configured_builders: None,
+            request_auth_cache: None,
         }
     }
 
@@ -115,6 +121,16 @@ impl<S: ValidatorStore, T: SlotClock + 'static> BlockServiceBuilder<S, T> {
         self
     }
 
+    pub fn configured_builders(mut self, configured_builders: BuilderStore) -> Self {
+        self.configured_builders = Some(configured_builders);
+        self
+    }
+
+    pub fn request_auth_cache(mut self, request_auth_cache: RequestAuthCache) -> Self {
+        self.request_auth_cache = Some(request_auth_cache);
+        self
+    }
+
     pub fn build(self) -> Result<BlockService<S, T>, String> {
         Ok(BlockService {
             inner: Arc::new(Inner {
@@ -137,6 +153,12 @@ impl<S: ValidatorStore, T: SlotClock + 'static> BlockServiceBuilder<S, T> {
                 graffiti: self.graffiti,
                 graffiti_file: self.graffiti_file,
                 graffiti_policy: self.graffiti_policy,
+                configured_builders: self
+                    .configured_builders
+                    .ok_or("Cannot build BlockService without configured_builders")?,
+                request_auth_cache: self
+                    .request_auth_cache
+                    .ok_or("Cannot build BlockService without request_auth_cache")?,
             }),
         })
     }
@@ -203,6 +225,11 @@ pub struct Inner<S, T> {
     graffiti: Option<Graffiti>,
     graffiti_file: Option<GraffitiFile>,
     graffiti_policy: Option<GraffitiPolicy>,
+    /// The configured builders to resolve into a `BuilderConfigV1` when producing a Gloas block.
+    configured_builders: BuilderStore,
+    /// Caches the per-(slot, proposer, auth_data) request-auth signatures reused when resolving the
+    /// builder config.
+    request_auth_cache: RequestAuthCache,
 }
 
 /// Attempts to produce attestations for any block producer(s) at the start of the epoch.
@@ -464,6 +491,34 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         let fork_name = self_ref.chain_spec.fork_name_at_slot::<S::E>(slot);
 
         let (block_proposer, unsigned_block) = if fork_name.gloas_enabled() {
+            // Resolve the validator's builder config for this proposal, signing each builder's
+            // request auth via the cache. Sent in the POST `produceBlockV4` body below (the same
+            // body is reused on the SSZ-to-JSON fallback and on every proposer-fallback BN). With
+            // no builders configured this resolves to an empty list, so the proposal still falls
+            // back to a local or p2p payload. Per-builder sign failures are logged and omitted
+            // inside `builder_config`, so this never fails the proposal.
+            let builder_config = self_ref
+                .configured_builders
+                .builder_config(|auth_data| {
+                    self_ref.request_auth_cache.get_or_sign(
+                        slot,
+                        validator_pubkey,
+                        auth_data,
+                        |request_auth_v1| {
+                            self_ref
+                                .validator_store
+                                .sign_request_auth_v1(validator_pubkey, request_auth_v1)
+                        },
+                    )
+                })
+                .await;
+            debug!(
+                slot = slot.as_u64(),
+                builders = builder_config.builders.len(),
+                "Resolved builder config for block production"
+            );
+            let builder_config_ref = &builder_config;
+
             // Use V4 block production for Gloas
             // Request an SSZ block from all beacon nodes in order, returning on the first successful response.
             // If all nodes fail, run a second pass falling back to JSON.
@@ -474,12 +529,13 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                         &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                     );
                     beacon_node
-                        .get_validator_blocks_v4_ssz::<S::E>(
+                        .post_validator_blocks_v4_ssz::<S::E>(
                             slot,
                             randao_reveal_ref,
                             graffiti.as_ref(),
                             false,
                             builder_boost_factor,
+                            builder_config_ref,
                             self_ref.graffiti_policy,
                         )
                         .await
@@ -502,12 +558,13 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                 &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                             );
                             let (json_block_response, _metadata) = beacon_node
-                                .get_validator_blocks_v4::<S::E>(
+                                .post_validator_blocks_v4::<S::E>(
                                     slot,
                                     randao_reveal_ref,
                                     graffiti.as_ref(),
                                     false,
                                     builder_boost_factor,
+                                    builder_config_ref,
                                     self_ref.graffiti_policy,
                                 )
                                 .await
@@ -854,6 +911,10 @@ mod tests {
                 .beacon_nodes(harness.beacon_nodes.clone())
                 .executor(harness.test_runtime.task_executor.clone())
                 .chain_spec(harness.spec.clone())
+                .request_auth_cache(RequestAuthCache::default())
+                .configured_builders(
+                    BuilderStore::open_or_create(harness._validator_dir.path()).unwrap(),
+                )
                 .build()
                 .unwrap();
 
@@ -880,7 +941,11 @@ mod tests {
         let mock_different_slot = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_get_validator_blocks_v4_ssz(&block, ForkName::Gloas, different_notification_slot);
+            .mock_post_validator_blocks_v4_ssz(
+                &block,
+                ForkName::Gloas,
+                different_notification_slot,
+            );
 
         test_harness
             .service
@@ -902,7 +967,7 @@ mod tests {
         let mock_same_slot = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_get_validator_blocks_v4_ssz(&block, ForkName::Gloas, same_notification_slot);
+            .mock_post_validator_blocks_v4_ssz(&block, ForkName::Gloas, same_notification_slot);
 
         test_harness
             .service
@@ -937,7 +1002,7 @@ mod tests {
         test_harness
             .harness
             .mock_beacon_node_1
-            .mock_get_validator_blocks_v4_ssz(&block, ForkName::Gloas, slot);
+            .mock_post_validator_blocks_v4_ssz(&block, ForkName::Gloas, slot);
         let mock_post_block = test_harness
             .harness
             .mock_beacon_node_1
@@ -1000,11 +1065,11 @@ mod tests {
         let mock_bn_1 = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_get_validator_blocks_v4_ssz_error(slot);
+            .mock_post_validator_blocks_v4_ssz_error(slot);
         let mock_bn_2 = test_harness
             .harness
             .mock_beacon_node_2
-            .mock_get_validator_blocks_v4_ssz_error(slot);
+            .mock_post_validator_blocks_v4_ssz_error(slot);
 
         let mock_post_block = test_harness
             .harness
@@ -1048,11 +1113,11 @@ mod tests {
         let mock_ssz = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_get_validator_blocks_v4_ssz_error(slot);
+            .mock_post_validator_blocks_v4_ssz_error(slot);
         let mock_json = test_harness
             .harness
             .mock_beacon_node_2
-            .mock_get_validator_blocks_v4(&block, ForkName::Gloas, slot);
+            .mock_post_validator_blocks_v4(&block, ForkName::Gloas, slot);
 
         let _result = test_harness
             .service

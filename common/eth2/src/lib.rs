@@ -368,6 +368,37 @@ impl BeaconNodeHttpClient {
         }
     }
 
+    /// Perform a HTTP POST request, using an `accept` header for the response and exposing the
+    /// response headers to `parser`. Returns `None` on a 404 error.
+    ///
+    /// `build_body` attaches the request body (and its content-type) to the request builder, so the
+    /// caller controls whether the body is sent as JSON or SSZ.
+    pub async fn post_response_with_response_headers<U: IntoUrl, F, R>(
+        &self,
+        url: U,
+        accept_header: Accept,
+        timeout: Duration,
+        build_body: impl FnOnce(RequestBuilder) -> RequestBuilder,
+        parser: impl FnOnce(Response, HeaderMap) -> F,
+    ) -> Result<Option<R>, Error>
+    where
+        F: Future<Output = Result<R, Error>>,
+    {
+        let request = build_body(self.client.post(url).timeout(timeout).accept(accept_header));
+        let response = request.send().await?;
+
+        let opt_response = ok_or_error(response).await.optional()?;
+
+        match opt_response {
+            Some(resp) => {
+                let response_headers = resp.headers().clone();
+                let parsed_response = parser(resp, response_headers).await?;
+                Ok(Some(parsed_response))
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Perform a HTTP POST request.
     async fn post<T: Serialize, U: IntoUrl>(&self, url: U, body: &T) -> Result<(), Error> {
         self.post_generic(url, body, None).await?;
@@ -2675,7 +2706,7 @@ impl BeaconNodeHttpClient {
         opt_response.ok_or(Error::StatusCode(StatusCode::NOT_FOUND))
     }
 
-    /// returns `GET v4/validator/blocks/{slot}` URL path
+    /// returns the `POST v4/validator/blocks/{slot}` URL path
     #[allow(clippy::too_many_arguments)]
     pub async fn get_validator_blocks_v4_path(
         &self,
@@ -2727,35 +2758,38 @@ impl BeaconNodeHttpClient {
         Ok(path)
     }
 
-    /// `GET v4/validator/blocks/{slot}`
-    pub async fn get_validator_blocks_v4<E: EthSpec>(
+    /// `POST v4/validator/blocks/{slot}`
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post_validator_blocks_v4<E: EthSpec>(
         &self,
         slot: Slot,
         randao_reveal: &SignatureBytes,
         graffiti: Option<&Graffiti>,
         include_payload: bool,
         builder_booster_factor: Option<u64>,
+        builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
-        self.get_validator_blocks_v4_modular(
+        self.post_validator_blocks_v4_modular(
             slot,
             randao_reveal,
             graffiti,
             SkipRandaoVerification::No,
             include_payload,
             builder_booster_factor,
+            builder_config,
             graffiti_policy,
         )
         .await
     }
 
-    /// `GET v4/validator/blocks/{slot}`
+    /// `POST v4/validator/blocks/{slot}`
     ///
     /// Returns either a bare block or the full [`BlockAndEnvelope`] (block + execution payload
     /// envelope + blobs + KZG proofs) depending on the `Eth-Execution-Payload-Included` response
     /// header. Note that a builder bid yields a bare block even when `include_payload=true`.
     #[allow(clippy::too_many_arguments)]
-    pub async fn get_validator_blocks_v4_modular<E: EthSpec>(
+    pub async fn post_validator_blocks_v4_modular<E: EthSpec>(
         &self,
         slot: Slot,
         randao_reveal: &SignatureBytes,
@@ -2763,6 +2797,7 @@ impl BeaconNodeHttpClient {
         skip_randao_verification: SkipRandaoVerification,
         include_payload: bool,
         builder_booster_factor: Option<u64>,
+        builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
         let path = self
@@ -2778,10 +2813,11 @@ impl BeaconNodeHttpClient {
             .await?;
 
         let opt_result = self
-            .get_response_with_response_headers(
+            .post_response_with_response_headers(
                 path,
                 Accept::Json,
                 self.timeouts.get_validator_block,
+                |request| request.json(builder_config),
                 |response, headers| async move {
                     let metadata = ProduceBlockV4Metadata::try_from(&headers)
                         .map_err(Error::InvalidHeaders)?;
@@ -2814,33 +2850,36 @@ impl BeaconNodeHttpClient {
         opt_result.ok_or(Error::StatusCode(StatusCode::NOT_FOUND))
     }
 
-    /// `GET v4/validator/blocks/{slot}` in ssz format
-    pub async fn get_validator_blocks_v4_ssz<E: EthSpec>(
+    /// `POST v4/validator/blocks/{slot}` in ssz format
+    #[allow(clippy::too_many_arguments)]
+    pub async fn post_validator_blocks_v4_ssz<E: EthSpec>(
         &self,
         slot: Slot,
         randao_reveal: &SignatureBytes,
         graffiti: Option<&Graffiti>,
         include_payload: bool,
         builder_booster_factor: Option<u64>,
+        builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
-        self.get_validator_blocks_v4_modular_ssz::<E>(
+        self.post_validator_blocks_v4_modular_ssz::<E>(
             slot,
             randao_reveal,
             graffiti,
             SkipRandaoVerification::No,
             include_payload,
             builder_booster_factor,
+            builder_config,
             graffiti_policy,
         )
         .await
     }
 
-    /// `GET v4/validator/blocks/{slot}` in ssz format
+    /// `POST v4/validator/blocks/{slot}` in ssz format
     ///
-    /// See [`Self::get_validator_blocks_v4_modular`] for the response semantics.
+    /// See [`Self::post_validator_blocks_v4_modular`] for the response semantics.
     #[allow(clippy::too_many_arguments)]
-    pub async fn get_validator_blocks_v4_modular_ssz<E: EthSpec>(
+    pub async fn post_validator_blocks_v4_modular_ssz<E: EthSpec>(
         &self,
         slot: Slot,
         randao_reveal: &SignatureBytes,
@@ -2848,6 +2887,7 @@ impl BeaconNodeHttpClient {
         skip_randao_verification: SkipRandaoVerification,
         include_payload: bool,
         builder_booster_factor: Option<u64>,
+        builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
         let path = self
@@ -2863,10 +2903,15 @@ impl BeaconNodeHttpClient {
             .await?;
 
         let opt_response = self
-            .get_response_with_response_headers(
+            .post_response_with_response_headers(
                 path,
                 Accept::Ssz,
                 self.timeouts.get_validator_block,
+                |request| {
+                    request
+                        .header("Content-Type", "application/octet-stream")
+                        .body(builder_config.as_ssz_bytes())
+                },
                 |response, headers| async move {
                     let metadata = ProduceBlockV4Metadata::try_from(&headers)
                         .map_err(Error::InvalidHeaders)?;

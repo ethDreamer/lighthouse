@@ -4597,7 +4597,15 @@ impl ApiTester {
 
         let (response, _metadata) = self
             .client
-            .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, false, None, None)
+            .post_validator_blocks_v4::<E>(
+                slot,
+                &randao_reveal,
+                None,
+                false,
+                None,
+                &eth2::types::BuilderConfigV1::empty(),
+                None,
+            )
             .await
             .unwrap();
         let block = response.into_block();
@@ -4963,7 +4971,15 @@ impl ApiTester {
 
             let (response, metadata) = self
                 .client
-                .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, false, None, None)
+                .post_validator_blocks_v4::<E>(
+                    slot,
+                    &randao_reveal,
+                    None,
+                    false,
+                    None,
+                    &eth2::types::BuilderConfigV1::empty(),
+                    None,
+                )
                 .await
                 .unwrap();
             let block = response.into_block();
@@ -5038,7 +5054,15 @@ impl ApiTester {
 
             let (response, metadata) = self
                 .client
-                .get_validator_blocks_v4_ssz::<E>(slot, &randao_reveal, None, false, None, None)
+                .post_validator_blocks_v4_ssz::<E>(
+                    slot,
+                    &randao_reveal,
+                    None,
+                    false,
+                    None,
+                    &eth2::types::BuilderConfigV1::empty(),
+                    None,
+                )
                 .await
                 .unwrap();
             let block = response.into_block();
@@ -5110,12 +5134,28 @@ impl ApiTester {
 
             let (response, metadata) = if ssz {
                 self.client
-                    .get_validator_blocks_v4_ssz::<E>(slot, &randao_reveal, None, true, None, None)
+                    .post_validator_blocks_v4_ssz::<E>(
+                        slot,
+                        &randao_reveal,
+                        None,
+                        true,
+                        None,
+                        &eth2::types::BuilderConfigV1::empty(),
+                        None,
+                    )
                     .await
                     .unwrap()
             } else {
                 self.client
-                    .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, true, None, None)
+                    .post_validator_blocks_v4::<E>(
+                        slot,
+                        &randao_reveal,
+                        None,
+                        true,
+                        None,
+                        &eth2::types::BuilderConfigV1::empty(),
+                        None,
+                    )
                     .await
                     .unwrap()
             };
@@ -5630,7 +5670,15 @@ impl ApiTester {
             // Produce and publish a block.
             let (response, _metadata) = self
                 .client
-                .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, false, None, None)
+                .post_validator_blocks_v4::<E>(
+                    slot,
+                    &randao_reveal,
+                    None,
+                    false,
+                    None,
+                    &eth2::types::BuilderConfigV1::empty(),
+                    None,
+                )
                 .await
                 .unwrap();
             let block = response.into_block();
@@ -5713,7 +5761,15 @@ impl ApiTester {
             // Produce and publish a block, but withhold its envelope.
             let (response, _metadata) = self
                 .client
-                .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, false, None, None)
+                .post_validator_blocks_v4::<E>(
+                    slot,
+                    &randao_reveal,
+                    None,
+                    false,
+                    None,
+                    &eth2::types::BuilderConfigV1::empty(),
+                    None,
+                )
                 .await
                 .unwrap();
             let block = response.into_block();
@@ -8645,7 +8701,15 @@ impl ApiTester {
 
         let (response, _metadata) = self
             .client
-            .get_validator_blocks_v4::<E>(slot, &randao_reveal, None, false, None, None)
+            .post_validator_blocks_v4::<E>(
+                slot,
+                &randao_reveal,
+                None,
+                false,
+                None,
+                &eth2::types::BuilderConfigV1::empty(),
+                None,
+            )
             .await
             .unwrap();
         let block = response.into_block();
