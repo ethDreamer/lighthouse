@@ -1,21 +1,14 @@
 mod builder_definitions;
+use bls::PublicKeyBytes;
 use builder_definitions::BuilderConfigFile;
 pub use builder_definitions::{BuilderDefinition, Error};
-use builder_types::{BuilderUrl, RequestAuthData};
+use builder_types::{BuilderConfigV1, BuilderEntryV1, RequestAuthData, SignedRequestAuthV1};
 use parking_lot::RwLock;
+use ssz_types::VariableList;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-/// Contains the precursors for constructing a `BuilderPreferenceEntry`.
-#[derive(Clone)]
-pub struct DirectBuilder {
-    /// The builder URL: routing identity, dedup key, and (via `to_sensitive_url`) request target.
-    pub url: BuilderUrl,
-    /// The opaque authentication data to sign for this builder.
-    pub auth_data: RequestAuthData,
-    /// The maximum trusted execution payment accepted from this builder.
-    pub max_execution_payment: u64,
-}
+use tracing::error;
 
 #[derive(Clone)]
 pub struct BuilderStore {
@@ -35,27 +28,77 @@ impl BuilderStore {
         })
     }
 
-    /// Returns the precursors for constructing a BuilderPreferenceEntry for
-    /// the enabled builders that have a URL defined.
-    pub fn direct_builders(&self) -> Vec<DirectBuilder> {
-        self.config
-            .read()
-            .into_iter()
-            .filter(|entry| entry.enabled)
-            // we only care about builders where the URL is defined
-            .map(|entry| DirectBuilder {
-                url: entry.url.clone(),
-                auth_data: entry
-                    .auth_data
-                    .clone()
-                    .unwrap_or_else(|| entry.url.to_default_auth_data()),
-                max_execution_payment: entry.max_execution_payment,
-            })
-            .collect()
-    }
+    /// Resolve the enabled builders into a wire [`BuilderConfigV1`], signing each builder's request
+    /// auth via `sign`.
+    ///
+    /// Per-builder `min_bid`/`builder_boost_factor` inherit the global defaults when unset, and each
+    /// builder's `auth_data` defaults to the UTF-8 bytes of its URL when unset. `sign` receives a
+    /// builder's opaque auth `data` and returns the corresponding `SignedRequestAuthV1` — in
+    /// practice signed for the current proposer/slot and cached.
+    ///
+    /// Signing is per-builder: a builder whose auth `sign` fails to produce is logged (with the
+    /// returned error) and omitted, so one unsignable builder cannot drop the rest. The returned
+    /// config always carries the global policy; its `builders` list holds only the successfully
+    /// signed builders, and is empty when no builders are enabled or every one failed to sign.
+    pub async fn builder_config<F, Fut, E>(&self, sign: F) -> BuilderConfigV1
+    where
+        F: Fn(RequestAuthData) -> Fut,
+        Fut: Future<Output = Result<SignedRequestAuthV1, E>>,
+        E: std::fmt::Debug,
+    {
+        // Snapshot the enabled builders and the global policy under the lock, then sign outside it,
+        // so the lock is never held across an `.await`.
+        let (definitions, min_bid, builder_boost_factor) = {
+            let config = self.config.read();
+            let definitions: Vec<BuilderDefinition> = config
+                .as_slice()
+                .iter()
+                .filter(|d| d.enabled)
+                .cloned()
+                .collect();
+            (definitions, config.min_bid, config.builder_boost_factor)
+        };
 
-    pub fn builder_definitions(&self) -> Vec<BuilderDefinition> {
-        self.config.read().as_slice().to_vec()
+        let mut builders = Vec::with_capacity(definitions.len());
+        for definition in definitions {
+            let auth_data = definition
+                .auth_data
+                .unwrap_or_else(|| definition.url.to_default_auth_data());
+            // Omit any builder we cannot sign for, logging the error, rather than failing the
+            // whole config.
+            let auth = match sign(auth_data).await {
+                Ok(auth) => auth,
+                Err(e) => {
+                    error!(
+                        error = ?e,
+                        builder_url = %definition.url,
+                        "Failed to sign builder request auth; omitting builder from config"
+                    );
+                    continue;
+                }
+            };
+            builders.push(BuilderEntryV1 {
+                url: definition.url,
+                auth,
+                builder_pubkey: definition
+                    .builder_pubkey
+                    .unwrap_or_else(PublicKeyBytes::empty),
+                max_execution_payment: definition.max_execution_payment,
+                min_bid: definition.min_bid.unwrap_or(min_bid),
+                builder_boost_factor: definition
+                    .builder_boost_factor
+                    .unwrap_or(builder_boost_factor),
+            });
+        }
+
+        BuilderConfigV1 {
+            // The number of builders is bounded by `MaxBuilderEntries` at config load, so this
+            // cannot overflow.
+            builders: VariableList::new(builders)
+                .expect("builder count is bounded by MaxBuilderEntries at config load"),
+            min_bid,
+            builder_boost_factor,
+        }
     }
 
     pub fn insert(&self, builder: BuilderDefinition) -> Result<(), Error> {

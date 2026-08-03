@@ -32,6 +32,7 @@ mod test_macros {
     }
 }
 
+mod builder_config;
 mod builder_entry;
 mod builder_preference_entry;
 mod builder_preferences;
@@ -40,10 +41,13 @@ mod builder_url;
 mod request_auth;
 mod signed_request_auth;
 
+pub use builder_config::BuilderConfigV1;
 pub use builder_entry::BuilderEntryV1;
 pub use builder_preference_entry::BuilderPreferenceEntryV1;
 pub use builder_preferences::BuilderPreferencesV1;
 pub use builder_preferences_request::BuilderPreferencesRequestV1;
-pub use builder_url::{BuilderUrl, BuilderUrlError, MAX_BUILDER_ENTRIES, MaxBuilderUrlSize};
+pub use builder_url::{
+    BuilderUrl, BuilderUrlError, MAX_BUILDER_ENTRIES, MaxBuilderEntries, MaxBuilderUrlSize,
+};
 pub use request_auth::{MaxDataSize, RequestAuthData, RequestAuthV1};
 pub use signed_request_auth::SignedRequestAuthV1;

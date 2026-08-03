@@ -538,6 +538,27 @@ impl BeaconNodeHttpClient {
             .await
     }
 
+    /// Generic POST function that sends a raw SSZ body with an octet-stream content type and no
+    /// consensus-version header (for bodies that are not fork-versioned).
+    async fn post_generic_with_ssz_body<T: Into<Body>, U: IntoUrl>(
+        &self,
+        url: U,
+        body: T,
+        timeout: Option<Duration>,
+    ) -> Result<Response, Error> {
+        let builder = self
+            .client
+            .post(url)
+            .timeout(timeout.unwrap_or(self.timeouts.default));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Content-Type",
+            HeaderValue::from_static("application/octet-stream"),
+        );
+        let response = builder.headers(headers).body(body).send().await?;
+        success_or_error(response).await
+    }
+
     /// `GET beacon/genesis`
     ///
     /// ## Errors
@@ -2090,6 +2111,28 @@ impl BeaconNodeHttpClient {
             .push(&pubkey.to_string());
 
         self.post(path, &entries).await?;
+
+        Ok(())
+    }
+
+    /// `POST validator/builder_preferences/{pubkey}` (SSZ)
+    pub async fn post_validator_builder_preferences_ssz(
+        &self,
+        pubkey: &PublicKeyBytes,
+        entries: &[BuilderPreferenceEntryV1],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("builder_preferences")
+            .push(&pubkey.to_string());
+
+        // `BuilderPreferenceEntryV1` is not fork-versioned, so no consensus-version header is sent.
+        let ssz_body = entries.to_vec().as_ssz_bytes();
+        self.post_generic_with_ssz_body(path, ssz_body, None)
+            .await?;
 
         Ok(())
     }

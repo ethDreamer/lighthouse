@@ -14,13 +14,13 @@ use beacon_chain::{AttestationError, BeaconChain, BeaconChainError, BeaconChainT
 use bls::PublicKeyBytes;
 use bytes::Bytes;
 use context_deserialize::ContextDeserialize;
-use eth2::CONSENSUS_VERSION_HEADER;
 use eth2::types::{
     Accept, BeaconCommitteeSubscription, BuilderPreferenceEntryV1, EndpointVersion, Failure,
     GenericResponse, StandardLivenessResponseData, StateId as CoreStateId,
     ValidatorAggregateAttestationQuery, ValidatorAttestationDataQuery, ValidatorBlocksQuery,
     ValidatorIndexData, ValidatorStatus,
 };
+use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, SSZ_CONTENT_TYPE_HEADER};
 use lighthouse_network::PubsubMessage;
 use network::{NetworkMessage, ValidatorSubscriptionMessage};
 use reqwest::StatusCode;
@@ -751,6 +751,10 @@ pub fn post_validator_register_validator<T: BeaconChainTypes>(
 }
 
 // POST validator/builder_preferences/{pubkey}
+//
+// Accepts the `BuilderPreferenceEntryV1` list as either JSON or SSZ, selected by the request's
+// `Content-Type` (`application/octet-stream` => SSZ, otherwise JSON). The body is not
+// fork-versioned, so no `Eth-Consensus-Version` header is used (per beacon-APIs #630).
 pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
     eth_v1: EthV1Filter,
     chain_filter: ChainFilter<T>,
@@ -763,7 +767,24 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
         .and(warp::path::end())
         .and(task_spawner_filter.clone())
         .and(chain_filter.clone())
-        .and(warp_utils::json::json())
+        .and(
+            warp::header::optional::<String>(CONTENT_TYPE_HEADER)
+                .and(warp::body::bytes())
+                .and_then(|content_type: Option<String>, body: Bytes| async move {
+                    let entries: Vec<BuilderPreferenceEntryV1> = if content_type.as_deref()
+                        == Some(SSZ_CONTENT_TYPE_HEADER)
+                    {
+                        Vec::from_ssz_bytes(&body).map_err(|e| {
+                            warp_utils::reject::custom_bad_request(format!("invalid SSZ: {e:?}"))
+                        })?
+                    } else {
+                        serde_json::from_slice(&body).map_err(|e| {
+                            warp_utils::reject::custom_deserialize_error(format!("{e:?}"))
+                        })?
+                    };
+                    Ok::<_, Rejection>(entries)
+                }),
+        )
         .then(
             |pubkey: PublicKeyBytes,
              task_spawner: TaskSpawner<T::EthSpec>,

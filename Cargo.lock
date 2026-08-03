@@ -1723,6 +1723,7 @@ dependencies = [
  "hex",
  "parking_lot",
  "serde",
+ "ssz_types",
  "tempfile",
  "tracing",
  "types",

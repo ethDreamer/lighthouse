@@ -1,4 +1,4 @@
-use crate::{BuilderUrl, SignedRequestAuthV1};
+use crate::{BuilderEntryV1, BuilderUrl, SignedRequestAuthV1};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
@@ -31,6 +31,16 @@ impl BuilderPreferenceEntryV1 {
             url,
             auth,
             max_execution_payment,
+        }
+    }
+}
+
+impl From<BuilderEntryV1> for BuilderPreferenceEntryV1 {
+    fn from(entry: BuilderEntryV1) -> Self {
+        Self {
+            url: entry.url,
+            auth: entry.auth,
+            max_execution_payment: entry.max_execution_payment,
         }
     }
 }

@@ -16,6 +16,7 @@ filesystem = { workspace = true }
 hex = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
+ssz_types = { workspace = true }
 tracing = { workspace = true }
 types = { workspace = true }
 yaml_serde = { workspace = true }

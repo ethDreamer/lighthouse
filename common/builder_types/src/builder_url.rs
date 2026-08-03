@@ -11,9 +11,12 @@ use tree_hash::{PackedEncoding, TreeHash};
 /// beacon-APIs #630.
 pub type MaxBuilderUrlSize = typenum::U2048;
 
-/// Maximum number of builder entries a validator may supply on a single request
-/// (`MAX_BUILDER_ENTRIES`), per beacon-APIs #630.
-pub const MAX_BUILDER_ENTRIES: usize = 64;
+/// Maximum number of builder entries a validator may supply on a single request, per
+/// beacon-APIs #630. Used as the SSZ `List` bound on `BuilderConfigV1.builders`.
+pub type MaxBuilderEntries = typenum::U64;
+
+/// [`MaxBuilderEntries`] as a `usize` (derived, so the two cannot drift), for runtime bounds checks.
+pub const MAX_BUILDER_ENTRIES: usize = <MaxBuilderEntries as typenum::Unsigned>::USIZE;
 
 /// A builder URL as it travels on the beacon-API wire.
 ///

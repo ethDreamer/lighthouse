@@ -1,6 +1,6 @@
 use account_utils::write_file_via_temporary;
 use bls::PublicKeyBytes;
-use builder_types::{BuilderUrl, RequestAuthData};
+use builder_types::{BuilderUrl, MAX_BUILDER_ENTRIES, RequestAuthData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{File, create_dir_all};
@@ -32,6 +32,9 @@ pub enum Error {
     InvalidBuilderUrl(BuilderUrl),
     /// A builder URL does not use an `http`/`https` scheme.
     UnsupportedUrlScheme(BuilderUrl),
+    /// More than `MAX_BUILDER_ENTRIES` builders are enabled, exceeding what fits in a
+    /// `BuilderConfigV1`.
+    TooManyEnabledBuilders { enabled: usize, max: usize },
 }
 
 /// A single builder in the config file: a direct bid request, with optional per-builder overrides
@@ -182,6 +185,16 @@ impl BuilderConfigFile {
     }
 
     pub fn validate(&self) -> Result<(), Error> {
+        // The enabled builders must fit in a `BuilderConfigV1`'s bounded list, so
+        // `BuilderStore::builder_config` cannot overflow when constructing it.
+        let enabled = self.builders.iter().filter(|d| d.enabled).count();
+        if enabled > MAX_BUILDER_ENTRIES {
+            return Err(Error::TooManyEnabledBuilders {
+                enabled,
+                max: MAX_BUILDER_ENTRIES,
+            });
+        }
+
         let mut seen_auth_urls = HashSet::new();
 
         for definition in &self.builders {
