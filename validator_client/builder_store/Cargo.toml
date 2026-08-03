@@ -13,6 +13,7 @@ account_utils = { workspace = true }
 bls = { workspace = true }
 builder_types = { workspace = true }
 filesystem = { workspace = true }
+hex = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
@@ -20,5 +21,4 @@ types = { workspace = true }
 yaml_serde = { workspace = true }
 
 [dev-dependencies]
-hex = { workspace = true }
 tempfile = { workspace = true }

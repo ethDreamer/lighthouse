@@ -7,9 +7,9 @@ use std::fs::{File, create_dir_all};
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// The file name for the serialized `BuilderDefinitions` struct.
+/// The file name for the serialized `BuilderConfigFile` struct.
 pub const BUILDERS_FILENAME: &str = "builder_definitions.yml";
-/// The temporary file name for the serialized `BuilderDefinitions` struct.
+/// The temporary file name for the serialized `BuilderConfigFile` struct.
 ///
 /// This is used to achieve an atomic update of the contents on disk, without truncation.
 pub const BUILDERS_TEMP_FILENAME: &str = ".builder_definitions.yml.tmp";
@@ -34,40 +34,102 @@ pub enum Error {
     UnsupportedUrlScheme(BuilderUrl),
 }
 
-/// A single definition in the builders file.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+/// A single builder in the config file: a direct bid request, with optional per-builder overrides
+/// of the global bid policy.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BuilderDefinition {
     /// Indicates whether this definition is enabled or disabled.
     pub enabled: bool,
     /// The URL the beacon node uses to contact this builder. Routing metadata; never signed.
     pub url: BuilderUrl,
     /// Opaque authentication data signed into `RequestAuthV1.data`, agreed with the builder out of
-    /// band. When unset, it defaults to the UTF-8 bytes of `url` (the builder-specs #165 default).
-    #[serde(default)]
+    /// band, as a `0x`-prefixed hex string. When unset, it defaults to the UTF-8 bytes of `url`
+    /// (the builder-specs #165 default).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_option_auth_data"
+    )]
     pub auth_data: Option<RequestAuthData>,
-    /// The builder's BLS public key.
-    #[serde(default)]
+    /// The builder's BLS public key. If set, a bid not signed by it is rejected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub builder_pubkey: Option<PublicKeyBytes>,
     /// The maximum execution payment, in gwei, that we're willing to accept from this builder.
     pub max_execution_payment: u64,
-    /// The minimum total payment, in gwei, for us to accept a bid from this builder.
-    #[serde(default)]
-    pub min_bid: u64,
-    /// Percentage multiplier applied to this bid when comparing against a local payload
-    #[serde(default = "default_builder_boost_factor")]
-    pub builder_boost_factor: u64,
+    /// Per-builder override of the global minimum total payment (gwei). Inherits the global when
+    /// unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_bid: Option<u64>,
+    /// Per-builder override of the global boost factor. Inherits the global when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub builder_boost_factor: Option<u64>,
 }
 
 fn default_builder_boost_factor() -> u64 {
     100
 }
 
-/// A list of `BuilderDefinition` that serves as a serde-able configuration file which defines a
-/// list of builders that the validator client will request bids from.
-#[derive(Default, Serialize, Deserialize)]
-pub struct BuilderDefinitions(Vec<BuilderDefinition>);
+/// Serde helper: represent `Option<RequestAuthData>` as a `0x`-prefixed hex string in the config
+/// file (matching how other byte fields are encoded), omitting it entirely when `None`.
+mod serde_option_auth_data {
+    use super::RequestAuthData;
+    use serde::{Deserialize, Deserializer, Serializer, de};
 
-impl BuilderDefinitions {
+    pub fn serialize<S: Serializer>(
+        value: &Option<RequestAuthData>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(data) => serializer.serialize_some(&format!("0x{}", hex::encode(&data[..]))),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<RequestAuthData>, D::Error> {
+        let Some(s) = Option::<String>::deserialize(deserializer)? else {
+            return Ok(None);
+        };
+        let stripped = s.strip_prefix("0x").unwrap_or(&s);
+        let bytes = hex::decode(stripped).map_err(de::Error::custom)?;
+        let data = RequestAuthData::new(bytes)
+            .map_err(|_| de::Error::custom("auth_data exceeds the maximum size"))?;
+        Ok(Some(data))
+    }
+}
+
+/// The validator client's builder configuration file.
+///
+/// Holds the global bid-policy defaults plus the list of builders to request bids from directly. It
+/// resolves into the wire `BuilderConfig` at block-production time: the globals govern p2p bids and
+/// fill in any builder that omits `min_bid`/`builder_boost_factor`.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BuilderConfigFile {
+    /// Global minimum total payment (gwei). Applies to p2p bids and is inherited by any builder that
+    /// omits its own `min_bid`.
+    #[serde(default)]
+    pub min_bid: u64,
+    /// Global boost factor. Applies to p2p bids and is inherited by any builder that omits its own
+    /// `builder_boost_factor`.
+    #[serde(default = "default_builder_boost_factor")]
+    pub builder_boost_factor: u64,
+    /// The builders to request bids from directly.
+    #[serde(default)]
+    pub builders: Vec<BuilderDefinition>,
+}
+
+impl Default for BuilderConfigFile {
+    fn default() -> Self {
+        Self {
+            min_bid: 0,
+            builder_boost_factor: default_builder_boost_factor(),
+            builders: Vec::new(),
+        }
+    }
+}
+
+impl BuilderConfigFile {
     /// Open an existing file or create a new, empty one if it does not exist.
     pub fn open_or_create<P: AsRef<Path>>(validators_dir: P) -> Result<Self, Error> {
         create_dir_all(validators_dir.as_ref()).map_err(|_| {
@@ -90,16 +152,9 @@ impl BuilderDefinitions {
             .create_new(false)
             .open(config_path)
             .map_err(Error::UnableToOpenFile)?;
-        let definitions: Self = yaml_serde::from_reader(file).map_err(Error::UnableToParseFile)?;
-        definitions.validate()?;
-        Ok(definitions)
-    }
-
-    /// Initialize a new `BuilderDefinitions` instance from a Vec<BuilderDefinition>.
-    pub fn try_from_vec(definitions: Vec<BuilderDefinition>) -> Result<Self, Error> {
-        let definitions = Self(definitions);
-        definitions.validate()?;
-        Ok(definitions)
+        let config: Self = yaml_serde::from_reader(file).map_err(Error::UnableToParseFile)?;
+        config.validate()?;
+        Ok(config)
     }
 
     /// Encodes `self` as a YAML string and atomically writes it to the `CONFIG_FILENAME` file in
@@ -119,25 +174,17 @@ impl BuilderDefinitions {
     }
 
     pub fn as_slice(&self) -> &[BuilderDefinition] {
-        &self.0
+        &self.builders
     }
 
     pub fn push(&mut self, definition: BuilderDefinition) {
-        self.0.push(definition);
-    }
-
-    pub fn retain(&mut self, f: impl FnMut(&BuilderDefinition) -> bool) {
-        self.0.retain(f);
-    }
-
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, BuilderDefinition> {
-        self.0.iter_mut()
+        self.builders.push(definition);
     }
 
     pub fn validate(&self) -> Result<(), Error> {
         let mut seen_auth_urls = HashSet::new();
 
-        for definition in &self.0 {
+        for definition in &self.builders {
             if !definition.enabled {
                 // ignore disabled builders
                 continue;
@@ -167,11 +214,64 @@ impl BuilderDefinitions {
     }
 }
 
-impl<'a> IntoIterator for &'a BuilderDefinitions {
+impl<'a> IntoIterator for &'a BuilderConfigFile {
     type Item = &'a BuilderDefinition;
     type IntoIter = std::slice::Iter<'a, BuilderDefinition>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.builders.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_data_round_trips_as_hex() {
+        let definition = BuilderDefinition {
+            enabled: true,
+            url: "http://builder.example.com".parse().unwrap(),
+            auth_data: Some(RequestAuthData::new(b"hello".to_vec()).unwrap()),
+            builder_pubkey: None,
+            max_execution_payment: 1,
+            min_bid: None,
+            builder_boost_factor: None,
+        };
+
+        let yaml = yaml_serde::to_string(&definition).unwrap();
+        // "hello" is 0x68656c6c6f, a hex string — not a YAML sequence of byte values.
+        assert!(
+            yaml.contains("0x68656c6c6f"),
+            "auth_data not hex-encoded:\n{yaml}"
+        );
+
+        let decoded: BuilderDefinition = yaml_serde::from_str(&yaml).unwrap();
+        assert_eq!(decoded, definition);
+    }
+
+    #[test]
+    fn omits_none_optional_fields() {
+        let definition = BuilderDefinition {
+            enabled: true,
+            url: "http://builder.example.com".parse().unwrap(),
+            auth_data: None,
+            builder_pubkey: None,
+            max_execution_payment: 1,
+            min_bid: None,
+            builder_boost_factor: None,
+        };
+        let yaml = yaml_serde::to_string(&definition).unwrap();
+        for field in [
+            "auth_data",
+            "builder_pubkey",
+            "min_bid",
+            "builder_boost_factor",
+        ] {
+            assert!(
+                !yaml.contains(field),
+                "unset `{field}` should be omitted:\n{yaml}"
+            );
+        }
     }
 }

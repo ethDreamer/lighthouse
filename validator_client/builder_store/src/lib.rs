@@ -1,5 +1,5 @@
 mod builder_definitions;
-use builder_definitions::BuilderDefinitions;
+use builder_definitions::BuilderConfigFile;
 pub use builder_definitions::{BuilderDefinition, Error};
 use builder_types::{BuilderUrl, RequestAuthData};
 use parking_lot::RwLock;
@@ -19,7 +19,7 @@ pub struct DirectBuilder {
 
 #[derive(Clone)]
 pub struct BuilderStore {
-    definitions: Arc<RwLock<BuilderDefinitions>>,
+    config: Arc<RwLock<BuilderConfigFile>>,
     validators_dir: PathBuf,
 }
 
@@ -28,7 +28,7 @@ impl BuilderStore {
         let validators_dir = validators_dir.as_ref().to_path_buf();
 
         Ok(Self {
-            definitions: Arc::new(RwLock::new(BuilderDefinitions::open_or_create(
+            config: Arc::new(RwLock::new(BuilderConfigFile::open_or_create(
                 &validators_dir,
             )?)),
             validators_dir,
@@ -38,7 +38,7 @@ impl BuilderStore {
     /// Returns the precursors for constructing a BuilderPreferenceEntry for
     /// the enabled builders that have a URL defined.
     pub fn direct_builders(&self) -> Vec<DirectBuilder> {
-        self.definitions
+        self.config
             .read()
             .into_iter()
             .filter(|entry| entry.enabled)
@@ -55,17 +55,18 @@ impl BuilderStore {
     }
 
     pub fn builder_definitions(&self) -> Vec<BuilderDefinition> {
-        self.definitions.read().as_slice().to_vec()
+        self.config.read().as_slice().to_vec()
     }
 
     pub fn insert(&self, builder: BuilderDefinition) -> Result<(), Error> {
-        let mut definitions = self.definitions.write();
-        let mut copied_vec = definitions.as_slice().to_vec();
-        copied_vec.push(builder);
+        let mut config = self.config.write();
+        // Validate a candidate copy before committing, so a bad insert leaves the config unchanged
+        // (and the global bid-policy defaults are preserved).
+        let mut candidate = config.clone();
+        candidate.push(builder);
+        candidate.validate()?;
 
-        let new_definitions = BuilderDefinitions::try_from_vec(copied_vec)?;
-
-        *definitions = new_definitions;
-        definitions.save(&self.validators_dir)
+        *config = candidate;
+        config.save(&self.validators_dir)
     }
 }

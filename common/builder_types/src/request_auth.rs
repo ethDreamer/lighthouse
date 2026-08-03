@@ -20,6 +20,9 @@ pub struct RequestAuthV1 {
     /// the exact bytes when it verifies. When no value has been agreed out of band, implementations
     /// SHOULD default to the UTF-8 bytes of the builder's own advertised URL, exactly as advertised,
     /// so proposers with no prior relationship can construct an identical `data` deterministically.
+    ///
+    /// Serialized as a `0x`-prefixed hex string (builder-specs #165 `format: hex`).
+    #[serde(with = "ssz_types::serde_utils::hex_var_list")]
     pub data: RequestAuthData,
     /// The proposal slot this request is authorized for.
     pub slot: Slot,
