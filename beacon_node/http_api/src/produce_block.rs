@@ -19,7 +19,7 @@ use eth2::{
 };
 use ssz::Encode;
 use std::sync::Arc;
-use tracing::instrument;
+use tracing::{debug, instrument};
 use types::{execution::BlockProductionVersion, *};
 use warp::{
     http::response::Builder,
@@ -58,12 +58,29 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
     chain: Arc<BeaconChain<T>>,
     slot: Slot,
     query: api_types::ValidatorBlocksQuery,
+    builder_config: api_types::BuilderConfigV1,
 ) -> Result<Response, warp::Rejection> {
+    // `produceBlockV4` is the Gloas block-production endpoint.
+    let fork_name = chain.spec.fork_name_at_slot::<T::EthSpec>(slot);
+    if !fork_name.gloas_enabled() {
+        return Err(warp_utils::reject::custom_bad_request(
+            "produceBlockV4 is only valid for Gloas and later".to_string(),
+        ));
+    }
+
     let include_payload = query.include_payload.ok_or_else(|| {
         warp_utils::reject::custom_bad_request(
             "include_payload query parameter is required".to_string(),
         )
     })?;
+
+    // The resolved builder config is accepted and validated here. Using it to request direct-builder
+    // bids is a follow-up slice (see `gloas-builder-api-block-proposal.md`).
+    debug!(
+        %slot,
+        builders = builder_config.builders.len(),
+        "Received produceBlockV4 request"
+    );
 
     let randao_reveal = query.randao_reveal.decompress().map_err(|e| {
         warp_utils::reject::custom_bad_request(format!(

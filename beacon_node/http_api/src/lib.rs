@@ -106,7 +106,7 @@ use types::{
 };
 use validator::execution_payload_envelopes::get_validator_execution_payload_envelopes;
 use version::{
-    ResponseIncludesVersion, V1, V2, add_consensus_version_header, add_ssz_content_type_header,
+    ResponseIncludesVersion, V1, V2, V4, add_consensus_version_header, add_ssz_content_type_header,
     execution_optimistic_finalized_beacon_response, inconsistent_fork_rejection,
     unsupported_version_rejection,
 };
@@ -383,6 +383,7 @@ pub async fn serve<T: BeaconChainTypes>(
 
     let eth_v1 = single_version(any_version.clone(), V1);
     let eth_v2 = single_version(any_version.clone(), V2);
+    let eth_v4 = single_version(any_version.clone(), V4);
 
     // Create a `warp` filter that provides access to the network globals.
     let inner_network_globals = ctx.network_globals.clone();
@@ -2569,6 +2570,14 @@ pub async fn serve<T: BeaconChainTypes>(
         task_spawner_filter.clone(),
     );
 
+    // POST v4/validator/blocks/{slot}
+    let post_validator_blocks_v4 = post_validator_blocks_v4(
+        eth_v4.clone(),
+        chain_filter.clone(),
+        not_while_syncing_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+
     // GET validator/blinded_blocks/{slot}
     let get_validator_blinded_blocks = get_validator_blinded_blocks(
         eth_v1.clone(),
@@ -3505,6 +3514,7 @@ pub async fn serve<T: BeaconChainTypes>(
                     .uor(post_validator_prepare_beacon_proposer)
                     .uor(post_validator_register_validator)
                     .uor(post_validator_builder_preferences)
+                    .uor(post_validator_blocks_v4)
                     .uor(post_validator_liveness_epoch)
                     .uor(post_lighthouse_liveness)
                     .uor(post_lighthouse_database_reconstruct)

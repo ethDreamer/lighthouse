@@ -6,7 +6,7 @@ use crate::utils::{
     AnyVersionFilter, ChainFilter, EthV1Filter, NetworkTxFilter, NotWhileSyncingFilter,
     ResponseFilter, TaskSpawnerFilter, ValidatorSubscriptionTxFilter, publish_network_message,
 };
-use crate::version::{V1, V2, V3, V4, unsupported_version_rejection};
+use crate::version::{V1, V2, V3, unsupported_version_rejection};
 use crate::{StateId, attester_duties, proposer_duties, ptc_duties, sync_committees};
 use beacon_chain::attestation_verification::VerifiedAttestation;
 use beacon_chain::proposer_preferences_verification::ProposerPreferencesError;
@@ -15,10 +15,10 @@ use bls::PublicKeyBytes;
 use bytes::Bytes;
 use context_deserialize::ContextDeserialize;
 use eth2::types::{
-    Accept, BeaconCommitteeSubscription, BuilderPreferenceEntryV1, EndpointVersion, Failure,
-    GenericResponse, StandardLivenessResponseData, StateId as CoreStateId,
-    ValidatorAggregateAttestationQuery, ValidatorAttestationDataQuery, ValidatorBlocksQuery,
-    ValidatorIndexData, ValidatorStatus,
+    Accept, BeaconCommitteeSubscription, BuilderConfigV1, BuilderPreferenceEntryV1,
+    EndpointVersion, Failure, GenericResponse, StandardLivenessResponseData,
+    StateId as CoreStateId, ValidatorAggregateAttestationQuery, ValidatorAttestationDataQuery,
+    ValidatorBlocksQuery, ValidatorIndexData, ValidatorStatus,
 };
 use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, SSZ_CONTENT_TYPE_HEADER};
 use lighthouse_network::PubsubMessage;
@@ -463,13 +463,79 @@ pub fn get_validator_blocks<T: BeaconChainTypes>(
 
                     not_synced_filter?;
 
-                    if endpoint_version == V4 {
-                        produce_block_v4(accept_header, chain, slot, query).await
+                    // Gloas block production is served via `POST v4/validator/blocks`.
+                    let fork_name = chain.spec.fork_name_at_slot::<T::EthSpec>(slot);
+                    if fork_name.gloas_enabled() {
+                        Err(warp_utils::reject::custom_bad_request(
+                            "Gloas block production requires POST v4/validator/blocks".to_string(),
+                        ))
                     } else if endpoint_version == V3 {
                         produce_block_v3(accept_header, chain, slot, query).await
                     } else {
                         produce_block_v2(accept_header, chain, slot, query).await
                     }
+                })
+            },
+        )
+        .boxed()
+}
+
+// POST v4/validator/blocks/{slot}
+//
+// The Gloas block-production endpoint. Carries the validator's resolved `BuilderConfigV1` as the
+// request body, accepted as either JSON or SSZ (selected by `Content-Type`; `application/octet-stream`
+// => SSZ). The body is not fork-versioned, so no `Eth-Consensus-Version` header is used (per
+// beacon-APIs #630).
+pub fn post_validator_blocks_v4<T: BeaconChainTypes>(
+    eth_v4: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    not_while_syncing_filter: NotWhileSyncingFilter,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+) -> ResponseFilter {
+    eth_v4
+        .and(warp::path("validator"))
+        .and(warp::path("blocks"))
+        .and(warp::path::param::<Slot>().or_else(|_| async {
+            Err(warp_utils::reject::custom_bad_request(
+                "Invalid slot".to_string(),
+            ))
+        }))
+        .and(warp::path::end())
+        .and(warp::header::optional::<Accept>("accept"))
+        .and(not_while_syncing_filter)
+        .and(warp::query::<ValidatorBlocksQuery>())
+        .and(
+            warp::header::optional::<String>(CONTENT_TYPE_HEADER)
+                .and(warp::body::bytes())
+                .and_then(|content_type: Option<String>, body: Bytes| async move {
+                    let builder_config: BuilderConfigV1 = if content_type.as_deref()
+                        == Some(SSZ_CONTENT_TYPE_HEADER)
+                    {
+                        BuilderConfigV1::from_ssz_bytes(&body).map_err(|e| {
+                            warp_utils::reject::custom_bad_request(format!("invalid SSZ: {e:?}"))
+                        })?
+                    } else {
+                        serde_json::from_slice(&body).map_err(|e| {
+                            warp_utils::reject::custom_deserialize_error(format!("{e:?}"))
+                        })?
+                    };
+                    Ok::<_, Rejection>(builder_config)
+                }),
+        )
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .then(
+            |slot: Slot,
+             accept_header: Option<Accept>,
+             not_synced_filter: Result<(), Rejection>,
+             query: ValidatorBlocksQuery,
+             builder_config: BuilderConfigV1,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>| {
+                task_spawner.spawn_async_with_rejection(Priority::P0, async move {
+                    debug!(?slot, "Block production request from HTTP API (v4)");
+                    not_synced_filter?;
+                    produce_block_v4(accept_header, chain, slot, query, builder_config).await
                 })
             },
         )
