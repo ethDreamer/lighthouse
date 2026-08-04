@@ -30,7 +30,8 @@ use tree_hash_derive::TreeHash;
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 pub struct BuilderEntryV1 {
-    /// Where this entry's bid request is sent.
+    /// Where this entry's bid request is sent. Required and non-empty: beacon-APIs #630 treats a
+    /// zero-length url as invalid. p2p bid policy is carried by the top-level `BuilderConfigV1`.
     pub url: BuilderUrl,
     /// Authenticates this entry's bid request.
     pub auth: SignedRequestAuthV1,

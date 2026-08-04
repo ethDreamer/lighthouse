@@ -17,7 +17,7 @@ use tracing::{debug, warn};
 /// Validation of returned bids is performed entirely by the caller's `validate` callback (which has
 /// the beacon-chain state), so this only carries what's needed to build the request.
 #[derive(Clone)]
-pub struct DirectBidRequest {
+pub struct BidRequestContext {
     pub slot: Slot,
     pub parent_hash: ExecutionBlockHash,
     pub parent_root: Hash256,
@@ -27,7 +27,7 @@ pub struct DirectBidRequest {
 /// Orchestrates direct builder bid requests.
 ///
 /// Fans `getExecutionPayloadBid` out to the builders a proposer configured and records the
-/// resulting bids — highest by proposer value, with provenance — in the shared [`DirectBidCache`]
+/// resulting bids — highest by boosted value, with provenance — in the shared [`DirectBidCache`]
 /// for the block producer to select from.
 pub struct BuilderService<E: EthSpec> {
     client: Arc<BuilderHttpClient>,
@@ -61,14 +61,14 @@ impl<E: EthSpec> BuilderService<E> {
     /// Request bids from every builder in `entries` concurrently, validate them, and record the
     /// valid ones in the cache.
     ///
-    /// Only entries with a `url` are bid requests; a url-less entry supplies p2p policy and is
-    /// skipped, as are entries whose `url` is malformed or not http(s). One request is made **per
-    /// entry** — several entries MAY share a `url` with different `auth`, so requests are not
-    /// de-duplicated by URL (beacon-APIs #630 forbids two entries sharing both a `url` and their
-    /// `auth`'s `data`).
+    /// Every entry is a bid request to its `url`, which beacon-APIs #630 requires (a zero-length url
+    /// is invalid); an entry whose `url` is empty, malformed, or not http(s) can't be requested and
+    /// is skipped. One request is made **per entry** — several entries MAY share a `url` with
+    /// different `auth`, so requests are not de-duplicated by URL (#630 forbids two entries sharing
+    /// both a `url` and their `auth`'s `data`).
     ///
     /// Each builder runs in its own pipeline — request, then a `min_bid` check that drops any bid
-    /// whose (clamped) proposer value is below the entry's `min_bid`, then the producer-supplied
+    /// whose clamped (trusted) value is below the entry's `min_bid`, then the producer-supplied
     /// `validate` callback, which performs *all* bid validation against the block producer's
     /// advanced beacon state (consensus consistency, builder eligibility, collateral, and the BLS
     /// signature). The entry's expected `builder_pubkey` (`None` when the entry omits one) is passed
@@ -83,7 +83,7 @@ impl<E: EthSpec> BuilderService<E> {
     /// block producer reads the winning bid later via [`DirectBidCache::get_highest_bid`].
     pub async fn request_and_cache_bids<F, Fut, Err>(
         &self,
-        ctx: &DirectBidRequest,
+        ctx: &BidRequestContext,
         entries: &[BuilderEntryV1],
         validate: F,
     ) -> usize
@@ -92,9 +92,9 @@ impl<E: EthSpec> BuilderService<E> {
         Fut: Future<Output = Result<(), Err>>,
         Err: Display,
     {
-        // Resolve each bid-request entry to a `(resolved_url, entry)` target. A url-less entry
-        // supplies p2p policy rather than a direct request, so it is skipped, as are malformed or
-        // non-http(s) URLs. One request is made per entry (no URL de-duplication).
+        // Resolve each entry to a `(resolved_url, entry)` target. Every entry must carry a valid url
+        // (#630); one that's empty, malformed, or non-http(s) can't be requested and is skipped. One
+        // request is made per entry (no URL de-duplication).
         let mut targets = Vec::new();
         for entry in entries {
             let url = match entry.url.to_sensitive_url() {
@@ -138,11 +138,12 @@ impl<E: EthSpec> BuilderService<E> {
                         entry.builder_boost_factor,
                     );
 
-                    // Reject bids whose (clamped) proposer value is below the entry's `min_bid`.
-                    if direct_bid.proposer_value() < entry.min_bid {
+                    // Reject bids whose clamped (trusted) value is below the entry's `min_bid`. The
+                    // clamp keeps a builder from clearing the floor with untrusted `execution_payment`.
+                    if direct_bid.clamped_value() < entry.min_bid {
                         debug!(
                             url = ?url,
-                            proposer_value = direct_bid.proposer_value(),
+                            clamped_value = direct_bid.clamped_value(),
                             min_bid = entry.min_bid,
                             "Skipping builder bid below min_bid"
                         );
@@ -292,8 +293,8 @@ mod tests {
             .create()
     }
 
-    fn context() -> DirectBidRequest {
-        DirectBidRequest {
+    fn context() -> BidRequestContext {
+        BidRequestContext {
             slot: Slot::new(1),
             parent_hash: ExecutionBlockHash::zero(),
             parent_root: Hash256::ZERO,
@@ -333,9 +334,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn skips_empty_url_entry() {
+    async fn skips_invalid_url_entry() {
         let service = service();
-        // A url-less entry is p2p policy, not a direct bid request.
+        // #630 requires a url; an empty one is invalid and can't be requested, so it is skipped.
         let entries = vec![entry("", 1000)];
 
         let received = service
@@ -376,7 +377,7 @@ mod tests {
     #[tokio::test]
     async fn skips_bid_below_min_bid() {
         let mut server = Server::new_async().await;
-        // Bid value 100, no execution payment, so the (clamped) proposer value is 100.
+        // Bid value 100, no execution payment, so the clamped value is 100.
         mock_bid(&mut server, 100);
 
         let service = service();

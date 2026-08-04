@@ -1,4 +1,6 @@
-use eth2::types::{EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid, Slot};
+use eth2::types::{
+    BoostedValue, EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid, Slot,
+};
 use parking_lot::RwLock;
 use sensitive_url::SensitiveUrl;
 use std::collections::{BTreeMap, HashMap, hash_map};
@@ -22,13 +24,15 @@ pub struct DirectBid<E: EthSpec> {
     pub ssz_response: bool,
     /// The proposer's `max_execution_payment` cap for this bid's builder, from its `BuilderEntry`.
     ///
-    /// The proposer accepts at most this much of the (off-chain) `execution_payment` from this
-    /// builder; it bounds [`proposer_value`](Self::proposer_value).
+    /// The proposer trusts at most this much of the (off-chain) `execution_payment` from this builder
+    /// when ranking the bid (see [`clamped_value`](Self::clamped_value) /
+    /// [`boosted_value`](Self::boosted_value)). It does not affect the reported
+    /// [`proposer_value`](Self::proposer_value).
     pub max_execution_payment: u64,
     /// The proposer's `builder_boost_factor` for this bid's builder, from its `BuilderEntry`.
     ///
-    /// Scales the bid via [`boosted_value`](Self::boosted_value), which is the cache's ranking key
-    /// and the value the block producer compares against the locally-built payload at selection.
+    /// Scales the bid via [`boosted_value`](Self::boosted_value) — the cache's ranking key, and what
+    /// the block producer compares against the locally-built payload at selection.
     pub builder_boost_factor: u64,
 }
 
@@ -50,28 +54,28 @@ impl<E: EthSpec> DirectBid<E> {
         }
     }
 
-    /// The proposer's value for this bid: the on-chain `value` plus however much of the (off-chain)
-    /// `execution_payment` the proposer accepts from this builder, i.e.
-    /// `bid.value + min(max_execution_payment, bid.execution_payment)`.
+    /// The proposer's honest (unclamped) value for this bid in gwei: `value + execution_payment`.
     ///
-    /// This is the value the proposer actually receives. Bids are *ranked* by
-    /// [`boosted_value`](Self::boosted_value), which scales this by `builder_boost_factor`.
+    /// Reported if the bid wins; **never used in ranking** — being unclamped, it must not influence
+    /// selection.
     pub fn proposer_value(&self) -> u64 {
-        let bid = &self.signed_bid.message;
-        bid.value
-            .saturating_add(bid.execution_payment.min(self.max_execution_payment))
+        self.signed_bid.message.proposer_value()
     }
 
-    /// The bid's boosted value — the cache's ranking key, and the value the block producer compares
-    /// against the locally-built payload: `builder_boost_factor * (proposer_value // 100)`.
-    ///
-    /// Per beacon-APIs #630 the highest-boosted bid is the one that competes with the local payload.
-    /// Uses saturating multiplication so a large `builder_boost_factor` (up to `u64::MAX`, i.e.
-    /// "always prefer this builder") cannot overflow. Note the `// 100` gives the ranking 100-Gwei
-    /// granularity, and a `builder_boost_factor` of `0` boosts to `0` (prefer the local payload).
-    pub fn boosted_value(&self) -> u64 {
-        self.builder_boost_factor
-            .saturating_mul(self.proposer_value() / 100)
+    /// The bid's clamped (trusted) value in gwei under this builder's `max_execution_payment` — the
+    /// `min_bid` acceptance floor, and the basis of [`boosted_value`](Self::boosted_value).
+    pub fn clamped_value(&self) -> u64 {
+        self.signed_bid
+            .message
+            .clamped_value(self.max_execution_payment)
+    }
+
+    /// The bid's boost-adjusted ranking key under this builder's preferences — the cache's ordering,
+    /// and what the block producer compares against the locally-built payload at selection.
+    pub fn boosted_value(&self) -> BoostedValue {
+        self.signed_bid
+            .message
+            .boosted_value(self.max_execution_payment, self.builder_boost_factor)
     }
 }
 
@@ -122,12 +126,12 @@ impl<E: EthSpec> DirectBidCache<E> {
 
     /// Record a direct `bid` in the cache.
     ///
-    /// If the bid has a strictly higher [`proposer_value`](DirectBid::proposer_value) than the
-    /// currently cached bid for its `(slot, parent_block_hash, parent_block_root)` tuple (or no bid
-    /// is cached yet), it replaces the cached bid and its provenance.
+    /// If the bid has a strictly higher [`boosted_value`](DirectBid::boosted_value) than the currently
+    /// cached bid for its `(slot, parent_block_hash, parent_block_root)` tuple (or no bid is cached
+    /// yet), it replaces the cached bid and its provenance. Ties retain the earlier bid.
     ///
     /// Returns `true` if the bid became the new highest bid for its tuple, or `false` if an
-    /// existing cached bid had an equal or greater `proposer_value` and was retained.
+    /// existing cached bid ranked equal or higher and was retained.
     pub fn observe_bid(&self, bid: DirectBid<E>) -> bool {
         let slot = bid.signed_bid.message.slot;
         let key = (
@@ -141,6 +145,7 @@ impl<E: EthSpec> DirectBidCache<E> {
                 entry.insert(bid);
                 true
             }
+            // Rank on boosted value; ties retain the earlier bid.
             hash_map::Entry::Occupied(mut entry) => {
                 if entry.get().boosted_value() >= bid.boosted_value() {
                     return false;
@@ -201,17 +206,15 @@ mod tests {
     }
 
     #[test]
-    fn proposer_value_caps_execution_payment() {
-        // execution_payment above the cap is limited to the cap: 100 + min(200, 500) = 300.
-        assert_eq!(
-            direct_bid(1, 100, 500, 200, "http://a.com", false).proposer_value(),
-            300
-        );
-        // execution_payment below the cap is fully counted: 100 + min(200, 50) = 150.
-        assert_eq!(
-            direct_bid(1, 100, 50, 200, "http://a.com", false).proposer_value(),
-            150
-        );
+    fn direct_bid_value_methods_apply_builder_policy() {
+        // value 100, execution_payment 500, cap 200, boost 100 (neutral).
+        let bid = direct_bid(1, 100, 500, 200, "http://a.com", false);
+        // Unclamped (reported): 100 + 500.
+        assert_eq!(bid.proposer_value(), 600);
+        // Clamped to the cap (min_bid floor / ranking basis): 100 + min(500, 200).
+        assert_eq!(bid.clamped_value(), 300);
+        // Neutral boost leaves the clamped value unchanged.
+        assert_eq!(bid.boosted_value(), BoostedValue::Boosted(300));
     }
 
     #[test]
@@ -220,11 +223,11 @@ mod tests {
         let hash = ExecutionBlockHash::zero();
         let root = Hash256::ZERO;
 
-        // proposer_value 100.
+        // Boosted value 100 (neutral boost, no payment).
         assert!(cache.observe_bid(direct_bid(1, 100, 0, 0, "http://a.com", false)));
-        // Lower proposer_value is rejected.
+        // Lower boosted value is rejected.
         assert!(!cache.observe_bid(direct_bid(1, 50, 0, 0, "http://b.com", false)));
-        // Equal proposer_value is rejected.
+        // Equal boosted value is rejected (ties retain the earlier bid).
         assert!(!cache.observe_bid(direct_bid(1, 100, 0, 0, "http://b.com", false)));
         // A bid that only wins via its (capped) execution_payment: 150 + min(100, 100) = 250.
         assert!(cache.observe_bid(direct_bid(1, 150, 100, 100, "http://c.com", true)));
@@ -246,11 +249,11 @@ mod tests {
         let hash = ExecutionBlockHash::zero();
         let root = Hash256::ZERO;
 
-        // Bid A: proposer_value 300, default boost 100 -> boosted 100 * (300 / 100) = 300.
+        // Bid A: clamped value 300, default boost 100 -> boosted (300 * 100) / 100 = 300.
         assert!(cache.observe_bid(direct_bid(1, 300, 0, 0, "http://a.com", false)));
 
-        // Bid B: lower proposer_value 200, but boost 200 -> boosted 200 * (200 / 100) = 400, so it
-        // wins despite the lower raw value.
+        // Bid B: lower value 200, but boost 200 -> boosted (200 * 200) / 100 = 400, so it wins
+        // despite the lower unboosted value.
         let mut bid_b = direct_bid(1, 200, 0, 0, "http://b.com", false);
         bid_b.builder_boost_factor = 200;
         assert!(cache.observe_bid(bid_b));

@@ -32,13 +32,20 @@ use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
     BeaconBlockBodyGloas, BeaconBlockGloas, BeaconState, BeaconStateError, BlobsList, BuilderIndex,
     ChainSpec, Deposit, Eth1Data, EthSpec, ExecutionBlockHash, ExecutionPayloadBid,
-    ExecutionPayloadEnvelope, ExecutionPayloadGloas, ExecutionRequestsGloas, FullPayload, Graffiti,
-    Hash256, IndexedAttestation, KzgProofs, PayloadAttestation, ProposerSlashing, RelativeEpoch,
+    ExecutionPayloadEnvelope, ExecutionRequestsGloas, FullPayload, Graffiti, Hash256,
+    IndexedAttestation, KzgProofs, PayloadAttestation, ProposerSlashing, RelativeEpoch,
     SignedBeaconBlock, SignedBlsToExecutionChange, SignedExecutionPayloadBid,
-    SignedExecutionPayloadEnvelope, SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal,
-    Withdrawals,
+    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedVoluntaryExit, Slot,
+    SyncAggregate, Uint256, Withdrawal, Withdrawals,
 };
 
+use builder_client::BidRequestContext;
+use eth2::types::BuilderConfigV1;
+
+use crate::block_production::bid_selection::{
+    self, ExecutionPayloadData, ExternalBidCandidate, LocalBidCandidate, WinningBid,
+};
+use crate::payload_bid_verification::direct_verified_bid::verify_direct_bid;
 use crate::pending_payload_envelopes::PendingEnvelopeData;
 use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, BlockProductionError,
@@ -89,34 +96,17 @@ pub struct PartialBeaconBlock<E: EthSpec> {
     bls_to_execution_changes: Vec<SignedBlsToExecutionChange>,
 }
 
-/// Data needed to construct an ExecutionPayloadEnvelope.
-/// The envelope requires the beacon_block_root which can only be computed after the block exists.
-pub struct ExecutionPayloadData<E: types::EthSpec> {
-    pub payload: ExecutionPayloadGloas<E>,
-    pub execution_requests: ExecutionRequestsGloas<E>,
-    pub builder_index: BuilderIndex,
-    pub slot: Slot,
-    pub blobs_and_proofs: (types::BlobsList<E>, types::KzgProofs<E>),
-}
-
 /// The result of a local payload build, used to decide whether to include a builder bid
 /// from the gossip cache or fall back to self-build.
+///
+/// [`ExecutionPayloadData`] and the selection types ([`WinningBid`], [`LocalBidCandidate`]) live in
+/// the fork-agnostic [`bid_selection`](super::bid_selection) module.
 pub struct LocalBuildResult<E: EthSpec> {
     pub payload_data: ExecutionPayloadData<E>,
     /// EL block value (in wei) of the locally-built payload.
     pub payload_value: types::Uint256,
     /// `true` if the EL signaled `engine_getPayload`'s `shouldOverrideBuilder` flag.
     pub should_override_builder: bool,
-}
-
-/// The outcome of local-vs-builder bid selection.
-pub(crate) struct WinningBid<E: EthSpec> {
-    pub bid: SignedExecutionPayloadBid<E>,
-    /// `Some` when self-building; `None` when committing to a builder bid (the builder
-    /// reveals the envelope).
-    pub payload_data: Option<ExecutionPayloadData<E>>,
-    /// Wei value of the winning bid.
-    pub payload_value: ExecutionPayloadValue,
 }
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
@@ -126,7 +116,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         slot: Slot,
         graffiti_settings: GraffitiSettings,
         verification: ProduceBlockVerification,
-        builder_boost_factor: Option<u64>,
+        builder_config: BuilderConfigV1,
     ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
         metrics::inc_counter(&metrics::BLOCK_PRODUCTION_REQUESTS);
         let _complete_timer = metrics::start_timer(&metrics::BLOCK_PRODUCTION_TIMES);
@@ -162,7 +152,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             randao_reveal,
             graffiti_settings,
             verification,
-            builder_boost_factor,
+            builder_config,
         )
         .await
     }
@@ -179,8 +169,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         randao_reveal: Signature,
         graffiti_settings: GraffitiSettings,
         verification: ProduceBlockVerification,
-        builder_boost_factor: Option<u64>,
+        builder_config: BuilderConfigV1,
     ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
+        debug!(
+            slot = %produce_at_slot,
+            direct_builders = builder_config.builders.len(),
+            "Producing Gloas block"
+        );
+
         let parent_root = if state.slot() > 0 {
             *state
                 .get_block_root(state.slot() - 1)
@@ -237,23 +233,91 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         // Part 2/3 (async)
         //
-        // Produce a local execution payload bid, then select between it and any cached
-        // gossip-verified builder bid using `builder_boost_factor`.
-        // TODO(gloas) build out trustless/trusted bid paths.
-        let (local_signed_bid, state, local_build) = self
-            .clone()
-            .produce_execution_payload_bid(
-                state,
-                should_build_on_full,
-                parent_envelope,
-                produce_at_slot,
-                BID_VALUE_SELF_BUILD,
-                BUILDER_INDEX_SELF_BUILD,
-            )
-            .await?;
+        // Resolve the FULL/EMPTY parent execution hash, acquire the external candidates (direct
+        // builder bids + the highest gossip bid), produce the local execution payload bid, and
+        // select the most profitable eligible payload bid.
 
-        let winning_bid =
-            self.select_payload_bid(local_signed_bid, local_build, builder_boost_factor);
+        // The FULL/EMPTY parent execution hash the payload builds on.
+        let parent_bid = state.latest_execution_payload_bid()?;
+        let parent_is_pre_gloas = !self
+            .spec
+            .fork_name_at_slot::<T::EthSpec>(state.latest_block_header().slot)
+            .gloas_enabled();
+        let parent_block_hash = if should_build_on_full || parent_is_pre_gloas {
+            parent_bid.block_hash
+        } else {
+            parent_bid.parent_block_hash
+        };
+
+        // The per-proposal context addressing each `getExecutionPayloadBid`.
+        let proposer_pubkey = state
+            .get_validator(partial_beacon_block.proposer_index as usize)?
+            .pubkey;
+        let ctx = BidRequestContext {
+            slot: produce_at_slot,
+            parent_hash: parent_block_hash,
+            parent_root,
+            proposer_pubkey,
+        };
+
+        // The proposer's gossip-verified preferences for this slot, needed to validate direct bids.
+        // Absent (the proposer never submitted any) => direct bids are skipped.
+        let proposal_epoch = produce_at_slot.epoch(T::EthSpec::slots_per_epoch());
+        let dependent_root = state.proposer_shuffling_decision_root_at_epoch(
+            proposal_epoch,
+            parent_root,
+            &self.spec,
+        )?;
+        let proposer_preferences = self
+            .gossip_verified_proposer_preferences_cache
+            .get_preferences(&produce_at_slot, dependent_root);
+
+        // Fire the direct builder fan-out concurrently with the local EL payload build: both only
+        // read `state`, so they race without contention. A local EL failure is not fatal — we fall
+        // back to an external bid when one is available; only a total absence of viable bids fails
+        // production.
+        let acquire_fut = self.acquire_external_bid_candidates(
+            ctx,
+            &builder_config,
+            proposer_preferences.as_deref(),
+            &state,
+        );
+        let local_fut = self.clone().produce_execution_payload_bid(
+            &state,
+            parent_envelope,
+            produce_at_slot,
+            BID_VALUE_SELF_BUILD,
+            BUILDER_INDEX_SELF_BUILD,
+            parent_block_hash,
+        );
+        let (externals, local_result) = tokio::join!(acquire_fut, local_fut);
+
+        let local = match local_result {
+            Ok((local_signed_bid, local_build)) => {
+                let LocalBuildResult {
+                    payload_data,
+                    payload_value,
+                    should_override_builder,
+                } = local_build;
+                Some(LocalBidCandidate {
+                    signed_bid: local_signed_bid,
+                    payload_data,
+                    block_value: payload_value,
+                    should_override_builder,
+                })
+            }
+            Err(e) => {
+                error!(
+                    error = ?e,
+                    slot = %produce_at_slot,
+                    "Local execution payload build failed; falling back to an external bid"
+                );
+                None
+            }
+        };
+
+        let winning_bid = bid_selection::select_payload_bid(local, externals)
+            .ok_or(BlockProductionError::NoViablePayloadBid)?;
 
         // Part 3/3 (blocking)
         //
@@ -773,27 +837,28 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         ))
     }
 
-    /// Produce a self-build `ExecutionPayloadBid` for some `slot` upon the given `state`.
-    /// This function assumes we've already advanced `state`.
+    /// Produce a self-build `ExecutionPayloadBid` for some `slot` upon the given `state`, building
+    /// on `parent_block_hash` (the FULL/EMPTY parent execution hash the caller selected). This
+    /// function assumes we've already advanced `state`.
     ///
-    /// Returns the signed bid, the state, and a `LocalBuildResult` carrying the payload
-    /// data needed to construct the `ExecutionPayloadEnvelope` after the beacon block is
-    /// created, plus the EL block value and `should_override_builder` flag used by the
-    /// caller to compare against any cached p2p builder bid.
+    /// Borrows `state` (rather than consuming it) so the caller retains it if the local build fails
+    /// and it needs to fall back to an external bid. Returns the signed bid and a `LocalBuildResult`
+    /// carrying the payload data needed to construct the `ExecutionPayloadEnvelope` after the beacon
+    /// block is created, plus the EL block value and `should_override_builder` flag used by the
+    /// caller to compare against external builder bids.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     #[instrument(level = "debug", skip_all)]
     pub async fn produce_execution_payload_bid(
         self: Arc<Self>,
-        state: BeaconState<T::EthSpec>,
-        should_build_on_full: bool,
+        state: &BeaconState<T::EthSpec>,
         parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
         produce_at_slot: Slot,
         bid_value: u64,
         builder_index: BuilderIndex,
+        parent_block_hash: ExecutionBlockHash,
     ) -> Result<
         (
             SignedExecutionPayloadBid<T::EthSpec>,
-            BeaconState<T::EthSpec>,
             LocalBuildResult<T::EthSpec>,
         ),
         BlockProductionError,
@@ -829,27 +894,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .map_err(|e| BlockProductionError::BeaconChain(Box::new(e)))?,
         };
 
-        let parent_bid = state.latest_execution_payload_bid()?;
-
-        let parent_block_slot = state.latest_block_header().slot;
-        let parent_is_pre_gloas = !self
-            .spec
-            .fork_name_at_slot::<T::EthSpec>(parent_block_slot)
-            .gloas_enabled();
-        let parent_block_hash = if should_build_on_full || parent_is_pre_gloas {
-            // Build on parent bid's payload.
-            parent_bid.block_hash
-        } else {
-            // Skip parent bid's payload. For genesis this is the EL genesis hash.
-            parent_bid.parent_block_hash
-        };
-
-        // TODO(gloas) this should be BlockProductionVersion::V4
-        // V3 is okay for now as long as we're not connected to a builder
-        // TODO(gloas) add builder boost factor
         let prepare_payload_handle = get_execution_payload_gloas(
             self.clone(),
-            &state,
+            state,
             parent_root,
             parent_block_hash,
             parent_envelope,
@@ -903,7 +950,6 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 message: bid,
                 signature: Signature::infinity().map_err(BlockProductionError::BlsError)?,
             },
-            state,
             LocalBuildResult {
                 payload_data,
                 payload_value,
@@ -912,110 +958,136 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         ))
     }
 
-    /// Look up the highest gossip-verified bid for the `(slot, parent_block_hash,
-    /// parent_block_root)` of the local bid, then choose the winner.
-    fn select_payload_bid(
-        &self,
-        local_signed_bid: SignedExecutionPayloadBid<T::EthSpec>,
-        local_build: LocalBuildResult<T::EthSpec>,
-        builder_boost_factor: Option<u64>,
-    ) -> WinningBid<T::EthSpec> {
-        let cached_bid = self.gossip_verified_payload_bid_cache.get_highest_bid(
-            local_signed_bid.message.slot,
-            local_signed_bid.message.parent_block_hash,
-            local_signed_bid.message.parent_block_root,
-        );
-        select_payload_bid_pure(
-            local_signed_bid,
-            local_build,
-            cached_bid,
-            builder_boost_factor,
-        )
+    /// Acquire the external payload-bid candidates for this proposal.
+    ///
+    /// Fans `getExecutionPayloadBid` out to every configured direct builder (validating each
+    /// returned bid against `state` via [`verify_direct_bid`]), then reads the highest direct bid
+    /// and the highest gossip-verified bid from their caches and returns them as
+    /// [`ExternalBidCandidate`]s for [`bid_selection::select_payload_bid`](super::bid_selection) to
+    /// rank against the local build.
+    ///
+    /// Direct bids are requested only when there are configured builders to contact and the proposer
+    /// submitted preferences to validate against (`proposer_preferences`, needed for a direct bid's
+    /// gas limit and fee recipient). Acquisition is best-effort: any direct failure — including a
+    /// missing builder service — is logged and skipped, never aborting block production, which can
+    /// still proceed on the local build and gossip bids.
+    async fn acquire_external_bid_candidates(
+        self: &Arc<Self>,
+        ctx: BidRequestContext,
+        builder_config: &BuilderConfigV1,
+        proposer_preferences: Option<&SignedProposerPreferences>,
+        state: &BeaconState<T::EthSpec>,
+    ) -> Vec<ExternalBidCandidate<T::EthSpec>> {
+        let mut externals = Vec::new();
+
+        // Direct bids: only when there are builders to contact and the proposer submitted preferences
+        // to validate against.
+        if !builder_config.builders.is_empty() {
+            if let Some(proposer_preferences) = proposer_preferences {
+                if let Some(direct) = self
+                    .acquire_direct_bid_candidate(&ctx, builder_config, proposer_preferences, state)
+                    .await
+                {
+                    externals.push(direct);
+                }
+            } else {
+                // Direct bids can't be validated without the proposer's fee recipient / gas-limit
+                // target, so builders configured with no available preferences are skipped.
+                warn!(
+                    "Builders are configured but no proposer preferences are available; skipping \
+                     direct builder bids for this proposal"
+                );
+            }
+        }
+
+        // Gossip bid: governed by the global p2p policy. Gossip bids are required to carry
+        // `execution_payment == 0`, so the proposer value is just `value` — no `max_execution_payment`
+        // clamp applies, but the global `min_bid` still gates them (mirroring the per-entry `min_bid`
+        // `request_and_cache_bids` applies to direct bids).
+        if let Some(gossip_bid) = self.gossip_verified_payload_bid_cache.get_highest_bid(
+            ctx.slot,
+            ctx.parent_hash,
+            ctx.parent_root,
+        ) {
+            let bid_value = gossip_bid.message.value;
+            if bid_value < builder_config.min_bid {
+                debug!(
+                    bid_value,
+                    min_bid = builder_config.min_bid,
+                    "Skipping gossip bid below the global min_bid"
+                );
+            } else {
+                // Gossip bids carry no `execution_payment`, so there's no per-builder clamp to apply
+                // (`u64::MAX` = no clamp); only the global `builder_boost_factor` matters.
+                externals.push(ExternalBidCandidate::new(
+                    gossip_bid,
+                    u64::MAX,
+                    builder_config.builder_boost_factor,
+                ));
+            }
+        }
+
+        externals
     }
-}
 
-/// Local-vs-cached selection logic, factored out for unit testing.
-///
-/// Selection rule (mirrors the pre-Gloas builder/local race in `execution_layer`):
-///   - `boosted_bid = (cached_bid.value / 100) * builder_boost_factor`  (raw value when `None`)
-///   - if `local_value_wei >= boosted_bid_wei` → keep local
-///   - if the EL signaled `should_override_builder` → keep local
-///   - otherwise → use the cached builder bid and drop local payload data
-///     (the builder is responsible for revealing the envelope).
-///
-/// `cached_bid.value` is in gwei (`u64`); `payload_value` is in wei (`Uint256`); compared in wei.
-pub(crate) fn select_payload_bid_pure<E: EthSpec>(
-    local_signed_bid: SignedExecutionPayloadBid<E>,
-    local_build: LocalBuildResult<E>,
-    cached_bid: Option<Arc<SignedExecutionPayloadBid<E>>>,
-    builder_boost_factor: Option<u64>,
-) -> WinningBid<E> {
-    let LocalBuildResult {
-        payload_data,
-        payload_value,
-        should_override_builder,
-    } = local_build;
-
-    let Some(cached_bid) = cached_bid else {
-        return WinningBid {
-            bid: local_signed_bid,
-            payload_data: Some(payload_data),
-            payload_value,
+    /// Request direct bids from the configured builders and return the highest valid one, or `None`.
+    ///
+    /// Best-effort and never fatal: the builder service is constructed whenever the Gloas fork is
+    /// scheduled, so in a correctly-built node it is always present on this (Gloas) path — a missing
+    /// service is an unexpected construction bug. Either way it is logged and skipped rather than
+    /// aborting block production. Per-builder request/validation failures are handled inside
+    /// [`request_and_cache_bids`](builder_client::BuilderService::request_and_cache_bids).
+    async fn acquire_direct_bid_candidate(
+        self: &Arc<Self>,
+        ctx: &BidRequestContext,
+        builder_config: &BuilderConfigV1,
+        proposer_preferences: &SignedProposerPreferences,
+        state: &BeaconState<T::EthSpec>,
+    ) -> Option<ExternalBidCandidate<T::EthSpec>> {
+        let Some(builder_service) = self.builder_service.as_ref() else {
+            error!(
+                "Builder service unexpectedly absent during Gloas block production (it is built \
+                 whenever the Gloas fork is scheduled); skipping direct bids for this proposal"
+            );
+            return None;
         };
-    };
 
-    let slot = local_signed_bid.message.slot;
+        let slot = ctx.slot;
+        let parent_hash = ctx.parent_hash;
+        let parent_root = ctx.parent_root;
+        let spec = &self.spec;
 
-    if should_override_builder {
-        debug!(
-            %slot,
-            cached_bid_value = cached_bid.message.value,
-            "Using local payload because EL signaled shouldOverrideBuilder"
-        );
-        return WinningBid {
-            bid: local_signed_bid,
-            payload_data: Some(payload_data),
-            payload_value,
-        };
-    }
+        // Fan `getExecutionPayloadBid` out to the configured builders, validating each returned bid
+        // against the production state; valid bids land in the direct-bid cache.
+        builder_service
+            .request_and_cache_bids(
+                ctx,
+                &builder_config.builders,
+                move |signed_bid, expected_builder_pubkey| async move {
+                    verify_direct_bid(
+                        &signed_bid,
+                        slot,
+                        parent_hash,
+                        parent_root,
+                        expected_builder_pubkey,
+                        proposer_preferences,
+                        state,
+                        spec,
+                    )
+                },
+            )
+            .await;
 
-    // Convert bid value (gwei) to wei for comparison with `payload_value` (wei).
-    let bid_value_wei = types::Uint256::from(cached_bid.message.value)
-        .saturating_mul(types::Uint256::from(1_000_000_000u64));
-    let boosted_bid_wei = match builder_boost_factor {
-        Some(factor) => {
-            (bid_value_wei / types::Uint256::from(100)).saturating_mul(types::Uint256::from(factor))
-        }
-        None => bid_value_wei,
-    };
-
-    if payload_value >= boosted_bid_wei {
-        debug!(
-            %slot,
-            %payload_value,
-            cached_bid_value_gwei = cached_bid.message.value,
-            ?builder_boost_factor,
-            "Local payload is more profitable than cached builder bid"
-        );
-        WinningBid {
-            bid: local_signed_bid,
-            payload_data: Some(payload_data),
-            payload_value,
-        }
-    } else {
-        debug!(
-            %slot,
-            %payload_value,
-            cached_bid_value_gwei = cached_bid.message.value,
-            cached_bid_builder_index = cached_bid.message.builder_index,
-            ?builder_boost_factor,
-            "Including cached builder bid"
-        );
-        WinningBid {
-            bid: (*cached_bid).clone(),
-            payload_data: None,
-            payload_value: bid_value_wei,
-        }
+        builder_service
+            .cache()
+            .get_highest_bid(slot, parent_hash, parent_root)
+            .map(|direct| {
+                ExternalBidCandidate::new(
+                    direct.signed_bid,
+                    direct.max_execution_payment,
+                    direct.builder_boost_factor,
+                )
+            })
     }
 }
 
@@ -1212,7 +1284,7 @@ fn filter_voluntary_exits_for_parent_execution_requests<E: EthSpec>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ssz_types::{ProgressiveVariableList, VariableList};
+    use ssz_types::ProgressiveVariableList;
     use types::{ConsolidationRequest, Epoch, MainnetEthSpec, VoluntaryExit, WithdrawalRequest};
 
     type TestSpec = MainnetEthSpec;
@@ -1348,124 +1420,5 @@ mod tests {
         run_filter(&mut exits, &reqs, &validators, &spec);
 
         assert_eq!(exits.len(), 2);
-    }
-
-    // ---- select_payload_bid_pure ----
-
-    const REMOTE_BUILDER: BuilderIndex = 999;
-
-    fn gwei(n: u64) -> types::Uint256 {
-        types::Uint256::from(n).saturating_mul(types::Uint256::from(1_000_000_000u64))
-    }
-
-    fn local_bid() -> SignedExecutionPayloadBid<TestSpec> {
-        SignedExecutionPayloadBid {
-            message: ExecutionPayloadBid {
-                builder_index: BUILDER_INDEX_SELF_BUILD,
-                ..Default::default()
-            },
-            signature: Signature::empty(),
-        }
-    }
-
-    fn cached_bid(value_gwei: u64) -> Arc<SignedExecutionPayloadBid<TestSpec>> {
-        Arc::new(SignedExecutionPayloadBid {
-            message: ExecutionPayloadBid {
-                builder_index: REMOTE_BUILDER,
-                value: value_gwei,
-                ..Default::default()
-            },
-            signature: Signature::empty(),
-        })
-    }
-
-    fn local_build(payload_gwei: u64, should_override_builder: bool) -> LocalBuildResult<TestSpec> {
-        LocalBuildResult {
-            payload_data: ExecutionPayloadData {
-                payload: types::ExecutionPayloadGloas::default(),
-                execution_requests: ExecutionRequestsGloas::default(),
-                builder_index: BUILDER_INDEX_SELF_BUILD,
-                slot: Slot::new(0),
-                blobs_and_proofs: (VariableList::empty(), VariableList::empty()),
-            },
-            payload_value: gwei(payload_gwei),
-            should_override_builder,
-        }
-    }
-
-    const LOCAL: BuilderIndex = BUILDER_INDEX_SELF_BUILD;
-    const REMOTE: BuilderIndex = REMOTE_BUILDER;
-
-    /// Run `select_payload_bid_pure` and return
-    /// `(winning_builder_index, has_payload_data, execution_payload_value_wei)`.
-    ///
-    /// Args (positional, mirror `select_payload_bid_pure`):
-    ///   - `local_payload_gwei`: local payload value, in gwei.
-    ///   - `should_override`:    EL's `shouldOverrideBuilder` flag.
-    ///   - `cached_gwei`:        `Some(g)` ⇒ seed the cache with a bid of `g` gwei.
-    ///   - `boost`:              `None` = neutral, `Some(0)` = always local, `Some(>100)` = boost bid.
-    fn pick(
-        local_payload_gwei: u64,
-        should_override: bool,
-        cached_gwei: Option<u64>,
-        boost: Option<u64>,
-    ) -> (BuilderIndex, bool, ExecutionPayloadValue) {
-        let build = local_build(local_payload_gwei, should_override);
-        let cache = cached_gwei.map(cached_bid);
-        let winning_bid = select_payload_bid_pure::<TestSpec>(local_bid(), build, cache, boost);
-        (
-            winning_bid.bid.message.builder_index,
-            winning_bid.payload_data.is_some(),
-            winning_bid.payload_value,
-        )
-    }
-
-    #[test]
-    fn select_empty_cache_keeps_local() {
-        assert_eq!(pick(7, false, None, Some(u64::MAX)), (LOCAL, true, gwei(7)));
-    }
-
-    #[test]
-    fn select_el_override_beats_any_cached_bid() {
-        // `shouldOverrideBuilder` short-circuits regardless of cache or boost.
-        assert_eq!(
-            pick(7, true, Some(u64::MAX), Some(u64::MAX)),
-            (LOCAL, true, gwei(7))
-        );
-    }
-
-    #[test]
-    fn select_boost_zero_always_keeps_local() {
-        // boost=0 deflates the bid to 0 ⇒ local always wins.
-        assert_eq!(
-            pick(0, false, Some(u64::MAX), Some(0)),
-            (LOCAL, true, gwei(0))
-        );
-    }
-
-    #[test]
-    fn select_neutral_boost_picks_higher_bid() {
-        // 5 gwei bid > 1 gwei local, neutral compare ⇒ bid, valued at the bid's worth.
-        assert_eq!(pick(1, false, Some(5), None), (REMOTE, false, gwei(5)));
-    }
-
-    #[test]
-    fn select_local_strictly_higher_keeps_local() {
-        assert_eq!(pick(10, false, Some(5), None), (LOCAL, true, gwei(10)));
-    }
-
-    #[test]
-    fn select_tie_goes_to_local() {
-        // `>=` ⇒ local wins ties.
-        assert_eq!(pick(5, false, Some(5), None), (LOCAL, true, gwei(5)));
-    }
-
-    #[test]
-    fn select_boost_factor_amplifies_bid() {
-        // 5 gwei local vs 3 gwei bid: raw ⇒ local.
-        assert_eq!(pick(5, false, Some(3), None), (LOCAL, true, gwei(5)));
-        // boost=200 ⇒ bid scaled to 6 gwei ⇒ bid wins, but the reported value
-        // is the raw bid value, not the boosted one.
-        assert_eq!(pick(5, false, Some(3), Some(200)), (REMOTE, false, gwei(3)));
     }
 }

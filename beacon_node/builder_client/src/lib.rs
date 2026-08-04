@@ -10,7 +10,7 @@ pub mod error;
 pub mod pre_gloas_builder_http_client;
 
 pub use builder_http_client::{BuilderHttpClient, GloasBidResponse};
-pub use builder_service::{BuilderService, DirectBidRequest, SubmissionFailure};
+pub use builder_service::{BidRequestContext, BuilderService, SubmissionFailure};
 pub use direct_bid_cache::{DirectBid, DirectBidCache};
 pub use error::{Error, ok_or_error, success_or_error};
 pub use pre_gloas_builder_http_client::PreGloasBuilderHttpClient;

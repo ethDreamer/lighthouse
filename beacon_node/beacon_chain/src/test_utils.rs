@@ -1310,7 +1310,7 @@ where
                     randao_reveal,
                     graffiti_settings,
                     ProduceBlockVerification::VerifyRandao,
-                    None,
+                    eth2::types::BuilderConfigV1::empty(),
                 )
                 .await
                 .unwrap();

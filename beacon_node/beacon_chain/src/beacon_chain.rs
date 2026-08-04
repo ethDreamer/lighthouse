@@ -7040,6 +7040,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             self.gossip_verified_payload_bid_cache.prune(slot);
             self.gossip_verified_proposer_preferences_cache.prune(slot);
             self.pending_payload_envelopes.write().prune(slot);
+            if let Some(builder_service) = self.builder_service.as_ref() {
+                builder_service.cache().prune(slot);
+            }
 
             // Don't run heavy-weight tasks during sync.
             if self.best_slot() + MAX_PER_SLOT_FORK_CHOICE_DISTANCE < slot {

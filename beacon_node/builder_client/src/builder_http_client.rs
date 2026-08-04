@@ -197,9 +197,9 @@ impl BuilderHttpClient {
         }
     }
 
-    /// `POST /eth/v1/builder/builder_preferences/{proposer_pubkey}`
+    /// `POST /eth/v1/builder/builder_preferences/{validator_pubkey}`
     ///
-    /// Submit a proposer's builder preferences to a builder ahead of the bid request (typically in
+    /// Submit a validator's builder preferences to a builder ahead of the bid request (typically in
     /// the epoch before the proposal, so the builder has them before `getExecutionPayloadBid`
     /// arrives). Success is HTTP 202.
     ///

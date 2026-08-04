@@ -74,8 +74,8 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
         )
     })?;
 
-    // The resolved builder config is accepted and validated here. Using it to request direct-builder
-    // bids is a follow-up slice (see `gloas-builder-api-block-proposal.md`).
+    // The resolved builder config is threaded into block production, where it drives direct-builder
+    // bid requests and the gossip/direct bid policy (see `produce_block_on_state_gloas`).
     debug!(
         %slot,
         builders = builder_config.builders.len(),
@@ -90,12 +90,9 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
     })?;
 
     let randao_verification = get_randao_verification(&query, randao_reveal.is_infinity())?;
-    let builder_boost_factor = if query.builder_boost_factor == Some(DEFAULT_BOOST_FACTOR) {
-        None
-    } else {
-        query.builder_boost_factor
-    };
 
+    // Gloas takes its bid boost policy from `builder_config` (global for gossip, per-builder for
+    // direct), so the V3-style `builder_boost_factor` query param is not used on this path.
     let graffiti_settings = GraffitiSettings::new(query.graffiti, query.graffiti_policy);
 
     let (block, _block_state, consensus_block_value, execution_payload_value, payload_contents) =
@@ -105,7 +102,7 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
                 slot,
                 graffiti_settings,
                 randao_verification,
-                builder_boost_factor,
+                builder_config,
             )
             .await
             .map_err(|e| {

@@ -72,13 +72,15 @@ impl BuilderUrl {
     }
 }
 
-impl From<&SensitiveUrl> for BuilderUrl {
-    fn from(url: &SensitiveUrl) -> Self {
-        // The full URL string is always within `MaxBuilderUrlSize`; fall back to an empty list
-        // only in the impossible case that it isn't.
-        let bytes =
-            VariableList::new(url.expose_full().as_str().as_bytes().to_vec()).unwrap_or_default();
-        Self { bytes }
+impl TryFrom<&SensitiveUrl> for BuilderUrl {
+    type Error = BuilderUrlError;
+
+    fn try_from(url: &SensitiveUrl) -> Result<Self, Self::Error> {
+        // Error rather than silently truncating to an (invalid) empty url if the URL string somehow
+        // exceeds `MaxBuilderUrlSize`.
+        let bytes = VariableList::new(url.expose_full().as_str().as_bytes().to_vec())
+            .map_err(|_| BuilderUrlError::TooLong)?;
+        Ok(Self { bytes })
     }
 }
 
