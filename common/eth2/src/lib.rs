@@ -26,7 +26,6 @@ pub use sensitive_url::SensitiveUrl;
 
 use self::mixin::{RequestAccept, ResponseOptional};
 use self::types::*;
-use bls::PublicKeyBytes;
 use bls::SignatureBytes;
 use context_deserialize::ContextDeserialize;
 use educe::Educe;
@@ -567,27 +566,6 @@ impl BeaconNodeHttpClient {
     ) -> Result<Response, Error> {
         self.post_generic_with_envelope_headers_and_ssz_body(url, body, timeout, fork, None)
             .await
-    }
-
-    /// Generic POST function that sends a raw SSZ body with an octet-stream content type and no
-    /// consensus-version header (for bodies that are not fork-versioned).
-    async fn post_generic_with_ssz_body<T: Into<Body>, U: IntoUrl>(
-        &self,
-        url: U,
-        body: T,
-        timeout: Option<Duration>,
-    ) -> Result<Response, Error> {
-        let builder = self
-            .client
-            .post(url)
-            .timeout(timeout.unwrap_or(self.timeouts.default));
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "Content-Type",
-            HeaderValue::from_static("application/octet-stream"),
-        );
-        let response = builder.headers(headers).body(body).send().await?;
-        success_or_error(response).await
     }
 
     /// `GET beacon/genesis`
@@ -2123,46 +2101,49 @@ impl BeaconNodeHttpClient {
         Ok(())
     }
 
-    /// `POST validator/builder_preferences/{pubkey}`
+    /// `POST validator/builder_preferences`
     ///
-    /// Ask the beacon node to submit this proposer's per-builder preferences ahead of the bid
-    /// request (beacon-APIs #630). The proposer is identified by the `pubkey` path parameter; the
-    /// body is the list of that proposer's builder entries.
+    /// Ask the beacon node to submit builder preferences ahead of the bid request (beacon-APIs #630).
+    /// The body is a flat list of entries, each naming its own `proposer_pubkey`, so one request may
+    /// cover several proposers. `fork_name` is sent as the required `Eth-Consensus-Version` header.
     pub async fn post_validator_builder_preferences(
         &self,
-        pubkey: &PublicKeyBytes,
         entries: &[BuilderPreferenceEntryV1],
+        fork_name: ForkName,
     ) -> Result<(), Error> {
         let mut path = self.eth_path(V1)?;
 
         path.path_segments_mut()
             .map_err(|()| Error::InvalidUrl(self.server.clone()))?
             .push("validator")
-            .push("builder_preferences")
-            .push(&pubkey.to_string());
+            .push("builder_preferences");
 
-        self.post(path, &entries).await?;
+        self.post_with_timeout_and_consensus_header(
+            path,
+            &entries,
+            self.timeouts.default,
+            fork_name,
+        )
+        .await?;
 
         Ok(())
     }
 
-    /// `POST validator/builder_preferences/{pubkey}` (SSZ)
+    /// `POST validator/builder_preferences` (SSZ)
     pub async fn post_validator_builder_preferences_ssz(
         &self,
-        pubkey: &PublicKeyBytes,
         entries: &[BuilderPreferenceEntryV1],
+        fork_name: ForkName,
     ) -> Result<(), Error> {
         let mut path = self.eth_path(V1)?;
 
         path.path_segments_mut()
             .map_err(|()| Error::InvalidUrl(self.server.clone()))?
             .push("validator")
-            .push("builder_preferences")
-            .push(&pubkey.to_string());
+            .push("builder_preferences");
 
-        // `BuilderPreferenceEntryV1` is not fork-versioned, so no consensus-version header is sent.
         let ssz_body = entries.to_vec().as_ssz_bytes();
-        self.post_generic_with_ssz_body(path, ssz_body, None)
+        self.post_generic_with_consensus_version_and_ssz_body(path, ssz_body, None, fork_name)
             .await?;
 
         Ok(())
@@ -2715,7 +2696,6 @@ impl BeaconNodeHttpClient {
         graffiti: Option<&Graffiti>,
         skip_randao_verification: SkipRandaoVerification,
         include_payload: bool,
-        builder_booster_factor: Option<u64>,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<Url, Error> {
         let mut path = self.eth_path(V4)?;
@@ -2742,11 +2722,6 @@ impl BeaconNodeHttpClient {
         path.query_pairs_mut()
             .append_pair("include_payload", &include_payload.to_string());
 
-        if let Some(builder_booster_factor) = builder_booster_factor {
-            path.query_pairs_mut()
-                .append_pair("builder_boost_factor", &builder_booster_factor.to_string());
-        }
-
         // Only append the HTTP URL request if the graffiti_policy is PreserveUserGraffiti
         // If AppendClientVersions (default), then we do not modify the HTTP URL request
         // so that the default case is compliant to the spec
@@ -2766,7 +2741,6 @@ impl BeaconNodeHttpClient {
         randao_reveal: &SignatureBytes,
         graffiti: Option<&Graffiti>,
         include_payload: bool,
-        builder_booster_factor: Option<u64>,
         builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
@@ -2776,7 +2750,6 @@ impl BeaconNodeHttpClient {
             graffiti,
             SkipRandaoVerification::No,
             include_payload,
-            builder_booster_factor,
             builder_config,
             graffiti_policy,
         )
@@ -2796,7 +2769,6 @@ impl BeaconNodeHttpClient {
         graffiti: Option<&Graffiti>,
         skip_randao_verification: SkipRandaoVerification,
         include_payload: bool,
-        builder_booster_factor: Option<u64>,
         builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
@@ -2807,7 +2779,6 @@ impl BeaconNodeHttpClient {
                 graffiti,
                 skip_randao_verification,
                 include_payload,
-                builder_booster_factor,
                 graffiti_policy,
             )
             .await?;
@@ -2858,7 +2829,6 @@ impl BeaconNodeHttpClient {
         randao_reveal: &SignatureBytes,
         graffiti: Option<&Graffiti>,
         include_payload: bool,
-        builder_booster_factor: Option<u64>,
         builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
@@ -2868,7 +2838,6 @@ impl BeaconNodeHttpClient {
             graffiti,
             SkipRandaoVerification::No,
             include_payload,
-            builder_booster_factor,
             builder_config,
             graffiti_policy,
         )
@@ -2886,7 +2855,6 @@ impl BeaconNodeHttpClient {
         graffiti: Option<&Graffiti>,
         skip_randao_verification: SkipRandaoVerification,
         include_payload: bool,
-        builder_booster_factor: Option<u64>,
         builder_config: &BuilderConfigV1,
         graffiti_policy: Option<GraffitiPolicy>,
     ) -> Result<(ProduceBlockV4Response<E>, ProduceBlockV4Metadata), Error> {
@@ -2897,7 +2865,6 @@ impl BeaconNodeHttpClient {
                 graffiti,
                 skip_randao_verification,
                 include_payload,
-                builder_booster_factor,
                 graffiti_policy,
             )
             .await?;

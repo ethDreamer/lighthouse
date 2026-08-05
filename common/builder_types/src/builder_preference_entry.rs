@@ -1,4 +1,5 @@
 use crate::{BuilderEntryV1, BuilderUrl, SignedRequestAuthV1};
+use bls::PublicKeyBytes;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
@@ -6,16 +7,25 @@ use tree_hash_derive::TreeHash;
 /// A per-builder preference a validator asks the beacon node to submit ahead of the bid request,
 /// one entry per `submitBuilderPreferences` builder-API call the beacon node will make.
 ///
-/// This is the beacon-API (validator -> beacon node) type from beacon-APIs #630. Unlike the
-/// block-production `BuilderEntry`, it carries only what a builder is allowed to see: the routing
+/// This is the beacon-API (validator -> beacon node) type from beacon-APIs #630. Each entry names
+/// its `proposer_pubkey`, so one flat request can carry preferences for several proposers. Unlike
+/// the block-production `BuilderEntry`, it carries only what a builder is allowed to see: the routing
 /// `url`, the forwarded `auth`, and the `max_execution_payment` cap. The proposer's private
 /// bid-filtering knobs (`min_bid`, `builder_boost_factor`) are never sent to a builder.
 ///
-/// The beacon node contacts the builder at `url`, forwards `auth` byte-for-byte unchanged, and
-/// submits `max_execution_payment`.
+/// SSZ container (field order per the spec — SSZ and tree-hash depend on it):
+/// ```text
+/// class BuilderPreferenceEntryV1(Container):
+///     proposer_pubkey: BLSPubkey
+///     url: ByteList[MAX_BUILDER_URL_SIZE]
+///     auth: SignedRequestAuthV1
+///     max_execution_payment: Gwei
+/// ```
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 pub struct BuilderPreferenceEntryV1 {
+    /// The proposer these preferences belong to.
+    pub proposer_pubkey: PublicKeyBytes,
     /// The URL the beacon node submits these preferences to. Unsigned routing metadata.
     pub url: BuilderUrl,
     /// Authenticates the submission to the builder; forwarded byte-for-byte unchanged.
@@ -26,18 +36,25 @@ pub struct BuilderPreferenceEntryV1 {
 }
 
 impl BuilderPreferenceEntryV1 {
-    pub fn new(url: BuilderUrl, auth: SignedRequestAuthV1, max_execution_payment: u64) -> Self {
+    pub fn new(
+        proposer_pubkey: PublicKeyBytes,
+        url: BuilderUrl,
+        auth: SignedRequestAuthV1,
+        max_execution_payment: u64,
+    ) -> Self {
         Self {
+            proposer_pubkey,
             url,
             auth,
             max_execution_payment,
         }
     }
-}
 
-impl From<BuilderEntryV1> for BuilderPreferenceEntryV1 {
-    fn from(entry: BuilderEntryV1) -> Self {
+    /// Narrow a proposer's block-production [`BuilderEntryV1`] to the beacon-API preference entry,
+    /// dropping the builder-only fields (`min_bid`, `builder_boost_factor`, `builder_pubkey`).
+    pub fn from_builder_entry(proposer_pubkey: PublicKeyBytes, entry: BuilderEntryV1) -> Self {
         Self {
+            proposer_pubkey,
             url: entry.url,
             auth: entry.auth,
             max_execution_payment: entry.max_execution_payment,

@@ -534,7 +534,6 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                             randao_reveal_ref,
                             graffiti.as_ref(),
                             false,
-                            builder_boost_factor,
                             builder_config_ref,
                             self_ref.graffiti_policy,
                         )
@@ -563,7 +562,6 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                     randao_reveal_ref,
                                     graffiti.as_ref(),
                                     false,
-                                    builder_boost_factor,
                                     builder_config_ref,
                                     self_ref.graffiti_policy,
                                 )

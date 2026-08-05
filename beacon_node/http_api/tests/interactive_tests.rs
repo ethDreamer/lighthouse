@@ -815,7 +815,6 @@ pub async fn fork_choice_before_proposal() {
                 &randao_reveal,
                 None,
                 false,
-                None,
                 &eth2::types::BuilderConfigV1::empty(),
                 None,
             )

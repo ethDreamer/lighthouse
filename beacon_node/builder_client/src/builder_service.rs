@@ -189,9 +189,8 @@ impl<E: EthSpec> BuilderService<E> {
     ///
     /// Returns `Ok(())` when every entry was submitted, or the per-entry [`SubmissionFailure`]s by
     /// index.
-    pub async fn submit_preferences(
+    pub async fn submit_builder_preferences(
         &self,
-        proposer_pubkey: &PublicKeyBytes,
         entries: Vec<BuilderPreferenceEntryV1>,
     ) -> Result<(), Vec<SubmissionFailure>> {
         let client = &self.client;
@@ -213,7 +212,7 @@ impl<E: EthSpec> BuilderService<E> {
                     entry.auth,
                 );
                 client
-                    .submit_builder_preferences(&url, proposer_pubkey, &request)
+                    .submit_builder_preferences(&url, &entry.proposer_pubkey, &request)
                     .await
                     .map_err(|error| SubmissionFailure { index, error })
             });

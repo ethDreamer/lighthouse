@@ -4602,7 +4602,6 @@ impl ApiTester {
                 &randao_reveal,
                 None,
                 false,
-                None,
                 &eth2::types::BuilderConfigV1::empty(),
                 None,
             )
@@ -4775,7 +4774,6 @@ impl ApiTester {
                 None,
                 SkipRandaoVerification::No,
                 false,
-                None,
                 None,
             )
             .await
@@ -4976,7 +4974,6 @@ impl ApiTester {
                     &randao_reveal,
                     None,
                     false,
-                    None,
                     &eth2::types::BuilderConfigV1::empty(),
                     None,
                 )
@@ -5059,7 +5056,6 @@ impl ApiTester {
                     &randao_reveal,
                     None,
                     false,
-                    None,
                     &eth2::types::BuilderConfigV1::empty(),
                     None,
                 )
@@ -5139,7 +5135,6 @@ impl ApiTester {
                         &randao_reveal,
                         None,
                         true,
-                        None,
                         &eth2::types::BuilderConfigV1::empty(),
                         None,
                     )
@@ -5152,7 +5147,6 @@ impl ApiTester {
                         &randao_reveal,
                         None,
                         true,
-                        None,
                         &eth2::types::BuilderConfigV1::empty(),
                         None,
                     )
@@ -5675,7 +5669,6 @@ impl ApiTester {
                     &randao_reveal,
                     None,
                     false,
-                    None,
                     &eth2::types::BuilderConfigV1::empty(),
                     None,
                 )
@@ -5766,7 +5759,6 @@ impl ApiTester {
                     &randao_reveal,
                     None,
                     false,
-                    None,
                     &eth2::types::BuilderConfigV1::empty(),
                     None,
                 )
@@ -8706,7 +8698,6 @@ impl ApiTester {
                 &randao_reveal,
                 None,
                 false,
-                None,
                 &eth2::types::BuilderConfigV1::empty(),
                 None,
             )
@@ -9015,8 +9006,6 @@ impl ApiTester {
         let epoch = self.chain.epoch().unwrap();
         let (_, randao_reveal) = self.get_test_randao(slot, epoch).await;
         let graffiti = Some(Graffiti::from([0; GRAFFITI_BYTES_LEN]));
-        let builder_boost_factor = None;
-
         // When GraffitiPolicy is None
         let no_graffiti_policy_path = self
             .client
@@ -9026,7 +9015,6 @@ impl ApiTester {
                 graffiti.as_ref(),
                 SkipRandaoVerification::Yes,
                 false,
-                builder_boost_factor,
                 None,
             )
             .await
@@ -9041,7 +9029,6 @@ impl ApiTester {
                 graffiti.as_ref(),
                 SkipRandaoVerification::Yes,
                 false,
-                builder_boost_factor,
                 Some(GraffitiPolicy::AppendClientVersions),
             )
             .await
@@ -9066,7 +9053,6 @@ impl ApiTester {
                 graffiti.as_ref(),
                 SkipRandaoVerification::Yes,
                 false,
-                builder_boost_factor,
                 Some(GraffitiPolicy::PreserveUserGraffiti),
             )
             .await

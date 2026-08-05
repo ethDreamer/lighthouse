@@ -732,7 +732,6 @@ pub async fn proposer_boost_re_org_test(
                 &randao_reveal,
                 None,
                 false,
-                None,
                 &eth2::types::BuilderConfigV1::empty(),
                 None,
             )

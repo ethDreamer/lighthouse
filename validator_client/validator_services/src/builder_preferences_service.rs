@@ -6,7 +6,7 @@ use builder_store::BuilderStore;
 use builder_types::{BuilderEntryV1, BuilderUrl, RequestAuthData};
 use eth2::types::BuilderPreferenceEntryV1;
 use slot_clock::SlotClock;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
@@ -186,8 +186,11 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
         published_preferences: &mut PublishedBuilderPreferencesCache,
     ) {
         let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
-        let mut pending_requests: HashMap<PublicKeyBytes, Vec<BuilderPreferenceEntryV1>> =
-            HashMap::new();
+        // One flat request whose body spans both epochs, each entry naming its own proposer
+        // (beacon-APIs #630, whose body is sized for several epochs of entries). The single
+        // `Eth-Consensus-Version` is the version active now, at submission time.
+        let current_fork = self.inner.chain_spec.fork_name_at_epoch(current_epoch);
+        let mut pending_entries: Vec<BuilderPreferenceEntryV1> = Vec::new();
 
         for (epoch, fork_name) in [
             (
@@ -240,53 +243,54 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
                         // already published, skip
                         continue;
                     }
-                    pending_requests
-                        .entry(pubkey)
-                        .or_default()
-                        .push(BuilderPreferenceEntryV1::from(entry.clone()));
+                    pending_entries.push(BuilderPreferenceEntryV1::from_builder_entry(
+                        pubkey,
+                        entry.clone(),
+                    ));
                 }
             }
         }
 
-        for (pubkey, entries) in pending_requests {
-            let pubkey_ref = &pubkey;
-            let entries_ref = entries.as_slice();
+        if pending_entries.is_empty() {
+            return;
+        }
+        let entries_ref = pending_entries.as_slice();
 
-            // Try SSZ first, falling back to JSON. `first_success` is okay here because later we'll
-            // be resending the auths when we publish the beacon block.
-            let ssz_result = self
-                .inner
-                .beacon_nodes
-                .first_success(|beacon_node| async move {
-                    beacon_node
-                        .post_validator_builder_preferences_ssz(pubkey_ref, entries_ref)
-                        .await
-                })
-                .await;
+        // Try SSZ first, falling back to JSON. `first_success` is okay here because later we'll be
+        // resending the auths when we publish the beacon block.
+        let ssz_result = self
+            .inner
+            .beacon_nodes
+            .first_success(|beacon_node| async move {
+                beacon_node
+                    .post_validator_builder_preferences_ssz(entries_ref, current_fork)
+                    .await
+            })
+            .await;
 
-            let result = match ssz_result {
-                Ok(()) => Ok(()),
-                Err(ssz_err) => {
-                    debug!(error = %ssz_err, "SSZ builder preferences publish failed, falling back to JSON");
-                    self.inner
-                        .beacon_nodes
-                        .first_success(|beacon_node| async move {
-                            beacon_node
-                                .post_validator_builder_preferences(pubkey_ref, entries_ref)
-                                .await
-                        })
-                        .await
-                }
-            };
-
-            match result {
-                Ok(()) => {
-                    for entry in entries {
-                        published_preferences.mark_sent(pubkey, entry);
-                    }
-                }
-                Err(e) => error!(error = %e, "Failed to publish builder preferences"),
+        let result = match ssz_result {
+            Ok(()) => Ok(()),
+            Err(ssz_err) => {
+                debug!(error = %ssz_err, "SSZ builder preferences publish failed, falling back to JSON");
+                self.inner
+                    .beacon_nodes
+                    .first_success(|beacon_node| async move {
+                        beacon_node
+                            .post_validator_builder_preferences(entries_ref, current_fork)
+                            .await
+                    })
+                    .await
             }
+        };
+
+        match result {
+            Ok(()) => {
+                for entry in pending_entries {
+                    let pubkey = entry.proposer_pubkey;
+                    published_preferences.mark_sent(pubkey, entry);
+                }
+            }
+            Err(e) => error!(error = %e, "Failed to publish builder preferences"),
         }
     }
 }

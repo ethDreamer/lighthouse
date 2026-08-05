@@ -829,8 +829,8 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
     eth_v1
         .and(warp::path("validator"))
         .and(warp::path("builder_preferences"))
-        .and(warp::path::param::<PublicKeyBytes>())
         .and(warp::path::end())
+        .and(warp::header::<ForkName>(CONSENSUS_VERSION_HEADER))
         .and(task_spawner_filter.clone())
         .and(chain_filter.clone())
         .and(
@@ -852,7 +852,7 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
                 }),
         )
         .then(
-            |pubkey: PublicKeyBytes,
+            |consensus_version: ForkName,
              task_spawner: TaskSpawner<T::EthSpec>,
              chain: Arc<BeaconChain<T>>,
              entries: Vec<BuilderPreferenceEntryV1>| async move {
@@ -870,6 +870,7 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
 
                         debug!(
                             count = entries.len(),
+                            %consensus_version,
                             "Received submit builder preferences request"
                         );
 
@@ -879,7 +880,7 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
                         // returning the failures by index (per beacon-APIs #630).
                         tokio::task::spawn(async move {
                             let response =
-                                match builder_service.submit_preferences(&pubkey, entries).await {
+                                match builder_service.submit_builder_preferences(entries).await {
                                     Ok(()) => Ok(warp::reply::reply().into_response()),
                                     Err(failures) => Err(warp_utils::reject::indexed_bad_request(
                                         "error submitting builder preferences".to_string(),

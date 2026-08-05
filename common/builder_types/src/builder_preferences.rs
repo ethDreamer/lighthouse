@@ -8,6 +8,7 @@ use types::ForkName;
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct BuilderPreferencesV1 {
+    #[serde(with = "serde_utils::quoted_u64")]
     pub max_execution_payment: u64,
 }
 

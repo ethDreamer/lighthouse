@@ -11,24 +11,24 @@ use tree_hash_derive::TreeHash;
 /// `builder_boost_factor` govern any bid that matches no entry — in practice, a bid received over
 /// p2p.
 ///
-/// SSZ container:
+/// SSZ container (field order per the spec — SSZ and tree-hash depend on it):
 /// ```text
 /// class BuilderConfigV1(Container):
-///     builders: List[BuilderEntryV1, MAX_BUILDER_ENTRIES]
 ///     min_bid: Gwei
 ///     builder_boost_factor: uint64
+///     builders: List[BuilderEntryV1, MAX_BUILDER_ENTRIES]
 /// ```
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 pub struct BuilderConfigV1 {
-    /// The builders to request bids from directly. Empty means only p2p bids are considered.
-    pub builders: VariableList<BuilderEntryV1, MaxBuilderEntries>,
     /// Minimum total payment (Gwei) accepted from a bid that matches no entry (a p2p bid).
     #[serde(with = "serde_utils::quoted_u64")]
     pub min_bid: u64,
     /// Percentage multiplier applied to a bid that matches no entry (a p2p bid).
     #[serde(with = "serde_utils::quoted_u64")]
     pub builder_boost_factor: u64,
+    /// The builders to request bids from directly. Empty means only p2p bids are considered.
+    pub builders: VariableList<BuilderEntryV1, MaxBuilderEntries>,
 }
 
 impl BuilderConfigV1 {
@@ -39,9 +39,9 @@ impl BuilderConfigV1 {
     /// back to local and p2p payloads.
     pub fn empty() -> Self {
         Self {
-            builders: VariableList::default(),
             min_bid: 0,
             builder_boost_factor: 100,
+            builders: VariableList::default(),
         }
     }
 }
@@ -55,9 +55,9 @@ mod tests {
     #[test]
     fn json_shape() {
         let config = BuilderConfigV1 {
-            builders: VariableList::default(),
             min_bid: 5,
             builder_boost_factor: 100,
+            builders: VariableList::default(),
         };
         let json = serde_json::to_value(&config).unwrap();
         let obj = json.as_object().unwrap();

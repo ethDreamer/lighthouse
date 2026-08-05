@@ -2691,7 +2691,7 @@ pub async fn serve<T: BeaconChainTypes>(
         chain_filter.clone(),
         task_spawner_filter.clone(),
     );
-    // POST validator/builder_preferences/{pubkey}
+    // POST validator/builder_preferences
     let post_validator_builder_preferences = post_validator_builder_preferences(
         eth_v1.clone(),
         chain_filter.clone(),
