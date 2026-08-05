@@ -1,10 +1,10 @@
 use crate::{
     build_block_contents,
     version::{
-        ResponseIncludesVersion, add_consensus_block_value_header, add_consensus_version_header,
-        add_execution_payload_blinded_header, add_execution_payload_included_header,
-        add_execution_payload_value_header, add_ssz_content_type_header, beacon_response,
-        inconsistent_fork_rejection,
+        ResponseIncludesVersion, add_builder_url_header, add_consensus_block_value_header,
+        add_consensus_version_header, add_execution_payload_blinded_header,
+        add_execution_payload_included_header, add_execution_payload_value_header,
+        add_ssz_content_type_header, beacon_response, inconsistent_fork_rejection,
     },
 };
 use beacon_chain::graffiti_calculator::GraffitiSettings;
@@ -95,19 +95,25 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
     // direct), so the V3-style `builder_boost_factor` query param is not used on this path.
     let graffiti_settings = GraffitiSettings::new(query.graffiti, query.graffiti_policy);
 
-    let (block, _block_state, consensus_block_value, execution_payload_value, payload_contents) =
-        chain
-            .produce_block_with_verification_gloas(
-                randao_reveal,
-                slot,
-                graffiti_settings,
-                randao_verification,
-                builder_config,
-            )
-            .await
-            .map_err(|e| {
-                warp_utils::reject::custom_bad_request(format!("failed to fetch a block: {:?}", e))
-            })?;
+    let (
+        block,
+        _block_state,
+        consensus_block_value,
+        execution_payload_value,
+        payload_contents,
+        builder_url,
+    ) = chain
+        .produce_block_with_verification_gloas(
+            randao_reveal,
+            slot,
+            graffiti_settings,
+            randao_verification,
+            builder_config,
+        )
+        .await
+        .map_err(|e| {
+            warp_utils::reject::custom_bad_request(format!("failed to fetch a block: {:?}", e))
+        })?;
 
     let payload_contents = include_payload.then_some(payload_contents).flatten();
 
@@ -116,6 +122,7 @@ pub async fn produce_block_v4<T: BeaconChainTypes>(
         consensus_block_value,
         execution_payload_value,
         payload_contents,
+        builder_url,
         accept_header,
         &chain.spec,
     )
@@ -170,6 +177,7 @@ pub fn build_response_v4<T: BeaconChainTypes>(
     consensus_block_value: u64,
     execution_payload_value: Uint256,
     payload_contents: Option<PayloadEnvelopeContents<T::EthSpec>>,
+    builder_url: Option<String>,
     accept_header: Option<api_types::Accept>,
     spec: &ChainSpec,
 ) -> Result<Response, warp::Rejection> {
@@ -186,13 +194,15 @@ pub fn build_response_v4<T: BeaconChainTypes>(
         consensus_block_value: consensus_block_value_wei,
         execution_payload_value,
         execution_payload_included,
+        builder_url: builder_url.clone(),
     };
 
     let add_v4_headers = |res: Response| {
         let res = add_consensus_version_header(res, fork_name);
         let res = add_consensus_block_value_header(res, consensus_block_value_wei);
         let res = add_execution_payload_value_header(res, execution_payload_value);
-        add_execution_payload_included_header(res, execution_payload_included)
+        let res = add_execution_payload_included_header(res, execution_payload_included);
+        add_builder_url_header(res, builder_url.as_deref())
     };
 
     // When the payload is included, bundle the block with the execution payload envelope, blobs and

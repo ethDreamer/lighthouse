@@ -62,6 +62,7 @@ pub const EXECUTION_PAYLOAD_VALUE_HEADER: &str = "Eth-Execution-Payload-Value";
 pub const EXECUTION_PAYLOAD_INCLUDED_HEADER: &str = "Eth-Execution-Payload-Included";
 pub const CONSENSUS_BLOCK_VALUE_HEADER: &str = "Eth-Consensus-Block-Value";
 pub const BLOB_DATA_INCLUDED_HEADER: &str = "Eth-Blob-Data-Included";
+pub const BUILDER_URL_HEADER: &str = "Eth-Builder-Url";
 
 pub const CONTENT_TYPE_HEADER: &str = "Content-Type";
 pub const SSZ_CONTENT_TYPE_HEADER: &str = "application/octet-stream";
@@ -525,6 +526,7 @@ impl BeaconNodeHttpClient {
         timeout: Option<Duration>,
         fork: ForkName,
         blob_data_included: Option<bool>,
+        builder_url: Option<&str>,
     ) -> Result<Response, Error> {
         let mut builder = self
             .client
@@ -534,6 +536,11 @@ impl BeaconNodeHttpClient {
             .header("Content-Type", "application/octet-stream");
         if let Some(blob_data_included) = blob_data_included {
             builder = builder.header(BLOB_DATA_INCLUDED_HEADER, blob_data_included.to_string());
+        }
+        // Echo the winning builder's URL (beacon-APIs #630) so the beacon node forwards the block to
+        // that builder; only set on a block published after a direct-builder bid won.
+        if let Some(builder_url) = builder_url {
+            builder = builder.header(BUILDER_URL_HEADER, builder_url);
         }
         let response = builder.body(body).send().await?;
         success_or_error(response).await
@@ -564,7 +571,7 @@ impl BeaconNodeHttpClient {
         timeout: Option<Duration>,
         fork: ForkName,
     ) -> Result<Response, Error> {
-        self.post_generic_with_envelope_headers_and_ssz_body(url, body, timeout, fork, None)
+        self.post_generic_with_envelope_headers_and_ssz_body(url, body, timeout, fork, None, None)
             .await
     }
 
@@ -1349,17 +1356,23 @@ impl BeaconNodeHttpClient {
     }
 
     /// `POST v2/beacon/blocks`
+    /// `builder_url` echoes the `Eth-Builder-Url` from `produceBlockV4` (beacon-APIs #630) so the
+    /// beacon node forwards the block to the builder that won selection; `None` for a self-built or
+    /// p2p-won block.
     pub async fn post_beacon_blocks_v2_ssz<E: EthSpec>(
         &self,
         block_contents: &PublishBlockRequest<E>,
         validation_level: Option<BroadcastValidation>,
+        builder_url: Option<&str>,
     ) -> Result<Response, Error> {
         let response = self
-            .post_generic_with_consensus_version_and_ssz_body(
+            .post_generic_with_envelope_headers_and_ssz_body(
                 self.post_beacon_blocks_v2_path(validation_level)?,
                 block_contents.as_ssz_bytes(),
                 Some(self.timeouts.proposal),
                 block_contents.signed_block().message().body().fork_name(),
+                None,
+                builder_url,
             )
             .await?;
 
@@ -3013,6 +3026,7 @@ impl BeaconNodeHttpClient {
             Some(self.timeouts.proposal),
             fork_name,
             Some(false),
+            None,
         )
         .await?;
 
@@ -3060,6 +3074,7 @@ impl BeaconNodeHttpClient {
             Some(self.timeouts.proposal),
             fork_name,
             Some(true),
+            None,
         )
         .await?;
 

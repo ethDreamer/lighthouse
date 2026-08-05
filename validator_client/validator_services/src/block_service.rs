@@ -366,6 +366,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         graffiti: Option<Graffiti>,
         validator_pubkey: &PublicKeyBytes,
         unsigned_block: UnsignedBlock<S::E>,
+        builder_url: Option<String>,
     ) -> Result<(), BlockError> {
         let signing_timer = validator_metrics::start_timer(&validator_metrics::BLOCK_SIGNING_TIMES);
 
@@ -410,9 +411,10 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         // Try the proposer nodes first, since we've likely gone to efforts to
         // protect them from DoS attacks and they're most likely to successfully
         // publish a block.
+        let builder_url_ref = builder_url.as_deref();
         proposer_fallback
             .request_proposers_first(|beacon_node| async {
-                self.publish_signed_block_contents(&signed_block, beacon_node)
+                self.publish_signed_block_contents(&signed_block, beacon_node, builder_url_ref)
                     .await
             })
             .await?;
@@ -490,7 +492,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         // Check if Gloas fork is active at this slot
         let fork_name = self_ref.chain_spec.fork_name_at_slot::<S::E>(slot);
 
-        let (block_proposer, unsigned_block) = if fork_name.gloas_enabled() {
+        let (block_proposer, unsigned_block, builder_url) = if fork_name.gloas_enabled() {
             // Resolve the validator's builder config for this proposal, signing each builder's
             // request auth via the cache. Sent in the POST `produceBlockV4` body below (the same
             // body is reused on the SSZ-to-JSON fallback and on every proposer-fallback BN). With
@@ -541,8 +543,12 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                 })
                 .await;
 
-            let block_response = match ssz_block_response {
-                Ok((ssz_block_response, _metadata)) => ssz_block_response.into_block(),
+            // `builder_url` is the `Eth-Builder-Url` from the winning beacon node — echoed on publish
+            // so it forwards the block to the builder that won selection.
+            let (block_response, builder_url) = match ssz_block_response {
+                Ok((ssz_block_response, metadata)) => {
+                    (ssz_block_response.into_block(), metadata.builder_url)
+                }
                 Err(e) => {
                     warn!(
                         slot = slot.as_u64(),
@@ -556,7 +562,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                 &validator_metrics::BLOCK_SERVICE_TIMES,
                                 &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                             );
-                            let (json_block_response, _metadata) = beacon_node
+                            let (json_block_response, metadata) = beacon_node
                                 .post_validator_blocks_v4::<S::E>(
                                     slot,
                                     randao_reveal_ref,
@@ -573,7 +579,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                     ))
                                 })?;
 
-                            Ok(json_block_response.into_block())
+                            Ok((json_block_response.into_block(), metadata.builder_url))
                         })
                         .await
                         .map_err(BlockError::from)?
@@ -585,6 +591,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
             (
                 block_contents.block().proposer_index(),
                 UnsignedBlock::Full(block_contents),
+                builder_url,
             )
         } else {
             // Use V3 block production for pre-Gloas forks
@@ -649,12 +656,16 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                 }
             };
 
+            // Pre-Gloas has no builder-URL provenance (the V3 mev-boost path handles builder
+            // forwarding itself), so there's nothing to echo on publish.
             match block_response {
-                eth2::types::ProduceBlockV3Response::Full(block) => {
-                    (block.block().proposer_index(), UnsignedBlock::Full(block))
-                }
+                eth2::types::ProduceBlockV3Response::Full(block) => (
+                    block.block().proposer_index(),
+                    UnsignedBlock::Full(block),
+                    None,
+                ),
                 eth2::types::ProduceBlockV3Response::Blinded(block) => {
-                    (block.proposer_index(), UnsignedBlock::Blinded(block))
+                    (block.proposer_index(), UnsignedBlock::Blinded(block), None)
                 }
             }
         };
@@ -678,6 +689,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                 graffiti,
                 &validator_pubkey,
                 unsigned_block,
+                builder_url,
             )
             .await?;
 
@@ -797,6 +809,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         &self,
         signed_block: &SignedBlock<S::E>,
         beacon_node: BeaconNodeHttpClient,
+        builder_url: Option<&str>,
     ) -> Result<(), BlockError> {
         match signed_block {
             SignedBlock::Full(signed_block) => {
@@ -805,7 +818,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                     &[validator_metrics::BEACON_BLOCK_HTTP_POST],
                 );
                 beacon_node
-                    .post_beacon_blocks_v2_ssz(signed_block, None)
+                    .post_beacon_blocks_v2_ssz(signed_block, None, builder_url)
                     .await
                     .map(|_| ())
                     .or_else(|e| {

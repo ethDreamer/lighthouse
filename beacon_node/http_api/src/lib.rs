@@ -68,7 +68,9 @@ use eth2::types::{
     self as api_types, BroadcastValidation, EndpointVersion, ForkChoice, ForkChoiceExtraData,
     ForkChoiceNode, LightClientUpdatesQuery, PublishBlockRequest, ValidatorId,
 };
-use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, SSZ_CONTENT_TYPE_HEADER};
+use eth2::{
+    BUILDER_URL_HEADER, CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, SSZ_CONTENT_TYPE_HEADER,
+};
 use health_metrics::observe::Observe;
 use lighthouse_network::Enr;
 use lighthouse_network::NetworkGlobals;
@@ -819,6 +821,9 @@ pub async fn serve<T: BeaconChainTypes>(
      */
     let consensus_version_header_filter =
         warp::header::header::<ForkName>(CONSENSUS_VERSION_HEADER).boxed();
+    // The winning builder's URL echoed by the VC on a Gloas block publish (beacon-APIs #630), so the
+    // node forwards the block to that builder. Optional: absent for self-build / p2p-won blocks.
+    let builder_url_header_filter = warp::header::optional::<String>(BUILDER_URL_HEADER).boxed();
 
     let optional_consensus_version_header_filter =
         warp::header::optional::<ForkName>(CONSENSUS_VERSION_HEADER).boxed();
@@ -855,6 +860,8 @@ pub async fn serve<T: BeaconChainTypes>(
                         &network_tx,
                         BroadcastValidation::default(),
                         duplicate_block_status_code,
+                        // Legacy v1 publish: no builder-URL provenance (VC uses v2 for Gloas).
+                        None,
                     )
                     .await
                 })
@@ -892,6 +899,8 @@ pub async fn serve<T: BeaconChainTypes>(
                         &network_tx,
                         BroadcastValidation::default(),
                         duplicate_block_status_code,
+                        // Legacy v1 publish: no builder-URL provenance (VC uses v2 for Gloas).
+                        None,
                     )
                     .await
                 })
@@ -909,13 +918,15 @@ pub async fn serve<T: BeaconChainTypes>(
         .and(task_spawner_filter.clone())
         .and(chain_filter.clone())
         .and(network_tx_filter.clone())
+        .and(builder_url_header_filter.clone())
         .then(
             move |validation_level: api_types::BroadcastValidationQuery,
                   value: serde_json::Value,
                   consensus_version: ForkName,
                   task_spawner: TaskSpawner<T::EthSpec>,
                   chain: Arc<BeaconChain<T>>,
-                  network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
+                  network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>,
+                  builder_url: Option<String>| {
                 task_spawner.spawn_async_with_rejection(Priority::P0, async move {
                     let request = PublishBlockRequest::<T::EthSpec>::context_deserialize(
                         &value,
@@ -932,6 +943,7 @@ pub async fn serve<T: BeaconChainTypes>(
                         &network_tx,
                         validation_level.broadcast_validation,
                         duplicate_block_status_code,
+                        builder_url,
                     )
                     .await
                 })
@@ -949,13 +961,15 @@ pub async fn serve<T: BeaconChainTypes>(
         .and(task_spawner_filter.clone())
         .and(chain_filter.clone())
         .and(network_tx_filter.clone())
+        .and(builder_url_header_filter.clone())
         .then(
             move |validation_level: api_types::BroadcastValidationQuery,
                   block_bytes: Bytes,
                   consensus_version: ForkName,
                   task_spawner: TaskSpawner<T::EthSpec>,
                   chain: Arc<BeaconChain<T>>,
-                  network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
+                  network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>,
+                  builder_url: Option<String>| {
                 task_spawner.spawn_async_with_rejection(Priority::P0, async move {
                     let block_contents = PublishBlockRequest::<T::EthSpec>::from_ssz_bytes(
                         &block_bytes,
@@ -971,6 +985,7 @@ pub async fn serve<T: BeaconChainTypes>(
                         &network_tx,
                         validation_level.broadcast_validation,
                         duplicate_block_status_code,
+                        builder_url,
                     )
                     .await
                 })

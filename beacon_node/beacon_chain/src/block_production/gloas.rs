@@ -42,9 +42,7 @@ use types::{
 use builder_client::BidRequestContext;
 use eth2::types::BuilderConfigV1;
 
-use crate::block_production::bid_selection::{
-    self, ExecutionPayloadData, ExternalBidCandidate, LocalBidCandidate, WinningBid,
-};
+use crate::block_production::bid_selection::{self, BidCandidate, BidSource, ExecutionPayloadData};
 use crate::payload_bid_verification::direct_verified_bid::verify_direct_bid;
 use crate::pending_payload_envelopes::PendingEnvelopeData;
 use crate::{
@@ -74,6 +72,8 @@ type BlockProductionResult<E> = (
     ConsensusBlockValue,
     ExecutionPayloadValue,
     Option<PayloadEnvelopeContents<E>>,
+    // The winning builder's URL when a direct builder won, for the `Eth-Builder-Url` response header.
+    Option<String>,
 );
 
 pub type PreparePayloadResult<E> = Result<BlockProposalContentsGloas<E>, BlockProductionError>;
@@ -99,8 +99,8 @@ pub struct PartialBeaconBlock<E: EthSpec> {
 /// The result of a local payload build, used to decide whether to include a builder bid
 /// from the gossip cache or fall back to self-build.
 ///
-/// [`ExecutionPayloadData`] and the selection types ([`WinningBid`], [`LocalBidCandidate`]) live in
-/// the fork-agnostic [`bid_selection`](super::bid_selection) module.
+/// [`ExecutionPayloadData`] and the selection types ([`BidCandidate`], [`BidSource`]) live in the
+/// fork-agnostic [`bid_selection`](super::bid_selection) module.
 pub struct LocalBuildResult<E: EthSpec> {
     pub payload_data: ExecutionPayloadData<E>,
     /// EL block value (in wei) of the locally-built payload.
@@ -290,21 +290,21 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             BUILDER_INDEX_SELF_BUILD,
             parent_block_hash,
         );
-        let (externals, local_result) = tokio::join!(acquire_fut, local_fut);
+        let (mut candidates, local_result) = tokio::join!(acquire_fut, local_fut);
 
-        let local = match local_result {
+        match local_result {
             Ok((local_signed_bid, local_build)) => {
                 let LocalBuildResult {
                     payload_data,
                     payload_value,
                     should_override_builder,
                 } = local_build;
-                Some(LocalBidCandidate {
-                    signed_bid: local_signed_bid,
+                candidates.push(BidCandidate::local(
+                    local_signed_bid,
                     payload_data,
-                    block_value: payload_value,
+                    payload_value,
                     should_override_builder,
-                })
+                ));
             }
             Err(e) => {
                 error!(
@@ -312,11 +312,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     slot = %produce_at_slot,
                     "Local execution payload build failed; falling back to an external bid"
                 );
-                None
             }
-        };
+        }
 
-        let winning_bid = bid_selection::select_payload_bid(local, externals)
+        let winning_bid = bid_selection::select_payload_bid(candidates)
             .ok_or(BlockProductionError::NoViablePayloadBid)?;
 
         // Part 3/3 (blocking)
@@ -635,27 +634,37 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// Complete a block by computing its state root, and
     ///
     /// Return `(block, post_block_state, consensus_block_value, execution_payload_value,
-    /// payload_contents)` where:
+    /// payload_contents, builder_url)` where:
     ///
     /// - `post_block_state` is the state post block application
     /// - `consensus_block_value` is the consensus-layer rewards for `block`
     /// - `execution_payload_value` is the wei value of the winning payload bid
     /// - `payload_contents` is the locally-built envelope, KZG proofs and blobs (`None` when
     ///   committing to a builder bid)
+    /// - `builder_url` is the winning direct builder's URL (`None` for a self-build or p2p bid)
     #[instrument(skip_all, level = "debug")]
     fn complete_partial_beacon_block_gloas(
         &self,
         partial_beacon_block: PartialBeaconBlock<T::EthSpec>,
-        winning_bid: WinningBid<T::EthSpec>,
+        winning_bid: BidCandidate<T::EthSpec>,
         parent_execution_requests: ExecutionRequestsGloas<T::EthSpec>,
         mut state: BeaconState<T::EthSpec>,
         verification: ProduceBlockVerification,
     ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
-        let WinningBid {
-            bid: signed_execution_payload_bid,
-            payload_data,
+        let BidCandidate {
+            signed_bid,
             payload_value: execution_payload_value,
+            source,
+            ..
         } = winning_bid;
+        let signed_execution_payload_bid = (*signed_bid).clone();
+        // `builder_url` (`Some` only for a direct bid) becomes the `Eth-Builder-Url` header;
+        // `payload_data` (`Some` only for a local build) drives envelope construction below.
+        let builder_url = source.builder_url().map(str::to_owned);
+        let payload_data = match source {
+            BidSource::Local { payload_data, .. } => Some(*payload_data),
+            BidSource::Gossip | BidSource::Direct { .. } => None,
+        };
 
         let PartialBeaconBlock {
             slot,
@@ -834,6 +843,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             consensus_block_value,
             execution_payload_value,
             payload_contents,
+            builder_url,
         ))
     }
 
@@ -962,9 +972,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     ///
     /// Fans `getExecutionPayloadBid` out to every configured direct builder (validating each
     /// returned bid against `state` via [`verify_direct_bid`]), then reads the highest direct bid
-    /// and the highest gossip-verified bid from their caches and returns them as
-    /// [`ExternalBidCandidate`]s for [`bid_selection::select_payload_bid`](super::bid_selection) to
-    /// rank against the local build.
+    /// and the highest gossip-verified bid from their caches and returns them as external
+    /// [`BidCandidate`]s for [`bid_selection::select_payload_bid`](super::bid_selection) to rank
+    /// against the local build.
     ///
     /// Direct bids are requested only when there are configured builders to contact and the proposer
     /// submitted preferences to validate against (`proposer_preferences`, needed for a direct bid's
@@ -977,7 +987,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         builder_config: &BuilderConfigV1,
         proposer_preferences: Option<&SignedProposerPreferences>,
         state: &BeaconState<T::EthSpec>,
-    ) -> Vec<ExternalBidCandidate<T::EthSpec>> {
+    ) -> Vec<BidCandidate<T::EthSpec>> {
         let mut externals = Vec::new();
 
         // Direct bids: only when there are builders to contact and the proposer submitted preferences
@@ -1019,10 +1029,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             } else {
                 // Gossip bids carry no `execution_payment`, so there's no per-builder clamp to apply
                 // (`u64::MAX` = no clamp); only the global `builder_boost_factor` matters.
-                externals.push(ExternalBidCandidate::new(
+                externals.push(BidCandidate::external(
                     gossip_bid,
                     u64::MAX,
                     builder_config.builder_boost_factor,
+                    BidSource::Gossip,
                 ));
             }
         }
@@ -1043,7 +1054,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         builder_config: &BuilderConfigV1,
         proposer_preferences: &SignedProposerPreferences,
         state: &BeaconState<T::EthSpec>,
-    ) -> Option<ExternalBidCandidate<T::EthSpec>> {
+    ) -> Option<BidCandidate<T::EthSpec>> {
         let Some(builder_service) = self.builder_service.as_ref() else {
             error!(
                 "Builder service unexpectedly absent during Gloas block production (it is built \
@@ -1082,10 +1093,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .cache()
             .get_highest_bid(slot, parent_hash, parent_root)
             .map(|direct| {
-                ExternalBidCandidate::new(
+                BidCandidate::external(
                     direct.signed_bid,
                     direct.max_execution_payment,
                     direct.builder_boost_factor,
+                    BidSource::Direct {
+                        builder_url: direct.builder_url.expose_full().to_string(),
+                    },
                 )
             })
     }

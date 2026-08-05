@@ -19,6 +19,7 @@ use logging::crit;
 use network::NetworkMessage;
 use rand::prelude::SliceRandom;
 use reqwest::StatusCode;
+use sensitive_url::SensitiveUrl;
 use slot_clock::SlotClock;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -76,10 +77,9 @@ impl<T: BeaconChainTypes> ProvenancedBlock<T, Arc<SignedBeaconBlock<T::EthSpec>>
 /// If a direct builder won this block's payload bid, forward the signed block to that builder via
 /// `submitSignedBeaconBlock` so it reveals the execution payload envelope.
 ///
-/// Provenance is recovered from the builder's `DirectBidCache` rather than tracked separately: the
-/// block's committed bid is matched against the highest direct bid cached for its
-/// `(slot, parent_block_hash, parent_block_root)` — an exact match means a direct builder won. A
-/// non-Gloas block, no builder service, or a non-matching bid (local/gossip won) are all no-ops.
+/// The builder's URL is the `Eth-Builder-Url` request header the VC echoed on publish (beacon-APIs
+/// #630), so this works even on a beacon node that did not produce the block. `None` (self-built or
+/// p2p-won), no builder service, or a malformed URL are all no-ops.
 ///
 /// Fire-and-forget: the submission runs in a detached task; a failure is logged at high severity
 /// (the validator has already signed the commitment) but never blocks the publish response. Runs
@@ -87,52 +87,42 @@ impl<T: BeaconChainTypes> ProvenancedBlock<T, Arc<SignedBeaconBlock<T::EthSpec>>
 fn forward_signed_block_to_winning_builder<T: BeaconChainTypes>(
     chain: &Arc<BeaconChain<T>>,
     block: Arc<SignedBeaconBlock<T::EthSpec>>,
+    builder_url: Option<&str>,
 ) {
+    // The VC echoes the winning builder's URL in the `Eth-Builder-Url` request header (beacon-APIs
+    // #630); absent for a self-built block or a p2p-won bid, in which case there's nothing to forward.
+    let Some(builder_url) = builder_url else {
+        return;
+    };
     let Some(builder_service) = chain.builder_service.as_ref() else {
         return;
     };
-    // Pre-Gloas blocks commit to no builder bid: the accessor errors there and works from Gloas on
-    // (and any later ePBS fork), so there's no per-fork match to keep in sync.
-    let Ok(signed_bid) = block.message().body().signed_execution_payload_bid() else {
-        return;
+    let url = match SensitiveUrl::parse(builder_url) {
+        Ok(url) => url,
+        Err(e) => {
+            warn!(error = ?e, "Ignoring malformed Eth-Builder-Url header");
+            return;
+        }
     };
-    let bid = &signed_bid.message;
-    let Some(direct) = builder_service.cache().get_highest_bid(
-        bid.slot,
-        bid.parent_block_hash,
-        bid.parent_block_root,
-    ) else {
-        return;
-    };
-    // Only route when the block committed to *this* direct bid; otherwise local or a gossip bid won.
-    if direct.signed_bid.message != *bid {
-        return;
-    }
 
     let client = builder_service.client().clone();
-    let builder_url = direct.builder_url.clone();
-    let ssz_request = direct.ssz_response;
-    let builder_index = bid.builder_index;
-    let slot = bid.slot;
+    let slot = block.slot();
     let block_root = block.canonical_root();
 
     chain.task_executor.spawn(
         async move {
-            match client
-                .submit_signed_beacon_block(&builder_url, &block, ssz_request)
-                .await
-            {
+            // Submit as JSON: the builder's SSZ preference from bid time isn't carried across the
+            // header round-trip, and builders must accept JSON.
+            match client.submit_signed_beacon_block(&url, &block, false).await {
                 Ok(()) => info!(
                     %slot,
                     %block_root,
-                    builder_index,
                     "Forwarded signed block to winning builder"
                 ),
                 Err(e) => error!(
                     %slot,
                     %block_root,
-                    builder_index,
-                    builder_url = ?builder_url,
+                    builder_url = ?url,
                     error = ?e,
                     "Failed to forward signed block to winning builder"
                 ),
@@ -157,6 +147,9 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
     network_tx: &UnboundedSender<NetworkMessage<T::EthSpec>>,
     validation_level: BroadcastValidation,
     duplicate_status_code: StatusCode,
+    // The `Eth-Builder-Url` request header (beacon-APIs #630): when a direct builder won the block's
+    // payload bid, its URL, so the block is forwarded there for envelope reveal.
+    builder_url: Option<String>,
 ) -> Result<Response, Rejection> {
     let seen_timestamp = chain.slot_clock.now_duration().unwrap_or_default();
     let block_publishing_delay_for_testing = chain.config.block_publishing_delay;
@@ -212,7 +205,11 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
 
         // If a direct builder won this block's payload bid, forward the signed block to it so it
         // reveals the execution payload envelope.
-        forward_signed_block_to_winning_builder(&publish_chain, block.clone());
+        forward_signed_block_to_winning_builder(
+            &publish_chain,
+            block.clone(),
+            builder_url.as_deref(),
+        );
 
         Ok(())
     };
@@ -645,6 +642,8 @@ pub async fn publish_blinded_block<T: BeaconChainTypes>(
             network_tx,
             validation_level,
             duplicate_status_code,
+            // Blinded (mev-boost) publish predates the Gloas builder-URL round-trip.
+            None,
         )
         .await
     } else {

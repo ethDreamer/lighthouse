@@ -1799,7 +1799,7 @@ impl ApiTester {
         let next_block = &self.next_block;
 
         self.client
-            .post_beacon_blocks_v2_ssz(next_block, None)
+            .post_beacon_blocks_v2_ssz(next_block, None, None)
             .await
             .unwrap();
 
@@ -1897,7 +1897,7 @@ impl ApiTester {
                 .await
                 .unwrap(),
             self.client
-                .post_beacon_blocks_v2_ssz(&block_contents, None)
+                .post_beacon_blocks_v2_ssz(&block_contents, None, None)
                 .await
                 .unwrap(),
             self.client
@@ -4329,7 +4329,7 @@ impl ApiTester {
                 block_contents.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
 
             self.client
-                .post_beacon_blocks_v2_ssz(&signed_block_contents, None)
+                .post_beacon_blocks_v2_ssz(&signed_block_contents, None, None)
                 .await
                 .unwrap();
 
@@ -4451,7 +4451,7 @@ impl ApiTester {
                         block_contents.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
 
                     self.client
-                        .post_beacon_blocks_v2_ssz(&signed_block_contents, None)
+                        .post_beacon_blocks_v2_ssz(&signed_block_contents, None, None)
                         .await
                         .unwrap();
 
@@ -5077,7 +5077,7 @@ impl ApiTester {
             let signed_block_request =
                 PublishBlockRequest::try_from(Arc::new(signed_block.clone())).unwrap();
             self.client
-                .post_beacon_blocks_v2_ssz(&signed_block_request, None)
+                .post_beacon_blocks_v2_ssz(&signed_block_request, None, None)
                 .await
                 .unwrap();
             assert_eq!(self.chain.head_beacon_block(), Arc::new(signed_block));
@@ -5166,7 +5166,7 @@ impl ApiTester {
                 PublishBlockRequest::try_from(Arc::new(signed_block.clone())).unwrap();
             if ssz {
                 self.client
-                    .post_beacon_blocks_v2_ssz(&signed_block_request, None)
+                    .post_beacon_blocks_v2_ssz(&signed_block_request, None, None)
                     .await
                     .unwrap();
             } else {
