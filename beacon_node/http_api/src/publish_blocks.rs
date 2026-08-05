@@ -79,7 +79,7 @@ impl<T: BeaconChainTypes> ProvenancedBlock<T, Arc<SignedBeaconBlock<T::EthSpec>>
 ///
 /// The builder's URL is the `Eth-Builder-Url` request header the VC echoed on publish (beacon-APIs
 /// #630), so this works even on a beacon node that did not produce the block. `None` (self-built or
-/// p2p-won), no builder service, or a malformed URL are all no-ops.
+/// p2p-won), no configured builders, or a malformed URL are all no-ops.
 ///
 /// Fire-and-forget: the submission runs in a detached task; a failure is logged at high severity
 /// (the validator has already signed the commitment) but never blocks the publish response. Runs
@@ -94,7 +94,7 @@ fn forward_signed_block_to_winning_builder<T: BeaconChainTypes>(
     let Some(builder_url) = builder_url else {
         return;
     };
-    let Some(builder_service) = chain.builder_service.as_ref() else {
+    let Some(builders) = chain.builders.as_ref() else {
         return;
     };
     let url = match SensitiveUrl::parse(builder_url) {
@@ -105,15 +105,13 @@ fn forward_signed_block_to_winning_builder<T: BeaconChainTypes>(
         }
     };
 
-    let client = builder_service.client().clone();
+    let builders = builders.clone();
     let slot = block.slot();
     let block_root = block.canonical_root();
 
     chain.task_executor.spawn(
         async move {
-            // Submit as JSON: the builder's SSZ preference from bid time isn't carried across the
-            // header round-trip, and builders must accept JSON.
-            match client.submit_signed_beacon_block(&url, &block, false).await {
+            match builders.forward_signed_block(&url, &block).await {
                 Ok(()) => info!(
                     %slot,
                     %block_root,

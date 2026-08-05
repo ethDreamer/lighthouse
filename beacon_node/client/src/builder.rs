@@ -19,7 +19,7 @@ use beacon_chain::{
 use beacon_chain::{Kzg, LightClientProducerEvent};
 use beacon_processor::{BeaconProcessor, BeaconProcessorChannels};
 use beacon_processor::{BeaconProcessorConfig, BeaconProcessorQueueLengths};
-use builder_client::{BuilderHttpClient, BuilderService, DirectBidCache};
+use builder_client::{BuilderHttpClient, Builders};
 use environment::RuntimeContext;
 use eth2::{
     BeaconNodeHttpClient, Error as ApiError, Timeouts,
@@ -188,14 +188,13 @@ where
             None
         };
 
-        // Construct the Gloas builder service (Builder API client + direct bid cache) when the Gloas
-        // fork is scheduled. The client is stateless w.r.t. the target builder — each request
-        // carries its own URL — so it needs no configuration.
-        let builder_service = if spec.gloas_fork_epoch.is_some() {
+        // Construct the Gloas builder service (Builder API client) when the Gloas fork is scheduled.
+        // The client is stateless w.r.t. the target builder — each request carries its own URL — so
+        // it needs no configuration.
+        let builders = if spec.gloas_fork_epoch.is_some() {
             let client = BuilderHttpClient::new(None, false)
                 .map_err(|e| format!("unable to start builder client: {:?}", e))?;
-            let cache = Arc::new(DirectBidCache::new());
-            Some(Arc::new(BuilderService::new(Arc::new(client), cache)))
+            Some(Arc::new(Builders::new(Arc::new(client))))
         } else {
             None
         };
@@ -223,7 +222,7 @@ where
             .beacon_graffiti(beacon_graffiti)
             .event_handler(event_handler)
             .execution_layer(execution_layer)
-            .builder_service(builder_service)
+            .builders(builders)
             .node_custody_type(config.chain.node_custody_type)
             .ordered_custody_column_indices(ordered_custody_column_indices)
             .validator_monitor_config(config.validator_monitor.clone())

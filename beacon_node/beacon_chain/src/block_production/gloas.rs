@@ -994,12 +994,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // to validate against.
         if !builder_config.builders.is_empty() {
             if let Some(proposer_preferences) = proposer_preferences {
-                if let Some(direct) = self
-                    .acquire_direct_bid_candidate(&ctx, builder_config, proposer_preferences, state)
-                    .await
-                {
-                    externals.push(direct);
-                }
+                externals.extend(
+                    self.acquire_direct_bid_candidates(
+                        &ctx,
+                        builder_config,
+                        proposer_preferences,
+                        state,
+                    )
+                    .await,
+                );
             } else {
                 // Direct bids can't be validated without the proposer's fee recipient / gas-limit
                 // target, so builders configured with no available preferences are skipped.
@@ -1041,26 +1044,27 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         externals
     }
 
-    /// Request direct bids from the configured builders and return the highest valid one, or `None`.
+    /// Request direct bids from the configured builders and return each valid one as a selection
+    /// candidate.
     ///
     /// Best-effort and never fatal: the builder service is constructed whenever the Gloas fork is
     /// scheduled, so in a correctly-built node it is always present on this (Gloas) path — a missing
     /// service is an unexpected construction bug. Either way it is logged and skipped rather than
     /// aborting block production. Per-builder request/validation failures are handled inside
-    /// [`request_and_cache_bids`](builder_client::BuilderService::request_and_cache_bids).
-    async fn acquire_direct_bid_candidate(
+    /// [`request_and_validate_bids`](builder_client::Builders::request_and_validate_bids).
+    async fn acquire_direct_bid_candidates(
         self: &Arc<Self>,
         ctx: &BidRequestContext,
         builder_config: &BuilderConfigV1,
         proposer_preferences: &SignedProposerPreferences,
         state: &BeaconState<T::EthSpec>,
-    ) -> Option<BidCandidate<T::EthSpec>> {
-        let Some(builder_service) = self.builder_service.as_ref() else {
+    ) -> Vec<BidCandidate<T::EthSpec>> {
+        let Some(builders) = self.builders.as_ref() else {
             error!(
                 "Builder service unexpectedly absent during Gloas block production (it is built \
                  whenever the Gloas fork is scheduled); skipping direct bids for this proposal"
             );
-            return None;
+            return Vec::new();
         };
 
         let slot = ctx.slot;
@@ -1069,9 +1073,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let spec = &self.spec;
 
         // Fan `getExecutionPayloadBid` out to the configured builders, validating each returned bid
-        // against the production state; valid bids land in the direct-bid cache.
-        builder_service
-            .request_and_cache_bids(
+        // against the production state, then turn each valid bid into a `Direct` selection candidate.
+        builders
+            .request_and_validate_bids(
                 ctx,
                 &builder_config.builders,
                 move |signed_bid, expected_builder_pubkey| async move {
@@ -1087,11 +1091,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     )
                 },
             )
-            .await;
-
-        builder_service
-            .cache()
-            .get_highest_bid(slot, parent_hash, parent_root)
+            .await
+            .into_iter()
             .map(|direct| {
                 BidCandidate::external(
                     direct.signed_bid,
@@ -1102,6 +1103,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     },
                 )
             })
+            .collect()
     }
 }
 

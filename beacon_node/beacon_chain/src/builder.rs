@@ -22,7 +22,7 @@ use crate::{
     BeaconChain, BeaconChainTypes, BeaconForkChoiceStore, BeaconSnapshot, ServerSentEventHandler,
 };
 use bls::Signature;
-use builder_client::BuilderService;
+use builder_client::Builders;
 use execution_layer::ExecutionLayer;
 use fixed_bytes::FixedBytesExtended;
 use fork_choice::{ForkChoice, PayloadStatus, ResetPayloadStatuses};
@@ -92,7 +92,7 @@ pub struct BeaconChainBuilder<T: BeaconChainTypes> {
     >,
     op_pool: Option<OperationPool<T::EthSpec>>,
     execution_layer: Option<ExecutionLayer<T::EthSpec>>,
-    builder_service: Option<Arc<BuilderService<T::EthSpec>>>,
+    builders: Option<Arc<Builders>>,
     event_handler: Option<ServerSentEventHandler<T::EthSpec>>,
     slot_clock: Option<T::SlotClock>,
     shutdown_sender: Option<Sender<ShutdownReason>>,
@@ -135,7 +135,7 @@ where
             fork_choice: None,
             op_pool: None,
             execution_layer: None,
-            builder_service: None,
+            builders: None,
             event_handler: None,
             slot_clock: None,
             shutdown_sender: None,
@@ -630,8 +630,8 @@ where
     }
 
     /// Sets the `BeaconChain` builder service (the Gloas Builder API client and bid cache).
-    pub fn builder_service(mut self, builder_service: Option<Arc<BuilderService<E>>>) -> Self {
-        self.builder_service = builder_service;
+    pub fn builders(mut self, builders: Option<Arc<Builders>>) -> Self {
+        self.builders = builders;
         self
     }
 
@@ -1025,7 +1025,7 @@ where
             observed_attester_slashings: <_>::default(),
             observed_bls_to_execution_changes: <_>::default(),
             execution_layer: self.execution_layer.clone(),
-            builder_service: self.builder_service,
+            builders: self.builders,
             genesis_validators_root,
             genesis_time,
             canonical_head,

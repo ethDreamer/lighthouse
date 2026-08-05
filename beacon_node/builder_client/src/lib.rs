@@ -4,14 +4,12 @@ use reqwest::header::HeaderMap;
 use std::str::FromStr;
 
 pub mod builder_http_client;
-pub mod builder_service;
-pub mod direct_bid_cache;
+pub mod builders;
 pub mod error;
 pub mod pre_gloas_builder_http_client;
 
 pub use builder_http_client::{BuilderHttpClient, GloasBidResponse};
-pub use builder_service::{BidRequestContext, BuilderService, SubmissionFailure};
-pub use direct_bid_cache::{DirectBid, DirectBidCache};
+pub use builders::{BidRequestContext, Builders, DirectBid, SubmissionFailure};
 pub use error::{Error, ok_or_error, success_or_error};
 pub use pre_gloas_builder_http_client::PreGloasBuilderHttpClient;
 

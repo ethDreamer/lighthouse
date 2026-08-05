@@ -1,16 +1,40 @@
-use crate::{
-    BuilderHttpClient, DirectBid, DirectBidCache, Error as BuilderClientError, GloasBidResponse,
-};
+use crate::{BuilderHttpClient, Error as BuilderClientError, GloasBidResponse};
 use bls::PublicKeyBytes;
 use eth2::types::{
     BuilderEntryV1, BuilderPreferenceEntryV1, BuilderPreferencesRequestV1, BuilderPreferencesV1,
-    EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid, Slot,
+    EthSpec, ExecutionBlockHash, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid, Slot,
 };
 use futures::future::join_all;
+use sensitive_url::SensitiveUrl;
 use std::fmt::Display;
 use std::future::Future;
 use std::sync::Arc;
 use tracing::{debug, warn};
+
+/// A validated direct builder bid, with the provenance and per-builder policy needed to turn it into
+/// a selection candidate.
+#[derive(Clone)]
+pub struct DirectBid<E: EthSpec> {
+    /// The signed bid returned by the builder.
+    pub signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+    /// URL of the builder that returned this bid, so a winning block can be forwarded to it via
+    /// `submitSignedBeaconBlock` (echoed to the beacon node as `Eth-Builder-Url`).
+    pub builder_url: SensitiveUrl,
+    /// The proposer's `max_execution_payment` cap for this builder, from its `BuilderEntry`.
+    pub max_execution_payment: u64,
+    /// The proposer's `builder_boost_factor` for this builder, from its `BuilderEntry`.
+    pub builder_boost_factor: u64,
+}
+
+impl<E: EthSpec> DirectBid<E> {
+    /// The bid's clamped (trusted) value in gwei under this builder's `max_execution_payment` — the
+    /// `min_bid` acceptance floor.
+    fn clamped_value(&self) -> u64 {
+        self.signed_bid
+            .message
+            .clamped_value(self.max_execution_payment)
+    }
+}
 
 /// The per-proposal parameters used to address each `getExecutionPayloadBid` request.
 ///
@@ -26,12 +50,11 @@ pub struct BidRequestContext {
 
 /// Orchestrates direct builder bid requests.
 ///
-/// Fans `getExecutionPayloadBid` out to the builders a proposer configured and records the
-/// resulting bids — highest by boosted value, with provenance — in the shared [`DirectBidCache`]
-/// for the block producer to select from.
-pub struct BuilderService<E: EthSpec> {
+/// Fans `getExecutionPayloadBid` out to the builders a proposer configured and returns the validated
+/// bids for the block producer to rank against the local and gossip payloads. Stateless — it holds
+/// no bids between requests.
+pub struct Builders {
     client: Arc<BuilderHttpClient>,
-    cache: Arc<DirectBidCache<E>>,
 }
 
 /// A single failed builder-preference submission, identified by its position in the submitted list.
@@ -42,24 +65,28 @@ pub struct SubmissionFailure {
     pub error: BuilderClientError,
 }
 
-impl<E: EthSpec> BuilderService<E> {
-    pub fn new(client: Arc<BuilderHttpClient>, cache: Arc<DirectBidCache<E>>) -> Self {
-        Self { client, cache }
+impl Builders {
+    pub fn new(client: Arc<BuilderHttpClient>) -> Self {
+        Self { client }
     }
 
-    /// The shared cache this service populates.
-    pub fn cache(&self) -> &Arc<DirectBidCache<E>> {
-        &self.cache
+    /// Forward a signed beacon block to the builder that won this slot's bid, via
+    /// `submitSignedBeaconBlock`.
+    ///
+    /// Submitted as JSON: the builder's SSZ preference from bid time isn't carried across the
+    /// `Eth-Builder-Url` header round-trip, and builders must accept JSON.
+    pub async fn forward_signed_block<E: EthSpec>(
+        &self,
+        builder_url: &SensitiveUrl,
+        block: &SignedBeaconBlock<E>,
+    ) -> Result<(), BuilderClientError> {
+        self.client
+            .submit_signed_beacon_block(builder_url, block, false)
+            .await
     }
 
-    /// The Builder API HTTP client. It is stateless w.r.t. the target builder — each request takes
-    /// the builder URL as a parameter — so a single client fans out to any builder.
-    pub fn client(&self) -> &Arc<BuilderHttpClient> {
-        &self.client
-    }
-
-    /// Request bids from every builder in `entries` concurrently, validate them, and record the
-    /// valid ones in the cache.
+    /// Request bids from every builder in `entries` concurrently, validate them, and return the
+    /// valid ones.
     ///
     /// Every entry is a bid request to its `url`, which beacon-APIs #630 requires (a zero-length url
     /// is invalid); an entry whose `url` is empty, malformed, or not http(s) can't be requested and
@@ -77,16 +104,16 @@ impl<E: EthSpec> BuilderService<E> {
     /// domain that check needs live on the producer side, not here. These pipelines run
     /// **concurrently across builders**, so a slow builder or an expensive validation for one bid
     /// does not hold up the others. A failure, timeout, empty (204) response, or validation error
-    /// for one builder is isolated: it is logged and that bid is skipped, never entering the cache.
+    /// for one builder is isolated: it is logged and that bid is skipped.
     ///
-    /// Returns the number of bids that passed validation and were observed into the cache. The
-    /// block producer reads the winning bid later via [`DirectBidCache::get_highest_bid`].
-    pub async fn request_and_cache_bids<F, Fut, Err>(
+    /// Returns every bid that passed validation; the block producer turns each into a selection
+    /// candidate and ranks them.
+    pub async fn request_and_validate_bids<E: EthSpec, F, Fut, Err>(
         &self,
         ctx: &BidRequestContext,
         entries: &[BuilderEntryV1],
         validate: F,
-    ) -> usize
+    ) -> Vec<DirectBid<E>>
     where
         F: Fn(Arc<SignedExecutionPayloadBid<E>>, Option<PublicKeyBytes>) -> Fut,
         Fut: Future<Output = Result<(), Err>>,
@@ -129,14 +156,16 @@ impl<E: EthSpec> BuilderService<E> {
                 .await;
 
             match response {
-                Ok(Some(GloasBidResponse { bid, ssz_response })) => {
-                    let direct_bid = DirectBid::new(
-                        Arc::new(bid),
-                        url.clone(),
-                        ssz_response,
-                        entry.max_execution_payment,
-                        entry.builder_boost_factor,
-                    );
+                Ok(Some(GloasBidResponse {
+                    bid,
+                    ssz_response: _,
+                })) => {
+                    let direct_bid = DirectBid {
+                        signed_bid: Arc::new(bid),
+                        builder_url: url.clone(),
+                        max_execution_payment: entry.max_execution_payment,
+                        builder_boost_factor: entry.builder_boost_factor,
+                    };
 
                     // Reject bids whose clamped (trusted) value is below the entry's `min_bid`. The
                     // clamp keeps a builder from clearing the floor with untrusted `execution_payment`.
@@ -169,14 +198,7 @@ impl<E: EthSpec> BuilderService<E> {
             }
         });
 
-        let validated_bids = join_all(pipelines).await;
-
-        let mut received = 0;
-        for bid in validated_bids.into_iter().flatten() {
-            self.cache.observe_bid(bid);
-            received += 1;
-        }
-        received
+        join_all(pipelines).await.into_iter().flatten().collect()
     }
 
     /// Submit a proposer's builder preferences to each entry's builder, concurrently and
@@ -301,55 +323,42 @@ mod tests {
         }
     }
 
-    fn service() -> BuilderService<E> {
-        BuilderService::new(
-            Arc::new(BuilderHttpClient::new(None, false).unwrap()),
-            Arc::new(DirectBidCache::new()),
-        )
+    fn builders() -> Builders {
+        Builders::new(Arc::new(BuilderHttpClient::new(None, false).unwrap()))
     }
 
     #[tokio::test]
-    async fn fans_out_and_caches_highest_bid() {
+    async fn fans_out_and_returns_all_valid_bids() {
         let mut server_a = Server::new_async().await;
         let mut server_b = Server::new_async().await;
         mock_bid(&mut server_a, 100);
         mock_bid(&mut server_b, 200);
 
-        let service = service();
+        let builders = builders();
         let entries = vec![entry(&server_a.url(), 1000), entry(&server_b.url(), 1000)];
 
-        let received = service
-            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+        let bids: Vec<DirectBid<E>> = builders
+            .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
             .await;
-        assert_eq!(received, 2);
-
-        let highest = service
-            .cache()
-            .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
-            .unwrap();
-        assert_eq!(highest.proposer_value(), 200);
+        let mut values: Vec<u64> = bids.iter().map(|b| b.signed_bid.message.value).collect();
+        values.sort_unstable();
+        assert_eq!(values, vec![100, 200]);
     }
 
     #[tokio::test]
     async fn skips_invalid_url_entry() {
-        let service = service();
+        let builders = builders();
         // #630 requires a url; an empty one is invalid and can't be requested, so it is skipped.
         let entries = vec![entry("", 1000)];
 
-        let received = service
-            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+        let bids: Vec<DirectBid<E>> = builders
+            .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
             .await;
-        assert_eq!(received, 0);
-        assert!(
-            service
-                .cache()
-                .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
-                .is_none()
-        );
+        assert!(bids.is_empty());
     }
 
     #[tokio::test]
@@ -358,18 +367,18 @@ mod tests {
         // Two entries share a URL but carry different `auth`, so both are requested (one per entry).
         let mock = mock_bid(&mut server, 100).expect(2);
 
-        let service = service();
+        let builders = builders();
         let entry_a = entry(&server.url(), 1000);
         let mut entry_b = entry(&server.url(), 1000);
         entry_b.auth.message.slot = Slot::new(2);
         let entries = vec![entry_a, entry_b];
 
-        let received = service
-            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+        let bids: Vec<DirectBid<E>> = builders
+            .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
             .await;
-        assert_eq!(received, 2);
+        assert_eq!(bids.len(), 2);
         mock.assert();
     }
 
@@ -379,23 +388,17 @@ mod tests {
         // Bid value 100, no execution payment, so the clamped value is 100.
         mock_bid(&mut server, 100);
 
-        let service = service();
+        let builders = builders();
         let mut entry = entry(&server.url(), 1000);
         entry.min_bid = 500;
         let entries = vec![entry];
 
-        let received = service
-            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+        let bids: Vec<DirectBid<E>> = builders
+            .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
             .await;
-        assert_eq!(received, 0);
-        assert!(
-            service
-                .cache()
-                .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
-                .is_none()
-        );
+        assert!(bids.is_empty());
     }
 
     #[tokio::test]
@@ -403,20 +406,14 @@ mod tests {
         let mut server = Server::new_async().await;
         mock_bid(&mut server, 100);
 
-        let service = service();
+        let builders = builders();
         let entries = vec![entry(&server.url(), 1000)];
         // The producer callback rejects the bid (e.g. a failed signature or ineligible builder).
-        let received = service
-            .request_and_cache_bids(&context(), &entries, |_bid, _expected| async {
+        let bids: Vec<DirectBid<E>> = builders
+            .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Err::<(), String>("rejected by producer".to_string())
             })
             .await;
-        assert_eq!(received, 0);
-        assert!(
-            service
-                .cache()
-                .get_highest_bid(Slot::new(1), ExecutionBlockHash::zero(), Hash256::ZERO)
-                .is_none()
-        );
+        assert!(bids.is_empty());
     }
 }

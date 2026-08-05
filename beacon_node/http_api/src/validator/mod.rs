@@ -861,8 +861,8 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
                 let initial_result = task_spawner
                     .spawn_async_with_rejection_no_conversion(Priority::P0, async move {
                         // The builder service is only present when the Gloas fork is scheduled.
-                        let builder_service = chain
-                            .builder_service
+                        let builders = chain
+                            .builders
                             .as_ref()
                             .ok_or(BeaconChainError::BuilderMissing)
                             .map_err(warp_utils::reject::unhandled_error)?
@@ -879,17 +879,17 @@ pub fn post_validator_builder_preferences<T: BeaconChainTypes>(
                         // worker. The service submits each entry independently and best-effort,
                         // returning the failures by index (per beacon-APIs #630).
                         tokio::task::spawn(async move {
-                            let response =
-                                match builder_service.submit_builder_preferences(entries).await {
-                                    Ok(()) => Ok(warp::reply::reply().into_response()),
-                                    Err(failures) => Err(warp_utils::reject::indexed_bad_request(
-                                        "error submitting builder preferences".to_string(),
-                                        failures
-                                            .into_iter()
-                                            .map(|f| Failure::new(f.index, f.error.to_string()))
-                                            .collect(),
-                                    )),
-                                };
+                            let response = match builders.submit_builder_preferences(entries).await
+                            {
+                                Ok(()) => Ok(warp::reply::reply().into_response()),
+                                Err(failures) => Err(warp_utils::reject::indexed_bad_request(
+                                    "error submitting builder preferences".to_string(),
+                                    failures
+                                        .into_iter()
+                                        .map(|f| Failure::new(f.index, f.error.to_string()))
+                                        .collect(),
+                                )),
+                            };
                             let _ = tx.send(response);
                         });
 
