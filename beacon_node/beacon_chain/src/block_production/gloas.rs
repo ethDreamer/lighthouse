@@ -43,7 +43,9 @@ use builder_client::BidRequestContext;
 use eth2::types::BuilderConfigV1;
 
 use crate::block_production::bid_selection::{self, BidCandidate, BidSource, ExecutionPayloadData};
+use crate::payload_bid_verification::PayloadBidError;
 use crate::payload_bid_verification::direct_verified_bid::verify_direct_bid;
+use crate::payload_bid_verification::gossip_verified_bid::verify_bid_state_conditions;
 use crate::pending_payload_envelopes::PendingEnvelopeData;
 use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, BlockProductionError,
@@ -1029,6 +1031,17 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     min_bid = builder_config.min_bid,
                     "Skipping gossip bid below the global min_bid"
                 );
+            } else if let Err(error) =
+                verify_bid_state_conditions(&gossip_bid.message, state, &self.spec)
+            {
+                // The gossip bid was validated against the head state at gossip time; its builder's
+                // eligibility or coverage can go stale before production. Re-check against the
+                // production state and drop it if it would now fail `per_block_processing`, so a
+                // stale gossip bid can't outrank a viable candidate and sink the whole proposal.
+                debug!(
+                    ?error,
+                    "Skipping gossip bid that no longer passes state validation"
+                );
             } else {
                 // Gossip bids carry no `execution_payment`, so there's no per-builder clamp to apply
                 // (`u64::MAX` = no clamp); only the global `builder_boost_factor` matters.
@@ -1070,7 +1083,16 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let slot = ctx.slot;
         let parent_hash = ctx.parent_hash;
         let parent_root = ctx.parent_root;
-        let spec = &self.spec;
+
+        // Clone the production state once and share it across the concurrent per-builder
+        // verifications via `Arc`. The clone converts the `&BeaconState` borrow into an owned value
+        // the blocking tasks can hold (they must be `'static`, so they can't borrow this scope);
+        // it's a milhouse structural share (refcount bumps, not a copy of the validator set), so it's
+        // cheap. Each builder's task then just clones these `Arc`s.
+        let state = Arc::new(state.clone());
+        let spec = self.spec.clone();
+        let proposer_preferences = Arc::new(proposer_preferences.clone());
+        let executor = self.task_executor.clone();
 
         // Fan `getExecutionPayloadBid` out to the configured builders, validating each returned bid
         // against the production state, then turn each valid bid into a `Direct` selection candidate.
@@ -1078,17 +1100,42 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .request_and_validate_bids(
                 ctx,
                 &builder_config.builders,
-                move |signed_bid, expected_builder_pubkey| async move {
-                    verify_direct_bid(
-                        &signed_bid,
-                        slot,
-                        parent_hash,
-                        parent_root,
-                        expected_builder_pubkey,
-                        proposer_preferences,
-                        state,
-                        spec,
-                    )
+                move |signed_bid, expected_builder_pubkey| {
+                    let state = state.clone();
+                    let spec = spec.clone();
+                    let proposer_preferences = proposer_preferences.clone();
+                    let executor = executor.clone();
+                    async move {
+                        // The bid's BLS signature check is CPU-bound; run the whole verification on a
+                        // blocking thread so it doesn't stall the async executor during the proposal
+                        // path. Runtime-shutdown / join failures are surfaced as `InternalError`,
+                        // which `request_and_validate_bids` logs and skips like any other bid failure.
+                        executor
+                            .spawn_blocking_handle(
+                                move || {
+                                    verify_direct_bid(
+                                        &signed_bid,
+                                        slot,
+                                        parent_hash,
+                                        parent_root,
+                                        expected_builder_pubkey,
+                                        &proposer_preferences,
+                                        &state,
+                                        &spec,
+                                    )
+                                },
+                                "verify_direct_bid",
+                            )
+                            .ok_or_else(|| {
+                                PayloadBidError::InternalError("runtime shutting down".to_string())
+                            })?
+                            .await
+                            .map_err(|e| {
+                                PayloadBidError::InternalError(format!(
+                                    "verify_direct_bid task failed: {e}"
+                                ))
+                            })?
+                    }
                 },
             )
             .await
