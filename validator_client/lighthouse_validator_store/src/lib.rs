@@ -1509,8 +1509,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         validator_pubkey: PublicKeyBytes,
         request_auth_v1: RequestAuthV1,
     ) -> Result<SignedRequestAuthV1, Error> {
-        // TODO: gotta verify this..
-        let domain_hash = self.spec.get_builder_application_domain();
+        let domain_hash = self.spec.get_request_auth_domain();
         let signing_root = request_auth_v1.signing_root(domain_hash);
 
         let signing_method = self.doppelganger_bypassed_signing_method(validator_pubkey)?;
