@@ -188,11 +188,22 @@ where
             None
         };
 
-        // Construct the Gloas builder service (Builder API client) when the Gloas fork is scheduled.
-        // The client is stateless w.r.t. the target builder — each request carries its own URL — so
-        // it needs no configuration.
+        // Construct the Gloas builder handle (Builder API client) when the Gloas fork is scheduled.
+        // The client is stateless w.r.t. the target builder — each request carries its own URL — but
+        // still honors the same `--builder-user-agent` / `--builder-disable-ssz` flags as the
+        // pre-Gloas builder client.
         let builders = if spec.gloas_fork_epoch.is_some() {
-            let client = BuilderHttpClient::new(None, false)
+            let (user_agent, disable_ssz) = config
+                .execution_layer
+                .as_ref()
+                .map(|el| {
+                    (
+                        el.builder_user_agent.clone(),
+                        el.disable_builder_ssz_requests,
+                    )
+                })
+                .unwrap_or((None, false));
+            let client = BuilderHttpClient::new(user_agent, disable_ssz)
                 .map_err(|e| format!("unable to start builder client: {:?}", e))?;
             Some(Arc::new(Builders::new(Arc::new(client))))
         } else {
