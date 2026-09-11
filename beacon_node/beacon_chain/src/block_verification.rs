@@ -951,12 +951,12 @@ impl<T: BeaconChainTypes> GossipVerifiedBlock<T> {
         let (parent_block, block) =
             verify_parent_block_and_envelope_are_known::<T>(&fork_choice_read_lock, block)?;
 
-        // [New in Gloas]: Verify bid.parent_block_root matches block.parent_root.
+        // [New in Gloas]: Verify bid.parent_block_root() matches block.parent_root.
         if let Ok(bid) = block.message().body().signed_execution_payload_bid()
-            && bid.message.parent_block_root != block.message().parent_root()
+            && bid.message().parent_block_root() != block.message().parent_root()
         {
             return Err(BlockError::BidParentRootMismatch {
-                bid_parent_root: bid.message.parent_block_root,
+                bid_parent_root: bid.message().parent_block_root(),
                 block_parent_root: block.message().parent_root(),
             });
         }

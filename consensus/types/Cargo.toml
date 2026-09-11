@@ -45,6 +45,7 @@ metastruct = "0.1.0"
 milhouse = { workspace = true }
 parking_lot = { workspace = true }
 paste = { workspace = true }
+payload_chunks = { workspace = true }
 rand = { workspace = true }
 rand_xorshift = { workspace = true }
 rayon = { workspace = true }

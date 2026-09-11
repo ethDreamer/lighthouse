@@ -9,9 +9,9 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
-    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ForkContext, ForkName, Hash256,
-    LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
-    PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
+    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ForkContext, ForkName,
+    ForkVersionDecode, Hash256, LightClientFinalityUpdate, LightClientOptimisticUpdate,
+    PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
     PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
     PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof,
     SignedAggregateAndProofBase, SignedAggregateAndProofElectra, SignedAggregateAndProofGloas,
@@ -415,15 +415,29 @@ impl<E: EthSpec> PubsubMessage<E> {
                         )))
                     }
                     GossipKind::ExecutionPayloadBid => {
-                        if data.len() > E::max_signed_execution_payload_bid_size() {
+                        let fork = fork_context
+                            .get_fork_from_context_bytes(gossip_topic.fork_digest)
+                            .ok_or_else(|| {
+                                format!(
+                                    "Unknown gossipsub fork digest: {:?}",
+                                    gossip_topic.fork_digest
+                                )
+                            })?;
+                        let max_size = if fork.heze_enabled() {
+                            E::max_signed_execution_payload_bid_size_heze()
+                        } else {
+                            E::max_signed_execution_payload_bid_size()
+                        };
+                        if data.len() > max_size {
                             return Err(format!(
                                 "SignedExecutionPayloadBid size {} exceeds MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE {}",
                                 data.len(),
-                                E::max_signed_execution_payload_bid_size()
+                                max_size
                             ));
                         }
-                        let execution_payload_bid = SignedExecutionPayloadBid::from_ssz_bytes(data)
-                            .map_err(|e| format!("{:?}", e))?;
+                        let execution_payload_bid =
+                            SignedExecutionPayloadBid::from_ssz_bytes_by_fork(data, *fork)
+                                .map_err(|e| format!("{:?}", e))?;
                         Ok(PubsubMessage::ExecutionPayloadBid(Box::new(
                             execution_payload_bid,
                         )))
@@ -653,7 +667,8 @@ impl<E: EthSpec> std::fmt::Display for PubsubMessage<E> {
                 write!(
                     f,
                     "Execution payload bid: slot: {:?} value: {:?}",
-                    data.message.slot, data.message.value
+                    data.message().slot(),
+                    data.message().value()
                 )
             }
             PubsubMessage::ProposerPreferences(data) => {

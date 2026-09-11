@@ -6,9 +6,9 @@ use std::{
 use safe_arith::{ArithError, SafeArith};
 use serde::{Deserialize, Serialize};
 use typenum::{
-    U0, U1, U2, U4, U8, U16, U17, U24, U32, U48, U64, U96, U128, U256, U512, U625, U1024, U2048,
-    U4096, U8192, U16384, U65536, U131072, U262144, U1048576, U16777216, U33554432, U134217728,
-    U1073741824, U1099511627776, UInt, Unsigned, bit::B0,
+    U0, U1, U2, U4, U5, U8, U16, U17, U24, U32, U48, U64, U96, U128, U256, U512, U625, U1024,
+    U2048, U4096, U8192, U16384, U65536, U131072, U262144, U1048576, U16777216, U33554432,
+    U134217728, U1073741824, U1099511627776, UInt, Unsigned, bit::B0,
 };
 
 use crate::core::{ChainSpec, Epoch};
@@ -176,6 +176,20 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     type MaxPayloadAttestations: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type BuilderPendingPaymentsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxBuildersPerWithdrawalsSweep: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /*
+     * New in Heze (EIP-8142)
+     */
+    /// `MAX_PAYLOAD_DATA_CHUNKS`: data chunks per payload once chunks grow.
+    type MaxPayloadDataChunks: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /// `MIN_PAYLOAD_CHUNK_SIZE`: chunk size in bytes until the data chunk count is hit.
+    type MinPayloadChunkSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /// `MAX_PAYLOAD_CHUNK_SIZE`: bound on the chunk size in bytes.
+    type MaxPayloadChunkSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /// `MAX_PAYLOAD_CHUNKS`: data and parity chunks per payload,
+    /// `PAYLOAD_CHUNK_EXTENSION_FACTOR * MAX_PAYLOAD_DATA_CHUNKS`.
+    type MaxPayloadChunks: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /// `PAYLOAD_CHUNK_PROOF_DEPTH`: `floorlog2(MAX_PAYLOAD_CHUNKS) + 1`.
+    type PayloadChunkProofDepth: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxBuilderDepositRequestsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxBuilderExitRequestsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
@@ -466,6 +480,30 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     /// Returns the `MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE` constant for this specification.
     fn max_signed_execution_payload_bid_size() -> usize;
 
+    /// Returns the `MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE_EIP8142` constant: the bound on a
+    /// Heze bid, which carries the chunk commitment.
+    fn max_signed_execution_payload_bid_size_heze() -> usize;
+
+    /// Returns the `MAX_EXECUTION_PAYLOAD_CHUNK_SIZE` constant for this specification.
+    fn max_execution_payload_chunk_size() -> usize;
+
+    /// The chunk code parameters of this specification, for `payload_chunks`.
+    fn payload_chunk_params() -> payload_chunks::PayloadChunkParams {
+        payload_chunks::PayloadChunkParams {
+            max_payload_data_chunks: Self::MaxPayloadDataChunks::to_usize(),
+            min_payload_chunk_size: Self::MinPayloadChunkSize::to_usize(),
+            max_payload_chunk_size: Self::MaxPayloadChunkSize::to_usize(),
+        }
+    }
+
+    fn max_payload_chunks() -> usize {
+        Self::MaxPayloadChunks::to_usize()
+    }
+
+    fn payload_chunk_proof_depth() -> usize {
+        Self::PayloadChunkProofDepth::to_usize()
+    }
+
     /// Returns the `PAYLOAD_TIMELY_THRESHOLD` constant (PTC_SIZE / 2).
     fn payload_timely_threshold() -> usize {
         Self::PTCSize::to_usize() / 2
@@ -552,6 +590,11 @@ impl EthSpec for MainnetEthSpec {
     type MaxPendingDepositsPerEpoch = U16;
     type PTCSize = U512;
     type PtcWindowLength = U96; // (2 + MIN_SEED_LOOKAHEAD) * SLOTS_PER_EPOCH
+    type MaxPayloadDataChunks = U64;
+    type MinPayloadChunkSize = U16384;
+    type MaxPayloadChunkSize = U1048576;
+    type MaxPayloadChunks = U128;
+    type PayloadChunkProofDepth = U8;
     type MaxPayloadAttestations = U4;
     type MaxBuildersPerWithdrawalsSweep = U16384;
     type MaxBuilderDepositRequestsPerPayload = U64;
@@ -584,6 +627,14 @@ impl EthSpec for MainnetEthSpec {
 
     fn max_signed_execution_payload_bid_size() -> usize {
         196932
+    }
+
+    fn max_signed_execution_payload_bid_size_heze() -> usize {
+        196974
+    }
+
+    fn max_execution_payload_chunk_size() -> usize {
+        1048884
     }
 }
 
@@ -622,6 +673,11 @@ impl EthSpec for MinimalEthSpec {
     type BuilderPendingPaymentsLimit = U16; // 2 * SLOTS_PER_EPOCH = 2 * 8 = 16
     type PTCSize = U16;
     type PtcWindowLength = U24; // (2 + MIN_SEED_LOOKAHEAD) * SLOTS_PER_EPOCH
+    type MaxPayloadDataChunks = U8;
+    type MinPayloadChunkSize = U256;
+    type MaxPayloadChunkSize = U4096;
+    type MaxPayloadChunks = U16;
+    type PayloadChunkProofDepth = U5;
     type MaxBuildersPerWithdrawalsSweep = U16;
 
     params_from_eth_spec!(MainnetEthSpec {
@@ -684,6 +740,14 @@ impl EthSpec for MinimalEthSpec {
 
     fn max_signed_execution_payload_bid_size() -> usize {
         196932
+    }
+
+    fn max_signed_execution_payload_bid_size_heze() -> usize {
+        196974
+    }
+
+    fn max_execution_payload_chunk_size() -> usize {
+        4308
     }
 }
 
@@ -749,6 +813,11 @@ impl EthSpec for GnosisEthSpec {
     type ProposerLookaheadSlots = U32; // Derived from (MIN_SEED_LOOKAHEAD + 1) * SLOTS_PER_EPOCH
     type PTCSize = U512;
     type PtcWindowLength = U48; // (2 + MIN_SEED_LOOKAHEAD) * SLOTS_PER_EPOCH
+    type MaxPayloadDataChunks = U64;
+    type MinPayloadChunkSize = U16384;
+    type MaxPayloadChunkSize = U1048576;
+    type MaxPayloadChunks = U128;
+    type PayloadChunkProofDepth = U8;
     type MaxPayloadAttestations = U2;
     type MaxBuildersPerWithdrawalsSweep = U16384;
     type MaxBuilderDepositRequestsPerPayload = U64;
@@ -781,6 +850,14 @@ impl EthSpec for GnosisEthSpec {
 
     fn max_signed_execution_payload_bid_size() -> usize {
         196932
+    }
+
+    fn max_signed_execution_payload_bid_size_heze() -> usize {
+        196974
+    }
+
+    fn max_execution_payload_chunk_size() -> usize {
+        1048884
     }
 }
 

@@ -6,6 +6,7 @@ use beacon_chain::test_utils::{
 };
 use eth2::types::{EventKind, SseBlobSidecar, SseDataColumnSidecar};
 use std::sync::Arc;
+use types::ForkName;
 use types::data::FixedBlobSidecarList;
 use types::{
     Address, BlobSidecar, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas, Domain,
@@ -50,8 +51,8 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
                 .sampling_columns_for_epoch(epoch)[0];
 
             // For gloas, the bid must be known, e.g. in the pending payload cache
-            let mut bid = SignedExecutionPayloadBid::<E>::empty();
-            bid.message.slot = Slot::new(10);
+            let mut bid = SignedExecutionPayloadBid::<E>::empty_at_fork(ForkName::Gloas).unwrap();
+            *bid.message_mut().slot_mut() = Slot::new(10);
             harness
                 .chain
                 .pending_payload_cache

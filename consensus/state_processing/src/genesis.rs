@@ -171,10 +171,11 @@ pub fn initialize_beacon_state_from_eth1<E: EthSpec>(
         // The genesis block's bid must have block_hash = 0x00 per spec (empty payload).
         // Retain the EL genesis hash in latest_block_hash and parent_block_hash so the
         // first post-genesis proposer can build on the correct EL head.
-        let el_genesis_hash = state.latest_execution_payload_bid()?.block_hash;
-        let bid = state.latest_execution_payload_bid_mut()?;
-        bid.parent_block_hash = el_genesis_hash;
-        bid.block_hash = ExecutionBlockHash::default();
+        let el_genesis_hash = state.latest_execution_payload_bid()?.block_hash();
+        *state
+            .latest_execution_payload_bid_mut()?
+            .parent_block_hash_mut() = el_genesis_hash;
+        *state.latest_execution_payload_bid_mut()?.block_hash_mut() = ExecutionBlockHash::default();
 
         // Update the `latest_block_header.body_root` so that it matches the body of the
         // Gloas genesis block, which embeds `state.latest_execution_payload_bid` in its
@@ -217,8 +218,16 @@ pub fn genesis_block<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<BeaconBlock<E>, BeaconStateError> {
     let mut block = BeaconBlock::empty(spec);
-    if let Ok(signed_bid) = block.body_mut().signed_execution_payload_bid_mut() {
-        signed_bid.message = state.latest_execution_payload_bid()?.clone();
+    match block.body_mut() {
+        BeaconBlockBodyRefMut::Gloas(body) => {
+            body.signed_execution_payload_bid.message =
+                state.latest_execution_payload_bid_gloas()?.clone();
+        }
+        BeaconBlockBodyRefMut::Heze(body) => {
+            body.signed_execution_payload_bid.message =
+                state.latest_execution_payload_bid_heze()?.clone();
+        }
+        _ => {}
     }
     Ok(block)
 }

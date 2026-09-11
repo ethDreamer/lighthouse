@@ -64,7 +64,9 @@ pub fn upgrade_state_to_heze<E: EthSpec>(
         current_sync_committee: pre.current_sync_committee.clone(),
         next_sync_committee: pre.next_sync_committee.clone(),
         // Execution Bid
-        latest_execution_payload_bid: pre.latest_execution_payload_bid.clone(),
+        // [New in Heze:EIP8142] The last pre-fork payload was delivered as a signed envelope,
+        // so the upgraded bid carries an empty chunk commitment.
+        latest_execution_payload_bid: pre.latest_execution_payload_bid.clone().upgrade_to_heze(),
         // Capella
         next_withdrawal_index: pre.next_withdrawal_index,
         next_withdrawal_validator_index: pre.next_withdrawal_validator_index,

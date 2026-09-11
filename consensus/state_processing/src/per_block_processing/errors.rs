@@ -561,6 +561,13 @@ pub enum ExecutionPayloadBidInvalid {
     PrevRandaoMismatch { expected: Hash256, bid: Hash256 },
     /// The bid contains more than the maximum number of kzg blob commitments.
     ExcessBlobCommitments { max: usize, bid: usize },
+    /// [Heze:EIP8142] The bid commits to a payload of zero length.
+    EmptyPayload,
+    /// [Heze:EIP8142] The bid commits to a payload whose chunks would exceed the chunk size bound.
+    PayloadTooLarge {
+        payload_length: u64,
+        max_chunk_size: u64,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -3,6 +3,7 @@ use crate::{
     content_type_from_header, ok_or_error, success_or_error,
 };
 use bls::PublicKeyBytes;
+use eth2::types::ForkVersionDecode;
 use eth2::types::{
     BuilderPreferencesRequest, ContentType, EthSpec, ExecutionBlockHash, ForkName,
     ForkVersionedResponse, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
@@ -15,7 +16,7 @@ use eth2::{
 use reqwest::StatusCode;
 use reqwest::header::{ACCEPT, HeaderMap, HeaderName, HeaderValue};
 use sensitive_url::SensitiveUrl;
-use ssz::{Decode, Encode};
+use ssz::Encode;
 use std::time::Duration;
 use tracing::warn;
 
@@ -182,8 +183,11 @@ impl BuilderHttpClient {
 
         match content_type_from_header(&response_headers) {
             ContentType::Ssz => {
-                let bid = SignedExecutionPayloadBid::<E>::from_ssz_bytes(&response_bytes)
-                    .map_err(Error::InvalidSsz)?;
+                let bid = SignedExecutionPayloadBid::<E>::from_ssz_bytes_by_fork(
+                    &response_bytes,
+                    fork_name,
+                )
+                .map_err(Error::InvalidSsz)?;
                 Ok(Some(bid))
             }
             ContentType::Json => {
@@ -334,7 +338,7 @@ mod tests {
         ForkVersionedResponse {
             version: ForkName::Gloas,
             metadata: EmptyMetadata {},
-            data: SignedExecutionPayloadBid::empty(),
+            data: SignedExecutionPayloadBid::empty_at_fork(ForkName::Gloas).unwrap(),
         }
     }
 
@@ -377,7 +381,10 @@ mod tests {
         let mut server = Server::new_async().await;
         mock_bid(&mut server, ContentType::Json);
         let bid = request_bid(&server).await.expect("should have a bid");
-        assert_eq!(bid, SignedExecutionPayloadBid::empty());
+        assert_eq!(
+            bid,
+            SignedExecutionPayloadBid::empty_at_fork(ForkName::Gloas).unwrap()
+        );
     }
 
     #[tokio::test]
@@ -385,7 +392,10 @@ mod tests {
         let mut server = Server::new_async().await;
         mock_bid(&mut server, ContentType::Ssz);
         let bid = request_bid(&server).await.expect("should have a bid");
-        assert_eq!(bid, SignedExecutionPayloadBid::empty());
+        assert_eq!(
+            bid,
+            SignedExecutionPayloadBid::empty_at_fork(ForkName::Gloas).unwrap()
+        );
     }
 
     #[tokio::test]

@@ -285,10 +285,10 @@ mod ssz_static {
     use types::state::HistoricalSummary;
     use types::{
         AttesterSlashingBase, AttesterSlashingElectra, Builder, BuilderPendingPayment,
-        BuilderPendingWithdrawal, ConsolidationRequest, DepositRequest, ExecutionPayloadBid,
+        BuilderPendingWithdrawal, ConsolidationRequest, DepositRequest, ExecutionPayloadBidGloas,
         ExecutionPayloadEnvelope, IndexedPayloadAttestation, LightClientBootstrapAltair,
         PayloadAttestation, PayloadAttestationData, PayloadAttestationMessage, PendingDeposit,
-        PendingPartialWithdrawal, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
+        PendingPartialWithdrawal, SignedExecutionPayloadBidGloas, SignedExecutionPayloadEnvelope,
         WithdrawalRequest, *,
     };
 
@@ -717,18 +717,21 @@ mod ssz_static {
             .run();
     }
 
+    // The Heze bid on this branch carries the EIP-8142 chunk commitment (see
+    // consensus-specs `specs/_features/eip8142`) and not the Heze spec's `inclusion_list_bits`,
+    // so the Heze vectors for bid types are not run.
     #[test]
     fn execution_payload_bid() {
-        SszStaticHandler::<ExecutionPayloadBid<MinimalEthSpec>, MinimalEthSpec>::gloas_and_later()
+        SszStaticHandler::<ExecutionPayloadBidGloas<MinimalEthSpec>, MinimalEthSpec>::gloas_only()
             .run();
-        SszStaticHandler::<ExecutionPayloadBid<MainnetEthSpec>, MainnetEthSpec>::gloas_and_later()
+        SszStaticHandler::<ExecutionPayloadBidGloas<MainnetEthSpec>, MainnetEthSpec>::gloas_only()
             .run();
     }
 
     #[test]
     fn signed_execution_payload_bid() {
-        SszStaticHandler::<SignedExecutionPayloadBid<MinimalEthSpec>, MinimalEthSpec>::gloas_and_later().run();
-        SszStaticHandler::<SignedExecutionPayloadBid<MainnetEthSpec>, MainnetEthSpec>::gloas_and_later().run();
+        SszStaticHandler::<SignedExecutionPayloadBidGloas<MinimalEthSpec>, MinimalEthSpec>::gloas_only().run();
+        SszStaticHandler::<SignedExecutionPayloadBidGloas<MainnetEthSpec>, MainnetEthSpec>::gloas_only().run();
     }
 
     #[test]

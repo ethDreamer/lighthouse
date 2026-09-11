@@ -45,37 +45,39 @@ pub fn verify_direct_bid<E: EthSpec>(
     state: &BeaconState<E>,
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
-    let bid = &signed_bid.message;
+    let bid = signed_bid.message();
 
     // The bid must be for exactly the slot being produced.
-    if bid.slot != proposal_slot {
-        return Err(PayloadBidError::InvalidBidSlot { bid_slot: bid.slot });
+    if bid.slot() != proposal_slot {
+        return Err(PayloadBidError::InvalidBidSlot {
+            bid_slot: bid.slot(),
+        });
     }
 
     // The bid must build on the executed ancestor the producer selected (FULL or EMPTY view).
-    if bid.parent_block_hash != executed_ancestor_hash {
+    if bid.parent_block_hash() != executed_ancestor_hash {
         return Err(PayloadBidError::InvalidParentBlockHash {
-            bid: bid.parent_block_hash,
+            bid: bid.parent_block_hash(),
             expected: executed_ancestor_hash,
         });
     }
-    if bid.parent_block_root != parent_block_root {
+    if bid.parent_block_root() != parent_block_root {
         return Err(PayloadBidError::InvalidParentBlockRoot {
-            bid: bid.parent_block_root,
+            bid: bid.parent_block_root(),
             expected: parent_block_root,
         });
     }
 
     // `prev_randao` must be the RANDAO mix from the production state.
     let expected_prev_randao = *state.get_randao_mix(proposal_slot.epoch(E::slots_per_epoch()))?;
-    if bid.prev_randao != expected_prev_randao {
-        return Err(PayloadBidError::InvalidPrevRandao { slot: bid.slot });
+    if bid.prev_randao() != expected_prev_randao {
+        return Err(PayloadBidError::InvalidPrevRandao { slot: bid.slot() });
     }
 
     // The gas limit must be compatible with the parent payload's, given the proposer's target.
     if !is_gas_limit_target_compatible(
         executed_ancestor_gas_limit,
-        bid.gas_limit,
+        bid.gas_limit(),
         proposer_preferences.message.target_gas_limit,
     )? {
         return Err(PayloadBidError::InvalidGasLimit);
@@ -85,18 +87,18 @@ pub fn verify_direct_bid<E: EthSpec>(
     verify_direct_bid_consistency(bid, proposal_slot, proposer_preferences, state, spec)?;
 
     // If the requesting `BuilderEntry` named builder pubkeys, the bid must come from one of them:
-    // the builder at `bid.builder_index` must have one of those pubkeys (the `builder_pubkeys`
+    // the builder at `bid.builder_index()` must have one of those pubkeys (the `builder_pubkeys`
     // response filter from beacon-APIs #630; an empty list accepts any builder).
     if !expected_builder_pubkeys.is_empty() {
         let actual = state
-            .get_builder(bid.builder_index)
+            .get_builder(bid.builder_index())
             .map_err(|_| PayloadBidError::InvalidBuilder {
-                builder_index: bid.builder_index,
+                builder_index: bid.builder_index(),
             })?
             .pubkey;
         if !expected_builder_pubkeys.contains(&actual) {
             return Err(PayloadBidError::UnexpectedBuilder {
-                builder_index: bid.builder_index,
+                builder_index: bid.builder_index(),
             });
         }
     }
@@ -105,7 +107,7 @@ pub fn verify_direct_bid<E: EthSpec>(
     execution_payload_bid_signature_set(
         state,
         |i| get_builder_pubkey_from_state(state, i),
-        signed_bid,
+        signed_bid.to_ref(),
         spec,
     )
     .map_err(|_| PayloadBidError::BadSignature)?
@@ -121,7 +123,8 @@ pub fn verify_direct_bid<E: EthSpec>(
 mod tests {
     use super::*;
     use bls::Signature;
-    use types::{Address, ExecutionPayloadBid, MinimalEthSpec, ProposerPreferences};
+    use types::{Address, MinimalEthSpec, ProposerPreferences};
+    use types::{ExecutionPayloadBidGloas, SignedExecutionPayloadBidGloas};
 
     type E = MinimalEthSpec;
 
@@ -151,16 +154,16 @@ mod tests {
         parent_block_root: Hash256,
         prev_randao: Hash256,
     ) -> SignedExecutionPayloadBid<E> {
-        SignedExecutionPayloadBid {
-            message: ExecutionPayloadBid {
+        SignedExecutionPayloadBid::Gloas(SignedExecutionPayloadBidGloas {
+            message: ExecutionPayloadBidGloas {
                 slot,
                 parent_block_hash,
                 parent_block_root,
                 prev_randao,
-                ..ExecutionPayloadBid::default()
+                ..ExecutionPayloadBidGloas::default()
             },
             signature: Signature::empty(),
-        }
+        })
     }
 
     #[test]
@@ -281,8 +284,8 @@ mod tests {
             Hash256::ZERO,
             Hash256::ZERO,
         );
-        bid.message.block_hash = executed_ancestor;
-        bid.message.gas_limit = EXECUTED_ANCESTOR_GAS_LIMIT;
+        *bid.message_mut().block_hash_mut() = executed_ancestor;
+        *bid.message_mut().gas_limit_mut() = EXECUTED_ANCESTOR_GAS_LIMIT;
         let result = verify_direct_bid(
             &bid,
             Slot::new(1),
@@ -311,7 +314,7 @@ mod tests {
             Hash256::ZERO,
             Hash256::ZERO,
         );
-        bid.message.gas_limit = EXECUTED_ANCESTOR_GAS_LIMIT * 2;
+        *bid.message_mut().gas_limit_mut() = EXECUTED_ANCESTOR_GAS_LIMIT * 2;
         let result = verify_direct_bid(
             &bid,
             Slot::new(1),
@@ -337,10 +340,10 @@ mod tests {
             Hash256::ZERO,
             Hash256::ZERO,
         );
-        bid.message.gas_limit = EXECUTED_ANCESTOR_GAS_LIMIT;
+        *bid.message_mut().gas_limit_mut() = EXECUTED_ANCESTOR_GAS_LIMIT;
         // A default (zero) `block_hash` would equal the zero parent hash and trip the
         // block-hash-equals-parent rejection before the checks this test targets.
-        bid.message.block_hash = ExecutionBlockHash::repeat_byte(1);
+        *bid.message_mut().block_hash_mut() = ExecutionBlockHash::repeat_byte(1);
         let result = verify_direct_bid(
             &bid,
             Slot::new(1),
