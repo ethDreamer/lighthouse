@@ -3700,6 +3700,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fixedbitset"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
+
+[[package]]
 name = "flagset"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6767,6 +6773,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "payload_chunks"
+version = "0.1.0"
+dependencies = [
+ "ethereum_hashing",
+ "fixed_bytes",
+ "hex",
+ "merkle_proof",
+ "rand 0.9.2",
+ "reed-solomon-simd",
+ "serde",
+ "serde_json",
+ "ssz_types",
+ "tree_hash",
+ "typenum",
+]
+
+[[package]]
 name = "pbkdf2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7593,6 +7616,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "readme-rustdocifier"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08ad765b21a08b1a8e5cdce052719188a23772bcbefb3c439f0baaf62c56ceac"
+
+[[package]]
 name = "redb"
 version = "2.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7619,6 +7648,18 @@ dependencies = [
  "getrandom 0.2.16",
  "libredox",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "reed-solomon-simd"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffef0520d30fbd4151fb20e262947ae47fb0ab276a744a19b6398438105a072"
+dependencies = [
+ "cpufeatures 0.2.17",
+ "fixedbitset",
+ "once_cell",
+ "readme-rustdocifier",
 ]
 
 [[package]]
@@ -7937,7 +7978,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
