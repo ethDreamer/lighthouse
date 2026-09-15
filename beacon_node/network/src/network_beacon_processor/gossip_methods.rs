@@ -14,6 +14,9 @@ use beacon_chain::execution_proof_verification::Error as ExecutionProofError;
 use beacon_chain::fetch_blobs::PartialHeaderOrBid;
 use beacon_chain::partial_data_column_assembler::UpdatedPartials;
 use beacon_chain::payload_bid_verification::PayloadBidError;
+use beacon_chain::payload_chunk_verification::{
+    ChunkAcceptance, GossipPayloadChunkError, PayloadChunkOutcome,
+};
 use beacon_chain::payload_envelope_verification::{
     EnvelopeError, EnvelopeSource, gossip_verified_envelope::GossipVerifiedEnvelope,
 };
@@ -3772,25 +3775,177 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     /// Process an EIP-8142 execution payload chunk received over gossip.
     ///
-    /// Chunk verification against the bid, accumulation in the pending payload cache and
-    /// reconstruction are added with the beacon chain side of the chunk pipeline (plan WP3). Until
-    /// then chunks are ignored without penalising the sender, and are not propagated.
+    /// The chunk is verified against the bid of its block and forwarded on its own. Once enough
+    /// verified chunks are held the payload is reconstructed and the envelope, rebuilt from the
+    /// bid and block, enters the envelope import path. A chunk whose block is not yet known is
+    /// deferred to the reprocess queue and retried once when the block arrives.
+    #[instrument(
+        skip_all,
+        level = "debug",
+        fields(slot = %chunk.slot, beacon_block_root = %chunk.beacon_block_root, index = chunk.index)
+    )]
     pub async fn process_gossip_execution_payload_chunk(
         self: Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
         chunk: Arc<ExecutionPayloadChunk<T::EthSpec>>,
-        _seen_timestamp: Duration,
+        seen_timestamp: Duration,
     ) {
+        let Some(block_root) = self
+            .verify_and_process_payload_chunk(
+                message_id.clone(),
+                peer_id,
+                chunk.clone(),
+                seen_timestamp,
+            )
+            .await
+        else {
+            return;
+        };
+
+        let chunk_slot = chunk.slot;
         debug!(
-            %peer_id,
-            slot = %chunk.slot,
-            beacon_block_root = %chunk.beacon_block_root,
-            index = chunk.index,
-            bytes = chunk.data.len(),
-            "Ignoring execution payload chunk: chunk processing not yet implemented"
+            ?block_root,
+            %chunk_slot,
+            "Payload chunk references unknown block, deferring to reprocess queue"
         );
-        self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+
+        // The reprocess queue re-runs the closure once the block root is imported. Its envelope
+        // variant is keyed by block root and carries no envelope-specific state, so chunks
+        // share it.
+        let inner_self = self.clone();
+        let process_fn = Box::pin(async move {
+            if let Some(block_root) = inner_self
+                .verify_and_process_payload_chunk(message_id, peer_id, chunk, seen_timestamp)
+                .await
+            {
+                debug!(
+                    ?block_root,
+                    "Deferred payload chunk still references unknown block"
+                );
+            }
+        });
+        if self
+            .beacon_processor_send
+            .try_send(WorkEvent {
+                drop_during_sync: false,
+                work: Work::Reprocess(ReprocessQueueMessage::UnknownBlockForEnvelope(
+                    QueuedGossipEnvelope {
+                        beacon_block_slot: chunk_slot,
+                        beacon_block_root: block_root,
+                        process_fn,
+                    },
+                )),
+            })
+            .is_err()
+        {
+            error!(%chunk_slot, ?block_root, "Failed to defer payload chunk import");
+        }
+    }
+
+    /// Verifies, stores and possibly reconstructs from a chunk, reporting the gossip verdict.
+    /// Returns the block root if the chunk's block is unknown, so the caller can defer it.
+    async fn verify_and_process_payload_chunk(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        chunk: Arc<ExecutionPayloadChunk<T::EthSpec>>,
+        seen_timestamp: Duration,
+    ) -> Option<Hash256> {
+        let verified = match self
+            .chain
+            .verify_payload_chunk_for_gossip_async(chunk)
+            .await
+        {
+            Ok(verified) => verified,
+            Err(GossipPayloadChunkError::BlockRootUnknown { block_root }) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+                return Some(block_root);
+            }
+            Err(e) => {
+                match e.acceptance() {
+                    ChunkAcceptance::Reject => {
+                        debug!(error = ?e, "Rejecting payload chunk");
+                        self.propagate_validation_result(
+                            message_id,
+                            peer_id,
+                            MessageAcceptance::Reject,
+                        );
+                        self.gossip_penalize_peer(
+                            peer_id,
+                            PeerAction::LowToleranceError,
+                            "gossip_payload_chunk_low",
+                        );
+                    }
+                    ChunkAcceptance::Ignore | ChunkAcceptance::UnknownBlock => {
+                        debug!(error = ?e, "Ignoring payload chunk");
+                        self.propagate_validation_result(
+                            message_id,
+                            peer_id,
+                            MessageAcceptance::Ignore,
+                        );
+                    }
+                }
+                return None;
+            }
+        };
+
+        // Forward the chunk as soon as it is verified, the way envelopes are, and only in its
+        // own slot.
+        self.propagate_envelope_if_timely(verified.block_slot(), message_id, peer_id);
+
+        match self
+            .chain
+            .process_gossip_verified_payload_chunk(verified)
+            .await
+        {
+            Ok(PayloadChunkOutcome::Pending(reason)) => {
+                trace!(reason, "Payload chunk stored");
+            }
+            Ok(PayloadChunkOutcome::Reconstructed(envelope)) => {
+                let beacon_block_root = envelope.beacon_block_root();
+                info!(
+                    slot = %envelope.slot(),
+                    root = ?beacon_block_root,
+                    "Payload reconstructed from chunks"
+                );
+                // The reconstruction time is the moment the payload was "seen", so that the
+                // envelope delay metrics compare with whole-envelope gossip like for like.
+                let now = self
+                    .chain
+                    .slot_clock
+                    .now_duration()
+                    .unwrap_or(seen_timestamp);
+                self.chain.envelope_times_cache.write().set_time_observed(
+                    beacon_block_root,
+                    envelope.slot(),
+                    now,
+                    Some(peer_id.to_string()),
+                );
+                match self
+                    .chain
+                    .clone()
+                    .verify_envelope_for_gossip(envelope, EnvelopeSource::Reconstructed)
+                    .await
+                {
+                    Ok(verified_envelope) => {
+                        self.clone()
+                            .process_gossip_verified_execution_payload_envelope(
+                                peer_id,
+                                verified_envelope,
+                            )
+                            .await;
+                    }
+                    Err(e) => {
+                        debug!(error = ?e, "Reconstructed envelope failed verification");
+                    }
+                }
+            }
+            Err(e) => {
+                error!(error = ?e, "Failed to process verified payload chunk");
+            }
+        }
+        None
     }
 
     #[allow(clippy::too_many_arguments)]

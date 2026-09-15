@@ -4,7 +4,10 @@ use std::time::Duration;
 use eth2::types::{EventKind, SseExecutionPayload, SseExecutionPayloadAvailable};
 use fork_choice::PayloadVerificationStatus;
 use slot_clock::SlotClock;
-use state_processing::{VerifySignatures, envelope_processing::verify_execution_payload_envelope};
+use state_processing::{
+    VerifySignatures,
+    envelope_processing::{VerifyChunksRoot, verify_execution_payload_envelope},
+};
 use store::StoreOp;
 use tracing::{debug, error, info, info_span, instrument, warn};
 use types::{BlockImportSource, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope};
@@ -392,11 +395,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let state_root = block.state_root();
         let snapshot = load_snapshot_from_state_root::<T>(block_root, state_root, &self.store)?;
 
-        // Verify envelope signature and state processing
+        // Verify envelope signature (or, at Heze, the chunk commitment) and state processing.
+        // This is the first verification of a range-synced envelope.
         verify_execution_payload_envelope(
             &snapshot.pre_state,
             &signed_envelope,
             VerifySignatures::True,
+            VerifyChunksRoot::True,
             snapshot.state_root,
             &self.spec,
         )?;

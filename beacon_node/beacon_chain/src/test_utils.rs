@@ -3094,6 +3094,7 @@ where
             state,
             &signed_envelope,
             state_processing::VerifySignatures::True,
+            state_processing::envelope_processing::VerifyChunksRoot::True,
             block_state_root,
             &self.spec,
         )

@@ -1336,6 +1336,7 @@ dependencies = [
  "oneshot_broadcast",
  "operation_pool",
  "parking_lot",
+ "payload_chunks",
  "proof_engine",
  "proto_array",
  "rand 0.9.2",

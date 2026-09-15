@@ -15,7 +15,18 @@ use std::sync::Arc;
 use tracing::{Span, debug, debug_span};
 use types::DataColumnSidecar;
 use types::execution::{ProofType, SignedExecutionProof};
-use types::{ColumnIndex, EthSpec, Hash256, SignedExecutionPayloadBid};
+use types::{ColumnIndex, EthSpec, ExecutionPayloadChunk, Hash256, SignedExecutionPayloadBid};
+
+/// [Heze:EIP8142] Where reconstruction of the payload from its chunks stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayloadReconstruction {
+    NotStarted,
+    Started,
+    /// Reconstruction from a full set of verified chunks failed the chunk root check or did not
+    /// decode. The outcome does not depend on which chunks were used, so it is final for this
+    /// block root: the builder committed to an inconsistent set of chunks.
+    Failed,
+}
 
 /// This represents the components of a payload pending data availability.
 ///
@@ -32,6 +43,10 @@ pub struct PendingComponents<E: EthSpec> {
     /// without a proof engine.
     pub execution_proofs: HashMap<ProofType, Arc<SignedExecutionProof>>,
     pub reconstruction_started: bool,
+    /// [Heze:EIP8142] Gossip-verified chunks of the payload, by chunk index.
+    pub verified_payload_chunks: HashMap<u64, Arc<ExecutionPayloadChunk<E>>>,
+    /// [Heze:EIP8142] Whether the payload has been, or is being, reconstructed from chunks.
+    pub payload_reconstruction: PayloadReconstruction,
     /// True once the local `getBlobs` attempt has settled. It is set whether or not the EL
     /// returned anything. Until then, republished partials request no cells, because the EL
     /// may supply them for free.
@@ -220,6 +235,8 @@ impl<E: EthSpec> PendingComponents<E> {
         envelope: AvailabilityPendingExecutedEnvelope<E>,
     ) {
         self.envelope = Some(envelope);
+        // The payload is in hand by whichever route; its chunks have no further use.
+        self.clear_payload_chunks();
     }
 
     pub fn num_completed_columns(&self) -> usize {
@@ -316,9 +333,33 @@ impl<E: EthSpec> PendingComponents<E> {
             verified_data_columns: HashMap::new(),
             execution_proofs: HashMap::new(),
             reconstruction_started: false,
+            verified_payload_chunks: HashMap::new(),
+            payload_reconstruction: PayloadReconstruction::NotStarted,
             local_fetch_settled: false,
             span,
         }
+    }
+
+    /// [Heze:EIP8142] Whether a verified chunk with this index is already held.
+    pub fn has_payload_chunk(&self, index: u64) -> bool {
+        self.verified_payload_chunks.contains_key(&index)
+    }
+
+    /// [Heze:EIP8142] Stores a verified chunk. Returns `false` if that index was already held.
+    pub fn insert_payload_chunk(&mut self, chunk: Arc<ExecutionPayloadChunk<E>>) -> bool {
+        use std::collections::hash_map::Entry;
+        match self.verified_payload_chunks.entry(chunk.index) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(entry) => {
+                entry.insert(chunk);
+                true
+            }
+        }
+    }
+
+    /// [Heze:EIP8142] Drops the chunks once the payload is available by any route.
+    pub fn clear_payload_chunks(&mut self) {
+        self.verified_payload_chunks.clear();
     }
 
     pub fn status_str<T>(

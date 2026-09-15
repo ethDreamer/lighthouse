@@ -40,9 +40,13 @@ use crate::metrics::{
 };
 use crate::observed_data_sidecars::ObservationStrategy;
 use crate::partial_data_column_assembler::PartialMergeResult;
-use pending_components::{PendingComponents, ReconstructColumnsDecision};
+use pending_components::{PayloadReconstruction, PendingComponents, ReconstructColumnsDecision};
+use ssz::Decode;
 use types::execution::SignedExecutionProof;
-use types::{SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope};
+use types::{
+    ExecutionPayloadChunk, ExecutionPayloadContents, SignedExecutionPayloadBid,
+    SignedExecutionPayloadEnvelope,
+};
 
 /// The LRU Cache stores `PendingComponents`, which store the block root, the execution payload bid, and its associated column data.
 /// The execution payload bid stores the kzg commitments which we use to verify against incoming column data.
@@ -105,6 +109,32 @@ pub enum DataColumnReconstructionResult<E: EthSpec> {
 /// Usually data becomes available on its slot within a second of receiving its first component
 /// over gossip. However, data may never become available if a malicious proposer does not
 /// publish its data, or there are network issues. Components are only removed via LRU eviction.
+/// [Heze:EIP8142] Whether enough verified chunks are held to reconstruct the payload.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ReconstructPayloadDecision {
+    /// Reconstruction should start now; the caller owns it.
+    Yes,
+    No(&'static str),
+}
+
+/// [Heze:EIP8142] Why a payload could not be reconstructed from its chunks.
+#[derive(Debug)]
+pub enum PayloadReconstructionError {
+    /// No pending entry for this block root: the block is unknown or its payload is done with.
+    MissingBid(Hash256),
+    /// The bid is pre-Heze and carries no chunk commitment.
+    BidWithoutChunkCommitment(Hash256),
+    /// Fewer verified chunks than data chunks.
+    NotEnoughChunks { have: usize, need: usize },
+    /// The chunks recovered bytes that do not re-encode to the committed root. Final for the
+    /// block root.
+    ChunksRootMismatch(Hash256),
+    /// The recovered bytes are not a valid `ExecutionPayloadContents`. Final for the block root.
+    InvalidContents(String),
+    /// The chunk code rejected the input.
+    Codec(payload_chunks::Error),
+}
+
 pub struct PendingPayloadCache<T: BeaconChainTypes> {
     /// Contains all the data we keep in memory, protected by an RwLock
     availability_cache: RwLock<LruCache<Hash256, PendingComponents<T::EthSpec>>>,
@@ -536,6 +566,161 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
                         .collect::<Vec<_>>(),
                 ))
             })
+    }
+
+    // ── EIP-8142 payload chunks ──
+
+    /// [Heze:EIP8142] Whether a verified chunk with `index` is held for `block_root`.
+    pub fn has_payload_chunk(&self, block_root: &Hash256, index: u64) -> bool {
+        self.peek_pending_components(block_root, |components| {
+            components.is_some_and(|c| c.has_payload_chunk(index))
+        })
+    }
+
+    /// [Heze:EIP8142] Whether the payload of `block_root` is being, or was, reconstructed.
+    pub fn payload_reconstruction(&self, block_root: &Hash256) -> Option<PayloadReconstruction> {
+        self.peek_pending_components(block_root, |components| {
+            components.map(|c| c.payload_reconstruction)
+        })
+    }
+
+    /// [Heze:EIP8142] Stores a gossip-verified chunk and decides whether reconstruction should
+    /// start. Only one caller ever gets `Yes` for a block root: the decision flips the entry to
+    /// `Started` under the write lock, mirroring `check_and_set_reconstruction_started`.
+    pub fn put_gossip_verified_payload_chunk(
+        &self,
+        chunk: Arc<ExecutionPayloadChunk<T::EthSpec>>,
+    ) -> Result<ReconstructPayloadDecision, AvailabilityCheckError> {
+        let block_root = chunk.beacon_block_root;
+        let mut write_lock = self.availability_cache.write();
+        let Some(pending_components) = write_lock.get_mut(&block_root) else {
+            return Err(AvailabilityCheckError::MissingBid(block_root));
+        };
+
+        if pending_components.envelope.is_some() {
+            return Ok(ReconstructPayloadDecision::No("payload already available"));
+        }
+        let inserted = pending_components.insert_payload_chunk(chunk);
+        if !inserted {
+            return Ok(ReconstructPayloadDecision::No("chunk already held"));
+        }
+        match pending_components.payload_reconstruction {
+            PayloadReconstruction::Started => {
+                return Ok(ReconstructPayloadDecision::No("already started"));
+            }
+            PayloadReconstruction::Failed => {
+                return Ok(ReconstructPayloadDecision::No("reconstruction failed"));
+            }
+            PayloadReconstruction::NotStarted => {}
+        }
+
+        let bid = pending_components.bid.message();
+        let Ok(payload_length) = bid.payload_length() else {
+            return Ok(ReconstructPayloadDecision::No(
+                "bid has no chunk commitment",
+            ));
+        };
+        let data_chunk_count = T::EthSpec::payload_chunk_params()
+            .data_chunk_count(payload_length as usize)
+            .map_err(|e| AvailabilityCheckError::Unexpected(format!("bid chunk count: {e}")))?;
+        if pending_components.verified_payload_chunks.len() < data_chunk_count {
+            return Ok(ReconstructPayloadDecision::No("not enough chunks"));
+        }
+
+        pending_components.payload_reconstruction = PayloadReconstruction::Started;
+        Ok(ReconstructPayloadDecision::Yes)
+    }
+
+    /// [Heze:EIP8142] Recovers the payload contents of `block_root` from the chunks held, and
+    /// checks them against the bid's chunk commitment. Runs the erasure decoder and a full
+    /// re-encode, so it must be called from a blocking context.
+    ///
+    /// On a failure that is final (root mismatch, undecodable contents) the entry is marked
+    /// `Failed` so that later chunks do not trigger another attempt.
+    pub fn reconstruct_payload_contents(
+        &self,
+        block_root: &Hash256,
+    ) -> Result<ExecutionPayloadContents<T::EthSpec>, PayloadReconstructionError> {
+        let (bid, chunks) = self
+            .peek_pending_components(block_root, |components| {
+                components.map(|c| {
+                    (
+                        c.bid.clone(),
+                        c.verified_payload_chunks
+                            .values()
+                            .map(|chunk| (chunk.index as usize, chunk.data.to_vec()))
+                            .collect::<Vec<(usize, Vec<u8>)>>(),
+                    )
+                })
+            })
+            .ok_or(PayloadReconstructionError::MissingBid(*block_root))?;
+        let bid = bid.message();
+        let (Ok(chunks_root), Ok(payload_length)) =
+            (bid.payload_chunks_root(), bid.payload_length())
+        else {
+            return Err(PayloadReconstructionError::BidWithoutChunkCommitment(
+                *block_root,
+            ));
+        };
+        let payload_length = payload_length as usize;
+
+        let params = T::EthSpec::payload_chunk_params();
+        let timer = metrics::start_timer(&metrics::PAYLOAD_CHUNK_RECONSTRUCTION_SECONDS);
+        let result = (|| {
+            let payload_bytes = params
+                .recover_payload_bytes(&chunks, payload_length)
+                .map_err(|e| match e {
+                    payload_chunks::Error::NotEnoughChunks { have, need } => {
+                        PayloadReconstructionError::NotEnoughChunks { have, need }
+                    }
+                    e => PayloadReconstructionError::Codec(e),
+                })?;
+            let valid = params
+                .is_valid_payload_chunks_root(chunks_root, payload_length, &payload_bytes)
+                .map_err(PayloadReconstructionError::Codec)?;
+            if !valid {
+                return Err(PayloadReconstructionError::ChunksRootMismatch(*block_root));
+            }
+            ExecutionPayloadContents::from_ssz_bytes(&payload_bytes)
+                .map_err(|e| PayloadReconstructionError::InvalidContents(format!("{e:?}")))
+        })();
+        metrics::stop_timer(timer);
+
+        match &result {
+            Ok(_) => {
+                metrics::inc_counter_vec(
+                    &metrics::PAYLOAD_CHUNK_RECONSTRUCTION_TOTAL,
+                    &["success"],
+                );
+            }
+            Err(
+                PayloadReconstructionError::ChunksRootMismatch(_)
+                | PayloadReconstructionError::InvalidContents(_),
+            ) => {
+                metrics::inc_counter_vec(
+                    &metrics::PAYLOAD_CHUNK_RECONSTRUCTION_TOTAL,
+                    &["invalid"],
+                );
+                error!(
+                    ?block_root,
+                    error = ?result.as_ref().err(),
+                    "Payload chunks do not reconstruct the committed payload"
+                );
+                self.set_payload_reconstruction(block_root, PayloadReconstruction::Failed);
+            }
+            Err(_) => {
+                metrics::inc_counter_vec(&metrics::PAYLOAD_CHUNK_RECONSTRUCTION_TOTAL, &["error"]);
+                // Not a verdict on the chunks; allow a later attempt.
+                self.set_payload_reconstruction(block_root, PayloadReconstruction::NotStarted);
+            }
+        }
+        result
+    }
+
+    fn set_payload_reconstruction(&self, block_root: &Hash256, state: PayloadReconstruction) {
+        if let Some(components) = self.availability_cache.write().get_mut(block_root) {
+            components.payload_reconstruction = state;
+        }
     }
 
     // ── Metrics ──
@@ -1102,5 +1287,217 @@ mod data_availability_checker_tests {
         assert_eq!(result.full_columns.len(), 1, "column 0 becomes complete");
         assert_eq!(result.full_columns[0].index(), 0);
         assert!(s.cache.is_column_complete(&s.block_root, 0));
+    }
+}
+
+#[cfg(test)]
+mod payload_chunk_tests {
+    use super::*;
+    use crate::custody_context::NodeCustodyType;
+    use crate::test_utils::{DiskHarnessType, generate_data_column_indices_rand_order, get_kzg};
+    use logging::create_test_tracing_subscriber;
+    use slot_clock::{SlotClock, TestingSlotClock};
+    use ssz::Encode;
+    use ssz_types::ProgressiveVariableList;
+    use std::time::Duration;
+    use types::{
+        ExecutionPayloadBidHeze, ExecutionPayloadGloas, ExecutionRequestsGloas, ForkName,
+        MinimalEthSpec, SignedExecutionPayloadBidHeze, Slot,
+    };
+
+    type E = MinimalEthSpec;
+    type T = DiskHarnessType<E>;
+
+    fn make_cache() -> Arc<PendingPayloadCache<T>> {
+        create_test_tracing_subscriber();
+        let spec = Arc::new(ForkName::Heze.make_genesis_spec(E::default_spec()));
+        let kzg = get_kzg(&spec);
+        let slot_clock = TestingSlotClock::new(
+            Slot::new(0),
+            Duration::from_secs(0),
+            spec.get_slot_duration(),
+        );
+        let custody_context = Arc::new(CustodyContext::<T>::new(
+            NodeCustodyType::Supernode,
+            generate_data_column_indices_rand_order::<E>(),
+            slot_clock,
+            false,
+            spec.clone(),
+        ));
+        Arc::new(
+            PendingPayloadCache::<T>::new(kzg, custody_context, false, 0, spec).expect("cache"),
+        )
+    }
+
+    /// Payload contents large enough to span several data chunks on the minimal preset.
+    fn contents() -> ExecutionPayloadContents<E> {
+        let transactions = (0..6u8).map(|i| {
+            ProgressiveVariableList::from_iter((0..300u32).map(|j| (j as u8).wrapping_mul(i + 1)))
+        });
+        ExecutionPayloadContents {
+            payload: ExecutionPayloadGloas {
+                transactions: ProgressiveVariableList::from_iter(transactions),
+                ..ExecutionPayloadGloas::default()
+            },
+            execution_requests: ExecutionRequestsGloas::default(),
+        }
+    }
+
+    /// Registers a Heze bid committing to `chunks_root` and `payload_length` for a fresh block
+    /// root.
+    fn insert_heze_bid(
+        cache: &PendingPayloadCache<T>,
+        chunks_root: Hash256,
+        payload_length: usize,
+    ) -> Hash256 {
+        let block_root = Hash256::repeat_byte(0x42);
+        let bid = ExecutionPayloadBidHeze::<E> {
+            slot: Slot::new(1),
+            payload_chunks_root: chunks_root,
+            payload_length: payload_length as u64,
+            ..ExecutionPayloadBidHeze::default()
+        };
+        cache.insert_bid(
+            block_root,
+            Arc::new(SignedExecutionPayloadBid::Heze(
+                SignedExecutionPayloadBidHeze {
+                    message: bid,
+                    signature: bls::Signature::empty(),
+                },
+            )),
+        );
+        block_root
+    }
+
+    fn chunks_for(
+        block_root: Hash256,
+        encoded: &payload_chunks::EncodedPayload,
+    ) -> Vec<Arc<ExecutionPayloadChunk<E>>> {
+        ExecutionPayloadChunk::<E>::all_from_encoded(block_root, Slot::new(1), encoded)
+            .expect("chunks")
+            .into_iter()
+            .map(Arc::new)
+            .collect()
+    }
+
+    #[test]
+    fn reconstructs_once_data_chunk_count_is_held() {
+        let cache = make_cache();
+        let contents = contents();
+        let bytes = contents.as_ssz_bytes();
+        let params = E::payload_chunk_params();
+        let encoded = params.encode_payload(&bytes).expect("encode");
+        let k = params.data_chunk_count(bytes.len()).expect("count");
+        assert!(k >= 3, "test payload should span several chunks, k = {k}");
+        let block_root = insert_heze_bid(&cache, encoded.chunks_root, bytes.len());
+        let chunks = chunks_for(block_root, &encoded);
+
+        // Feed parity chunks first, then data, so that decoding is actually exercised.
+        let order: Vec<usize> = (k..chunks.len()).chain(0..k).collect();
+        for (n, i) in order.iter().take(k).enumerate() {
+            let decision = cache
+                .put_gossip_verified_payload_chunk(chunks[*i].clone())
+                .expect("put");
+            if n + 1 < k {
+                assert_eq!(
+                    decision,
+                    ReconstructPayloadDecision::No("not enough chunks")
+                );
+            } else {
+                assert_eq!(decision, ReconstructPayloadDecision::Yes);
+            }
+        }
+        assert_eq!(
+            cache.payload_reconstruction(&block_root),
+            Some(PayloadReconstruction::Started)
+        );
+        // Only one caller gets `Yes`; later chunks are stored but do not restart it.
+        assert_eq!(
+            cache
+                .put_gossip_verified_payload_chunk(chunks[order[k]].clone())
+                .expect("put"),
+            ReconstructPayloadDecision::No("already started")
+        );
+        // A repeated index is not stored twice.
+        assert_eq!(
+            cache
+                .put_gossip_verified_payload_chunk(chunks[order[0]].clone())
+                .expect("put"),
+            ReconstructPayloadDecision::No("chunk already held")
+        );
+
+        let recovered = cache
+            .reconstruct_payload_contents(&block_root)
+            .expect("reconstruct");
+        assert_eq!(recovered, contents);
+    }
+
+    #[test]
+    fn inconsistent_codeword_fails_finally() {
+        let cache = make_cache();
+        let contents = contents();
+        let bytes = contents.as_ssz_bytes();
+        let params = E::payload_chunk_params();
+        let mut encoded = params.encode_payload(&bytes).expect("encode");
+        let k = params.data_chunk_count(bytes.len()).expect("count");
+
+        // The builder corrupts one parity chunk and commits to the corrupted set: every chunk
+        // has a valid proof, but they are not one codeword.
+        encoded.chunks[k][0] ^= 0x01;
+        let hashes: Vec<Hash256> = encoded
+            .chunks
+            .iter()
+            .map(|c| payload_chunks::chunk_hash(c))
+            .collect();
+        let (root, proofs) =
+            payload_chunks::merkle::chunks_root_and_proofs(&hashes, params.max_payload_chunks())
+                .expect("root");
+        encoded.chunk_hashes = hashes;
+        encoded.chunks_root = root;
+        encoded.proofs = proofs;
+        let block_root = insert_heze_bid(&cache, encoded.chunks_root, bytes.len());
+        let chunks = chunks_for(block_root, &encoded);
+        for chunk in &chunks {
+            assert!(chunk.verify_proof(encoded.chunks_root));
+        }
+
+        // Decode from the parity chunks, which include the corrupted one.
+        for chunk in chunks.iter().skip(k) {
+            cache
+                .put_gossip_verified_payload_chunk(chunk.clone())
+                .expect("put");
+        }
+        let err = cache
+            .reconstruct_payload_contents(&block_root)
+            .expect_err("corrupted codeword must not reconstruct");
+        assert!(
+            matches!(err, PayloadReconstructionError::ChunksRootMismatch(_)),
+            "unexpected error: {err:?}"
+        );
+        assert_eq!(
+            cache.payload_reconstruction(&block_root),
+            Some(PayloadReconstruction::Failed)
+        );
+        // The verdict is final: further chunks do not trigger another attempt.
+        assert_eq!(
+            cache
+                .put_gossip_verified_payload_chunk(chunks[0].clone())
+                .expect("put"),
+            ReconstructPayloadDecision::No("reconstruction failed")
+        );
+    }
+
+    #[test]
+    fn chunks_for_unknown_block_are_refused() {
+        let cache = make_cache();
+        let bytes = contents().as_ssz_bytes();
+        let encoded = E::payload_chunk_params()
+            .encode_payload(&bytes)
+            .expect("encode");
+        let chunks = chunks_for(Hash256::repeat_byte(0x99), &encoded);
+        assert!(matches!(
+            cache.put_gossip_verified_payload_chunk(chunks[0].clone()),
+            Err(AvailabilityCheckError::MissingBid(_))
+        ));
     }
 }

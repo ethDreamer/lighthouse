@@ -224,8 +224,13 @@ pub fn genesis_block<E: EthSpec>(
                 state.latest_execution_payload_bid_gloas()?.clone();
         }
         BeaconBlockBodyRefMut::Heze(body) => {
+            // At a Heze genesis the state is upgraded fork by fork, so the bid may still be the
+            // Gloas one when the genesis block is first built.
             body.signed_execution_payload_bid.message =
-                state.latest_execution_payload_bid_heze()?.clone();
+                match state.latest_execution_payload_bid()? {
+                    ExecutionPayloadBidRef::Heze(bid) => bid.clone(),
+                    ExecutionPayloadBidRef::Gloas(bid) => bid.clone().upgrade_to_heze(),
+                };
         }
         _ => {}
     }

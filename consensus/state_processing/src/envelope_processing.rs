@@ -1,11 +1,30 @@
 use crate::VerifySignatures;
 use crate::per_block_processing::compute_timestamp_at_slot;
 use safe_arith::ArithError;
+use ssz::Encode;
 use tree_hash::TreeHash;
 use types::{
-    BeaconState, BeaconStateError, BuilderIndex, ChainSpec, EthSpec, ExecutionBlockHash, Hash256,
-    SignedExecutionPayloadEnvelope, Slot,
+    BeaconState, BeaconStateError, BuilderIndex, ChainSpec, EthSpec, ExecutionBlockHash,
+    ExecutionPayloadContents, Hash256, SignedExecutionPayloadEnvelope, Slot,
 };
+
+/// Whether to verify the EIP-8142 chunk commitment of a Heze envelope: re-encode the payload
+/// contents into chunks and compare the root with the bid's `payload_chunks_root`.
+///
+/// This is the authentication of an unsigned Heze envelope. It is what reconstruction from
+/// chunks already performs, so envelopes that were reconstructed skip it here, while envelopes
+/// received whole (by Req/Resp or HTTP) must run it once. Ignored before Heze.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerifyChunksRoot {
+    True,
+    False,
+}
+
+impl VerifyChunksRoot {
+    pub fn is_true(self) -> bool {
+        self == VerifyChunksRoot::True
+    }
+}
 
 macro_rules! envelope_verify {
     ($condition: expr, $result: expr) => {
@@ -79,6 +98,19 @@ pub enum EnvelopeProcessingError {
     },
     /// The envelope was deemed invalid by the execution engine.
     ExecutionInvalid,
+    /// [Heze:EIP8142] The chunks of the envelope's payload contents do not match the root the
+    /// bid committed to.
+    PayloadChunksRootMismatch {
+        committed_bid: Hash256,
+        envelope: Option<Hash256>,
+    },
+    /// [Heze:EIP8142] The serialized payload contents are not the length the bid committed to.
+    PayloadLengthMismatch {
+        committed_bid: u64,
+        envelope: u64,
+    },
+    /// [Heze:EIP8142] The payload contents could not be encoded into chunks.
+    PayloadChunksError(String),
 }
 
 impl From<BeaconStateError> for EnvelopeProcessingError {
@@ -106,15 +138,26 @@ pub fn verify_execution_payload_envelope<E: EthSpec>(
     state: &BeaconState<E>,
     signed_envelope: &SignedExecutionPayloadEnvelope<E>,
     verify_signatures: VerifySignatures,
+    verify_chunks_root: VerifyChunksRoot,
     block_state_root: Hash256,
     spec: &ChainSpec,
 ) -> Result<(), EnvelopeProcessingError> {
-    if verify_signatures.is_true() && !signed_envelope.verify_signature_with_state(state, spec)? {
+    // [Modified in Heze:EIP8142] The envelope is no longer signed. Its authenticity follows from
+    // the chunk commitment in the bid, which the builder signed.
+    let heze_enabled = state.fork_name_unchecked().heze_enabled();
+    if !heze_enabled
+        && verify_signatures.is_true()
+        && !signed_envelope.verify_signature_with_state(state, spec)?
+    {
         return Err(EnvelopeProcessingError::BadSignature);
     }
 
     let envelope = &signed_envelope.message;
     let payload = &envelope.payload;
+
+    if heze_enabled && verify_chunks_root.is_true() {
+        verify_payload_chunks_root(state, envelope)?;
+    }
 
     // Verify consistency with the beacon block.
     // Use a copy of the header with state_root filled in, matching the spec's approach.
@@ -233,6 +276,42 @@ pub fn verify_execution_payload_envelope<E: EthSpec>(
     Ok(())
 }
 
+/// [Heze:EIP8142] Checks that `envelope`'s payload contents are the payload the state's latest
+/// bid committed to: same serialized length, and the same chunks root after re-encoding.
+pub fn verify_payload_chunks_root<E: EthSpec>(
+    state: &BeaconState<E>,
+    envelope: &types::ExecutionPayloadEnvelope<E>,
+) -> Result<(), EnvelopeProcessingError> {
+    let committed_bid = state.latest_execution_payload_bid()?;
+    let committed_root = committed_bid.payload_chunks_root()?;
+    let committed_length = committed_bid.payload_length()?;
+
+    let contents_bytes = ExecutionPayloadContents::from_envelope(envelope).as_ssz_bytes();
+    envelope_verify!(
+        contents_bytes.len() as u64 == committed_length,
+        EnvelopeProcessingError::PayloadLengthMismatch {
+            committed_bid: committed_length,
+            envelope: contents_bytes.len() as u64,
+        }
+    );
+
+    let params = E::payload_chunk_params();
+    let chunks = params
+        .compute_payload_chunks(&contents_bytes)
+        .map_err(|e| EnvelopeProcessingError::PayloadChunksError(e.to_string()))?;
+    let root = params
+        .compute_payload_chunks_root(&chunks)
+        .map_err(|e| EnvelopeProcessingError::PayloadChunksError(e.to_string()))?;
+    envelope_verify!(
+        root == committed_root,
+        EnvelopeProcessingError::PayloadChunksRootMismatch {
+            committed_bid: committed_root,
+            envelope: Some(root),
+        }
+    );
+    Ok(())
+}
+
 #[cfg(not(debug_assertions))]
 #[cfg(test)]
 mod tests {
@@ -281,6 +360,7 @@ mod tests {
             &post_state,
             &envelope,
             VerifySignatures::False,
+            VerifyChunksRoot::False,
             block_state_root,
             &harness.spec,
         );
@@ -314,6 +394,7 @@ mod tests {
             &post_state,
             &envelope,
             VerifySignatures::False,
+            VerifyChunksRoot::False,
             block_state_root,
             &harness.spec,
         );

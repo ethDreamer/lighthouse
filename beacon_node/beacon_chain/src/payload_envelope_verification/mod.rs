@@ -48,6 +48,9 @@ pub enum EnvelopeSource {
     Gossip,
     Rpc,
     Http,
+    /// [Heze:EIP8142] Reconstructed locally from gossiped chunks. The chunk commitment was
+    /// already checked during reconstruction.
+    Reconstructed,
 }
 
 #[derive(Debug, Clone)]

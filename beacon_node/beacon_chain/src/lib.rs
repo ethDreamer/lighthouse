@@ -49,6 +49,7 @@ mod observed_slashable;
 pub mod partial_data_column_assembler;
 pub mod payload_attestation_verification;
 pub mod payload_bid_verification;
+pub mod payload_chunk_verification;
 pub mod payload_envelope_streamer;
 pub mod payload_envelope_verification;
 pub mod pending_payload_cache;

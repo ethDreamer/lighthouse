@@ -2148,6 +2148,43 @@ pub static KZG_DATA_COLUMN_RECONSTRUCTION_FAILURES: LazyLock<Result<IntCounter>>
         )
     });
 
+/*
+ * EIP-8142 payload chunks
+ */
+pub static PAYLOAD_CHUNK_GOSSIP_VERIFICATION_SECONDS: LazyLock<Result<Histogram>> =
+    LazyLock::new(|| {
+        try_create_histogram(
+            "beacon_payload_chunk_gossip_verification_seconds",
+            "Full runtime of execution payload chunk gossip verification",
+        )
+    });
+
+pub static PAYLOAD_CHUNK_GOSSIP_VERIFICATION_TOTAL: LazyLock<Result<IntCounterVec>> =
+    LazyLock::new(|| {
+        try_create_int_counter_vec(
+            "beacon_payload_chunk_gossip_verification_total",
+            "Outcomes of execution payload chunk gossip verification",
+            &["outcome"],
+        )
+    });
+
+pub static PAYLOAD_CHUNK_RECONSTRUCTION_SECONDS: LazyLock<Result<Histogram>> =
+    LazyLock::new(|| {
+        try_create_histogram(
+            "beacon_payload_chunk_reconstruction_seconds",
+            "Time to recover a payload from its chunks and re-check the chunk commitment",
+        )
+    });
+
+pub static PAYLOAD_CHUNK_RECONSTRUCTION_TOTAL: LazyLock<Result<IntCounterVec>> =
+    LazyLock::new(|| {
+        try_create_int_counter_vec(
+            "beacon_payload_chunk_reconstruction_total",
+            "Outcomes of payload reconstruction from chunks",
+            &["outcome"],
+        )
+    });
+
 pub static KZG_DATA_COLUMN_RECONSTRUCTION_INCOMPLETE_TOTAL: LazyLock<Result<IntCounterVec>> =
     LazyLock::new(|| {
         try_create_int_counter_vec(

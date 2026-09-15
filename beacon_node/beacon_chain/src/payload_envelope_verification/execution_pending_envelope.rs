@@ -1,6 +1,9 @@
 use bls::Hash256;
 use slot_clock::SlotClock;
-use state_processing::{VerifySignatures, envelope_processing::verify_execution_payload_envelope};
+use state_processing::{
+    VerifySignatures,
+    envelope_processing::{VerifyChunksRoot, verify_execution_payload_envelope},
+};
 use std::sync::Arc;
 use types::{EthSpec, SignedExecutionPayloadEnvelope};
 
@@ -78,8 +81,10 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         verify_execution_payload_envelope(
             &state,
             &signed_envelope,
-            // verify signature already done for GossipVerifiedEnvelope
+            // Signature and, at Heze, the chunk commitment were already checked for
+            // `GossipVerifiedEnvelope`.
             VerifySignatures::False,
+            VerifyChunksRoot::False,
             snapshot.state_root,
             &chain.spec,
         )?;

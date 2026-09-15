@@ -23,7 +23,9 @@ use crate::{
     },
     validator_pubkey_cache::ValidatorPubkeyCache,
 };
+use fork_choice::ProtoBlock;
 use state_processing::builder_deposits_cache::OnboardBuildersCache;
+use state_processing::envelope_processing::verify_payload_chunks_root;
 
 /// Bundles only the dependencies needed for gossip verification of execution payload envelopes,
 /// decoupling `GossipVerifiedEnvelope::new` from the full `BeaconChain`.
@@ -209,76 +211,23 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
         verify_envelope_consistency(envelope, &block, execution_bid, latest_finalized_slot)?;
 
-        // Verify the envelope signature.
-        //
-        // For self-built envelopes, we can use the proposer cache for the fork and the
-        // validator pubkey cache for the proposer's pubkey, avoiding a state load from disk.
-        // For external builder envelopes, we must load the state to access the builder registry.
-        let envelope_epoch = block_slot.epoch(T::EthSpec::slots_per_epoch());
-        // Since the payload's block is already guaranteed to be imported, the associated `proto_block.current_epoch_shuffling_id`
-        // already carries the correct `shuffling_decision_block`.
-        let proposer_shuffling_decision_block = proto_block
-            .current_epoch_shuffling_id
-            .shuffling_decision_block;
-
-        let (signature_is_valid, opt_snapshot) = if builder_index == BUILDER_INDEX_SELF_BUILD {
-            // Fast path: self-built envelopes can be verified without loading the state.
-            let mut opt_snapshot = None;
-            let proposer = beacon_proposer_cache::with_proposer_cache(
-                ctx.beacon_proposer_cache,
-                proposer_shuffling_decision_block,
-                envelope_epoch,
-                |proposers| proposers.get_slot::<T::EthSpec>(block_slot),
-                || {
-                    debug!(
-                        %beacon_block_root,
-                        "Proposer shuffling cache miss for envelope verification"
-                    );
-                    let snapshot = load_snapshot_from_state_root::<T>(
-                        beacon_block_root,
-                        proto_block.state_root,
-                        ctx.store,
-                    )?;
-                    opt_snapshot = Some(Box::new(snapshot.clone()));
-                    Ok::<_, EnvelopeError>((snapshot.state_root, snapshot.pre_state))
-                },
-                ctx.builder_onboarding_cache,
-                ctx.spec,
-            )?;
-            let expected_proposer = proposer.index;
-            let fork = proposer.fork;
-
-            if block.message().proposer_index() != expected_proposer as u64 {
-                return Err(EnvelopeError::IncorrectBlockProposer {
-                    proposer_index: block.message().proposer_index(),
-                    local_shuffling: expected_proposer as u64,
-                });
+        // [Modified in Heze:EIP8142] The envelope is unsigned; the bid's chunk commitment is its
+        // authentication. Reconstructed envelopes already passed the root check while being
+        // reconstructed. Envelopes received whole (RPC, HTTP) must pass it here.
+        let (signature_is_valid, opt_snapshot) = if block.fork_name_unchecked().heze_enabled() {
+            if ctx.source != EnvelopeSource::Reconstructed {
+                let snapshot = load_snapshot_from_state_root::<T>(
+                    beacon_block_root,
+                    proto_block.state_root,
+                    ctx.store,
+                )?;
+                verify_payload_chunks_root(&snapshot.pre_state, envelope)?;
+                (true, Some(Box::new(snapshot)))
+            } else {
+                (true, None)
             }
-
-            let pubkey_cache = ctx.validator_pubkey_cache.read();
-            let pubkey = pubkey_cache
-                .get(block.message().proposer_index() as usize)
-                .ok_or_else(|| EnvelopeError::UnknownValidator {
-                    proposer_index: block.message().proposer_index(),
-                })?;
-            let is_valid = signed_envelope.verify_signature(
-                pubkey,
-                &fork,
-                ctx.genesis_validators_root,
-                ctx.spec,
-            );
-            (is_valid, opt_snapshot)
         } else {
-            // TODO(gloas) if we implement a builder pubkey cache, we'll need to use it here.
-            // External builder: must load the state to get the builder pubkey.
-            let snapshot = load_snapshot_from_state_root::<T>(
-                beacon_block_root,
-                proto_block.state_root,
-                ctx.store,
-            )?;
-            let is_valid =
-                signed_envelope.verify_signature_with_state(&snapshot.pre_state, ctx.spec)?;
-            (is_valid, Some(Box::new(snapshot)))
+            Self::verify_signature(&signed_envelope, &block, &proto_block, ctx)?
         };
 
         if !signature_is_valid {
@@ -331,6 +280,93 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
     pub fn envelope_cloned(&self) -> Arc<SignedExecutionPayloadEnvelope<T::EthSpec>> {
         self.signed_envelope.clone()
+    }
+}
+
+/// Whether the signature verified, and the state snapshot if one had to be loaded on the way.
+type SignatureVerification<E> = (bool, Option<Box<EnvelopeProcessingSnapshot<E>>>);
+
+impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
+    /// Verifies the builder signature of a pre-Heze envelope.
+    ///
+    /// For self-built envelopes, we can use the proposer cache for the fork and the
+    /// validator pubkey cache for the proposer's pubkey, avoiding a state load from disk.
+    /// For external builder envelopes, we must load the state to access the builder registry.
+    fn verify_signature(
+        signed_envelope: &SignedExecutionPayloadEnvelope<T::EthSpec>,
+        block: &SignedBeaconBlock<T::EthSpec>,
+        proto_block: &ProtoBlock,
+        ctx: &GossipVerificationContext<'_, T>,
+    ) -> Result<SignatureVerification<T::EthSpec>, EnvelopeError> {
+        let beacon_block_root = signed_envelope.message.beacon_block_root;
+        let builder_index = signed_envelope.message.builder_index;
+        let block_slot = proto_block.slot;
+        let envelope_epoch = block_slot.epoch(T::EthSpec::slots_per_epoch());
+        // Since the payload's block is already guaranteed to be imported, the associated `proto_block.current_epoch_shuffling_id`
+        // already carries the correct `shuffling_decision_block`.
+        let proposer_shuffling_decision_block = proto_block
+            .current_epoch_shuffling_id
+            .shuffling_decision_block;
+
+        if builder_index == BUILDER_INDEX_SELF_BUILD {
+            // Fast path: self-built envelopes can be verified without loading the state.
+            let mut opt_snapshot = None;
+            let proposer = beacon_proposer_cache::with_proposer_cache(
+                ctx.beacon_proposer_cache,
+                proposer_shuffling_decision_block,
+                envelope_epoch,
+                |proposers| proposers.get_slot::<T::EthSpec>(block_slot),
+                || {
+                    debug!(
+                        %beacon_block_root,
+                        "Proposer shuffling cache miss for envelope verification"
+                    );
+                    let snapshot = load_snapshot_from_state_root::<T>(
+                        beacon_block_root,
+                        proto_block.state_root,
+                        ctx.store,
+                    )?;
+                    opt_snapshot = Some(Box::new(snapshot.clone()));
+                    Ok::<_, EnvelopeError>((snapshot.state_root, snapshot.pre_state))
+                },
+                ctx.builder_onboarding_cache,
+                ctx.spec,
+            )?;
+            let expected_proposer = proposer.index;
+            let fork = proposer.fork;
+
+            if block.message().proposer_index() != expected_proposer as u64 {
+                return Err(EnvelopeError::IncorrectBlockProposer {
+                    proposer_index: block.message().proposer_index(),
+                    local_shuffling: expected_proposer as u64,
+                });
+            }
+
+            let pubkey_cache = ctx.validator_pubkey_cache.read();
+            let pubkey = pubkey_cache
+                .get(block.message().proposer_index() as usize)
+                .ok_or_else(|| EnvelopeError::UnknownValidator {
+                    proposer_index: block.message().proposer_index(),
+                })?;
+            let is_valid = signed_envelope.verify_signature(
+                pubkey,
+                &fork,
+                ctx.genesis_validators_root,
+                ctx.spec,
+            );
+            Ok((is_valid, opt_snapshot))
+        } else {
+            // TODO(gloas) if we implement a builder pubkey cache, we'll need to use it here.
+            // External builder: must load the state to get the builder pubkey.
+            let snapshot = load_snapshot_from_state_root::<T>(
+                beacon_block_root,
+                proto_block.state_root,
+                ctx.store,
+            )?;
+            let is_valid =
+                signed_envelope.verify_signature_with_state(&snapshot.pre_state, ctx.spec)?;
+            Ok((is_valid, Some(Box::new(snapshot))))
+        }
     }
 }
 

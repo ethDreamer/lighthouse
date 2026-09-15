@@ -13,7 +13,7 @@ use operation_pool::CompactAttestationRef;
 use ssz::{Encode, ProgressiveBitList};
 use ssz_types::ProgressiveVariableList;
 use state_processing::common::{get_attesting_indices_from_state, get_indexed_payload_attestation};
-use state_processing::envelope_processing::verify_execution_payload_envelope;
+use state_processing::envelope_processing::{VerifyChunksRoot, verify_execution_payload_envelope};
 use state_processing::epoch_cache::initialize_epoch_cache;
 use state_processing::per_block_processing::is_valid_indexed_payload_attestation;
 use state_processing::per_block_processing::{
@@ -831,6 +831,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 &state,
                 &signed_envelope,
                 VerifySignatures::False,
+                // The bid's chunk commitment was computed from this very payload.
+                VerifyChunksRoot::False,
                 state_root,
                 &self.spec,
             )

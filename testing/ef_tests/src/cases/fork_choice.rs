@@ -26,7 +26,7 @@ use serde::Deserialize;
 use ssz_derive::Decode;
 use ssz_types::VariableList;
 use state_processing::VerifySignatures;
-use state_processing::envelope_processing::verify_execution_payload_envelope;
+use state_processing::envelope_processing::{VerifyChunksRoot, verify_execution_payload_envelope};
 use state_processing::per_block_processing::is_valid_indexed_payload_attestation;
 use state_processing::state_advance::complete_state_advance;
 use std::future::Future;
@@ -1217,6 +1217,7 @@ impl<E: EthSpec> Tester<E> {
                 &state,
                 signed_envelope,
                 VerifySignatures::True,
+                VerifyChunksRoot::True,
                 block_state_root,
                 spec,
             )
