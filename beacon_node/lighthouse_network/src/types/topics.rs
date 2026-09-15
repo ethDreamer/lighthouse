@@ -29,6 +29,7 @@ pub const SIGNED_CONTRIBUTION_AND_PROOF_TOPIC: &str = "sync_committee_contributi
 pub const SYNC_COMMITTEE_PREFIX_TOPIC: &str = "sync_committee_";
 pub const BLS_TO_EXECUTION_CHANGE_TOPIC: &str = "bls_to_execution_change";
 pub const EXECUTION_PAYLOAD: &str = "execution_payload";
+pub const EXECUTION_PAYLOAD_CHUNK: &str = "execution_payload_chunk";
 pub const EXECUTION_PAYLOAD_BID: &str = "execution_payload_bid";
 pub const PAYLOAD_ATTESTATION: &str = "payload_attestation_message";
 pub const PROPOSER_PREFERENCES: &str = "proposer_preferences";
@@ -90,7 +91,13 @@ pub fn core_topics_to_subscribe<E: EthSpec>(
     }
 
     if fork_name.gloas_enabled() {
-        topics.push(GossipKind::ExecutionPayload);
+        // [Heze:EIP8142] Whole envelopes are no longer gossiped; the payload travels as chunks
+        // on `execution_payload_chunk` instead.
+        if fork_name.heze_enabled() {
+            topics.push(GossipKind::ExecutionPayloadChunk);
+        } else {
+            topics.push(GossipKind::ExecutionPayload);
+        }
         topics.push(GossipKind::ExecutionPayloadBid);
         topics.push(GossipKind::PayloadAttestation);
         topics.push(GossipKind::ProposerPreferences);
@@ -122,6 +129,7 @@ pub fn is_fork_non_core_topic(topic: &GossipTopic, _fork_name: ForkName) -> bool
         | GossipKind::SignedContributionAndProof
         | GossipKind::BlsToExecutionChange
         | GossipKind::ExecutionPayload
+        | GossipKind::ExecutionPayloadChunk
         | GossipKind::ExecutionPayloadBid
         | GossipKind::PayloadAttestation
         | GossipKind::ProposerPreferences
@@ -182,8 +190,10 @@ pub enum GossipKind {
     SyncCommitteeMessage(SyncSubnetId),
     /// Topic for validator messages which change their withdrawal address.
     BlsToExecutionChange,
-    /// Topic for signed execution payload envelopes.
+    /// Topic for signed execution payload envelopes (Gloas only).
     ExecutionPayload,
+    /// Topic for EIP-8142 execution payload chunks (Heze and later).
+    ExecutionPayloadChunk,
     /// Topic for payload attestation messages.
     PayloadAttestation,
     /// Topic for signed execution payload bids.
@@ -283,6 +293,7 @@ impl GossipTopic {
                 ATTESTER_SLASHING_TOPIC => GossipKind::AttesterSlashing,
                 BLS_TO_EXECUTION_CHANGE_TOPIC => GossipKind::BlsToExecutionChange,
                 EXECUTION_PAYLOAD => GossipKind::ExecutionPayload,
+                EXECUTION_PAYLOAD_CHUNK => GossipKind::ExecutionPayloadChunk,
                 EXECUTION_PAYLOAD_BID => GossipKind::ExecutionPayloadBid,
                 PAYLOAD_ATTESTATION => GossipKind::PayloadAttestation,
                 PROPOSER_PREFERENCES => GossipKind::ProposerPreferences,
@@ -350,6 +361,7 @@ impl std::fmt::Display for GossipTopic {
             }
             GossipKind::BlsToExecutionChange => BLS_TO_EXECUTION_CHANGE_TOPIC.into(),
             GossipKind::ExecutionPayload => EXECUTION_PAYLOAD.into(),
+            GossipKind::ExecutionPayloadChunk => EXECUTION_PAYLOAD_CHUNK.into(),
             GossipKind::PayloadAttestation => PAYLOAD_ATTESTATION.into(),
             GossipKind::ExecutionPayloadBid => EXECUTION_PAYLOAD_BID.into(),
             GossipKind::ProposerPreferences => PROPOSER_PREFERENCES.into(),
@@ -611,5 +623,32 @@ mod tests {
                 expected_topic
             );
         }
+    }
+
+    #[test]
+    fn payload_chunks_replace_envelopes_at_heze() {
+        let spec = get_spec();
+        let topic_config = get_topic_config(&HashSet::new());
+
+        let gloas = core_topics_to_subscribe::<E>(ForkName::Gloas, &topic_config, &spec);
+        assert!(gloas.contains(&GossipKind::ExecutionPayload));
+        assert!(!gloas.contains(&GossipKind::ExecutionPayloadChunk));
+
+        let heze = core_topics_to_subscribe::<E>(ForkName::Heze, &topic_config, &spec);
+        assert!(!heze.contains(&GossipKind::ExecutionPayload));
+        assert!(heze.contains(&GossipKind::ExecutionPayloadChunk));
+        assert!(heze.contains(&GossipKind::ExecutionPayloadBid));
+    }
+
+    #[test]
+    fn payload_chunk_topic_round_trips() {
+        let topic = GossipTopic::new(
+            GossipKind::ExecutionPayloadChunk,
+            GossipEncoding::default(),
+            [1, 2, 3, 4],
+        );
+        let s: String = topic.clone().into();
+        assert_eq!(s, "/eth2/01020304/execution_payload_chunk/ssz_snappy");
+        assert_eq!(GossipTopic::decode(&s).unwrap(), topic);
     }
 }

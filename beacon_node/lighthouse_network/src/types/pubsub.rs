@@ -9,8 +9,8 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
-    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ForkContext, ForkName,
-    ForkVersionDecode, Hash256, LightClientFinalityUpdate, LightClientOptimisticUpdate,
+    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ExecutionPayloadChunk, ForkContext,
+    ForkName, ForkVersionDecode, Hash256, LightClientFinalityUpdate, LightClientOptimisticUpdate,
     PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
     PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
     PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof,
@@ -48,6 +48,8 @@ pub enum PubsubMessage<E: EthSpec> {
     BlsToExecutionChange(Box<SignedBlsToExecutionChange>),
     /// Gossipsub message providing notification of a signed execution payload envelope.
     ExecutionPayload(Box<SignedExecutionPayloadEnvelope<E>>),
+    /// Gossipsub message providing notification of an EIP-8142 execution payload chunk.
+    ExecutionPayloadChunk(Arc<ExecutionPayloadChunk<E>>),
     /// Gossipsub message providing notification of a payload attestation message.
     PayloadAttestation(Box<PayloadAttestationMessage>),
     /// Gossipsub message providing notification of a signed execution payload bid.
@@ -177,6 +179,7 @@ impl<E: EthSpec> PubsubMessage<E> {
             PubsubMessage::SyncCommitteeMessage(data) => GossipKind::SyncCommitteeMessage(data.0),
             PubsubMessage::BlsToExecutionChange(_) => GossipKind::BlsToExecutionChange,
             PubsubMessage::ExecutionPayload(_) => GossipKind::ExecutionPayload,
+            PubsubMessage::ExecutionPayloadChunk(_) => GossipKind::ExecutionPayloadChunk,
             PubsubMessage::PayloadAttestation(_) => GossipKind::PayloadAttestation,
             PubsubMessage::ExecutionPayloadBid(_) => GossipKind::ExecutionPayloadBid,
             PubsubMessage::ProposerPreferences(_) => GossipKind::ProposerPreferences,
@@ -414,6 +417,18 @@ impl<E: EthSpec> PubsubMessage<E> {
                             execution_payload_envelope,
                         )))
                     }
+                    GossipKind::ExecutionPayloadChunk => {
+                        if data.len() > E::max_execution_payload_chunk_size() {
+                            return Err(format!(
+                                "ExecutionPayloadChunk size {} exceeds MAX_EXECUTION_PAYLOAD_CHUNK_SIZE {}",
+                                data.len(),
+                                E::max_execution_payload_chunk_size()
+                            ));
+                        }
+                        let chunk = ExecutionPayloadChunk::from_ssz_bytes(data)
+                            .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::ExecutionPayloadChunk(Arc::new(chunk)))
+                    }
                     GossipKind::ExecutionPayloadBid => {
                         let fork = fork_context
                             .get_fork_from_context_bytes(gossip_topic.fork_digest)
@@ -523,6 +538,7 @@ impl<E: EthSpec> PubsubMessage<E> {
             PubsubMessage::SyncCommitteeMessage(data) => data.1.as_ssz_bytes(),
             PubsubMessage::BlsToExecutionChange(data) => data.as_ssz_bytes(),
             PubsubMessage::ExecutionPayload(data) => data.as_ssz_bytes(),
+            PubsubMessage::ExecutionPayloadChunk(data) => data.as_ssz_bytes(),
             PubsubMessage::PayloadAttestation(data) => data.as_ssz_bytes(),
             PubsubMessage::ExecutionPayloadBid(data) => data.as_ssz_bytes(),
             PubsubMessage::ProposerPreferences(data) => data.as_ssz_bytes(),
@@ -651,6 +667,16 @@ impl<E: EthSpec> std::fmt::Display for PubsubMessage<E> {
                     "Signed Execution Payload Envelope: slot: {:?}, beacon block root: {:?}",
                     data.slot(),
                     data.beacon_block_root()
+                )
+            }
+            PubsubMessage::ExecutionPayloadChunk(data) => {
+                write!(
+                    f,
+                    "Execution Payload Chunk: slot: {:?}, beacon block root: {:?}, index: {}, bytes: {}",
+                    data.slot,
+                    data.beacon_block_root,
+                    data.index,
+                    data.data.len()
                 )
             }
             PubsubMessage::PayloadAttestation(data) => {
@@ -842,5 +868,67 @@ mod tests {
             !err.contains("MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE"),
             "{err}"
         );
+    }
+
+    fn heze_fork_context() -> ForkContext {
+        let mut spec = E::default_spec();
+        spec.altair_fork_epoch = Some(Epoch::new(0));
+        spec.bellatrix_fork_epoch = Some(Epoch::new(0));
+        spec.capella_fork_epoch = Some(Epoch::new(0));
+        spec.deneb_fork_epoch = Some(Epoch::new(0));
+        spec.electra_fork_epoch = Some(Epoch::new(0));
+        spec.fulu_fork_epoch = Some(Epoch::new(0));
+        spec.gloas_fork_epoch = Some(Epoch::new(0));
+        spec.heze_fork_epoch = Some(Epoch::new(0));
+        ForkContext::new::<E>(Slot::new(0), Hash256::ZERO, &spec)
+    }
+
+    #[test]
+    fn execution_payload_chunk_round_trips_and_is_size_bounded() {
+        use typenum::Unsigned;
+        use types::ExecutionPayloadChunk;
+
+        let fork_context = heze_fork_context();
+        let topic: libp2p::gossipsub::Topic<_> = GossipTopic::new(
+            GossipKind::ExecutionPayloadChunk,
+            GossipEncoding::default(),
+            fork_context.current_fork_digest(),
+        )
+        .into();
+        let topic_hash = topic.hash();
+
+        let params = E::payload_chunk_params();
+        let payload: Vec<u8> = (0..100_000u32).map(|i| (i % 251) as u8).collect();
+        let encoded = params.encode_payload(&payload).unwrap();
+        let chunk = ExecutionPayloadChunk::<E>::from_encoded(
+            Hash256::repeat_byte(3),
+            Slot::new(11),
+            5,
+            &encoded,
+        )
+        .unwrap();
+
+        let message = PubsubMessage::<E>::ExecutionPayloadChunk(Arc::new(chunk.clone()));
+        let bytes = message.encode(GossipEncoding::default());
+        let decoded = PubsubMessage::<E>::decode(&topic_hash, &bytes, &fork_context).unwrap();
+        assert_eq!(decoded, message);
+        assert_eq!(decoded.kind(), GossipKind::ExecutionPayloadChunk);
+
+        // A chunk of the largest permitted size fits exactly under the bound; one byte more
+        // is rejected before decoding.
+        let largest = ExecutionPayloadChunk::<E> {
+            data: ssz_types::VariableList::new(vec![
+                0u8;
+                <E as EthSpec>::MaxPayloadChunkSize::to_usize()
+            ])
+            .unwrap(),
+            ..chunk
+        };
+        let largest_bytes = largest.as_ssz_bytes();
+        assert_eq!(largest_bytes.len(), E::max_execution_payload_chunk_size());
+        assert!(PubsubMessage::<E>::decode(&topic_hash, &largest_bytes, &fork_context).is_ok());
+        let mut too_large = largest_bytes;
+        too_large.push(0);
+        assert!(PubsubMessage::<E>::decode(&topic_hash, &too_large, &fork_context).is_err());
     }
 }

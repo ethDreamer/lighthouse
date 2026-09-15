@@ -51,13 +51,13 @@ use store::hot_cold_store::HotColdDBError;
 use tracing::{Instrument, Span, debug, error, info, instrument, trace, warn};
 use types::{
     Attestation, AttestationData, AttestationRef, AttesterSlashing, ColumnIndex, DataColumnSidecar,
-    DataColumnSubnetId, EthSpec, Hash256, IndexedAttestation, LightClientFinalityUpdate,
-    LightClientOptimisticUpdate, PartialDataColumn, PayloadAttestationMessage, ProposerSlashing,
-    SignedAggregateAndProof, SignedBeaconBlock, SignedBlsToExecutionChange,
-    SignedContributionAndProof, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, Slot, SubnetId,
-    SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
-    execution::SignedExecutionProof,
+    DataColumnSubnetId, EthSpec, ExecutionPayloadChunk, Hash256, IndexedAttestation,
+    LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
+    PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof, SignedBeaconBlock,
+    SignedBlsToExecutionChange, SignedContributionAndProof, SignedExecutionPayloadBid,
+    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedVoluntaryExit,
+    SingleAttestation, Slot, SubnetId, SyncCommitteeMessage, SyncSubnetId,
+    block::BlockImportSource, data::CellBitmap, execution::SignedExecutionProof,
 };
 
 use beacon_processor::work_reprocessing_queue::QueuedColumnReconstruction;
@@ -3768,6 +3768,29 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             write_file(block_path, &block.as_ssz_bytes());
             write_file(error_path, error.to_string().as_bytes());
         }
+    }
+
+    /// Process an EIP-8142 execution payload chunk received over gossip.
+    ///
+    /// Chunk verification against the bid, accumulation in the pending payload cache and
+    /// reconstruction are added with the beacon chain side of the chunk pipeline (plan WP3). Until
+    /// then chunks are ignored without penalising the sender, and are not propagated.
+    pub async fn process_gossip_execution_payload_chunk(
+        self: Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        chunk: Arc<ExecutionPayloadChunk<T::EthSpec>>,
+        _seen_timestamp: Duration,
+    ) {
+        debug!(
+            %peer_id,
+            slot = %chunk.slot,
+            beacon_block_root = %chunk.beacon_block_root,
+            index = chunk.index,
+            bytes = chunk.data.len(),
+            "Ignoring execution payload chunk: chunk processing not yet implemented"
+        );
+        self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -143,6 +143,7 @@ pub struct BeaconProcessorQueueLengths {
     payload_envelopes_broots_queue: usize,
     gossip_bls_to_execution_change_queue: usize,
     gossip_execution_payload_queue: usize,
+    gossip_execution_payload_chunk_queue: usize,
     gossip_execution_proof_queue: usize,
     gossip_execution_payload_bid_queue: usize,
     gossip_payload_attestation_queue: usize,
@@ -225,6 +226,8 @@ impl BeaconProcessorQueueLengths {
             gossip_bls_to_execution_change_queue: 16384,
             // TODO(EIP-7732): verify 1024 is preferable.
             gossip_execution_payload_queue: 1024,
+            // Up to `MAX_PAYLOAD_CHUNKS` chunks per payload, across a few slots of pending blocks.
+            gossip_execution_payload_chunk_queue: 4096,
             gossip_execution_proof_queue: 1024,
             // TODO(EIP-7732) how big should this queue be?
             gossip_execution_payload_bid_queue: 1024,
@@ -284,6 +287,7 @@ pub struct WorkQueues<E: EthSpec> {
     pub dcbrange_queue: FifoQueue<Work<E>>,
     pub gossip_bls_to_execution_change_queue: FifoQueue<Work<E>>,
     pub gossip_execution_payload_queue: FifoQueue<Work<E>>,
+    pub gossip_execution_payload_chunk_queue: FifoQueue<Work<E>>,
     pub gossip_execution_proof_queue: FifoQueue<Work<E>>,
     pub gossip_execution_payload_bid_queue: FifoQueue<Work<E>>,
     pub gossip_payload_attestation_queue: FifoQueue<Work<E>>,
@@ -366,6 +370,8 @@ impl<E: EthSpec> WorkQueues<E> {
 
         let gossip_execution_payload_queue =
             FifoQueue::new(queue_lengths.gossip_execution_payload_queue);
+        let gossip_execution_payload_chunk_queue =
+            FifoQueue::new(queue_lengths.gossip_execution_payload_chunk_queue);
         let gossip_execution_proof_queue =
             FifoQueue::new(queue_lengths.gossip_execution_proof_queue);
         let gossip_execution_payload_bid_queue =
@@ -429,6 +435,7 @@ impl<E: EthSpec> WorkQueues<E> {
             payload_envelopes_broots_queue,
             gossip_bls_to_execution_change_queue,
             gossip_execution_payload_queue,
+            gossip_execution_payload_chunk_queue,
             gossip_execution_proof_queue,
             gossip_execution_payload_bid_queue,
             gossip_payload_attestation_queue,

@@ -457,6 +457,7 @@ pub enum Work<E: EthSpec> {
     DataColumnsByRangeRequest(BlockingFn),
     GossipBlsToExecutionChange(BlockingFn),
     GossipExecutionPayload(AsyncFn),
+    GossipExecutionPayloadChunk(AsyncFn),
     GossipExecutionProof(AsyncFn),
     GossipExecutionPayloadBid(BlockingFn),
     GossipPayloadAttestation(BlockingFn),
@@ -520,6 +521,7 @@ pub enum WorkType {
     DataColumnsByRangeRequest,
     GossipBlsToExecutionChange,
     GossipExecutionPayload,
+    GossipExecutionPayloadChunk,
     GossipExecutionProof,
     GossipExecutionPayloadBid,
     GossipPayloadAttestation,
@@ -561,6 +563,7 @@ impl<E: EthSpec> Work<E> {
             }
             Work::GossipBlsToExecutionChange(_) => WorkType::GossipBlsToExecutionChange,
             Work::GossipExecutionPayload(_) => WorkType::GossipExecutionPayload,
+            Work::GossipExecutionPayloadChunk(_) => WorkType::GossipExecutionPayloadChunk,
             Work::GossipExecutionProof(_) => WorkType::GossipExecutionProof,
             Work::GossipExecutionPayloadBid(_) => WorkType::GossipExecutionPayloadBid,
             Work::GossipPayloadAttestation(_) => WorkType::GossipPayloadAttestation,
@@ -861,6 +864,10 @@ impl<E: EthSpec> BeaconProcessor<E> {
                         } else if let Some(item) = work_queues.gossip_block_queue.pop() {
                             Some(item)
                         } else if let Some(item) = work_queues.gossip_execution_payload_queue.pop()
+                        {
+                            Some(item)
+                        } else if let Some(item) =
+                            work_queues.gossip_execution_payload_chunk_queue.pop()
                         {
                             Some(item)
                         } else if let Some(item) = work_queues.gossip_execution_proof_queue.pop() {
@@ -1284,6 +1291,9 @@ impl<E: EthSpec> BeaconProcessor<E> {
                             Work::GossipExecutionPayload { .. } => work_queues
                                 .gossip_execution_payload_queue
                                 .push(work, work_id),
+                            Work::GossipExecutionPayloadChunk { .. } => work_queues
+                                .gossip_execution_payload_chunk_queue
+                                .push(work, work_id),
                             Work::GossipExecutionProof { .. } => {
                                 work_queues.gossip_execution_proof_queue.push(work, work_id)
                             }
@@ -1398,6 +1408,9 @@ impl<E: EthSpec> BeaconProcessor<E> {
                         }
                         WorkType::GossipExecutionPayload => {
                             work_queues.gossip_execution_payload_queue.len()
+                        }
+                        WorkType::GossipExecutionPayloadChunk => {
+                            work_queues.gossip_execution_payload_chunk_queue.len()
                         }
                         WorkType::GossipExecutionProof => {
                             work_queues.gossip_execution_proof_queue.len()
@@ -1578,6 +1591,7 @@ impl<E: EthSpec> BeaconProcessor<E> {
             | Work::GossipDataColumnSidecar(work)
             | Work::GossipPartialDataColumnSidecar(work)
             | Work::GossipExecutionPayload(work)
+            | Work::GossipExecutionPayloadChunk(work)
             | Work::GossipExecutionProof(work) => task_spawner.spawn_async(async move {
                 work.await;
             }),
