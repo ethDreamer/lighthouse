@@ -1,0 +1,45 @@
+# EIP-8142 prototype, chunks arm: Gloas from genesis, Heze at epoch 2, so the network is seen
+# switching from whole signed envelopes on `execution_payload` to chunks on
+# `execution_payload_chunk`. Genesis stays at Gloas on purpose: a Heze genesis state from the
+# genesis generator would carry the spec's Heze bid, which this branch's Heze bid (with the
+# EIP-8142 commitment instead of `inclusion_list_bits`) does not decode. Lighthouse performs the
+# Heze upgrade itself.
+# Full configuration reference [here](https://github.com/ethpandaops/ethereum-package?tab=readme-ov-file#configuration).
+participants:
+  - cl_type: lighthouse
+    cl_image: lighthouse:local
+    el_type: geth
+    el_image: ethereum/client-go:latest
+    supernode: true
+    cl_extra_params:
+      - --target-peers=3
+    count: 2
+  - cl_type: lighthouse
+    cl_image: lighthouse:local
+    el_type: geth
+    el_image: ethereum/client-go:latest
+    supernode: false
+    cl_extra_params:
+      - --target-peers=3
+    count: 2
+network_params:
+  fulu_fork_epoch: 0
+  gloas_fork_epoch: 0
+  heze_fork_epoch: 2
+  slot_duration_ms: 12000
+snooper_enabled: false
+global_log_level: debug
+additional_services:
+  - dora
+  - spamoor
+  - prometheus
+  - grafana
+spamoor_params:
+  image: ethpandaops/spamoor:master
+  spammers:
+    - scenario: eoatx
+      config:
+        throughput: 200
+    - scenario: blobs
+      config:
+        throughput: 20

@@ -87,3 +87,26 @@ The script comes with some CLI options, which can be viewed with `./start_local_
 ## Further reading about Kurtosis
 
 You may refer to [this article](https://ethpandaops.io/posts/kurtosis-deep-dive/) for information about Kurtosis.
+## EIP-8142 prototype (chunked payload gossip)
+
+Two parameter files stand up the two arms of the propagation measurement, both all-Lighthouse
+with 12 s slots:
+
+- `network_params_gloas.yaml`: control arm. Gloas from genesis, Heze never scheduled, so payloads
+  travel as whole signed envelopes on `execution_payload`.
+- `network_params_heze.yaml`: chunks arm. Gloas from genesis, Heze at epoch 2, after which
+  payloads travel as chunks on `execution_payload_chunk`. Genesis stays at Gloas on purpose: a
+  Heze genesis state from the genesis generator carries the spec's Heze bid, which this branch's
+  Heze bid does not decode, and Lighthouse performs the Heze upgrade itself.
+
+```bash
+./start_local_testnet.sh -n network_params_gloas.yaml
+./start_local_testnet.sh -n network_params_heze.yaml
+```
+
+Things to look for on the chunks arm after epoch 2, in `kurtosis service logs local-testnet -f cl-1-lighthouse-geth`:
+"Revealed local payload as chunks" on the proposer, "Payload reconstructed from chunks" on the
+others, and no "Ignoring execution payload chunk". In Grafana or the beacon node's `/metrics`:
+`payload_chunk_first_seen_delay_seconds`, `payload_chunk_reconstructed_delay_seconds` and
+`payload_envelope_delay_gossip_seconds` (the same histogram on both arms), plus
+`beacon_payload_chunk_gossip_verification_total` by outcome. Dora should show no missed payloads.

@@ -1,0 +1,40 @@
+# EIP-8142 prototype, control arm: Gloas from genesis, Heze never scheduled, so payloads travel
+# as whole signed envelopes on `execution_payload`. Compare against `network_params_heze.yaml`.
+# Full configuration reference [here](https://github.com/ethpandaops/ethereum-package?tab=readme-ov-file#configuration).
+participants:
+  - cl_type: lighthouse
+    cl_image: lighthouse:local
+    el_type: geth
+    el_image: ethereum/client-go:latest
+    supernode: true
+    cl_extra_params:
+      - --target-peers=3
+    count: 2
+  - cl_type: lighthouse
+    cl_image: lighthouse:local
+    el_type: geth
+    el_image: ethereum/client-go:latest
+    supernode: false
+    cl_extra_params:
+      - --target-peers=3
+    count: 2
+network_params:
+  fulu_fork_epoch: 0
+  gloas_fork_epoch: 0
+  slot_duration_ms: 12000
+snooper_enabled: false
+global_log_level: debug
+additional_services:
+  - dora
+  - spamoor
+  - prometheus
+  - grafana
+spamoor_params:
+  image: ethpandaops/spamoor:master
+  spammers:
+    - scenario: eoatx
+      config:
+        throughput: 200
+    - scenario: blobs
+      config:
+        throughput: 20
