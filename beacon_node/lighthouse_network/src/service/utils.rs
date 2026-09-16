@@ -285,6 +285,7 @@ pub(crate) fn create_whitelist_filter(
         add(SignedContributionAndProof);
         add(BlsToExecutionChange);
         add(ExecutionPayload);
+        add(ExecutionPayloadChunk);
         add(ExecutionPayloadBid);
         add(PayloadAttestation);
         add(ProposerPreferences);
@@ -322,6 +323,34 @@ pub(crate) fn save_metadata_to_disk<E: EthSpec>(dir: &Path, metadata: MetaData<E
                 error = %e,
                 "Could not write metadata to disk"
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::all_topics_at_fork;
+    use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
+    use types::{ForkName, MainnetEthSpec};
+
+    /// Every topic a node subscribes to at any fork must be admitted by the subscription
+    /// whitelist. A topic missing from it is refused as `NotAllowed` at subscription time, so
+    /// the node neither receives on it nor finds subscribed peers to publish to.
+    #[test]
+    fn whitelist_admits_every_core_topic_at_every_fork() {
+        let spec = MainnetEthSpec::default_spec();
+        let fork_digest = [0x11, 0x22, 0x33, 0x44];
+        let filter = create_whitelist_filter(vec![fork_digest], &spec, SYNC_COMMITTEE_SUBNET_COUNT);
+        for fork in ForkName::list_all() {
+            for kind in all_topics_at_fork::<MainnetEthSpec>(fork, &spec) {
+                let topic: gossipsub::IdentTopic =
+                    GossipTopic::new(kind.clone(), GossipEncoding::SSZSnappy, fork_digest).into();
+                assert!(
+                    filter.0.contains(&topic.hash()),
+                    "{fork} topic {kind} is not in the subscription whitelist"
+                );
+            }
         }
     }
 }
