@@ -104,9 +104,23 @@ with 12 s slots:
 ./start_local_testnet.sh -n network_params_heze.yaml
 ```
 
+Both arms use `ethpandaops/geth:master`: the stock geth release has no Amsterdam fork. The
+genesis generator also schedules geth's Bogota fork at the Heze epoch, which changes neither the
+payload nor the engine API methods.
+
 Things to look for on the chunks arm after epoch 2, in `kurtosis service logs local-testnet -f cl-1-lighthouse-geth`:
 "Revealed local payload as chunks" on the proposer, "Payload reconstructed from chunks" on the
-others, and no "Ignoring execution payload chunk". In Grafana or the beacon node's `/metrics`:
-`payload_chunk_first_seen_delay_seconds`, `payload_chunk_reconstructed_delay_seconds` and
-`payload_envelope_delay_gossip_seconds` (the same histogram on both arms), plus
-`beacon_payload_chunk_gossip_verification_total` by outcome. Dora should show no missed payloads.
+others, and no "Ignoring payload chunk" or "Rejecting payload chunk". In Grafana or the beacon
+node's `/metrics`: `payload_chunk_first_seen_delay_seconds`,
+`payload_chunk_reconstructed_delay_seconds` and `payload_envelope_delay_gossip_seconds` (the
+same histogram on both arms), plus `beacon_payload_chunk_gossip_verification_total` by outcome.
+
+Dora stops indexing at the Heze fork: it decodes Heze blocks with the upstream bid layout
+(`inclusion_list_bits`), which this branch's bid does not have. Check payload availability
+through the beacon API instead, on every node, for example:
+
+```bash
+BN=$(kurtosis port print local-testnet cl-1-lighthouse-geth http)
+ROOT=$(curl -s $BN/eth/v1/beacon/blocks/70/root | jq -r .data.root)
+curl -s $BN/eth/v1/beacon/execution_payload_envelopes/$ROOT | head -c 80
+```
