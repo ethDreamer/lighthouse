@@ -2003,14 +2003,25 @@ impl ApiTester {
                         .unwrap() as usize,
                 )
                 .unwrap();
+            let commits_to_blobs = !next_block
+                .signed_block()
+                .message()
+                .body()
+                .signed_execution_payload_bid()
+                .unwrap()
+                .message()
+                .blob_kzg_commitments()
+                .is_empty();
             let mut chunk_indices = std::collections::BTreeSet::new();
-            while chunk_indices.len() < bid_chunk_count {
+            let mut columns_published = false;
+            while chunk_indices.len() < bid_chunk_count || (commits_to_blobs && !columns_published)
+            {
                 let message = tokio::time::timeout(
                     Duration::from_secs(10),
                     self.network_rx.network_recv.recv(),
                 )
                 .await
-                .expect("payload chunks should be revealed after the block")
+                .expect("payload chunks and columns should be revealed after the block")
                 .expect("network channel open");
                 match message {
                     NetworkMessage::Publish { messages } => {
@@ -2023,9 +2034,16 @@ impl ApiTester {
                                 PubsubMessage::ExecutionPayload(_) => {
                                     panic!("whole envelope must not be gossiped at Heze")
                                 }
+                                PubsubMessage::DataColumnSidecar(column) => {
+                                    assert_eq!(column.1.block_root(), block_root);
+                                    columns_published = true;
+                                }
                                 _ => {}
                             }
                         }
+                    }
+                    NetworkMessage::PublishPartialColumns { .. } => {
+                        columns_published = true;
                     }
                     _ => {}
                 }

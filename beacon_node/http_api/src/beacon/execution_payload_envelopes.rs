@@ -437,7 +437,7 @@ pub async fn publish_execution_payload_envelope<T: BeaconChainTypes>(
 ///
 /// Returns `Ok(true)` if envelope import was completed.
 /// Returns `Err` on publication failure.
-async fn publish_and_import_columns<T: BeaconChainTypes>(
+pub(crate) async fn publish_and_import_columns<T: BeaconChainTypes>(
     chain: &Arc<BeaconChain<T>>,
     network_tx: &UnboundedSender<NetworkMessage<T::EthSpec>>,
     slot: types::Slot,
@@ -497,13 +497,16 @@ fn is_unable_to_publish(error: &BlockError) -> bool {
     }
 }
 
-fn spawn_build_gloas_data_columns_task<T: BeaconChainTypes>(
+pub(crate) fn spawn_build_gloas_data_columns_task<T: BeaconChainTypes>(
     chain: &Arc<BeaconChain<T>>,
     beacon_block_root: types::Hash256,
     slot: types::Slot,
     blobs: Arc<types::BlobsList<T::EthSpec>>,
     cell_proofs: Option<KzgProofs<T::EthSpec>>,
-) -> Result<impl Future<Output = Result<Vec<GossipVerifiedDataColumn<T>>, Rejection>>, Rejection> {
+) -> Result<
+    impl Future<Output = Result<Vec<GossipVerifiedDataColumn<T>>, Rejection>> + use<T>,
+    Rejection,
+> {
     let chain_for_build = chain.clone();
     let handle = chain
         .task_executor

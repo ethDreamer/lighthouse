@@ -1,6 +1,9 @@
 use crate::metrics;
 use std::future::Future;
 
+use crate::beacon::execution_payload_envelopes::{
+    publish_and_import_columns, spawn_build_gloas_data_columns_task,
+};
 use beacon_chain::block_verification_types::{AsBlock, LookupBlock};
 use beacon_chain::data_column_verification::GossipVerifiedDataColumn;
 use beacon_chain::payload_envelope_verification::EnvelopeSource;
@@ -96,17 +99,35 @@ fn reveal_local_payload<T: BeaconChainTypes>(
     if !block.fork_name_unchecked().heze_enabled() {
         return;
     }
-    let (envelope, encoded) = {
-        let cache = chain.pending_payload_envelopes.read();
+    let (envelope, encoded, blobs) = {
+        let mut cache = chain.pending_payload_envelopes.write();
         let Some(envelope) = cache.get_by_block_root(block_root).cloned() else {
             // Not a locally built payload: the builder reveals it.
             return;
         };
-        (envelope, cache.get_encoded_chunks(block_root))
+        let encoded = cache.get_encoded_chunks(block_root);
+        let blobs = cache.take_blobs(block_root);
+        (envelope, encoded, blobs)
     };
     let chain = chain.clone();
     let network_tx = network_tx.clone();
     let slot = block.slot();
+
+    // The blobs of the payload travel as data columns, exactly as at Gloas. Build them in
+    // parallel with the chunk publish.
+    let column_build_future = match blobs {
+        Some(blobs) if !blobs.is_empty() => {
+            match spawn_build_gloas_data_columns_task(&chain, block_root, slot, blobs, None) {
+                Ok(future) => Some(future),
+                Err(e) => {
+                    error!(%slot, %block_root, error = ?e, "Failed to start local column build");
+                    None
+                }
+            }
+        }
+        _ => None,
+    };
+
     chain.clone().task_executor.spawn(
         async move {
             let chunks = match encoded.as_deref().map(|encoded| {
@@ -191,6 +212,22 @@ fn reveal_local_payload<T: BeaconChainTypes>(
                 Ok(status) => debug!(%slot, %block_root, ?status, "Imported local payload"),
                 Err(e) => warn!(%slot, %block_root, error = ?e, "Failed to import local payload"),
             }
+
+            if let Some(column_build_future) = column_build_future {
+                match column_build_future.await {
+                    Ok(columns) => {
+                        if let Err(e) =
+                            publish_and_import_columns(&chain, &network_tx, slot, columns).await
+                        {
+                            error!(%slot, %block_root, error = ?e, "Failed to publish local columns");
+                        }
+                    }
+                    Err(e) => {
+                        error!(%slot, %block_root, error = ?e, "Failed to build local columns");
+                    }
+                }
+            }
+            chain.recompute_head_at_current_slot().await;
         },
         "reveal_local_payload",
     );
