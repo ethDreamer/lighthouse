@@ -51,6 +51,9 @@ pub enum EnvelopeSource {
     /// [Heze:EIP8142] Reconstructed locally from gossiped chunks. The chunk commitment was
     /// already checked during reconstruction.
     Reconstructed,
+    /// [Heze:EIP8142] Built by this node. The bid's chunk commitment was computed from this
+    /// very payload, so there is nothing to check it against.
+    LocalBuild,
 }
 
 #[derive(Debug, Clone)]

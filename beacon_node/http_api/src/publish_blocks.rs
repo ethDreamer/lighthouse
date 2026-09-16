@@ -3,11 +3,13 @@ use std::future::Future;
 
 use beacon_chain::block_verification_types::{AsBlock, LookupBlock};
 use beacon_chain::data_column_verification::GossipVerifiedDataColumn;
+use beacon_chain::payload_envelope_verification::EnvelopeSource;
 use beacon_chain::validator_monitor::get_block_delay_ms;
 use beacon_chain::{
     AvailabilityProcessingStatus, BeaconChain, BeaconChainError, BeaconChainTypes, BlockError,
     IntoGossipVerifiedBlock, NotifyExecutionLayer, build_blob_data_column_sidecars,
 };
+use bls::Signature;
 use eth2::types::{
     BlobsBundle, BroadcastValidation, ErrorMessage, ExecutionPayloadAndBlobs, FullPayloadContents,
     PublishBlockRequest, SignedBlockContents,
@@ -30,8 +32,9 @@ use tracing::{Span, debug, error, field, info, instrument, warn};
 use tree_hash::TreeHash;
 use types::{
     AbstractExecPayload, BeaconBlockRef, BlobsList, BlockImportSource, DataColumnSubnetId, EthSpec,
-    ExecPayload, ExecutionBlockHash, ForkName, FullPayload, FullPayloadBellatrix, Hash256,
-    KzgProofs, PartialDataColumn, SignedBeaconBlock, SignedBlindedBeaconBlock,
+    ExecPayload, ExecutionBlockHash, ExecutionPayloadChunk, ForkName, FullPayload,
+    FullPayloadBellatrix, Hash256, KzgProofs, PartialDataColumn, SignedBeaconBlock,
+    SignedBlindedBeaconBlock, SignedExecutionPayloadEnvelope,
 };
 use warp::{Rejection, Reply, reply::Response};
 
@@ -74,14 +77,121 @@ impl<T: BeaconChainTypes> ProvenancedBlock<T, Arc<SignedBeaconBlock<T::EthSpec>>
     }
 }
 
-/// If a direct builder won this block's payload bid, forward the signed block to that builder via
-/// `submitSignedBeaconBlock` so it reveals the execution payload envelope.
+/// [Heze:EIP8142] Reveals a locally built payload once its block is imported.
 ///
-/// The builder's URL is the `Eth-Builder-Url` request header the VC echoed on publish (beacon-APIs
-/// #630), so this works even on a beacon node that did not produce the block. `None` (self-built or
-/// p2p-won), no configured builders, or a malformed URL are all no-ops.
-///
-/// Fire-and-forget: the submission runs in a detached task; a failure is logged at high severity
+/// This is the builder duty of the spec: broadcast the committed chunks when the block is
+/// published. Each chunk is gossip-verified against the bid before it is published, as every
+/// message this node publishes is, which needs the block in fork choice; nothing is encoded
+/// again, since the chunks, root and proofs were computed when the bid was built and are read
+/// from the pending envelope cache. The node then imports the envelope it built, skipping the
+/// chunk root check that authenticates envelopes received whole. Before Heze the validator
+/// client reveals the envelope instead, after signing it. The reveal runs as its own task so
+/// the block response is not delayed by payload execution.
+fn reveal_local_payload<T: BeaconChainTypes>(
+    chain: &Arc<BeaconChain<T>>,
+    network_tx: &UnboundedSender<NetworkMessage<T::EthSpec>>,
+    block_root: Hash256,
+    block: &Arc<SignedBeaconBlock<T::EthSpec>>,
+) {
+    if !block.fork_name_unchecked().heze_enabled() {
+        return;
+    }
+    let (envelope, encoded) = {
+        let cache = chain.pending_payload_envelopes.read();
+        let Some(envelope) = cache.get_by_block_root(block_root).cloned() else {
+            // Not a locally built payload: the builder reveals it.
+            return;
+        };
+        (envelope, cache.get_encoded_chunks(block_root))
+    };
+    let chain = chain.clone();
+    let network_tx = network_tx.clone();
+    let slot = block.slot();
+    chain.clone().task_executor.spawn(
+        async move {
+            let chunks = match encoded.as_deref().map(|encoded| {
+                ExecutionPayloadChunk::<T::EthSpec>::all_from_encoded(block_root, slot, encoded)
+            }) {
+                Some(Ok(chunks)) => chunks,
+                Some(Err(e)) => {
+                    error!(%slot, %block_root, error = ?e, "Failed to build local payload chunks");
+                    return;
+                }
+                None => {
+                    error!(%slot, %block_root, "Local payload has no cached chunks");
+                    return;
+                }
+            };
+
+            let mut published = 0usize;
+            for chunk in chunks {
+                let chunk = Arc::new(chunk);
+                match chain
+                    .verify_payload_chunk_for_gossip_async(chunk.clone())
+                    .await
+                {
+                    Ok(_verified) => {
+                        if crate::utils::publish_pubsub_message(
+                            &network_tx,
+                            PubsubMessage::ExecutionPayloadChunk(chunk),
+                        )
+                        .is_err()
+                        {
+                            error!(%slot, %block_root, "Unable to publish local payload chunk");
+                            return;
+                        }
+                        published += 1;
+                    }
+                    Err(e) => {
+                        error!(
+                            %slot,
+                            %block_root,
+                            index = chunk.index,
+                            error = ?e,
+                            "Local payload chunk failed gossip verification; not published"
+                        );
+                    }
+                }
+            }
+            info!(
+                %slot,
+                %block_root,
+                published,
+                "Revealed local payload as chunks"
+            );
+
+            let signed_envelope = Arc::new(SignedExecutionPayloadEnvelope {
+                message: envelope.as_ref().clone(),
+                signature: Signature::empty(),
+            });
+            let verified = match chain
+                .verify_envelope_for_gossip(signed_envelope, EnvelopeSource::LocalBuild)
+                .await
+            {
+                Ok(verified) => verified,
+                Err(e) => {
+                    warn!(%slot, %block_root, error = ?e, "Local payload failed verification");
+                    return;
+                }
+            };
+            match chain
+                .process_execution_payload_envelope(
+                    block_root,
+                    verified,
+                    NotifyExecutionLayer::Yes,
+                    BlockImportSource::HttpApi,
+                    || Ok(()),
+                )
+                .await
+            {
+                Ok(status) => debug!(%slot, %block_root, ?status, "Imported local payload"),
+                Err(e) => warn!(%slot, %block_root, error = ?e, "Failed to import local payload"),
+            }
+        },
+        "reveal_local_payload",
+    );
+}
+
 /// (the validator has already signed the commitment) but never blocks the publish response. Runs
 /// only once per block since it hangs off the single p2p-publish point.
 fn forward_signed_block_to_winning_builder<T: BeaconChainTypes>(
@@ -321,6 +431,12 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
                 publish_fn,
             ))
             .await;
+            if matches!(
+                import_result,
+                Ok(AvailabilityProcessingStatus::Imported(..))
+            ) {
+                reveal_local_payload(&chain, network_tx, block_root, &block);
+            }
             post_block_import_logging_and_response(
                 import_result,
                 validation_level,

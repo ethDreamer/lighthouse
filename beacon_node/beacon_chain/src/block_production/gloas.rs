@@ -30,13 +30,14 @@ use tree_hash::TreeHash;
 use types::consts::gloas::BUILDER_INDEX_SELF_BUILD;
 use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
-    BeaconBlockBodyGloas, BeaconBlockGloas, BeaconState, BeaconStateError, BlobsList, BuilderIndex,
-    Deposit, Eth1Data, EthSpec, ExecutionBlockHash, ExecutionPayloadBid, ExecutionPayloadBidGloas,
-    ExecutionPayloadContents, ExecutionPayloadEnvelope, ExecutionRequestsGloas, ForkName,
-    FullPayload, Graffiti, Hash256, IndexedAttestation, KzgProofs, PayloadAttestation,
-    ProposerSlashing, RelativeEpoch, SignedBeaconBlock, SignedBlsToExecutionChange,
-    SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal, Withdrawals,
+    BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
+    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, EthSpec, ExecutionBlockHash,
+    ExecutionPayloadBid, ExecutionPayloadBidGloas, ExecutionPayloadContents,
+    ExecutionPayloadEnvelope, ExecutionRequestsGloas, ForkName, FullPayload, Graffiti, Hash256,
+    IndexedAttestation, KzgProofs, PayloadAttestation, ProposerSlashing, RelativeEpoch,
+    SignedBeaconBlock, SignedBlsToExecutionChange, SignedExecutionPayloadBid,
+    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedVoluntaryExit, Slot,
+    SyncAggregate, Uint256, Withdrawal, Withdrawals,
 };
 
 use builder_client::BidRequestContext;
@@ -750,13 +751,37 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     _phantom: PhantomData::<FullPayload<T::EthSpec>>,
                 },
             }),
-            // TODO(heze): construct a `BeaconBlockHeze` here once Heze block production is
-            // wired up end-to-end (get_payload, envelope handling, etc).
-            BeaconState::Heze(_) => {
-                return Err(BlockProductionError::InvalidBlockVariant(
-                    "Block production disabled for Heze".to_owned(),
-                ));
-            }
+            BeaconState::Heze(_) => BeaconBlock::Heze(BeaconBlockHeze {
+                slot,
+                proposer_index,
+                parent_root,
+                state_root: Hash256::ZERO,
+                body: BeaconBlockBodyHeze {
+                    randao_reveal,
+                    eth1_data,
+                    graffiti,
+                    proposer_slashings: ProgressiveVariableList::from_iter(proposer_slashings),
+                    attester_slashings: ProgressiveVariableList::from_iter(attester_slashings),
+                    attestations: ProgressiveVariableList::from_iter(attestations),
+                    deposits: ProgressiveVariableList::from_iter(deposits),
+                    voluntary_exits: ProgressiveVariableList::from_iter(voluntary_exits),
+                    sync_aggregate,
+                    bls_to_execution_changes: ProgressiveVariableList::from_iter(
+                        bls_to_execution_changes,
+                    ),
+                    parent_execution_requests,
+                    signed_execution_payload_bid: match signed_execution_payload_bid {
+                        SignedExecutionPayloadBid::Heze(bid) => bid,
+                        SignedExecutionPayloadBid::Gloas(_) => {
+                            return Err(BlockProductionError::InvalidBlockVariant(
+                                "Gloas bid in a Heze block".to_owned(),
+                            ));
+                        }
+                    },
+                    payload_attestations: ProgressiveVariableList::from_iter(payload_attestations),
+                    _phantom: PhantomData::<FullPayload<T::EthSpec>>,
+                },
+            }),
         };
 
         let signed_beacon_block = SignedBeaconBlock::from_block(
@@ -848,6 +873,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .insert(PendingEnvelopeData {
                     envelope: envelope.clone(),
                     blobs: Some(blobs.clone()),
+                    encoded_chunks: payload_data.encoded_chunks,
                 });
 
             debug!(
@@ -977,7 +1003,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             execution_requests_root: execution_requests.tree_hash_root(),
             _phantom: PhantomData,
         };
-        let bid = match state.fork_name_unchecked() {
+        let (bid, encoded_chunks) = match state.fork_name_unchecked() {
             ForkName::Heze => {
                 // [New in Heze:EIP8142] Commit to the chunks of the payload contents the
                 // builder will reveal.
@@ -996,9 +1022,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 let mut heze_bid = gloas_bid.upgrade_to_heze();
                 heze_bid.payload_chunks_root = encoded.chunks_root;
                 heze_bid.payload_length = contents_bytes.len() as u64;
-                ExecutionPayloadBid::Heze(heze_bid)
+                (ExecutionPayloadBid::Heze(heze_bid), Some(Arc::new(encoded)))
             }
-            _ => ExecutionPayloadBid::Gloas(gloas_bid),
+            _ => (ExecutionPayloadBid::Gloas(gloas_bid), None),
         };
 
         // Store payload data for envelope construction after block is created
@@ -1008,6 +1034,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             builder_index,
             slot: produce_at_slot,
             blobs_and_proofs,
+            encoded_chunks,
         };
 
         Ok((

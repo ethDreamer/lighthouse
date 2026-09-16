@@ -213,9 +213,13 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
         // [Modified in Heze:EIP8142] The envelope is unsigned; the bid's chunk commitment is its
         // authentication. Reconstructed envelopes already passed the root check while being
-        // reconstructed. Envelopes received whole (RPC, HTTP) must pass it here.
+        // reconstructed, and a payload this node built is what the commitment was computed
+        // from. Envelopes received whole (RPC, HTTP) must pass it here.
         let (signature_is_valid, opt_snapshot) = if block.fork_name_unchecked().heze_enabled() {
-            if ctx.source != EnvelopeSource::Reconstructed {
+            if !matches!(
+                ctx.source,
+                EnvelopeSource::Reconstructed | EnvelopeSource::LocalBuild
+            ) {
                 let snapshot = load_snapshot_from_state_root::<T>(
                     beacon_block_root,
                     proto_block.state_root,

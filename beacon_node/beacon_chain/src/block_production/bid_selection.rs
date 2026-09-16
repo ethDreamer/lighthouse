@@ -47,6 +47,9 @@ pub struct ExecutionPayloadData<E: EthSpec> {
     pub builder_index: u64,
     pub slot: Slot,
     pub blobs_and_proofs: (types::BlobsList<E>, types::KzgProofs<E>),
+    /// [Heze:EIP8142] The chunks, root and proofs the bid committed to, kept so the reveal does
+    /// not encode the payload a second time. `None` before Heze.
+    pub encoded_chunks: Option<Arc<payload_chunks::EncodedPayload>>,
 }
 
 /// Where a payload bid came from, and the per-source data the winner needs (plus each source's
@@ -343,6 +346,7 @@ mod tests {
                 builder_index: LOCAL_BUILDER,
                 slot: Slot::new(0),
                 blobs_and_proofs: (VariableList::empty(), VariableList::empty()),
+                encoded_chunks: None,
             },
             gwei(block_value_gwei),
             should_override_builder,

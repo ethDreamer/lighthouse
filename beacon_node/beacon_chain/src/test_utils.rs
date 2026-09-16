@@ -1320,27 +1320,37 @@ where
                 &self.spec,
             ));
 
-            // Retrieve the cached envelope produced during block production and sign it.
-            let signed_envelope = self
-                .chain
-                .pending_payload_envelopes
-                .write()
-                .remove(signed_block.canonical_root())
-                .map(|envelope| {
-                    let epoch = slot.epoch(E::slots_per_epoch());
-                    let domain = self.spec.get_domain(
-                        epoch,
-                        Domain::BeaconBuilder,
-                        &post_block_state.fork(),
-                        post_block_state.genesis_validators_root(),
-                    );
-                    let message = envelope.signing_root(domain);
-                    let signature = self.validator_keypairs[proposer_index].sk.sign(message);
-                    SignedExecutionPayloadEnvelope {
-                        message: Arc::unwrap_or_clone(envelope),
-                        signature,
-                    }
-                });
+            // Retrieve the cached envelope produced during block production and sign it. At
+            // Gloas the validator client takes it out of the cache to sign and post it; at Heze
+            // the beacon node reveals the payload from the cache itself, so the entry stays.
+            let block_root = signed_block.canonical_root();
+            let pending_envelope = if signed_block.fork_name_unchecked().heze_enabled() {
+                self.chain
+                    .pending_payload_envelopes
+                    .read()
+                    .get_by_block_root(block_root)
+                    .cloned()
+            } else {
+                self.chain
+                    .pending_payload_envelopes
+                    .write()
+                    .remove(block_root)
+            };
+            let signed_envelope = pending_envelope.map(|envelope| {
+                let epoch = slot.epoch(E::slots_per_epoch());
+                let domain = self.spec.get_domain(
+                    epoch,
+                    Domain::BeaconBuilder,
+                    &post_block_state.fork(),
+                    post_block_state.genesis_validators_root(),
+                );
+                let message = envelope.signing_root(domain);
+                let signature = self.validator_keypairs[proposer_index].sk.sign(message);
+                SignedExecutionPayloadEnvelope {
+                    message: Arc::unwrap_or_clone(envelope),
+                    signature,
+                }
+            });
 
             let block_contents: SignedBlockContentsTuple<E> = (signed_block, None);
             (block_contents, signed_envelope, post_block_state)

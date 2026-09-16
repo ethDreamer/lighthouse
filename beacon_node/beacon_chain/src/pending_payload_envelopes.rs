@@ -11,6 +11,9 @@ use types::{BlobsList, EthSpec, ExecutionPayloadEnvelope, Hash256, Slot};
 pub struct PendingEnvelopeData<E: EthSpec> {
     pub envelope: Arc<ExecutionPayloadEnvelope<E>>,
     pub blobs: Option<Arc<BlobsList<E>>>,
+    /// [Heze:EIP8142] The chunks, root and proofs the bid committed to, so the reveal publishes
+    /// exactly what was committed without encoding again.
+    pub encoded_chunks: Option<Arc<payload_chunks::EncodedPayload>>,
 }
 
 /// Cache for pending execution payload envelopes awaiting publishing.
@@ -55,6 +58,16 @@ impl<E: EthSpec> PendingPayloadEnvelopes<E> {
         self.envelopes
             .get(&beacon_block_root)
             .map(|data| &data.envelope)
+    }
+
+    /// [Heze:EIP8142] The encoded chunks cached for a beacon block root, if any.
+    pub fn get_encoded_chunks(
+        &self,
+        beacon_block_root: Hash256,
+    ) -> Option<Arc<payload_chunks::EncodedPayload>> {
+        self.envelopes
+            .get(&beacon_block_root)
+            .and_then(|data| data.encoded_chunks.clone())
     }
 
     /// Remove and return the blobs for a beacon block root, leaving the envelope in place.
@@ -114,6 +127,7 @@ mod tests {
                 parent_beacon_block_root: Hash256::ZERO,
             }),
             blobs: None,
+            encoded_chunks: None,
         }
     }
 
@@ -179,6 +193,7 @@ mod tests {
         let data = PendingEnvelopeData {
             envelope: make_envelope(slot, block_root).envelope,
             blobs: Some(blobs),
+            encoded_chunks: None,
         };
         cache.insert(data);
 

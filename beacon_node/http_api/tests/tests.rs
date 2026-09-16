@@ -32,8 +32,8 @@ use http_api::{
     BlockId, StateId,
     test_utils::{ApiServer, create_api_server},
 };
-use lighthouse_network::{Enr, PeerId, types::SyncState};
-use network::NetworkReceivers;
+use lighthouse_network::{Enr, PeerId, PubsubMessage, types::SyncState};
+use network::{NetworkMessage, NetworkReceivers};
 use network_utils::enr_ext::EnrExt;
 use operation_pool::attestation_storage::CheckpointKey;
 use proto_array::{ExecutionStatus, core::ProtoNode};
@@ -1981,6 +1981,72 @@ impl ApiTester {
             self.network_rx.network_recv.recv().await.is_some(),
             "valid blocks should be sent to network"
         );
+
+        // [Heze:EIP8142] A locally built block is followed by its payload, revealed by this
+        // beacon node as chunks on the network, never as a whole envelope.
+        let block_root = next_block.signed_block().canonical_root();
+        if next_block
+            .signed_block()
+            .fork_name_unchecked()
+            .heze_enabled()
+        {
+            let bid_chunk_count = E::payload_chunk_params()
+                .chunk_count(
+                    next_block
+                        .signed_block()
+                        .message()
+                        .body()
+                        .signed_execution_payload_bid()
+                        .unwrap()
+                        .message()
+                        .payload_length()
+                        .unwrap() as usize,
+                )
+                .unwrap();
+            let mut chunk_indices = std::collections::BTreeSet::new();
+            while chunk_indices.len() < bid_chunk_count {
+                let message = tokio::time::timeout(
+                    Duration::from_secs(10),
+                    self.network_rx.network_recv.recv(),
+                )
+                .await
+                .expect("payload chunks should be revealed after the block")
+                .expect("network channel open");
+                match message {
+                    NetworkMessage::Publish { messages } => {
+                        for message in messages {
+                            match message {
+                                PubsubMessage::ExecutionPayloadChunk(chunk) => {
+                                    assert_eq!(chunk.beacon_block_root, block_root);
+                                    assert!(chunk_indices.insert(chunk.index));
+                                }
+                                PubsubMessage::ExecutionPayload(_) => {
+                                    panic!("whole envelope must not be gossiped at Heze")
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let is_payload_received = || {
+                self.chain
+                    .canonical_head
+                    .fork_choice_read_lock()
+                    .is_payload_received(&block_root)
+            };
+            for _ in 0..100 {
+                if is_payload_received() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            assert!(
+                is_payload_received(),
+                "revealed payload should be imported by the revealing node"
+            );
+        }
 
         self
     }

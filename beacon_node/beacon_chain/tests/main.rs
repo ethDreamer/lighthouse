@@ -7,6 +7,7 @@ mod column_verification;
 mod envelope_verification;
 mod events;
 mod op_verification;
+mod payload_chunks;
 mod payload_invalidation;
 mod prepare_payload;
 mod rewards;

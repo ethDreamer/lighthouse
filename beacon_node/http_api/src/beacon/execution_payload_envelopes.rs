@@ -29,7 +29,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
-use types::{BlockImportSource, EthSpec, ForkName, KzgProofs, SignedExecutionPayloadEnvelope};
+use types::{
+    BlockImportSource, EthSpec, ExecutionPayloadChunk, ExecutionPayloadContents, ForkName,
+    KzgProofs, SignedExecutionPayloadEnvelope,
+};
 use warp::{
     Filter, Rejection,
     http::response::Builder,
@@ -285,16 +288,39 @@ pub async fn publish_execution_payload_envelope<T: BeaconChainTypes>(
     let network_tx_clone = network_tx.clone();
     let block_for_equivocation_check = gossip_verified.block.clone();
     let envelope_for_gossip = gossip_verified.signed_envelope.clone();
+
+    // [Heze:EIP8142] The envelope is never gossiped whole once the fork is active; its chunks
+    // are, on `execution_payload_chunk`. A locally built payload already has them cached from
+    // bid construction; anything else is encoded here, off the async runtime.
+    let chunks_for_gossip = if gossip_verified.block.fork_name_unchecked().heze_enabled() {
+        Some(payload_chunks_for_envelope(&chain, &envelope_for_gossip).await?)
+    } else {
+        None
+    };
+
     let publish_envelope = || {
-        crate::utils::publish_pubsub_message(
-            &network_tx_clone,
-            PubsubMessage::ExecutionPayload(Box::new(envelope_for_gossip.as_ref().clone())),
-        )
-        .map_err(|_| {
+        let unable_to_publish = |_| {
             EnvelopeError::BeaconChainError(Box::new(
                 beacon_chain::BeaconChainError::UnableToPublish,
             ))
-        })
+        };
+        match &chunks_for_gossip {
+            Some(chunks) => {
+                for chunk in chunks {
+                    crate::utils::publish_pubsub_message(
+                        &network_tx_clone,
+                        PubsubMessage::ExecutionPayloadChunk(chunk.clone()),
+                    )
+                    .map_err(unable_to_publish)?;
+                }
+                Ok(())
+            }
+            None => crate::utils::publish_pubsub_message(
+                &network_tx_clone,
+                PubsubMessage::ExecutionPayload(Box::new(envelope_for_gossip.as_ref().clone())),
+            )
+            .map_err(unable_to_publish),
+        }
     };
 
     let published = AtomicBool::new(false);
@@ -629,4 +655,52 @@ pub(crate) fn get_beacon_execution_payload_envelopes<T: BeaconChainTypes>(
             },
         )
         .boxed()
+}
+
+/// [Heze:EIP8142] The gossip chunks of `envelope`'s payload: the ones cached at bid
+/// construction for a locally built payload, or freshly encoded otherwise.
+async fn payload_chunks_for_envelope<T: BeaconChainTypes>(
+    chain: &Arc<BeaconChain<T>>,
+    envelope: &Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+) -> Result<Vec<Arc<ExecutionPayloadChunk<T::EthSpec>>>, Rejection> {
+    let beacon_block_root = envelope.message.beacon_block_root;
+    let slot = envelope.slot();
+
+    let cached = chain
+        .pending_payload_envelopes
+        .read()
+        .get_encoded_chunks(beacon_block_root);
+    let encoded = match cached {
+        Some(encoded) => encoded,
+        None => {
+            let contents = ExecutionPayloadContents::from_envelope(&envelope.message);
+            chain
+                .task_executor
+                .spawn_blocking_handle(
+                    move || {
+                        let bytes = contents.as_ssz_bytes();
+                        T::EthSpec::payload_chunk_params()
+                            .encode_payload(&bytes)
+                            .map(Arc::new)
+                    },
+                    "http_api_encode_payload_chunks",
+                )
+                .ok_or_else(|| warp_utils::reject::custom_server_error("runtime shutdown".into()))?
+                .await
+                .map_err(|e| warp_utils::reject::custom_server_error(format!("{e:?}")))?
+                .map_err(|e| {
+                    warp_utils::reject::custom_server_error(format!(
+                        "failed to encode payload chunks: {e}"
+                    ))
+                })?
+        }
+    };
+
+    ExecutionPayloadChunk::all_from_encoded(beacon_block_root, slot, &encoded)
+        .map(|chunks| chunks.into_iter().map(Arc::new).collect())
+        .map_err(|e| {
+            warp_utils::reject::custom_server_error(format!(
+                "failed to build payload chunks: {e:?}"
+            ))
+        })
 }

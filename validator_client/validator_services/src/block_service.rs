@@ -612,8 +612,10 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         }
 
         // Capture before `sign_and_publish_block` moves `unsigned_block`.
-        let produced_block_root = fork_name
-            .gloas_enabled()
+        // [Heze:EIP8142] The envelope is unsigned and revealed as chunks by the beacon node
+        // that built the payload, right after the block is imported; there is nothing for the
+        // validator to fetch, sign or post.
+        let produced_block_root = (fork_name.gloas_enabled() && !fork_name.heze_enabled())
             .then(|| unsigned_block.block_root());
 
         self_ref
