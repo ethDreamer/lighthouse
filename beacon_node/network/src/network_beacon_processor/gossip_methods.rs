@@ -3814,18 +3814,40 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
         // The reprocess queue holds every chunk of the root and re-runs the closures once the
         // block is imported. Chunks arrive a few milliseconds around their block, so this is the
-        // common path for the first chunks of a payload.
+        // common path for the first chunks of a payload. The gossipsub verdict is still pending:
+        // the deferred run reports it, and `ignore_fn` reports `Ignore` if the queue drops the
+        // chunk instead, so gossipsub never waits on the message forever.
         let inner_self = self.clone();
+        let deferred_message_id = message_id.clone();
         let process_fn = Box::pin(async move {
             if let Some(block_root) = inner_self
-                .verify_and_process_payload_chunk(message_id, peer_id, chunk, seen_timestamp)
+                .verify_and_process_payload_chunk(
+                    deferred_message_id.clone(),
+                    peer_id,
+                    chunk,
+                    seen_timestamp,
+                )
                 .await
             {
                 debug!(
                     ?block_root,
                     "Deferred payload chunk still references unknown block"
                 );
+                inner_self.propagate_validation_result(
+                    deferred_message_id,
+                    peer_id,
+                    MessageAcceptance::Ignore,
+                );
             }
+        });
+        let ignore_self = self.clone();
+        let ignore_message_id = message_id.clone();
+        let ignore_fn = Box::new(move || {
+            ignore_self.propagate_validation_result(
+                ignore_message_id,
+                peer_id,
+                MessageAcceptance::Ignore,
+            );
         });
         if self
             .beacon_processor_send
@@ -3837,12 +3859,14 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                         beacon_block_root: block_root,
                         chunk_index,
                         process_fn,
+                        ignore_fn,
                     },
                 )),
             })
             .is_err()
         {
             error!(%chunk_slot, ?block_root, "Failed to defer payload chunk import");
+            self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
             return;
         }
 
@@ -3883,7 +3907,10 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         {
             Ok(verified) => verified,
             Err(GossipPayloadChunkError::BlockRootUnknown { block_root }) => {
-                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+                // No verdict yet: the caller defers the chunk, and the deferred run reports one.
+                // Reporting `Ignore` here would make gossipsub drop the message from validation,
+                // so a later `Accept` could not forward it, and nodes that depend on this one
+                // as a relay would never see chunks that beat their block here.
                 return Some(block_root);
             }
             Err(e) => {

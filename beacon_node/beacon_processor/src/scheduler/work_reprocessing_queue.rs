@@ -250,7 +250,11 @@ pub struct QueuedGossipPayloadChunk {
     pub beacon_block_slot: Slot,
     pub beacon_block_root: Hash256,
     pub chunk_index: u64,
+    /// Verifies and processes the chunk, reporting its gossip verdict.
     pub process_fn: AsyncFn,
+    /// Reports the pending gossip verdict as ignored when the queue drops the chunk without
+    /// running `process_fn`. Cheap: it only sends a message to the network service.
+    pub ignore_fn: BlockingFn,
 }
 
 pub struct QueuedGossipDataColumn {
@@ -951,6 +955,7 @@ impl<S: SlotClock> ReprocessQueue<S> {
                             "Payload chunk delay queue is full, dropping chunk"
                         );
                     }
+                    (queued_chunk.ignore_fn)();
                     return;
                 }
 
@@ -968,6 +973,7 @@ impl<S: SlotClock> ReprocessQueue<S> {
                             chunk_index = queued_chunk.chunk_index,
                             "Duplicate payload chunk for same block root, dropping"
                         );
+                        (queued_chunk.ignore_fn)();
                         return;
                     }
                     chunks.push(queued_chunk);
@@ -1129,12 +1135,12 @@ impl<S: SlotClock> ReprocessQueue<S> {
                         .queued_payload_chunks_count
                         .saturating_sub(chunks.len());
                     for chunk in chunks {
-                        if self
-                            .ready_work_tx
-                            .try_send(ReadyWork::PayloadChunk(chunk))
-                            .is_err()
+                        if let Err(e) = self.ready_work_tx.try_send(ReadyWork::PayloadChunk(chunk))
                         {
                             error!(?block_root, "Failed to send payload chunk for reprocessing");
+                            if let ReadyWork::PayloadChunk(chunk) = e.into_inner() {
+                                (chunk.ignore_fn)();
+                            }
                         }
                     }
                 }
@@ -1513,15 +1519,15 @@ impl<S: SlotClock> ReprocessQueue<S> {
                         "Payload chunks timed out waiting for block, sending for processing"
                     );
                     for chunk in chunks {
-                        if self
-                            .ready_work_tx
-                            .try_send(ReadyWork::PayloadChunk(chunk))
-                            .is_err()
+                        if let Err(e) = self.ready_work_tx.try_send(ReadyWork::PayloadChunk(chunk))
                         {
                             error!(
                                 hint = "system may be overloaded",
                                 "Ignored expired gossip payload chunk"
                             );
+                            if let ReadyWork::PayloadChunk(chunk) = e.into_inner() {
+                                (chunk.ignore_fn)();
+                            }
                         }
                     }
                 }
@@ -2484,11 +2490,20 @@ mod tests {
         beacon_block_root: Hash256,
         chunk_index: u64,
     ) -> QueuedGossipPayloadChunk {
+        queued_payload_chunk_with_ignore(beacon_block_root, chunk_index, Box::new(|| {}))
+    }
+
+    fn queued_payload_chunk_with_ignore(
+        beacon_block_root: Hash256,
+        chunk_index: u64,
+        ignore_fn: BlockingFn,
+    ) -> QueuedGossipPayloadChunk {
         QueuedGossipPayloadChunk {
             beacon_block_slot: Slot::new(1),
             beacon_block_root,
             chunk_index,
             process_fn: Box::pin(async {}),
+            ignore_fn,
         }
     }
 
@@ -2520,13 +2535,18 @@ mod tests {
                 )),
             ));
         }
-        // A duplicate index for the same root is dropped; a different root is kept apart.
+        // A duplicate index for the same root is dropped, and its pending gossip verdict is
+        // reported as ignored; a different root is kept apart.
+        let duplicate_ignored = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = duplicate_ignored.clone();
         queue.handle_message(InboundEvent::Msg(
-            ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(
+            ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk_with_ignore(
                 beacon_block_root,
                 2,
+                Box::new(move || flag.store(true, std::sync::atomic::Ordering::SeqCst)),
             )),
         ));
+        assert!(duplicate_ignored.load(std::sync::atomic::Ordering::SeqCst));
         queue.handle_message(InboundEvent::Msg(
             ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(other_root, 0)),
         ));
