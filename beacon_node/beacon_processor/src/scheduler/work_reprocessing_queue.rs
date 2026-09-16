@@ -86,6 +86,13 @@ const MAXIMUM_QUEUED_ATTESTATIONS: usize = 16_384;
 /// How many columns we keep before new ones get dropped.
 const MAXIMUM_QUEUED_DATA_COLUMNS: usize = 256;
 
+/// [Heze:EIP8142] How long to queue payload chunks whose block has not been imported yet.
+const QUEUED_PAYLOAD_CHUNK_DELAY_SLOTS: u32 = 1;
+
+/// [Heze:EIP8142] Upper bound on queued payload chunks across all block roots. Chunks usually
+/// arrive a few milliseconds around their block, so this only needs to cover a few payloads.
+const MAXIMUM_QUEUED_PAYLOAD_CHUNKS: usize = 512;
+
 /// How many light client updates we keep before new ones get dropped.
 const MAXIMUM_QUEUED_LIGHT_CLIENT_UPDATES: usize = 128;
 
@@ -146,6 +153,8 @@ pub enum ReprocessQueueMessage {
     BackfillSync(QueuedBackfillBatch),
     /// A gossip data column that references an unknown block.
     UnknownBlockDataColumn(QueuedGossipDataColumn),
+    /// [Heze:EIP8142] A payload chunk that references a block not yet in fork choice.
+    UnknownBlockForPayloadChunk(QueuedGossipPayloadChunk),
     /// A delayed column reconstruction that needs checking
     DelayColumnReconstruction(QueuedColumnReconstruction),
 }
@@ -163,6 +172,7 @@ pub enum ReadyWork {
     BackfillSync(QueuedBackfillBatch),
     ColumnReconstruction(QueuedColumnReconstruction),
     DataColumn(QueuedGossipDataColumn),
+    PayloadChunk(QueuedGossipPayloadChunk),
 }
 
 /// An Attestation for which the corresponding block was not seen while processing, queued for
@@ -233,6 +243,16 @@ pub struct QueuedColumnReconstruction {
 }
 
 /// A gossip data column that references an unknown block, queued for later reprocessing.
+/// [Heze:EIP8142] A payload chunk whose block was unknown when it arrived, queued until the block
+/// is imported. Unlike an envelope there are many per block, so they are held per root and
+/// deduplicated by index.
+pub struct QueuedGossipPayloadChunk {
+    pub beacon_block_slot: Slot,
+    pub beacon_block_root: Hash256,
+    pub chunk_index: u64,
+    pub process_fn: AsyncFn,
+}
+
 pub struct QueuedGossipDataColumn {
     pub beacon_block_root: Hash256,
     pub process_fn: BlockingFn,
@@ -282,6 +302,8 @@ enum InboundEvent {
     ReadyColumnReconstruction(QueuedColumnReconstruction),
     /// A gossip data column that is ready for re-processing.
     ReadyDataColumn(Hash256),
+    /// [Heze:EIP8142] The payload chunks queued for this block root timed out waiting for it.
+    ReadyPayloadChunks(Hash256),
     /// A message sent to the `ReprocessQueue`
     Msg(ReprocessQueueMessage),
 }
@@ -310,6 +332,8 @@ struct ReprocessQueue<S> {
     column_reconstructions_delay_queue: DelayQueue<QueuedColumnReconstruction>,
     /// Queue to manage gossip data column timeouts.
     data_columns_delay_queue: DelayQueue<Hash256>,
+    /// [Heze:EIP8142] Queue to manage gossip payload chunk timeouts (keyed by block root).
+    payload_chunks_delay_queue: DelayQueue<Hash256>,
 
     /* Queued items */
     /// Queued blocks.
@@ -341,6 +365,10 @@ struct ReprocessQueue<S> {
     awaiting_data_columns_per_root: HashMap<Hash256, (Vec<QueuedGossipDataColumn>, DelayKey)>,
     /// Total number of queued gossip data columns across all roots.
     queued_data_columns_count: usize,
+    /// [Heze:EIP8142] Queued payload chunks awaiting their block, keyed by block root.
+    awaiting_payload_chunks_per_root: HashMap<Hash256, (Vec<QueuedGossipPayloadChunk>, DelayKey)>,
+    /// [Heze:EIP8142] Total queued payload chunks across all roots.
+    queued_payload_chunks_count: usize,
 
     /* Aux */
     /// Next attestation id, used for both aggregated and unaggregated attestations
@@ -353,6 +381,7 @@ struct ReprocessQueue<S> {
     attestation_delay_debounce: TimeLatch,
     lc_update_delay_debounce: TimeLatch,
     data_column_delay_debounce: TimeLatch,
+    payload_chunk_delay_debounce: TimeLatch,
     next_backfill_batch_event: Option<Pin<Box<tokio::time::Sleep>>>,
     slot_clock: Arc<S>,
 }
@@ -485,6 +514,15 @@ impl<S: SlotClock> Stream for ReprocessQueue<S> {
             Poll::Ready(None) | Poll::Pending => (),
         }
 
+        match self.payload_chunks_delay_queue.poll_expired(cx) {
+            Poll::Ready(Some(block_root)) => {
+                return Poll::Ready(Some(InboundEvent::ReadyPayloadChunks(
+                    block_root.into_inner(),
+                )));
+            }
+            Poll::Ready(None) | Poll::Pending => (),
+        }
+
         if let Some(next_backfill_batch_event) = self.next_backfill_batch_event.as_mut() {
             match next_backfill_batch_event.as_mut().poll(cx) {
                 Poll::Ready(_) => {
@@ -555,6 +593,7 @@ impl<S: SlotClock> ReprocessQueue<S> {
             lc_updates_delay_queue: DelayQueue::new(),
             column_reconstructions_delay_queue: DelayQueue::new(),
             data_columns_delay_queue: DelayQueue::new(),
+            payload_chunks_delay_queue: DelayQueue::new(),
             queued_gossip_block_roots: HashSet::new(),
             awaiting_envelopes_per_root: HashMap::new(),
             queued_early_envelope_block_roots: HashSet::new(),
@@ -569,6 +608,8 @@ impl<S: SlotClock> ReprocessQueue<S> {
             queued_column_reconstructions: HashMap::new(),
             awaiting_data_columns_per_root: HashMap::new(),
             queued_data_columns_count: 0,
+            awaiting_payload_chunks_per_root: HashMap::new(),
+            queued_payload_chunks_count: 0,
             next_attestation: 0,
             next_lc_update: 0,
             early_block_debounce: TimeLatch::default(),
@@ -578,6 +619,7 @@ impl<S: SlotClock> ReprocessQueue<S> {
             attestation_delay_debounce: TimeLatch::default(),
             lc_update_delay_debounce: TimeLatch::default(),
             data_column_delay_debounce: TimeLatch::default(),
+            payload_chunk_delay_debounce: TimeLatch::default(),
             next_backfill_batch_event: None,
             slot_clock,
         }
@@ -898,6 +940,49 @@ impl<S: SlotClock> ReprocessQueue<S> {
 
                 self.queued_data_columns_count += 1;
             }
+            InboundEvent::Msg(UnknownBlockForPayloadChunk(queued_chunk)) => {
+                let block_root = queued_chunk.beacon_block_root;
+
+                if self.queued_payload_chunks_count >= MAXIMUM_QUEUED_PAYLOAD_CHUNKS {
+                    if self.payload_chunk_delay_debounce.elapsed() {
+                        warn!(
+                            queue_size = MAXIMUM_QUEUED_PAYLOAD_CHUNKS,
+                            msg = "system resources may be saturated",
+                            "Payload chunk delay queue is full, dropping chunk"
+                        );
+                    }
+                    return;
+                }
+
+                if let Some((chunks, _delay_key)) =
+                    self.awaiting_payload_chunks_per_root.get_mut(&block_root)
+                {
+                    // One copy of each chunk index per root is enough to reconstruct; the timer
+                    // for this root is already running.
+                    if chunks
+                        .iter()
+                        .any(|chunk| chunk.chunk_index == queued_chunk.chunk_index)
+                    {
+                        trace!(
+                            ?block_root,
+                            chunk_index = queued_chunk.chunk_index,
+                            "Duplicate payload chunk for same block root, dropping"
+                        );
+                        return;
+                    }
+                    chunks.push(queued_chunk);
+                } else {
+                    let delay_key = self.payload_chunks_delay_queue.insert(
+                        block_root,
+                        self.slot_clock.slot_duration() * QUEUED_PAYLOAD_CHUNK_DELAY_SLOTS,
+                    );
+
+                    self.awaiting_payload_chunks_per_root
+                        .insert(block_root, (vec![queued_chunk], delay_key));
+                }
+
+                self.queued_payload_chunks_count += 1;
+            }
             InboundEvent::Msg(UnknownLightClientOptimisticUpdate(
                 queued_light_client_optimistic_update,
             )) => {
@@ -1031,6 +1116,25 @@ impl<S: SlotClock> ReprocessQueue<S> {
                             .is_err()
                         {
                             error!(?block_root, "Failed to send data column for reprocessing");
+                        }
+                    }
+                }
+
+                // Unqueue the payload chunks we have for this root, if any.
+                if let Some((chunks, delay_key)) =
+                    self.awaiting_payload_chunks_per_root.remove(&block_root)
+                {
+                    self.payload_chunks_delay_queue.remove(&delay_key);
+                    self.queued_payload_chunks_count = self
+                        .queued_payload_chunks_count
+                        .saturating_sub(chunks.len());
+                    for chunk in chunks {
+                        if self
+                            .ready_work_tx
+                            .try_send(ReadyWork::PayloadChunk(chunk))
+                            .is_err()
+                        {
+                            error!(?block_root, "Failed to send payload chunk for reprocessing");
                         }
                     }
                 }
@@ -1392,6 +1496,31 @@ impl<S: SlotClock> ReprocessQueue<S> {
                             error!(
                                 hint = "system may be overloaded",
                                 "Ignored expired gossip data column"
+                            );
+                        }
+                    }
+                }
+            }
+            InboundEvent::ReadyPayloadChunks(block_root) => {
+                if let Some((chunks, _)) = self.awaiting_payload_chunks_per_root.remove(&block_root)
+                {
+                    self.queued_payload_chunks_count = self
+                        .queued_payload_chunks_count
+                        .saturating_sub(chunks.len());
+                    debug!(
+                        ?block_root,
+                        count = chunks.len(),
+                        "Payload chunks timed out waiting for block, sending for processing"
+                    );
+                    for chunk in chunks {
+                        if self
+                            .ready_work_tx
+                            .try_send(ReadyWork::PayloadChunk(chunk))
+                            .is_err()
+                        {
+                            error!(
+                                hint = "system may be overloaded",
+                                "Ignored expired gossip payload chunk"
                             );
                         }
                     }
@@ -2349,6 +2478,154 @@ mod tests {
         // The column should have been sent to the ready_work channel.
         let ready = ready_work_rx.try_recv().expect("column should be ready");
         assert!(matches!(ready, ReadyWork::DataColumn(_)));
+    }
+
+    fn queued_payload_chunk(
+        beacon_block_root: Hash256,
+        chunk_index: u64,
+    ) -> QueuedGossipPayloadChunk {
+        QueuedGossipPayloadChunk {
+            beacon_block_slot: Slot::new(1),
+            beacon_block_root,
+            chunk_index,
+            process_fn: Box::pin(async {}),
+        }
+    }
+
+    /// [Heze:EIP8142] Every chunk queued for a root is released when its block is imported. A
+    /// payload needs `data_chunk_count` distinct chunks, so keeping one per root, as is done for
+    /// envelopes, would make reconstruction from deferred chunks impossible.
+    #[tokio::test]
+    async fn payload_chunks_released_together_on_block_imported() {
+        create_test_tracing_subscriber();
+
+        let config = BeaconProcessorConfig::default();
+        let (ready_work_tx, mut ready_work_rx) =
+            mpsc::channel::<ReadyWork>(config.max_scheduled_work_queue_len);
+        let (_, reprocess_work_rx) =
+            mpsc::channel::<ReprocessQueueMessage>(config.max_scheduled_work_queue_len);
+        let slot_clock = Arc::new(testing_slot_clock(12));
+        let mut queue = ReprocessQueue::new(ready_work_tx, reprocess_work_rx, slot_clock);
+
+        tokio::time::pause();
+
+        let beacon_block_root = Hash256::repeat_byte(0xee);
+        let other_root = Hash256::repeat_byte(0xef);
+
+        for index in 0..5 {
+            queue.handle_message(InboundEvent::Msg(
+                ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(
+                    beacon_block_root,
+                    index,
+                )),
+            ));
+        }
+        // A duplicate index for the same root is dropped; a different root is kept apart.
+        queue.handle_message(InboundEvent::Msg(
+            ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(
+                beacon_block_root,
+                2,
+            )),
+        ));
+        queue.handle_message(InboundEvent::Msg(
+            ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(other_root, 0)),
+        ));
+
+        assert_eq!(queue.awaiting_payload_chunks_per_root.len(), 2);
+        assert_eq!(
+            queue.awaiting_payload_chunks_per_root[&beacon_block_root]
+                .0
+                .len(),
+            5
+        );
+        assert_eq!(queue.queued_payload_chunks_count, 6);
+        // One timer per root, not per chunk.
+        assert_eq!(queue.payload_chunks_delay_queue.len(), 2);
+
+        queue.handle_message(InboundEvent::Msg(ReprocessQueueMessage::BlockImported {
+            block_root: beacon_block_root,
+        }));
+
+        assert_eq!(queue.awaiting_payload_chunks_per_root.len(), 1);
+        assert!(
+            queue
+                .awaiting_payload_chunks_per_root
+                .contains_key(&other_root)
+        );
+        assert_eq!(queue.queued_payload_chunks_count, 1);
+        assert_eq!(queue.payload_chunks_delay_queue.len(), 1);
+
+        let mut released = Vec::new();
+        while let Ok(ready) = ready_work_rx.try_recv() {
+            match ready {
+                ReadyWork::PayloadChunk(chunk) => {
+                    assert_eq!(chunk.beacon_block_root, beacon_block_root);
+                    released.push(chunk.chunk_index);
+                }
+                _ => panic!("unexpected ready work"),
+            }
+        }
+        released.sort_unstable();
+        assert_eq!(released, vec![0, 1, 2, 3, 4]);
+    }
+
+    /// [Heze:EIP8142] Chunks whose block never arrives are released after the delay and the
+    /// state is pruned.
+    #[tokio::test]
+    async fn prune_awaiting_payload_chunks_per_root() {
+        create_test_tracing_subscriber();
+
+        let mut queue = test_queue();
+
+        tokio::time::pause();
+
+        let beacon_block_root = Hash256::repeat_byte(0xed);
+        for index in 0..3 {
+            queue.handle_message(InboundEvent::Msg(
+                ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(
+                    beacon_block_root,
+                    index,
+                )),
+            ));
+        }
+        assert_eq!(queue.queued_payload_chunks_count, 3);
+
+        advance_time(
+            &queue.slot_clock,
+            2 * queue.slot_clock.slot_duration() * QUEUED_PAYLOAD_CHUNK_DELAY_SLOTS,
+        )
+        .await;
+        let ready_msg = queue.next().await.unwrap();
+        assert!(matches!(ready_msg, InboundEvent::ReadyPayloadChunks(_)));
+        queue.handle_message(ready_msg);
+
+        assert!(queue.awaiting_payload_chunks_per_root.is_empty());
+        assert_eq!(queue.queued_payload_chunks_count, 0);
+        assert_eq!(queue.payload_chunks_delay_queue.len(), 0);
+    }
+
+    /// [Heze:EIP8142] The chunk queue is bounded across roots.
+    #[tokio::test]
+    async fn payload_chunk_queue_is_bounded() {
+        create_test_tracing_subscriber();
+
+        let mut queue = test_queue();
+
+        tokio::time::pause();
+
+        for index in 0..(MAXIMUM_QUEUED_PAYLOAD_CHUNKS as u64 + 10) {
+            let root = Hash256::repeat_byte((index / 8 + 1) as u8);
+            queue.handle_message(InboundEvent::Msg(
+                ReprocessQueueMessage::UnknownBlockForPayloadChunk(queued_payload_chunk(
+                    root,
+                    index % 8,
+                )),
+            ));
+        }
+        assert_eq!(
+            queue.queued_payload_chunks_count,
+            MAXIMUM_QUEUED_PAYLOAD_CHUNKS
+        );
     }
 
     /// Tests that an expired gossip data column is pruned cleanly from all internal state.

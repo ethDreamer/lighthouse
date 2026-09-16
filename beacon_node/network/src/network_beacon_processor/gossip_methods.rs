@@ -68,8 +68,8 @@ use beacon_processor::{
     DuplicateCache, GossipAggregatePackage, GossipAttestationBatch,
     work_reprocessing_queue::{
         QueuedAggregate, QueuedGossipBlock, QueuedGossipDataColumn, QueuedGossipEnvelope,
-        QueuedLightClientUpdate, QueuedPayloadAttestation, QueuedUnaggregate,
-        ReprocessQueueMessage,
+        QueuedGossipPayloadChunk, QueuedLightClientUpdate, QueuedPayloadAttestation,
+        QueuedUnaggregate, ReprocessQueueMessage,
     },
 };
 
@@ -3804,15 +3804,17 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         };
 
         let chunk_slot = chunk.slot;
+        let chunk_index = chunk.index;
         debug!(
             ?block_root,
             %chunk_slot,
+            chunk_index,
             "Payload chunk references unknown block, deferring to reprocess queue"
         );
 
-        // The reprocess queue re-runs the closure once the block root is imported. Its envelope
-        // variant is keyed by block root and carries no envelope-specific state, so chunks
-        // share it.
+        // The reprocess queue holds every chunk of the root and re-runs the closures once the
+        // block is imported. Chunks arrive a few milliseconds around their block, so this is the
+        // common path for the first chunks of a payload.
         let inner_self = self.clone();
         let process_fn = Box::pin(async move {
             if let Some(block_root) = inner_self
@@ -3829,10 +3831,11 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             .beacon_processor_send
             .try_send(WorkEvent {
                 drop_during_sync: false,
-                work: Work::Reprocess(ReprocessQueueMessage::UnknownBlockForEnvelope(
-                    QueuedGossipEnvelope {
+                work: Work::Reprocess(ReprocessQueueMessage::UnknownBlockForPayloadChunk(
+                    QueuedGossipPayloadChunk {
                         beacon_block_slot: chunk_slot,
                         beacon_block_root: block_root,
+                        chunk_index,
                         process_fn,
                     },
                 )),
@@ -3840,6 +3843,27 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             .is_err()
         {
             error!(%chunk_slot, ?block_root, "Failed to defer payload chunk import");
+            return;
+        }
+
+        // The block may have been imported between the verification's fork choice check and the
+        // deferral reaching the queue, in which case the queue would only release the chunk on
+        // its timeout. The processor's channel is ordered, so a release sent now lands after
+        // the deferral; the message is a no-op for roots with nothing queued.
+        if self
+            .chain
+            .canonical_head
+            .fork_choice_read_lock()
+            .contains_block(&block_root)
+            && self
+                .beacon_processor_send
+                .try_send(WorkEvent {
+                    drop_during_sync: false,
+                    work: Work::Reprocess(ReprocessQueueMessage::BlockImported { block_root }),
+                })
+                .is_err()
+        {
+            error!(?block_root, "Failed to release deferred payload chunk");
         }
     }
 

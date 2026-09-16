@@ -42,7 +42,7 @@ pub use crate::scheduler::BeaconProcessorQueueLengths;
 use crate::scheduler::work_queue::WorkQueues;
 use crate::work_reprocessing_queue::{
     QueuedBackfillBatch, QueuedColumnReconstruction, QueuedGossipBlock, QueuedGossipDataColumn,
-    QueuedGossipEnvelope, ReprocessQueueMessage,
+    QueuedGossipEnvelope, QueuedGossipPayloadChunk, ReprocessQueueMessage,
 };
 use futures::stream::{Stream, StreamExt};
 use futures::task::Poll;
@@ -254,6 +254,10 @@ impl<E: EthSpec> From<ReadyWork> for WorkEvent<E> {
                     beacon_block_root,
                     process_fn,
                 },
+            },
+            ReadyWork::PayloadChunk(QueuedGossipPayloadChunk { process_fn, .. }) => Self {
+                drop_during_sync: false,
+                work: Work::GossipExecutionPayloadChunk(process_fn),
             },
             ReadyWork::RpcBlock(QueuedRpcBlock {
                 beacon_block_root,
