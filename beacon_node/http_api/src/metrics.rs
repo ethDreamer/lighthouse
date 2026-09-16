@@ -51,3 +51,9 @@ pub static HTTP_API_STATE_ROOT_TIMES: LazyLock<Result<Histogram>> = LazyLock::ne
         "Time to load a state root for a request",
     )
 });
+pub static HTTP_API_PAYLOAD_CHUNKS_PUBLISHED: LazyLock<Result<IntCounter>> = LazyLock::new(|| {
+    try_create_int_counter(
+        "http_api_payload_chunks_published_total",
+        "Chunks of locally built payloads revealed to gossip after block import",
+    )
+});

@@ -153,6 +153,10 @@ fn reveal_local_payload<T: BeaconChainTypes>(
                     }
                 }
             }
+            metrics::inc_counter_by(
+                &metrics::HTTP_API_PAYLOAD_CHUNKS_PUBLISHED,
+                published as u64,
+            );
             info!(
                 %slot,
                 %block_root,

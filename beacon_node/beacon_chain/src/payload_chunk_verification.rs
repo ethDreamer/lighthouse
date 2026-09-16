@@ -94,8 +94,9 @@ impl<E: EthSpec> GossipVerifiedPayloadChunk<E> {
 /// What became of a payload after enough of its chunks were verified.
 #[derive(Debug)]
 pub enum PayloadChunkOutcome<E: EthSpec> {
-    /// Not enough chunks yet, or reconstruction is already under way or has failed.
-    Pending(&'static str),
+    /// Not enough chunks yet, or reconstruction is already under way or has failed. `held` is
+    /// the number of verified chunks now held for the block root.
+    Pending { reason: &'static str, held: usize },
     /// The payload was recovered and passed the chunk root check. The envelope is rebuilt from
     /// the bid and block and carries no signature, as Heze envelopes do not.
     Reconstructed(Arc<SignedExecutionPayloadEnvelope<E>>),
@@ -114,11 +115,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let result = self.verify_payload_chunk_for_gossip_inner(chunk);
         let outcome = match &result {
             Ok(_) => "accept",
-            Err(e) => match e.acceptance() {
-                ChunkAcceptance::Reject => "reject",
-                ChunkAcceptance::Ignore => "ignore",
-                ChunkAcceptance::UnknownBlock => "unknown_block",
-            },
+            Err(e) => e.metric_label(),
         };
         metrics::inc_counter_vec(
             &metrics::PAYLOAD_CHUNK_GOSSIP_VERIFICATION_TOTAL,
@@ -257,9 +254,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .pending_payload_cache
             .put_gossip_verified_payload_chunk(verified.chunk.clone())
             .map_err(BeaconChainError::AvailabilityCheckError)?;
+        let held = self
+            .pending_payload_cache
+            .payload_chunks_held(&block_root)
+            .unwrap_or(0);
         match decision {
             ReconstructPayloadDecision::No(reason) => {
-                return Ok(PayloadChunkOutcome::Pending(reason));
+                return Ok(PayloadChunkOutcome::Pending { reason, held });
             }
             ReconstructPayloadDecision::Yes => {}
         }
@@ -281,7 +282,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     error = ?e,
                     "Payload reconstruction from chunks did not produce an envelope"
                 );
-                Ok(PayloadChunkOutcome::Pending("reconstruction failed"))
+                Ok(PayloadChunkOutcome::Pending {
+                    reason: "reconstruction failed",
+                    held,
+                })
             }
         }
     }
@@ -328,6 +332,22 @@ pub enum ChunkAcceptance {
 }
 
 impl GossipPayloadChunkError {
+    /// A stable label for metrics, one per verdict and reason.
+    pub fn metric_label(&self) -> &'static str {
+        match self {
+            Self::ChunkAlreadySeen { .. } => "ignore_duplicate",
+            Self::FutureSlot { .. } => "ignore_future_slot",
+            Self::BlockRootUnknown { .. } => "ignore_unknown_block",
+            Self::PriorToFinalization { .. } => "ignore_finalized",
+            Self::PayloadAlreadyAvailable { .. } => "ignore_payload_available",
+            Self::BeaconChainError(_) => "ignore_error",
+            Self::SlotMismatch { .. } => "reject_slot_mismatch",
+            Self::BlockHasNoChunkCommitment { .. } => "reject_no_commitment",
+            Self::IndexOutOfRange { .. } => "reject_index_out_of_range",
+            Self::InvalidProof { .. } => "reject_invalid_proof",
+        }
+    }
+
     pub fn acceptance(&self) -> ChunkAcceptance {
         match self {
             Self::ChunkAlreadySeen { .. }

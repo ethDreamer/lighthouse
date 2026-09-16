@@ -126,11 +126,12 @@ async fn heze_payload_is_reconstructed_from_any_data_chunk_count_of_chunks() {
             .await
             .expect("chunk processed");
         match outcome {
-            PayloadChunkOutcome::Pending(reason) => {
+            PayloadChunkOutcome::Pending { reason, held } => {
                 assert!(
                     i + 1 < k,
                     "expected reconstruction at chunk {i}, got {reason}"
                 );
+                assert_eq!(held, i + 1);
             }
             PayloadChunkOutcome::Reconstructed(envelope) => {
                 assert_eq!(i + 1, k, "reconstructed early at chunk {i}");

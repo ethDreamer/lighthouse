@@ -577,6 +577,13 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
         })
     }
 
+    /// [Heze:EIP8142] The number of verified chunks held for `block_root`, if it has an entry.
+    pub fn payload_chunks_held(&self, block_root: &Hash256) -> Option<usize> {
+        self.peek_pending_components(block_root, |components| {
+            components.map(|c| c.verified_payload_chunks.len())
+        })
+    }
+
     /// [Heze:EIP8142] Whether the payload of `block_root` is being, or was, reconstructed.
     pub fn payload_reconstruction(&self, block_root: &Hash256) -> Option<PayloadReconstruction> {
         self.peek_pending_components(block_root, |components| {

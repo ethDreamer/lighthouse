@@ -604,6 +604,41 @@ pub static ENVELOPE_DELAY_GOSSIP: LazyLock<Result<IntGauge>> = LazyLock::new(|| 
 });
 
 /*
+ * EIP-8142 Payload Chunk Delay Metrics
+ */
+const PAYLOAD_CHUNK_DELAY_BUCKETS: [f64; 14] = [
+    0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0,
+];
+pub static PAYLOAD_CHUNK_FIRST_SEEN_DELAY: LazyLock<Result<Histogram>> = LazyLock::new(|| {
+    try_create_histogram_with_buckets(
+        "payload_chunk_first_seen_delay_seconds",
+        "Delay from the start of the slot to the first verified chunk of a payload",
+        Ok(PAYLOAD_CHUNK_DELAY_BUCKETS.to_vec()),
+    )
+});
+pub static PAYLOAD_CHUNK_RECONSTRUCTABLE_DELAY: LazyLock<Result<Histogram>> = LazyLock::new(|| {
+    try_create_histogram_with_buckets(
+        "payload_chunk_reconstructable_delay_seconds",
+        "Delay from the start of the slot to holding enough verified chunks to reconstruct",
+        Ok(PAYLOAD_CHUNK_DELAY_BUCKETS.to_vec()),
+    )
+});
+pub static PAYLOAD_CHUNK_RECONSTRUCTED_DELAY: LazyLock<Result<Histogram>> = LazyLock::new(|| {
+    try_create_histogram_with_buckets(
+        "payload_chunk_reconstructed_delay_seconds",
+        "Delay from the start of the slot to the payload being reconstructed from chunks",
+        Ok(PAYLOAD_CHUNK_DELAY_BUCKETS.to_vec()),
+    )
+});
+pub static PAYLOAD_ENVELOPE_DELAY_HISTOGRAM: LazyLock<Result<Histogram>> = LazyLock::new(|| {
+    try_create_histogram_with_buckets(
+        "payload_envelope_delay_gossip_seconds",
+        "Delay from the start of the slot to first seeing a payload, whole over gossip or reconstructed from chunks",
+        Ok(PAYLOAD_CHUNK_DELAY_BUCKETS.to_vec()),
+    )
+});
+
+/*
  * Block Delay Metrics
  */
 pub static BEACON_BLOCK_DELAY_GOSSIP: LazyLock<Result<IntGauge>> = LazyLock::new(|| {

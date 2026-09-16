@@ -1012,6 +1012,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     execution_requests: execution_requests.clone(),
                 };
                 let contents_bytes = contents.as_ssz_bytes();
+                let encode_timer = metrics::start_timer(&metrics::PAYLOAD_CHUNK_ENCODE_SECONDS);
                 let encoded = T::EthSpec::payload_chunk_params()
                     .encode_payload(&contents_bytes)
                     .map_err(|e| {
@@ -1019,6 +1020,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             "failed to encode payload chunks: {e:?}"
                         ))
                     })?;
+                metrics::stop_timer(encode_timer);
                 let mut heze_bid = gloas_bid.upgrade_to_heze();
                 heze_bid.payload_chunks_root = encoded.chunks_root;
                 heze_bid.payload_length = contents_bytes.len() as u64;

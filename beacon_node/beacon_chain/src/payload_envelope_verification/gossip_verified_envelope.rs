@@ -17,6 +17,7 @@ use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, BeaconStore, ServerSentEventHandler,
     beacon_proposer_cache::{self, BeaconProposerCache},
     canonical_head::CanonicalHead,
+    metrics,
     observed_execution_payloads::ObservedExecutionPayloads,
     payload_envelope_verification::{
         EnvelopeError, EnvelopeProcessingSnapshot, EnvelopeSource, load_snapshot_from_state_root,
@@ -422,6 +423,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     let slot = envelope.slot();
                     let beacon_block_root = envelope.message.beacon_block_root;
 
+                    let _timer = metrics::start_timer(
+                        &metrics::PAYLOAD_ENVELOPE_GOSSIP_VERIFICATION_SECONDS,
+                    );
                     let ctx = chain.payload_envelope_gossip_verification_context(source);
                     match GossipVerifiedEnvelope::new(envelope, &ctx) {
                         Ok(verified) => {

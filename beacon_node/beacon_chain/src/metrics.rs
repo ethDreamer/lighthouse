@@ -2168,6 +2168,21 @@ pub static PAYLOAD_CHUNK_GOSSIP_VERIFICATION_TOTAL: LazyLock<Result<IntCounterVe
         )
     });
 
+pub static PAYLOAD_CHUNK_ENCODE_SECONDS: LazyLock<Result<Histogram>> = LazyLock::new(|| {
+    try_create_histogram(
+        "beacon_payload_chunk_encode_seconds",
+        "Time to encode a locally built payload into chunks, root and proofs for its bid",
+    )
+});
+
+pub static PAYLOAD_ENVELOPE_GOSSIP_VERIFICATION_SECONDS: LazyLock<Result<Histogram>> =
+    LazyLock::new(|| {
+        try_create_histogram(
+            "beacon_execution_payload_envelope_gossip_verification_seconds",
+            "Full runtime of execution payload envelope gossip verification",
+        )
+    });
+
 pub static PAYLOAD_CHUNK_RECONSTRUCTION_SECONDS: LazyLock<Result<Histogram>> =
     LazyLock::new(|| {
         try_create_histogram(

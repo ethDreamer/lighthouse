@@ -3894,13 +3894,20 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         // own slot.
         self.propagate_envelope_if_timely(verified.block_slot(), message_id, peer_id);
 
+        let block_slot = verified.block_slot();
         match self
             .chain
             .process_gossip_verified_payload_chunk(verified)
             .await
         {
-            Ok(PayloadChunkOutcome::Pending(reason)) => {
-                trace!(reason, "Payload chunk stored");
+            Ok(PayloadChunkOutcome::Pending { reason, held }) => {
+                if held == 1 {
+                    metrics::observe_duration(
+                        &metrics::PAYLOAD_CHUNK_FIRST_SEEN_DELAY,
+                        get_slot_delay_ms(seen_timestamp, block_slot, &self.chain.slot_clock),
+                    );
+                }
+                trace!(reason, held, "Payload chunk stored");
             }
             Ok(PayloadChunkOutcome::Reconstructed(envelope)) => {
                 let beacon_block_root = envelope.beacon_block_root();
@@ -3909,13 +3916,32 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                     root = ?beacon_block_root,
                     "Payload reconstructed from chunks"
                 );
-                // The reconstruction time is the moment the payload was "seen", so that the
+                // The chunk that completed the set arrived at `seen_timestamp`; reconstruction
+                // finished now. The latter is the moment the payload was "seen", so that the
                 // envelope delay metrics compare with whole-envelope gossip like for like.
                 let now = self
                     .chain
                     .slot_clock
                     .now_duration()
                     .unwrap_or(seen_timestamp);
+                metrics::observe_duration(
+                    &metrics::PAYLOAD_CHUNK_RECONSTRUCTABLE_DELAY,
+                    get_slot_delay_ms(seen_timestamp, block_slot, &self.chain.slot_clock),
+                );
+                let reconstructed_delay =
+                    get_slot_delay_ms(now, block_slot, &self.chain.slot_clock);
+                metrics::observe_duration(
+                    &metrics::PAYLOAD_CHUNK_RECONSTRUCTED_DELAY,
+                    reconstructed_delay,
+                );
+                metrics::observe_duration(
+                    &metrics::PAYLOAD_ENVELOPE_DELAY_HISTOGRAM,
+                    reconstructed_delay,
+                );
+                metrics::set_gauge(
+                    &metrics::ENVELOPE_DELAY_GOSSIP,
+                    reconstructed_delay.as_millis() as i64,
+                );
                 self.chain.envelope_times_cache.write().set_time_observed(
                     beacon_block_root,
                     envelope.slot(),
@@ -4009,6 +4035,10 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                 metrics::set_gauge(
                     &metrics::ENVELOPE_DELAY_GOSSIP,
                     envelope_delay.as_millis() as i64,
+                );
+                metrics::observe_duration(
+                    &metrics::PAYLOAD_ENVELOPE_DELAY_HISTOGRAM,
+                    envelope_delay,
                 );
 
                 // Write the time the envelope was observed into the delay cache.
