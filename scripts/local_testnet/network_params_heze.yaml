@@ -9,7 +9,7 @@ participants:
   - cl_type: lighthouse
     cl_image: lighthouse:local
     el_type: geth
-    el_image: ethereum/client-go:latest
+    el_image: ethpandaops/geth:master
     supernode: true
     cl_extra_params:
       - --target-peers=3
@@ -17,7 +17,7 @@ participants:
   - cl_type: lighthouse
     cl_image: lighthouse:local
     el_type: geth
-    el_image: ethereum/client-go:latest
+    el_image: ethpandaops/geth:master
     supernode: false
     cl_extra_params:
       - --target-peers=3
