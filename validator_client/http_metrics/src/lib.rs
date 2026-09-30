@@ -177,7 +177,7 @@ pub fn gather_prometheus_metrics<E: EthSpec>(
         if let Some(duties_service) = &shared.duties_service
             && let Some(slot) = duties_service.slot_clock.now()
         {
-            let current_epoch = slot.epoch(E::slots_per_epoch());
+            let current_epoch = slot.epoch(Spec::slots_per_epoch());
             let next_epoch = current_epoch + 1;
 
             set_int_gauge(

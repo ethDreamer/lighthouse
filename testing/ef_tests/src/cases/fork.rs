@@ -36,11 +36,11 @@ impl<E: EthSpec> LoadCase for ForkTest<E> {
         let pre_spec = &fork_name
             .previous_fork()
             .unwrap_or(ForkName::Base)
-            .make_genesis_spec(E::default_spec());
+            .make_genesis_spec(Spec::default_spec());
         let pre = ssz_decode_state(&path.join("pre.ssz_snappy"), pre_spec)?;
 
         // Decode post-state with target fork.
-        let post_spec = &fork_name.make_genesis_spec(E::default_spec());
+        let post_spec = &fork_name.make_genesis_spec(Spec::default_spec());
         let post = ssz_decode_state(&path.join("post.ssz_snappy"), post_spec)?;
 
         Ok(Self {
@@ -61,7 +61,7 @@ impl<E: EthSpec> Case for ForkTest<E> {
     fn result(&self, _case_index: usize, fork_name: ForkName) -> Result<(), Error> {
         let mut result_state = self.pre.clone();
         let mut expected = Some(self.post.clone());
-        let spec = &fork_name.make_genesis_spec(E::default_spec());
+        let spec = &fork_name.make_genesis_spec(Spec::default_spec());
 
         let mut result = match fork_name {
             ForkName::Base => panic!("phase0 not supported"),

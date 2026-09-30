@@ -84,7 +84,7 @@ impl TestContext {
         let head = self.harness.chain.canonical_head.cached_head();
         let state = &head.snapshot.beacon_state;
         let domain = self.harness.spec.get_domain(
-            data.slot.epoch(E::slots_per_epoch()),
+            data.slot.epoch(Spec::slots_per_epoch()),
             Domain::PTCAttester,
             &state.fork(),
             state.genesis_validators_root(),
@@ -467,7 +467,7 @@ async fn ptc_cache_is_primed_at_gloas_fork_boundary() {
     );
     assert_eq!(spec.fork_name_at_epoch(gloas_fork_epoch), ForkName::Gloas);
 
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let fork_boundary_slot = gloas_fork_epoch.start_slot(slots_per_epoch);
     let test_slots = (fork_boundary_slot.as_u64()
         ..fork_boundary_slot.as_u64() + slots_per_epoch * 2)
@@ -544,7 +544,7 @@ async fn stale_head_empty_slot_payload_attestation_ignored() {
         return;
     }
 
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     // Head at epoch 1, message at epoch 5: 4 epochs of missed slots.
     let head_slot = Slot::new(slots_per_epoch);
     let missed_epochs = 4;
@@ -594,7 +594,7 @@ async fn side_chain_payload_attestation_uses_side_chain_ptc() {
         return;
     }
 
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let fork_slot = Slot::new(slots_per_epoch);
     let target_slot = Slot::new(slots_per_epoch * 4);
     let target_epoch = target_slot.epoch(slots_per_epoch);

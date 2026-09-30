@@ -22,7 +22,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             let finalized_slot = fc
                 .finalized_checkpoint()
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch());
+                .start_slot(Spec::slots_per_epoch());
             let mut blocks = Vec::new();
             let mut payloads = Vec::new();
             for node in &proto_array.nodes {

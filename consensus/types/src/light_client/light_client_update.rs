@@ -536,7 +536,7 @@ fn compute_sync_committee_period_at_slot<E: EthSpec>(
     slot: Slot,
     chain_spec: &ChainSpec,
 ) -> Result<Epoch, ArithError> {
-    slot.epoch(E::slots_per_epoch())
+    slot.epoch(Spec::slots_per_epoch())
         .safe_div(chain_spec.epochs_per_sync_committee_period)
 }
 

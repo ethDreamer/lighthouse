@@ -359,7 +359,7 @@ pub fn get_beacon_state_sync_committees<T: BeaconChainTypes>(
                         .map_err(warp_utils::reject::unhandled_error)?;
 
                     let validator_aggregates = validators
-                        .chunks_exact(T::EthSpec::sync_subcommittee_size())
+                        .chunks_exact(Spec::SYNC_SUBCOMMITTEE_SIZE)
                         .map(|indices| eth2::types::SyncSubcommittee {
                             indices: indices.to_vec(),
                         })
@@ -405,7 +405,7 @@ pub fn get_beacon_state_committees<T: BeaconChainTypes>(
 
                                 // Attempt to obtain the committee_cache from the beacon chain
                                 let decision_slot = (epoch.saturating_sub(2u64))
-                                    .end_slot(T::EthSpec::slots_per_epoch());
+                                    .end_slot(Spec::slots_per_epoch());
                                 // Find the decision block and skip to another method on any kind
                                 // of failure
                                 let shuffling_id = if let Ok(Some(shuffling_decision_block)) =
@@ -485,7 +485,7 @@ pub fn get_beacon_state_committees<T: BeaconChainTypes>(
                                 // Use either the supplied slot or all slots in the epoch.
                                 let slots =
                                     query.slot.map(|slot| vec![slot]).unwrap_or_else(|| {
-                                        epoch.slot_iter(T::EthSpec::slots_per_epoch()).collect()
+                                        epoch.slot_iter(Spec::slots_per_epoch()).collect()
                                     });
 
                                 // Use either the supplied committee index or all available indices.
@@ -499,7 +499,7 @@ pub fn get_beacon_state_committees<T: BeaconChainTypes>(
                                 for slot in slots {
                                     // It is not acceptable to query with a slot that is not within the
                                     // specified epoch.
-                                    if slot.epoch(T::EthSpec::slots_per_epoch()) != epoch {
+                                    if slot.epoch(Spec::slots_per_epoch()) != epoch {
                                         return Err(warp_utils::reject::custom_bad_request(
                                             format!("{} is not in epoch {}", slot, epoch),
                                         ));

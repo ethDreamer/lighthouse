@@ -49,7 +49,7 @@ impl SignedProposerPreferences {
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> bool {
-        let proposal_epoch = self.message.proposal_slot.epoch(E::slots_per_epoch());
+        let proposal_epoch = self.message.proposal_slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             proposal_epoch,
             Domain::ProposerPreferences,

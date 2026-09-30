@@ -36,7 +36,7 @@ pub fn verify_attestation_for_block_inclusion<'ctxt, E: EthSpec>(
         // [Modified in Deneb:EIP7045]
     } else {
         verify!(
-            state.slot() <= data.slot.safe_add(E::slots_per_epoch())?,
+            state.slot() <= data.slot.safe_add(Spec::slots_per_epoch())?,
             Invalid::IncludedTooLate {
                 state: state.slot(),
                 attestation: data.slot,
@@ -102,10 +102,10 @@ fn verify_casper_ffg_vote<E: EthSpec>(
 ) -> Result<()> {
     let data = attestation.data();
     verify!(
-        data.target.epoch == data.slot.epoch(E::slots_per_epoch()),
+        data.target.epoch == data.slot.epoch(Spec::slots_per_epoch()),
         Invalid::TargetEpochSlotMismatch {
             target_epoch: data.target.epoch,
-            slot_epoch: data.slot.epoch(E::slots_per_epoch()),
+            slot_epoch: data.slot.epoch(Spec::slots_per_epoch()),
         }
     );
     if data.target.epoch == state.current_epoch() {

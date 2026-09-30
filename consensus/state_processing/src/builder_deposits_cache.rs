@@ -229,11 +229,11 @@ mod tests {
         LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(10));
 
     fn gloas_spec() -> ChainSpec {
-        ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec())
+        ForkName::Gloas.make_genesis_spec(Spec::default_spec())
     }
 
     fn non_gloas_spec() -> ChainSpec {
-        ForkName::Fulu.make_genesis_spec(MainnetEthSpec::default_spec())
+        ForkName::Fulu.make_genesis_spec(Spec::default_spec())
     }
 
     fn builder_credentials(spec: &ChainSpec) -> Hash256 {
@@ -474,7 +474,7 @@ mod tests {
         }
 
         fn fulu_spec_with_gloas_scheduled() -> Arc<ChainSpec> {
-            let mut spec = ForkName::Fulu.make_genesis_spec(MinimalEthSpec::default_spec());
+            let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
             spec.gloas_fork_epoch = Some(Epoch::new(1024));
             Arc::new(spec)
         }

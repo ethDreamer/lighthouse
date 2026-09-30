@@ -473,7 +473,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
         // oversized from having not been pruned (by a prior version) we don't want to prune
         // concurrently, as it will hog the lock and cause the attestation service to spew CRITs.
         if let Some(slot) = slot_clock.now() {
-            validator_store.prune_slashing_protection_db(slot.epoch(E::slots_per_epoch()), true);
+            validator_store.prune_slashing_protection_db(slot.epoch(Spec::slots_per_epoch()), true);
         }
 
         // Define a config to be pass to duties_service.
@@ -504,7 +504,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
             }
         } else {
             SelectionProofConfig {
-                lookahead_slot: E::slots_per_epoch() * AGGREGATION_PRE_COMPUTE_EPOCHS,
+                lookahead_slot: Spec::slots_per_epoch() * AGGREGATION_PRE_COMPUTE_EPOCHS,
                 computation_offset: Duration::default(),
                 selections_endpoint: false,
                 parallel_sign: false,
@@ -640,7 +640,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
         // We use `SLOTS_PER_EPOCH` as the capacity of the block notification channel, because
         // we don't expect notifications to be delayed by more than a single slot, let alone a
         // whole epoch!
-        let channel_capacity = E::slots_per_epoch() as usize;
+        let channel_capacity = Spec::SLOTS_PER_EPOCH;
         let (block_service_tx, block_service_rx) = mpsc::channel(channel_capacity);
 
         let api_secret = ApiSecret::create_or_open(&self.config.http_api.http_token_path)?;

@@ -39,7 +39,7 @@ impl ValidatorClientHarness {
     }
 
     pub async fn new_with_config(num_validators: usize, config: &ValidatorStoreConfig) -> Self {
-        let mut default_spec = MainnetEthSpec::default_spec();
+        let mut default_spec = Spec::default_spec();
         default_spec.gloas_fork_epoch = Some(Epoch::new(0));
         Self::new_with_spec_and_config(num_validators, default_spec, config).await
     }

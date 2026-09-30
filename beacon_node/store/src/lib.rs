@@ -565,7 +565,7 @@ mod tests {
 
         let store = HotColdDB::<E, MemoryStore, MemoryStore>::open_ephemeral(
             StoreConfig::default(),
-            Arc::new(E::default_spec()),
+            Arc::new(Spec::default_spec()),
         )
         .unwrap();
         let block_root = Hash256::repeat_byte(0x11);

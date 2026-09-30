@@ -53,9 +53,9 @@ impl<E: EthSpec> SyncCommittee<E> {
         &self,
         subcommittee_index: usize,
     ) -> Result<Vec<PublicKeyBytes>, Error> {
-        let start_subcommittee_index = subcommittee_index.safe_mul(E::sync_subcommittee_size())?;
+        let start_subcommittee_index = subcommittee_index.safe_mul(Spec::SYNC_SUBCOMMITTEE_SIZE)?;
         let end_subcommittee_index =
-            start_subcommittee_index.safe_add(E::sync_subcommittee_size())?;
+            start_subcommittee_index.safe_add(Spec::SYNC_SUBCOMMITTEE_SIZE)?;
         self.pubkeys
             .get(start_subcommittee_index..end_subcommittee_index)
             .ok_or(Error::InvalidSubcommitteeRange {
@@ -76,9 +76,9 @@ impl<E: EthSpec> SyncCommittee<E> {
         let mut subnet_positions = HashMap::new();
         for (committee_index, validator_pubkey) in self.pubkeys.iter().enumerate() {
             if pubkey == validator_pubkey {
-                let subcommittee_index = committee_index.safe_div(E::sync_subcommittee_size())?;
+                let subcommittee_index = committee_index.safe_div(Spec::SYNC_SUBCOMMITTEE_SIZE)?;
                 let position_in_subcommittee =
-                    committee_index.safe_rem(E::sync_subcommittee_size())?;
+                    committee_index.safe_rem(Spec::SYNC_SUBCOMMITTEE_SIZE)?;
                 subnet_positions
                     .entry(SyncSubnetId::new(subcommittee_index as u64))
                     .or_insert_with(Vec::new)

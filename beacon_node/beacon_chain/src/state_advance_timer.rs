@@ -307,7 +307,7 @@ fn advance_head<T: BeaconChainTypes>(beacon_chain: &Arc<BeaconChain<T>>) -> Resu
 
         // Only notify the validator monitor for recent blocks.
         if state.current_epoch() + VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64
-            >= current_slot.epoch(T::EthSpec::slots_per_epoch())
+            >= current_slot.epoch(Spec::slots_per_epoch())
         {
             // Potentially create logs/metrics for locally monitored validators.
             if let Err(e) = beacon_chain
@@ -415,7 +415,7 @@ fn advance_head<T: BeaconChainTypes>(beacon_chain: &Arc<BeaconChain<T>>) -> Resu
                 ?head_block_root,
                 next_epoch_shuffling_root = ?shuffling_id.shuffling_decision_block,
                 state_epoch = %state.current_epoch(),
-                current_epoch = %current_slot.epoch(T::EthSpec::slots_per_epoch()),
+                current_epoch = %current_slot.epoch(Spec::slots_per_epoch()),
                 "Primed proposer and attester caches"
             );
         } else {

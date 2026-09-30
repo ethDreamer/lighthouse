@@ -57,7 +57,7 @@ pub fn process_rewards_and_penalties<E: EthSpec>(
     validator_statuses: &ValidatorStatuses,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
-    if state.current_epoch() == E::genesis_epoch() {
+    if state.current_epoch() == Epoch::new(Spec::genesis_epoch()) {
         return Ok(());
     }
 

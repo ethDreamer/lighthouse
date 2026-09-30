@@ -25,7 +25,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
 #[tokio::test]
 async fn produces_attestations_from_attestation_simulator_service() {
     // Produce 2 epochs, or 64 blocks
-    let num_blocks_produced = MainnetEthSpec::slots_per_epoch() * 2;
+    let num_blocks_produced = Spec::slots_per_epoch() * 2;
 
     let harness = BeaconChainHarness::builder()
         .default_spec()
@@ -109,7 +109,7 @@ async fn produces_attestations_from_attestation_simulator_service() {
 /// skipped slot, which votes for the previous block's payload (`data.index == 1`).
 #[tokio::test]
 async fn gloas_attestation_simulator_head_hit_on_skipped_slot() {
-    let spec = ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec());
+    let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
     let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS[..].to_vec())
@@ -171,7 +171,7 @@ async fn gloas_attestation_simulator_head_hit_on_skipped_slot() {
 /// skipped slot when the previous block's payload is unavailable (`data.index == 0`).
 #[tokio::test]
 async fn gloas_attestation_simulator_head_hit_on_skipped_slot_without_payload() {
-    let spec = ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec());
+    let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
     let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS[..].to_vec())
@@ -258,8 +258,8 @@ async fn gloas_attestation_simulator_head_hit_on_skipped_slot_without_payload() 
 /// It checks the produced attestation against some locally computed values.
 #[tokio::test]
 async fn produces_attestations() {
-    let num_blocks_produced = MainnetEthSpec::slots_per_epoch() * 4;
-    let additional_slots_tested = MainnetEthSpec::slots_per_epoch() * 3;
+    let num_blocks_produced = Spec::slots_per_epoch() * 4;
+    let additional_slots_tested = Spec::slots_per_epoch() * 3;
 
     let harness = BeaconChainHarness::builder()
         .default_spec()
@@ -310,7 +310,7 @@ async fn produces_attestations() {
 
         let epoch_boundary_slot = state
             .current_epoch()
-            .start_slot(MainnetEthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let target_root = if state.slot() == epoch_boundary_slot {
             block_root
         } else {

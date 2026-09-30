@@ -76,7 +76,7 @@ fn default_mock_execution_config<E: EthSpec>(
         mock_execution_config.shanghai_time = Some(
             genesis_time
                 + (spec.get_slot_duration().as_secs())
-                    * E::slots_per_epoch()
+                    * Spec::slots_per_epoch()
                     * capella_fork_epoch.as_u64(),
         )
     }
@@ -84,7 +84,7 @@ fn default_mock_execution_config<E: EthSpec>(
         mock_execution_config.cancun_time = Some(
             genesis_time
                 + (spec.get_slot_duration().as_secs())
-                    * E::slots_per_epoch()
+                    * Spec::slots_per_epoch()
                     * deneb_fork_epoch.as_u64(),
         )
     }
@@ -92,7 +92,7 @@ fn default_mock_execution_config<E: EthSpec>(
         mock_execution_config.prague_time = Some(
             genesis_time
                 + (spec.get_slot_duration().as_secs())
-                    * E::slots_per_epoch()
+                    * Spec::slots_per_epoch()
                     * electra_fork_epoch.as_u64(),
         )
     }
@@ -100,7 +100,7 @@ fn default_mock_execution_config<E: EthSpec>(
         mock_execution_config.osaka_time = Some(
             genesis_time
                 + (spec.get_slot_duration().as_secs())
-                    * E::slots_per_epoch()
+                    * Spec::slots_per_epoch()
                     * fulu_fork_epoch.as_u64(),
         )
     }
@@ -109,7 +109,7 @@ fn default_mock_execution_config<E: EthSpec>(
         mock_execution_config.amsterdam_time = Some(
             genesis_time
                 + (spec.get_slot_duration().as_secs())
-                    * E::slots_per_epoch()
+                    * Spec::slots_per_epoch()
                     * gloas_fork_epoch.as_u64(),
         )
     }

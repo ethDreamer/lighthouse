@@ -157,7 +157,7 @@ where
 
     let block = signed_block.message();
     let domain = spec.get_domain(
-        block.slot().epoch(E::slots_per_epoch()),
+        block.slot().epoch(Spec::slots_per_epoch()),
         Domain::BeaconProposer,
         fork,
         genesis_validators_root,
@@ -225,7 +225,7 @@ where
     };
 
     let domain = spec.get_domain(
-        block.slot().epoch(E::slots_per_epoch()),
+        block.slot().epoch(Spec::slots_per_epoch()),
         Domain::Randao,
         &state.fork(),
         state.genesis_validators_root(),
@@ -233,7 +233,7 @@ where
 
     let message = block
         .slot()
-        .epoch(E::slots_per_epoch())
+        .epoch(Spec::slots_per_epoch())
         .signing_root(domain);
 
     Ok(SignatureSet::single_pubkey(
@@ -280,7 +280,7 @@ fn block_header_signature_set<'a, E: EthSpec>(
     spec: &'a ChainSpec,
 ) -> SignatureSet<'a> {
     let domain = spec.get_domain(
-        signed_header.message.slot.epoch(E::slots_per_epoch()),
+        signed_header.message.slot.epoch(Spec::slots_per_epoch()),
         Domain::BeaconProposer,
         &state.fork(),
         state.genesis_validators_root(),
@@ -396,7 +396,7 @@ where
     let epoch = indexed_payload_attestation
         .data
         .slot
-        .epoch(E::slots_per_epoch());
+        .epoch(Spec::slots_per_epoch());
     let fork = spec.fork_at_epoch(epoch);
     let domain = spec.get_domain(epoch, Domain::PTCAttester, &fork, genesis_validators_root);
 
@@ -418,7 +418,7 @@ where
     let preferences = &signed_proposer_preferences.message;
     let validator_index = preferences.validator_index as usize;
 
-    let proposal_epoch = preferences.proposal_slot.epoch(E::slots_per_epoch());
+    let proposal_epoch = preferences.proposal_slot.epoch(Spec::slots_per_epoch());
     let proposal_fork = spec.fork_at_epoch(proposal_epoch);
     let domain = spec.get_domain(
         proposal_epoch,
@@ -458,7 +458,7 @@ where
     let bid_epoch = signed_execution_payload_bid
         .message
         .slot
-        .epoch(E::slots_per_epoch());
+        .epoch(Spec::slots_per_epoch());
     let bid_fork = spec.fork_at_epoch(bid_epoch);
     let domain = spec.get_domain(
         bid_epoch,
@@ -494,7 +494,7 @@ where
     let message = &signed_inclusion_list.message;
     let validator_index = message.validator_index;
 
-    let epoch = message.slot.epoch(E::slots_per_epoch());
+    let epoch = message.slot.epoch(Spec::slots_per_epoch());
     let fork = spec.fork_at_epoch(epoch);
     let domain = spec.get_domain(
         epoch,
@@ -613,7 +613,7 @@ where
     let slot = signed_aggregate_and_proof.message().aggregate().data().slot;
 
     let domain = spec.get_domain(
-        slot.epoch(E::slots_per_epoch()),
+        slot.epoch(Spec::slots_per_epoch()),
         Domain::SelectionProof,
         fork,
         genesis_validators_root,
@@ -677,7 +677,7 @@ where
     let slot = signed_contribution_and_proof.message.contribution.slot;
 
     let domain = spec.get_domain(
-        slot.epoch(E::slots_per_epoch()),
+        slot.epoch(Spec::slots_per_epoch()),
         Domain::SyncCommitteeSelectionProof,
         fork,
         genesis_validators_root,
@@ -715,7 +715,7 @@ where
         .message
         .contribution
         .slot
-        .epoch(E::slots_per_epoch());
+        .epoch(Spec::slots_per_epoch());
 
     let domain = spec.get_domain(
         epoch,
@@ -749,7 +749,7 @@ where
     E: EthSpec,
     F: Fn(&PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {
-    let mut pubkeys = Vec::with_capacity(E::SyncSubcommitteeSize::to_usize());
+    let mut pubkeys = Vec::with_capacity(Spec::SYNC_SUBCOMMITTEE_SIZE);
     for pubkey in pubkey_bytes {
         pubkeys.push(get_pubkey(pubkey).ok_or(Error::ValidatorPubkeyUnknown(*pubkey))?);
     }
@@ -812,7 +812,7 @@ where
     }
 
     let committee_pubkeys = &state
-        .get_built_sync_committee(slot.epoch(E::slots_per_epoch()), spec)?
+        .get_built_sync_committee(slot.epoch(Spec::slots_per_epoch()), spec)?
         .pubkeys;
 
     let participant_pubkeys = committee_pubkeys
@@ -831,7 +831,7 @@ where
     let previous_slot = slot.saturating_sub(1u64);
 
     let domain = spec.get_domain(
-        previous_slot.epoch(E::slots_per_epoch()),
+        previous_slot.epoch(Spec::slots_per_epoch()),
         Domain::SyncCommittee,
         &state.fork(),
         state.genesis_validators_root(),
@@ -882,7 +882,7 @@ mod inclusion_list_signature_tests {
             dependent_root: Hash256::ZERO,
             transactions: Default::default(),
         };
-        let epoch = message.slot.epoch(E::slots_per_epoch());
+        let epoch = message.slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             epoch,
             Domain::InclusionListCommittee,
@@ -918,7 +918,7 @@ mod inclusion_list_signature_tests {
             dependent_root: Hash256::ZERO,
             transactions: Default::default(),
         };
-        let epoch = message.slot.epoch(E::slots_per_epoch());
+        let epoch = message.slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             epoch,
             Domain::InclusionListCommittee,

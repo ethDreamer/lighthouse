@@ -25,7 +25,7 @@ pub(crate) fn status_message<T: BeaconChainTypes>(beacon_chain: &BeaconChain<T>)
 
     // Alias the genesis checkpoint root to `0x00`.
     let spec = &beacon_chain.spec;
-    let genesis_epoch = spec.genesis_slot.epoch(T::EthSpec::slots_per_epoch());
+    let genesis_epoch = spec.genesis_slot.epoch(Spec::slots_per_epoch());
     if finalized_checkpoint.epoch == genesis_epoch {
         finalized_checkpoint.root = Hash256::zero();
     }

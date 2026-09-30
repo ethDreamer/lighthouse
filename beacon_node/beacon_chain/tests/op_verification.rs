@@ -66,7 +66,7 @@ async fn voluntary_exit() {
 
     harness
         .extend_chain(
-            (E::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
+            (Spec::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -130,7 +130,7 @@ async fn voluntary_exit_duplicate_in_state() {
 
     harness
         .extend_chain(
-            (E::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
+            (Spec::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -199,7 +199,7 @@ async fn voluntary_exit_duplicate_in_state() {
     harness.advance_slot();
     harness
         .extend_chain(
-            (epochs_to_advance * E::slots_per_epoch()) as usize,
+            (epochs_to_advance * Spec::slots_per_epoch()) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -533,7 +533,7 @@ async fn attester_slashing_duplicate_in_state() {
 }
 
 fn get_fork_harness(fork_name: ForkName) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let spec = Arc::new(fork_name.make_genesis_spec(E::default_spec()));
+    let spec = Arc::new(fork_name.make_genesis_spec(Spec::default_spec()));
     let harness = BeaconChainHarness::builder()
         .spec(spec)
         .keypairs(KEYPAIRS.to_vec())

@@ -269,8 +269,8 @@ impl PayloadVerificationStatus {
 /// https://github.com/ethereum/eth2.0-specs/blob/v0.12.1/specs/phase0/fork-choice.md#compute_slots_since_epoch_start
 pub fn compute_slots_since_epoch_start<E: EthSpec>(slot: Slot) -> Slot {
     slot - slot
-        .epoch(E::slots_per_epoch())
-        .start_slot(E::slots_per_epoch())
+        .epoch(Spec::slots_per_epoch())
+        .start_slot(Spec::slots_per_epoch())
 }
 
 /// Calculate the first slot in `epoch`.
@@ -281,7 +281,7 @@ pub fn compute_slots_since_epoch_start<E: EthSpec>(slot: Slot) -> Slot {
 ///
 /// https://github.com/ethereum/eth2.0-specs/blob/v0.12.1/specs/phase0/beacon-chain.md#compute_start_slot_at_epoch
 fn compute_start_slot_at_epoch<E: EthSpec>(epoch: Epoch) -> Slot {
-    epoch.start_slot(E::slots_per_epoch())
+    epoch.start_slot(Spec::slots_per_epoch())
 }
 
 /// Used for queuing attestations from the current slot. Only contains the minimum necessary
@@ -415,7 +415,7 @@ where
         spec: &ChainSpec,
     ) -> Result<Self, Error<T::Error>> {
         // Sanity check: the anchor must lie on an epoch boundary.
-        if anchor_state.slot() % E::slots_per_epoch() != 0 {
+        if anchor_state.slot() % Spec::slots_per_epoch() != 0 {
             return Err(Error::InvalidAnchor {
                 block_slot: anchor_block.slot(),
                 state_slot: anchor_state.slot(),
@@ -554,7 +554,7 @@ where
         current_slot: Slot,
         spec: &ChainSpec,
     ) -> Result<Option<Hash256>, Error<T::Error>> {
-        let epoch = current_slot.epoch(E::slots_per_epoch());
+        let epoch = current_slot.epoch(Spec::slots_per_epoch());
 
         if epoch <= spec.min_seed_lookahead {
             return Ok(Some(Hash256::zero()));
@@ -562,7 +562,7 @@ where
 
         let dependent_slot = epoch
             .saturating_sub(spec.min_seed_lookahead)
-            .start_slot(E::slots_per_epoch())
+            .start_slot(Spec::slots_per_epoch())
             .saturating_sub(1_u64);
 
         self.get_ancestor(block_root, dependent_slot)
@@ -922,7 +922,7 @@ where
         )?;
 
         // Update unrealized justified/finalized checkpoints.
-        let block_epoch = block.slot().epoch(E::slots_per_epoch());
+        let block_epoch = block.slot().epoch(Spec::slots_per_epoch());
 
         // If the block has no slashings and the parent checkpoints are already at the same epoch as
         // the block being imported, it's impossible for the unrealized checkpoints to differ from
@@ -1003,7 +1003,7 @@ where
         }
 
         // If block is from past epochs, try to update store's justified & finalized checkpoints right away
-        if block.slot().epoch(E::slots_per_epoch()) < current_slot.epoch(E::slots_per_epoch()) {
+        if block.slot().epoch(Spec::slots_per_epoch()) < current_slot.epoch(Spec::slots_per_epoch()) {
             self.pull_up_store_checkpoints(
                 unrealized_justified_checkpoint,
                 unrealized_finalized_checkpoint,
@@ -1019,8 +1019,8 @@ where
 
         let target_slot = block
             .slot()
-            .epoch(E::slots_per_epoch())
-            .start_slot(E::slots_per_epoch());
+            .epoch(Spec::slots_per_epoch())
+            .start_slot(Spec::slots_per_epoch());
         let target_root = if block.slot() == target_slot {
             block_root
         } else {
@@ -1147,7 +1147,7 @@ where
         target_epoch: Epoch,
     ) -> Result<(), InvalidAttestation> {
         let slot_now = self.fc_store.get_current_slot();
-        let epoch_now = slot_now.epoch(E::slots_per_epoch());
+        let epoch_now = slot_now.epoch(Spec::slots_per_epoch());
 
         // Attestation must be from the current or previous epoch.
         if target_epoch > epoch_now {
@@ -1192,7 +1192,7 @@ where
             self.validate_target_epoch_against_current_time(target.epoch)?;
         }
 
-        if target.epoch != indexed_attestation.data().slot.epoch(E::slots_per_epoch()) {
+        if target.epoch != indexed_attestation.data().slot.epoch(Spec::slots_per_epoch()) {
             return Err(InvalidAttestation::BadTargetEpoch {
                 target: target.epoch,
                 slot: indexed_attestation.data().slot,
@@ -1226,7 +1226,7 @@ where
         // then all slots between the block and attestation must be skipped. Therefore if the block
         // is from a prior epoch to the attestation, then the target root must be equal to the root
         // of the block that is being attested to.
-        let expected_target = if target.epoch > block.slot.epoch(E::slots_per_epoch()) {
+        let expected_target = if target.epoch > block.slot.epoch(Spec::slots_per_epoch()) {
             indexed_attestation.data().beacon_block_root
         } else {
             block.target_root
@@ -2120,8 +2120,8 @@ mod tests {
     #[test]
     fn slots_since_epoch_start() {
         for epoch in 0..3 {
-            for slot in 0..E::slots_per_epoch() {
-                let input = epoch * E::slots_per_epoch() + slot;
+            for slot in 0..Spec::slots_per_epoch() {
+                let input = epoch * Spec::slots_per_epoch() + slot;
                 assert_eq!(compute_slots_since_epoch_start::<E>(Slot::new(input)), slot)
             }
         }
@@ -2132,7 +2132,7 @@ mod tests {
         for epoch in 0..3 {
             assert_eq!(
                 compute_start_slot_at_epoch::<E>(Epoch::new(epoch)),
-                epoch * E::slots_per_epoch()
+                epoch * Spec::slots_per_epoch()
             )
         }
     }

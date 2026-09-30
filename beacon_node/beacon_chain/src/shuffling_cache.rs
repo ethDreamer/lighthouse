@@ -60,7 +60,7 @@ impl<E: EthSpec> CachedPTCs<E> {
                 return Ok(None);
             }
             let ptcs = epoch
-                .slot_iter(E::slots_per_epoch())
+                .slot_iter(Spec::slots_per_epoch())
                 .map(|slot| state.get_ptc(slot, spec))
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Some(Self::PostGloas(ptcs, epoch)))
@@ -82,10 +82,10 @@ impl<E: EthSpec> CachedShuffling<E> {
         match &self.ptcs {
             CachedPTCs::PreGloas => Err(BeaconChainError::AttesterCacheNoPtcPreGloas { slot }),
             &CachedPTCs::PostGloas(ref ptcs, epoch) => {
-                if slot.epoch(E::slots_per_epoch()) != epoch {
+                if slot.epoch(Spec::slots_per_epoch()) != epoch {
                     Err(BeaconChainError::AttesterCachePtcOutOfBounds { slot, epoch })
                 } else {
-                    ptcs.get(slot.as_usize() % E::slots_per_epoch() as usize)
+                    ptcs.get(slot.as_usize() % Spec::SLOTS_PER_EPOCH)
                         .cloned()
                         .ok_or(BeaconChainError::AttesterCachePtcOutOfBounds { slot, epoch })
                 }
@@ -341,7 +341,7 @@ where
     .id_for_epoch(shuffling_epoch)
     .ok_or_else(|| BeaconChainError::InvalidShufflingId {
         shuffling_epoch,
-        head_block_epoch: head_block.slot.epoch(T::EthSpec::slots_per_epoch()),
+        head_block_epoch: head_block.slot.epoch(Spec::slots_per_epoch()),
     })?;
 
     // Use a read lock for cache hits.
@@ -385,7 +385,7 @@ where
         // If the block's state will be so far ahead of `shuffling_epoch` that even its previous
         // epoch committee cache will be too new, then error. Callers of this function shouldn't be
         // requesting such old shufflings for this `head_block_root`.
-        let head_block_epoch = head_block.slot.epoch(T::EthSpec::slots_per_epoch());
+        let head_block_epoch = head_block.slot.epoch(Spec::slots_per_epoch());
         if head_block_epoch > shuffling_epoch + 1 {
             return Err(BeaconChainError::InvalidStateForShuffling {
                 state_epoch: head_block_epoch,
@@ -418,13 +418,13 @@ where
         let mut target_slot = std::cmp::max(
             shuffling_epoch
                 .saturating_sub(1_u64)
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
             head_block.slot,
         );
         if spec.gloas_fork_epoch == Some(shuffling_epoch) {
             target_slot = std::cmp::max(
                 target_slot,
-                shuffling_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                shuffling_epoch.start_slot(Spec::slots_per_epoch()),
             );
         }
 
@@ -866,7 +866,7 @@ mod test {
     fn try_from_state_skips_at_gloas_boundary() {
         create_test_tracing_subscriber();
 
-        let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+        let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
         let gloas_fork_epoch = Epoch::new(2);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
 

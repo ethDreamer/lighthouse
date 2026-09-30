@@ -2363,7 +2363,7 @@ fn scrape_head_state<E: EthSpec>(state: &BeaconState<E>, state_root: Hash256) {
 }
 
 fn scrape_attestation_observation<T: BeaconChainTypes>(slot_now: Slot, chain: &BeaconChain<T>) {
-    let prev_epoch = slot_now.epoch(T::EthSpec::slots_per_epoch()) - 1;
+    let prev_epoch = slot_now.epoch(Spec::slots_per_epoch()) - 1;
 
     if let Some(count) = chain
         .observed_gossip_attesters

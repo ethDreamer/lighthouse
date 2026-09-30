@@ -111,7 +111,7 @@ struct BuilderStateTestFixture {
 
 impl Default for ApiTesterConfig {
     fn default() -> Self {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.shard_committee_period = 2;
         Self {
             spec,
@@ -241,7 +241,7 @@ impl ApiTester {
             .chain
             .slot()
             .expect("should get current slot")
-            .epoch(E::slots_per_epoch());
+            .epoch(Spec::slots_per_epoch());
         let is_altair = spec
             .altair_fork_epoch
             .map(|epoch| epoch <= current_epoch)
@@ -1534,7 +1534,7 @@ impl ApiTester {
 
             let state = state_opt.as_mut().expect("result should be none");
             let randao_mix = state
-                .get_randao_mix(state.slot().epoch(E::slots_per_epoch()))
+                .get_randao_mix(state.slot().epoch(Spec::slots_per_epoch()))
                 .unwrap();
 
             assert_eq!(result.unwrap().randao, *randao_mix);
@@ -2377,7 +2377,7 @@ impl ApiTester {
     pub async fn test_get_blob_sidecars_pruned(self, zero_blobs: bool) -> Self {
         // Prune all blobs prior to the database's split epoch.
         let store = &self.chain.store;
-        let split_epoch = store.get_split_slot().epoch(E::slots_per_epoch());
+        let split_epoch = store.get_split_slot().epoch(Spec::slots_per_epoch());
         let force_prune = true;
         self.chain
             .store
@@ -3192,7 +3192,7 @@ impl ApiTester {
             blob_data_available: true,
         };
 
-        let epoch = head_slot.epoch(E::slots_per_epoch());
+        let epoch = head_slot.epoch(Spec::slots_per_epoch());
         let domain =
             self.chain
                 .spec
@@ -3273,9 +3273,9 @@ impl ApiTester {
 
         // Pick a future slot in the next epoch to ensure it's always valid.
         // The lookahead covers 2 epochs: index = epoch_offset * slots_per_epoch + slot_in_epoch.
-        let slots_per_epoch = E::slots_per_epoch() as usize;
-        let next_epoch = head_slot.epoch(E::slots_per_epoch()) + 1;
-        let next_epoch_start = next_epoch.start_slot(E::slots_per_epoch());
+        let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
+        let next_epoch = head_slot.epoch(Spec::slots_per_epoch()) + 1;
+        let next_epoch_start = next_epoch.start_slot(Spec::slots_per_epoch());
         let proposal_slot = next_epoch_start + Slot::new((slot_offset % slots_per_epoch) as u64);
 
         let lookahead_index = slots_per_epoch + (slot_offset % slots_per_epoch);
@@ -3285,7 +3285,7 @@ impl ApiTester {
 
         let dependent_root = head_state
             .proposer_shuffling_decision_root_at_epoch(
-                proposal_slot.epoch(E::slots_per_epoch()),
+                proposal_slot.epoch(Spec::slots_per_epoch()),
                 head.beacon_block_root,
                 &self.chain.spec,
             )
@@ -3299,7 +3299,7 @@ impl ApiTester {
             target_gas_limit: 30_000_000,
         };
 
-        let epoch = proposal_slot.epoch(E::slots_per_epoch());
+        let epoch = proposal_slot.epoch(Spec::slots_per_epoch());
         let fork = head_state.fork();
         let domain = self.chain.spec.get_domain(
             epoch,
@@ -3972,7 +3972,7 @@ impl ApiTester {
                 let dependent_root = self
                     .chain
                     .block_root_at_slot(
-                        (epoch - 1).start_slot(E::slots_per_epoch()) - 1,
+                        (epoch - 1).start_slot(Spec::slots_per_epoch()) - 1,
                         WhenSlotSkipped::Prev,
                     )
                     .unwrap()
@@ -3985,7 +3985,7 @@ impl ApiTester {
                 let mut state = self
                     .chain
                     .state_at_slot(
-                        epoch.start_slot(E::slots_per_epoch()),
+                        epoch.start_slot(Spec::slots_per_epoch()),
                         StateSkipConfig::WithStateRoots,
                     )
                     .unwrap();
@@ -4047,7 +4047,7 @@ impl ApiTester {
             let dependent_root = self
                 .chain
                 .block_root_at_slot(
-                    epoch.start_slot(E::slots_per_epoch()) - 1,
+                    epoch.start_slot(Spec::slots_per_epoch()) - 1,
                     WhenSlotSkipped::Prev,
                 )
                 .unwrap()
@@ -4100,7 +4100,7 @@ impl ApiTester {
             let mut state = self
                 .chain
                 .state_at_slot(
-                    epoch.start_slot(E::slots_per_epoch()),
+                    epoch.start_slot(Spec::slots_per_epoch()),
                     StateSkipConfig::WithStateRoots,
                 )
                 .unwrap();
@@ -4110,7 +4110,7 @@ impl ApiTester {
                 .unwrap();
 
             let expected_duties = epoch
-                .slot_iter(E::slots_per_epoch())
+                .slot_iter(Spec::slots_per_epoch())
                 .map(|slot| {
                     let index = state
                         .get_beacon_proposer_index(slot, &self.chain.spec)
@@ -4187,7 +4187,7 @@ impl ApiTester {
             let mut state = self
                 .chain
                 .state_at_slot(
-                    epoch.start_slot(E::slots_per_epoch()),
+                    epoch.start_slot(Spec::slots_per_epoch()),
                     StateSkipConfig::WithStateRoots,
                 )
                 .unwrap();
@@ -4197,7 +4197,7 @@ impl ApiTester {
                 .unwrap();
 
             let expected_duties = epoch
-                .slot_iter(E::slots_per_epoch())
+                .slot_iter(Spec::slots_per_epoch())
                 .map(|slot| {
                     let index = state
                         .get_beacon_proposer_index(slot, &self.chain.spec)
@@ -4244,7 +4244,7 @@ impl ApiTester {
         let current_epoch_start = self
             .chain
             .slot_clock
-            .start_of(current_epoch.start_slot(E::slots_per_epoch()))
+            .start_of(current_epoch.start_slot(Spec::slots_per_epoch()))
             .unwrap();
 
         self.chain.slot_clock.set_current_time(
@@ -4365,7 +4365,7 @@ impl ApiTester {
                 let dependent_root = self
                     .chain
                     .block_root_at_slot(
-                        (epoch - 1).start_slot(E::slots_per_epoch()) - 1,
+                        (epoch - 1).start_slot(Spec::slots_per_epoch()) - 1,
                         WhenSlotSkipped::Prev,
                     )
                     .unwrap()
@@ -4378,7 +4378,7 @@ impl ApiTester {
                 let state = self
                     .chain
                     .state_at_slot(
-                        epoch.start_slot(E::slots_per_epoch()),
+                        epoch.start_slot(Spec::slots_per_epoch()),
                         StateSkipConfig::WithStateRoots,
                     )
                     .unwrap();
@@ -4416,7 +4416,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -4484,7 +4484,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -4581,7 +4581,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -4777,7 +4777,7 @@ impl ApiTester {
     }
 
     fn advance_to_gloas_slot(&self) -> Option<(Slot, Epoch, ForkName)> {
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
             if fork_name.gloas_enabled() {
@@ -5267,7 +5267,7 @@ impl ApiTester {
             target_slot: Slot::new(u64::MAX),
         };
         let head_slot = self.chain.canonical_head.cached_head().head_slot();
-        let tolerance = self.chain.config.sync_tolerance_epochs * E::slots_per_epoch();
+        let tolerance = self.chain.config.sync_tolerance_epochs * Spec::slots_per_epoch();
         let original_slot = self.chain.slot().unwrap();
         self.chain
             .slot_clock
@@ -5421,7 +5421,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
@@ -5504,7 +5504,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
@@ -5584,7 +5584,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
@@ -5718,7 +5718,7 @@ impl ApiTester {
         if self.chain.spec.is_gloas_scheduled() {
             return self;
         }
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let slot = self.chain.slot().unwrap();
 
             let block = self
@@ -5749,7 +5749,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -5810,7 +5810,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -5876,7 +5876,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -5947,7 +5947,7 @@ impl ApiTester {
     }
 
     pub async fn test_blinded_block_production_no_verify_randao(self) -> Self {
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let slot = self.chain.slot().unwrap();
 
             let blinded_block = self
@@ -5972,7 +5972,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
 
@@ -6145,7 +6145,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
@@ -6236,7 +6236,7 @@ impl ApiTester {
         let fork = self.chain.canonical_head.cached_head().head_fork();
         let genesis_validators_root = self.chain.genesis_validators_root;
 
-        for _ in 0..E::slots_per_epoch() * 3 {
+        for _ in 0..Spec::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
             let epoch = self.chain.epoch().unwrap();
             let fork_name = self.chain.spec.fork_name_at_slot::<E>(slot);
@@ -6631,7 +6631,7 @@ impl ApiTester {
         let mut registrations = vec![];
         let mut fee_recipients = vec![];
 
-        let genesis_epoch = self.chain.spec.genesis_slot.epoch(E::slots_per_epoch());
+        let genesis_epoch = self.chain.spec.genesis_slot.epoch(Spec::slots_per_epoch());
         let fork = Fork {
             current_version: self.chain.spec.genesis_fork_version,
             previous_version: self.chain.spec.genesis_fork_version,
@@ -7801,7 +7801,7 @@ impl ApiTester {
 
     pub async fn test_builder_chain_health_skips_per_epoch(self) -> Self {
         // Fill an epoch with `builder_fallback_skips_per_epoch` skip slots.
-        for i in 0..E::slots_per_epoch() {
+        for i in 0..Spec::slots_per_epoch() {
             if i == 0 || i as usize > self.chain.config.builder_fallback_skips_per_epoch {
                 self.harness
                     .extend_chain(
@@ -7817,7 +7817,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let payload: BlindedPayload<E> = self
@@ -7849,7 +7849,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let payload: BlindedPayload<E> = self
@@ -7884,7 +7884,7 @@ impl ApiTester {
             return self;
         }
         // Fill an epoch with `builder_fallback_skips_per_epoch` skip slots.
-        for i in 0..E::slots_per_epoch() {
+        for i in 0..Spec::slots_per_epoch() {
             if i == 0 || i as usize > self.chain.config.builder_fallback_skips_per_epoch {
                 self.harness
                     .extend_chain(
@@ -7900,7 +7900,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let (payload_type, metadata) = self
@@ -7921,7 +7921,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let (payload_type, metadata) = self
@@ -7940,7 +7940,7 @@ impl ApiTester {
     }
 
     pub async fn test_builder_chain_health_epochs_since_finalization(self) -> Self {
-        let skips = E::slots_per_epoch()
+        let skips = Spec::slots_per_epoch()
             * self.chain.config.builder_fallback_epochs_since_finalization as u64;
 
         for _ in 0..skips {
@@ -7948,7 +7948,7 @@ impl ApiTester {
         }
 
         // Fill the next epoch with blocks, should be enough to justify, not finalize.
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             self.harness
                 .extend_chain(
                     1,
@@ -7962,7 +7962,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let payload: BlindedPayload<E> = self
@@ -7990,7 +7990,7 @@ impl ApiTester {
 
         // Fill another epoch with blocks, should be enough to finalize. (Sneaky plus 1 because this
         // scenario starts at an epoch boundary).
-        for _ in 0..E::slots_per_epoch() + 1 {
+        for _ in 0..Spec::slots_per_epoch() + 1 {
             self.harness
                 .extend_chain(
                     1,
@@ -8004,7 +8004,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let payload: BlindedPayload<E> = self
@@ -8038,7 +8038,7 @@ impl ApiTester {
         if self.chain.spec.is_gloas_scheduled() {
             return self;
         }
-        let skips = E::slots_per_epoch()
+        let skips = Spec::slots_per_epoch()
             * self.chain.config.builder_fallback_epochs_since_finalization as u64;
 
         for _ in 0..skips {
@@ -8046,7 +8046,7 @@ impl ApiTester {
         }
 
         // Fill the next epoch with blocks, should be enough to justify, not finalize.
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             self.harness
                 .extend_chain(
                     1,
@@ -8060,7 +8060,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let (payload_type, metadata) = self
@@ -8077,7 +8077,7 @@ impl ApiTester {
 
         // Fill another epoch with blocks, should be enough to finalize. (Sneaky plus 1 because this
         // scenario starts at an epoch boundary).
-        for _ in 0..E::slots_per_epoch() + 1 {
+        for _ in 0..Spec::slots_per_epoch() + 1 {
             self.harness
                 .extend_chain(
                     1,
@@ -8091,7 +8091,7 @@ impl ApiTester {
         let next_slot = self.chain.slot().unwrap();
 
         let (_, randao_reveal) = self
-            .get_test_randao(next_slot, next_slot.epoch(E::slots_per_epoch()))
+            .get_test_randao(next_slot, next_slot.epoch(Spec::slots_per_epoch()))
             .await;
 
         let (payload_type, metadata) = self
@@ -8865,7 +8865,7 @@ impl ApiTester {
         let current_duty_dependent_root = self.chain.head_beacon_block_root();
         let current_slot = self.chain.slot().unwrap();
         let next_slot = self.next_block.signed_block().slot();
-        let finalization_distance = E::slots_per_epoch() * 2;
+        let finalization_distance = Spec::slots_per_epoch() * 2;
 
         let expected_block = EventKind::Block(SseBlock {
             block: block_root,
@@ -8880,7 +8880,7 @@ impl ApiTester {
             current_duty_dependent_root,
             previous_duty_dependent_root: self
                 .chain
-                .block_root_at_slot(current_slot - E::slots_per_epoch(), WhenSlotSkipped::Prev)
+                .block_root_at_slot(current_slot - Spec::slots_per_epoch(), WhenSlotSkipped::Prev)
                 .unwrap()
                 .unwrap(),
             epoch_transition: true,
@@ -8950,7 +8950,7 @@ impl ApiTester {
                 .next_block
                 .signed_block()
                 .slot()
-                .epoch(E::slots_per_epoch()),
+                .epoch(Spec::slots_per_epoch()),
             execution_optimistic: false,
         });
 
@@ -9030,7 +9030,7 @@ impl ApiTester {
         // calculate the expected withdrawals
         let (mut state, _, _) = StateId(state_id).state(&self.chain).unwrap();
         let proposal_slot = state.slot() + 1;
-        let proposal_epoch = proposal_slot.epoch(E::slots_per_epoch());
+        let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
         let (state_root, _, _) = StateId(state_id).root(&self.chain).unwrap();
         if proposal_epoch != state.current_epoch() {
             let _ = partial_state_advance(
@@ -9204,12 +9204,12 @@ impl ApiTester {
         let epoch = self.chain.epoch().unwrap();
 
         let old_head_slot = self.chain.head_snapshot().beacon_block.slot();
-        let is_epoch_transition = epoch > old_head_slot.epoch(E::slots_per_epoch());
+        let is_epoch_transition = epoch > old_head_slot.epoch(Spec::slots_per_epoch());
 
         let current_epoch_dependent_root = self
             .chain
             .block_root_at_slot(
-                (epoch - 1).start_slot(E::slots_per_epoch()) - 1,
+                (epoch - 1).start_slot(Spec::slots_per_epoch()) - 1,
                 WhenSlotSkipped::Prev,
             )
             .unwrap()
@@ -9218,7 +9218,7 @@ impl ApiTester {
         let next_epoch_dependent_root = self
             .chain
             .block_root_at_slot(
-                epoch.start_slot(E::slots_per_epoch()) - 1,
+                epoch.start_slot(Spec::slots_per_epoch()) - 1,
                 WhenSlotSkipped::Prev,
             )
             .unwrap()
@@ -9378,7 +9378,7 @@ impl ApiTester {
     }
 
     async fn test_beacon_block_rewards_fulu(self) -> Self {
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let state = self.harness.get_current_state();
             let slot = state.slot() + Slot::new(1);
             // calculate beacon block rewards / penalties
@@ -9409,7 +9409,7 @@ impl ApiTester {
     }
 
     async fn test_beacon_sync_committee_rewards_fulu(self) -> Self {
-        for _ in 0..E::slots_per_epoch() {
+        for _ in 0..Spec::slots_per_epoch() {
             let state = self.harness.get_current_state();
             let slot = state.slot() + Slot::new(1);
 
@@ -9450,7 +9450,7 @@ impl ApiTester {
         let num_epochs = 3;
         for _ in 0..num_epochs {
             self.harness
-                .extend_slots(E::slots_per_epoch() as usize)
+                .extend_slots(Spec::SLOTS_PER_EPOCH)
                 .await;
 
             let epoch = self.chain.epoch().unwrap() - 1;
@@ -9947,7 +9947,7 @@ async fn beacon_pools_post_attester_slashings_invalid_v1() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn beacon_pools_post_attester_slashings_valid_v2() {
-    let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+    let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
     spec.gloas_fork_epoch = Some(Epoch::new(6));
     let config = ApiTesterConfig {
         spec,
@@ -10051,7 +10051,7 @@ async fn node_get() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_light_client_updates() {
     let config = ApiTesterConfig {
-        spec: ForkName::Altair.make_genesis_spec(E::default_spec()),
+        spec: ForkName::Altair.make_genesis_spec(Spec::default_spec()),
         ..<_>::default()
     };
     ApiTester::new_from_config(config)
@@ -10065,7 +10065,7 @@ async fn get_light_client_updates() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_light_client_bootstrap() {
     let config = ApiTesterConfig {
-        spec: ForkName::Altair.make_genesis_spec(E::default_spec()),
+        spec: ForkName::Altair.make_genesis_spec(Spec::default_spec()),
         ..<_>::default()
     };
     ApiTester::new_from_config(config)
@@ -10077,7 +10077,7 @@ async fn get_light_client_bootstrap() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_light_client_optimistic_update() {
     let config = ApiTesterConfig {
-        spec: ForkName::Altair.make_genesis_spec(E::default_spec()),
+        spec: ForkName::Altair.make_genesis_spec(Spec::default_spec()),
         ..<_>::default()
     };
     ApiTester::new_from_config(config)
@@ -10089,7 +10089,7 @@ async fn get_light_client_optimistic_update() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_light_client_finality_update() {
     let config = ApiTesterConfig {
-        spec: ForkName::Altair.make_genesis_spec(E::default_spec()),
+        spec: ForkName::Altair.make_genesis_spec(Spec::default_spec()),
         ..<_>::default()
     };
     ApiTester::new_from_config(config)
@@ -10121,7 +10121,7 @@ async fn get_validator_duties_attester() {
 async fn get_validator_duties_attester_with_skip_slots() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_duties_attester()
         .await;
 }
@@ -10138,7 +10138,7 @@ async fn get_validator_duties_proposer() {
 async fn get_validator_duties_proposer_with_skip_slots() {
     ApiTester::new_from_config(ApiTesterConfig::default().retain_historic_states())
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_duties_proposer()
         .await;
 }
@@ -10163,7 +10163,7 @@ async fn get_validator_duties_proposer_v2_with_skip_slots() {
         ..ApiTesterConfig::default()
     })
     .await
-    .skip_slots(E::slots_per_epoch() * 2)
+    .skip_slots(Spec::slots_per_epoch() * 2)
     .test_get_validator_duties_proposer_v2()
     .await;
 }
@@ -10186,7 +10186,7 @@ async fn get_validator_duties_ptc_with_skip_slots() {
     }
     ApiTester::new_with_hard_forks()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_duties_ptc()
         .await;
 }
@@ -10200,7 +10200,7 @@ async fn block_production() {
 async fn block_production_with_skip_slots() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_block_production()
         .await;
 }
@@ -10230,7 +10230,7 @@ async fn block_production_ssz_full_payload() {
 async fn block_production_ssz_with_skip_slots() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_block_production_ssz()
         .await;
 }
@@ -10244,7 +10244,7 @@ async fn block_production_ssz_v3() {
 async fn block_production_v3_ssz_with_skip_slots() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_block_production_v3_ssz()
         .await;
 }
@@ -10280,7 +10280,7 @@ async fn blinded_block_production_ssz_full_payload_premerge() {
 async fn blinded_block_production_with_skip_slots_full_payload_premerge() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_blinded_block_production()
         .await;
 }
@@ -10289,7 +10289,7 @@ async fn blinded_block_production_with_skip_slots_full_payload_premerge() {
 async fn blinded_block_production_ssz_with_skip_slots_full_payload_premerge() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_blinded_block_production_ssz()
         .await;
 }
@@ -10319,7 +10319,7 @@ async fn blinded_block_production_blinded_payload_premerge() {
 async fn blinded_block_production_with_skip_slots_blinded_payload_premerge() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_blinded_block_production()
         .await;
 }
@@ -10360,7 +10360,7 @@ async fn get_validator_attestation_data_ssz() {
 async fn get_validator_attestation_data_with_skip_slots() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_attestation_data()
         .await;
 }
@@ -10503,7 +10503,7 @@ async fn get_validator_aggregate_attestation_v2_ssz() {
 async fn get_validator_aggregate_attestation_with_skip_slots_v1() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_attestation_v1()
         .await;
 }
@@ -10512,7 +10512,7 @@ async fn get_validator_aggregate_attestation_with_skip_slots_v1() {
 async fn get_validator_aggregate_attestation_with_skip_slots_v2() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_attestation_v2()
         .await;
 }
@@ -10529,7 +10529,7 @@ async fn get_validator_aggregate_and_proofs_valid_v1() {
 async fn get_validator_aggregate_and_proofs_valid_with_skip_slots_v1() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_and_proofs_valid_v1()
         .await;
 }
@@ -10546,7 +10546,7 @@ async fn get_validator_aggregate_and_proofs_valid_v2() {
 async fn get_validator_aggregate_and_proofs_valid_with_skip_slots_v2() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_and_proofs_valid_v2()
         .await;
 }
@@ -10563,7 +10563,7 @@ async fn get_validator_aggregate_and_proofs_invalid_v1() {
 async fn get_validator_aggregate_and_proofs_invalid_with_skip_slots_v1() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_and_proofs_invalid_v1()
         .await;
 }
@@ -10580,7 +10580,7 @@ async fn get_validator_aggregate_and_proofs_invalid_v2() {
 async fn get_validator_aggregate_and_proofs_invalid_with_skip_slots_v2() {
     ApiTester::new()
         .await
-        .skip_slots(E::slots_per_epoch() * 2)
+        .skip_slots(Spec::slots_per_epoch() * 2)
         .test_get_validator_aggregate_and_proofs_invalid_v2()
         .await;
 }
@@ -10986,7 +10986,7 @@ async fn builder_works_post_deneb() {
 async fn get_blob_sidecars() {
     let mut config = ApiTesterConfig {
         retain_historic_states: false,
-        spec: E::default_spec(),
+        spec: Spec::default_spec(),
         node_custody_type: NodeCustodyType::Supernode,
     };
     config.spec.altair_fork_epoch = Some(Epoch::new(0));
@@ -11014,7 +11014,7 @@ async fn get_blob_sidecars() {
 async fn get_blobs_post_fulu_supernode() {
     let mut config = ApiTesterConfig {
         retain_historic_states: false,
-        spec: E::default_spec(),
+        spec: Spec::default_spec(),
         node_custody_type: NodeCustodyType::Supernode,
     };
     config.spec.altair_fork_epoch = Some(Epoch::new(0));

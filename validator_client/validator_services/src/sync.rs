@@ -181,7 +181,7 @@ impl SyncDutiesMap {
         let duty_slot = wall_clock_slot + 1;
 
         let sync_committee_period = duty_slot
-            .epoch(E::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             .sync_committee_period(spec)
             .ok()?;
 
@@ -288,7 +288,7 @@ fn epoch_offset(spec: &ChainSpec) -> u64 {
 }
 
 fn first_slot_of_period<E: EthSpec>(sync_committee_period: u64, spec: &ChainSpec) -> Slot {
-    (spec.epochs_per_sync_committee_period * sync_committee_period).start_slot(E::slots_per_epoch())
+    (spec.epochs_per_sync_committee_period * sync_committee_period).start_slot(Spec::slots_per_epoch())
 }
 
 fn last_slot_of_period<E: EthSpec>(sync_committee_period: u64, spec: &ChainSpec) -> Slot {
@@ -304,7 +304,7 @@ pub async fn poll_sync_committee_duties<S: ValidatorStore + 'static, T: SlotCloc
         .slot_clock
         .now()
         .ok_or(Error::UnableToReadSlotClock)?;
-    let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
+    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
 
     // If the Altair fork is yet to be activated, do not attempt to poll for duties.
     if spec
@@ -394,7 +394,7 @@ pub async fn poll_sync_committee_duties<S: ValidatorStore + 'static, T: SlotCloc
     // Pre-compute aggregator selection proofs for the next period.
     let aggregate_pre_compute_lookahead_slots = sync_duties.selection_proof_config.lookahead_slot;
     if (current_slot + aggregate_pre_compute_lookahead_slots)
-        .epoch(S::E::slots_per_epoch())
+        .epoch(Spec::slots_per_epoch())
         .sync_committee_period(spec)?
         == next_sync_committee_period
     {

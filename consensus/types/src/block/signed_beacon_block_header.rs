@@ -31,7 +31,7 @@ impl SignedBeaconBlockHeader {
         spec: &ChainSpec,
     ) -> bool {
         let domain = spec.get_domain(
-            self.message.slot.epoch(E::slots_per_epoch()),
+            self.message.slot.epoch(Spec::slots_per_epoch()),
             Domain::BeaconProposer,
             fork,
             genesis_validators_root,

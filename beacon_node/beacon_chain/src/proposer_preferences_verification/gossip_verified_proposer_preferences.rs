@@ -22,8 +22,8 @@ pub(crate) fn verify_preferences_consistency<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<(), ProposerPreferencesError> {
     let proposal_slot = preferences.proposal_slot;
-    let current_epoch = current_slot.epoch(E::slots_per_epoch());
-    let proposal_epoch = proposal_slot.epoch(E::slots_per_epoch());
+    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
+    let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
 
     if let Some(gloas_fork_epoch) = spec.gloas_fork_epoch
         && proposal_epoch < gloas_fork_epoch
@@ -94,7 +94,7 @@ impl GossipVerifiedProposerPreferences {
             ctx.spec,
         )?;
 
-        let proposal_epoch = proposal_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
 
         let lookahead_epoch = proposal_epoch.saturating_sub(ctx.spec.min_seed_lookahead);
         let head_block_root = ctx.canonical_head.cached_head().head_block_root();
@@ -106,13 +106,13 @@ impl GossipVerifiedProposerPreferences {
 
         // Ensure the dependent root block is before the start of the lookahead epoch.
         // Skip this check for gloas at genesis/epoch 1.
-        if dependent_block.slot >= lookahead_epoch.start_slot(T::EthSpec::slots_per_epoch())
+        if dependent_block.slot >= lookahead_epoch.start_slot(Spec::slots_per_epoch())
             && dependent_block.slot != 0
         {
             return Err(ProposerPreferencesError::DependentRootTooRecent {
                 dependent_root,
                 block_slot: dependent_block.slot,
-                epoch_start_slot: lookahead_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                epoch_start_slot: lookahead_epoch.start_slot(Spec::slots_per_epoch()),
             });
         }
 
@@ -120,7 +120,7 @@ impl GossipVerifiedProposerPreferences {
         let has_qualifying_child = fork_choice_read
             .get_children(&dependent_root)
             .iter()
-            .any(|child| child.slot >= lookahead_epoch.start_slot(T::EthSpec::slots_per_epoch()));
+            .any(|child| child.slot >= lookahead_epoch.start_slot(Spec::slots_per_epoch()));
 
         // Head is exempt from this check, it may eventually have a child that crosses the epoch boundary.
         if !has_qualifying_child && dependent_root != head_block_root {
@@ -155,7 +155,7 @@ impl GossipVerifiedProposerPreferences {
                 // Load a state at `target_slot` so it has the correct proposer lookahead.
                 let target_slot = proposal_epoch
                     .saturating_sub(ctx.spec.min_seed_lookahead)
-                    .start_slot(T::EthSpec::slots_per_epoch());
+                    .start_slot(Spec::slots_per_epoch());
 
                 let (state_root, state) = ctx
                     .store
@@ -294,7 +294,7 @@ mod tests {
         if !fork_name_from_env().is_some_and(|f| f.gloas_enabled()) {
             return;
         }
-        let current_slot = Slot::new(2 * E::slots_per_epoch());
+        let current_slot = Slot::new(2 * Spec::slots_per_epoch());
         let prefs = make_preferences(Slot::new(3), 0);
 
         let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
@@ -309,8 +309,8 @@ mod tests {
         if !fork_name_from_env().is_some_and(|f| f.gloas_enabled()) {
             return;
         }
-        let current_slot = Slot::new(E::slots_per_epoch());
-        let prefs = make_preferences(Slot::new(3 * E::slots_per_epoch() + 1), 0);
+        let current_slot = Slot::new(Spec::slots_per_epoch());
+        let prefs = make_preferences(Slot::new(3 * Spec::slots_per_epoch() + 1), 0);
 
         let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
         assert!(matches!(

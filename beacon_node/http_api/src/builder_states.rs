@@ -19,7 +19,7 @@ pub fn get_next_withdrawals<T: BeaconChainTypes>(
     get_next_withdrawals_sanity_checks(chain, &state, proposal_slot)?;
 
     // advance the state to the epoch of the proposal slot.
-    let proposal_epoch = proposal_slot.epoch(T::EthSpec::slots_per_epoch());
+    let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
     let (state_root, _, _) = state_id.root(chain)?;
     if proposal_epoch != state.current_epoch()
         && let Err(e) = partial_state_advance(
@@ -65,7 +65,7 @@ fn get_next_withdrawals_sanity_checks<T: BeaconChainTypes>(
     }
 
     let look_ahead_limit = MAX_EPOCH_LOOKAHEAD
-        .safe_mul(T::EthSpec::slots_per_epoch())
+        .safe_mul(Spec::slots_per_epoch())
         .map_err(warp_utils::reject::arith_error)?;
     if proposal_slot >= state.slot() + look_ahead_limit {
         return Err(warp_utils::reject::custom_bad_request(format!(

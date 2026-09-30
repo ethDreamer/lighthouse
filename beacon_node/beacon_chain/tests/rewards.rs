@@ -78,9 +78,9 @@ fn get_electra_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessTy
 
 #[tokio::test]
 async fn test_sync_committee_rewards() {
-    let spec = ForkName::Altair.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Altair.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec);
-    let num_block_produced = E::slots_per_epoch();
+    let num_block_produced = Spec::slots_per_epoch();
 
     let latest_block_root = harness
         .extend_chain(
@@ -137,7 +137,7 @@ async fn test_sync_committee_rewards() {
         .collect::<HashMap<_, _>>();
 
     let proposer_index = state
-        .get_beacon_proposer_index(target_slot, &MinimalEthSpec::default_spec())
+        .get_beacon_proposer_index(target_slot, &Spec::default_spec())
         .unwrap();
 
     let mut mismatches = vec![];
@@ -171,12 +171,12 @@ async fn test_sync_committee_rewards() {
 
 #[tokio::test]
 async fn test_rewards_base() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec);
     let initial_balances = harness.get_current_state().balances().to_vec();
 
     harness
-        .extend_slots(E::slots_per_epoch() as usize * 2 - 1)
+        .extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 1)
         .await;
 
     check_all_base_rewards(&harness, initial_balances).await;
@@ -184,7 +184,7 @@ async fn test_rewards_base() {
 
 #[tokio::test]
 async fn test_rewards_base_inactivity_leak() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
     let initial_balances = harness.get_current_state().balances().to_vec();
 
@@ -196,7 +196,7 @@ async fn test_rewards_base_inactivity_leak() {
     // advance until end of target epoch
     harness
         .extend_slots_some_validators(
-            ((E::slots_per_epoch() * target_epoch) - 1) as usize,
+            ((Spec::slots_per_epoch() * target_epoch) - 1) as usize,
             half_validators.clone(),
         )
         .await;
@@ -206,7 +206,7 @@ async fn test_rewards_base_inactivity_leak() {
 
 #[tokio::test]
 async fn test_rewards_base_inactivity_leak_justification_epoch() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
     let initial_balances = harness.get_current_state().balances().to_vec();
 
@@ -218,14 +218,14 @@ async fn test_rewards_base_inactivity_leak_justification_epoch() {
     // advance until end of target epoch
     harness
         .extend_chain(
-            ((E::slots_per_epoch() * target_epoch) - 1) as usize,
+            ((Spec::slots_per_epoch() * target_epoch) - 1) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(half_validators.clone()),
         )
         .await;
 
     // advance to create first justification epoch
-    harness.extend_slots(E::slots_per_epoch() as usize).await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
     target_epoch += 1;
 
     // assert previous_justified_checkpoint matches 0 as we were in inactivity leak from beginning
@@ -239,7 +239,7 @@ async fn test_rewards_base_inactivity_leak_justification_epoch() {
     );
 
     // extend slots to end of epoch target_epoch + 2
-    harness.extend_slots(E::slots_per_epoch() as usize).await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
 
     check_all_base_rewards(&harness, initial_balances).await;
 
@@ -256,11 +256,11 @@ async fn test_rewards_base_inactivity_leak_justification_epoch() {
 
 #[tokio::test]
 async fn test_rewards_electra_slashings() {
-    let spec = ForkName::Electra.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Electra.make_genesis_spec(Spec::default_spec());
     let harness = get_electra_harness(spec);
     let state = harness.get_current_state();
 
-    harness.extend_slots(E::slots_per_epoch() as usize).await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
 
     let mut initial_balances = harness.get_current_state().balances().to_vec();
 
@@ -285,26 +285,26 @@ async fn test_rewards_electra_slashings() {
 
 #[tokio::test]
 async fn test_rewards_base_slashings() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec);
     let mut initial_balances = harness.get_current_state().balances().to_vec();
 
     harness
-        .extend_slots(E::slots_per_epoch() as usize - 1)
+        .extend_slots(Spec::SLOTS_PER_EPOCH - 1)
         .await;
 
     harness.add_attester_slashing(vec![0]).unwrap();
     let slashed_balance = initial_balances.get_mut(0).unwrap();
     *slashed_balance -= *slashed_balance / harness.spec.min_slashing_penalty_quotient;
 
-    harness.extend_slots(E::slots_per_epoch() as usize).await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
 
     check_all_base_rewards(&harness, initial_balances).await;
 }
 
 #[tokio::test]
 async fn test_rewards_base_multi_inclusion() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec);
     let initial_balances = harness.get_current_state().balances().to_vec();
 
@@ -360,7 +360,7 @@ async fn test_rewards_base_multi_inclusion() {
         .unwrap();
 
     harness
-        .extend_slots(E::slots_per_epoch() as usize * 2 - 4)
+        .extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 4)
         .await;
 
     check_all_base_rewards(&harness, initial_balances).await;
@@ -368,20 +368,20 @@ async fn test_rewards_base_multi_inclusion() {
 
 #[tokio::test]
 async fn test_rewards_altair() {
-    let spec = ForkName::Altair.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Altair.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
     let target_epoch = 0;
 
     // advance until epoch N + 1 and get initial balances
     harness
-        .extend_slots((E::slots_per_epoch() * (target_epoch + 1)) as usize)
+        .extend_slots((Spec::slots_per_epoch() * (target_epoch + 1)) as usize)
         .await;
     let mut expected_balances = harness.get_current_state().balances().to_vec();
 
     // advance until epoch N + 2 and build proposal rewards map
     let mut proposal_rewards_map = HashMap::new();
     let mut sync_committee_rewards_map = HashMap::new();
-    for _ in 0..E::slots_per_epoch() {
+    for _ in 0..Spec::slots_per_epoch() {
         let state = harness.get_current_state();
         let slot = state.slot() + Slot::new(1);
 
@@ -443,7 +443,7 @@ async fn test_rewards_altair() {
 
 #[tokio::test]
 async fn test_rewards_altair_inactivity_leak() {
-    let spec = ForkName::Altair.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Altair.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
 
     let half = VALIDATOR_COUNT / 2;
@@ -454,7 +454,7 @@ async fn test_rewards_altair_inactivity_leak() {
     // advance until beginning of epoch N + 1 and get balances
     harness
         .extend_slots_some_validators(
-            (E::slots_per_epoch() * (target_epoch + 1)) as usize,
+            (Spec::slots_per_epoch() * (target_epoch + 1)) as usize,
             half_validators.clone(),
         )
         .await;
@@ -463,7 +463,7 @@ async fn test_rewards_altair_inactivity_leak() {
     // advance until epoch N + 2 and build proposal rewards map
     let mut proposal_rewards_map = HashMap::new();
     let mut sync_committee_rewards_map = HashMap::new();
-    for _ in 0..E::slots_per_epoch() {
+    for _ in 0..Spec::slots_per_epoch() {
         let state = harness.get_current_state();
         let slot = state.slot() + Slot::new(1);
 
@@ -533,7 +533,7 @@ async fn test_rewards_altair_inactivity_leak() {
 
 #[tokio::test]
 async fn test_rewards_altair_inactivity_leak_justification_epoch() {
-    let spec = ForkName::Altair.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Altair.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
 
     let half = VALIDATOR_COUNT / 2;
@@ -544,7 +544,7 @@ async fn test_rewards_altair_inactivity_leak_justification_epoch() {
     // advance until beginning of epoch N + 1
     harness
         .extend_slots_some_validators(
-            (E::slots_per_epoch() * (target_epoch + 1)) as usize,
+            (Spec::slots_per_epoch() * (target_epoch + 1)) as usize,
             half_validators.clone(),
         )
         .await;
@@ -558,14 +558,14 @@ async fn test_rewards_altair_inactivity_leak_justification_epoch() {
     assert_eq!(4, validator_inactivity_score);
 
     // advance for first justification epoch and get balances
-    harness.extend_slots(E::slots_per_epoch() as usize).await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
     target_epoch += 1;
     let mut expected_balances = harness.get_current_state().balances().to_vec();
 
     // advance until epoch N + 2 and build proposal rewards map
     let mut proposal_rewards_map = HashMap::new();
     let mut sync_committee_rewards_map = HashMap::new();
-    for _ in 0..E::slots_per_epoch() {
+    for _ in 0..Spec::slots_per_epoch() {
         let state = harness.get_current_state();
         let slot = state.slot() + Slot::new(1);
 
@@ -636,20 +636,20 @@ async fn test_rewards_altair_inactivity_leak_justification_epoch() {
 
 #[tokio::test]
 async fn test_rewards_electra() {
-    let spec = ForkName::Electra.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Electra.make_genesis_spec(Spec::default_spec());
     let harness = get_electra_harness(spec.clone());
     let target_epoch = 0;
 
     // advance until epoch N + 1 and get initial balances
     harness
-        .extend_slots((E::slots_per_epoch() * (target_epoch + 1)) as usize)
+        .extend_slots((Spec::slots_per_epoch() * (target_epoch + 1)) as usize)
         .await;
     let mut expected_balances = harness.get_current_state().balances().to_vec();
 
     // advance until epoch N + 2 and build proposal rewards map
     let mut proposal_rewards_map = HashMap::new();
     let mut sync_committee_rewards_map = HashMap::new();
-    for _ in 0..E::slots_per_epoch() {
+    for _ in 0..Spec::slots_per_epoch() {
         let state = harness.get_current_state();
         let slot = state.slot() + Slot::new(1);
 
@@ -718,7 +718,7 @@ async fn test_rewards_electra() {
 /// (`data.index == 1`).
 #[tokio::test]
 async fn test_rewards_gloas_non_same_slot_attestations() {
-    let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec.clone());
 
     harness.extend_slots(2).await;
@@ -800,7 +800,7 @@ async fn test_rewards_gloas_non_same_slot_attestations() {
 
 #[tokio::test]
 async fn test_rewards_base_subset_only() {
-    let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
     let harness = get_harness(spec);
     let initial_balances = harness.get_current_state().balances().to_vec();
 
@@ -811,7 +811,7 @@ async fn test_rewards_base_subset_only() {
     let two_thirds = (VALIDATOR_COUNT / 3) * 2;
     let two_thirds_validators: Vec<usize> = (0..two_thirds).collect();
     harness
-        .extend_slots_some_validators(E::slots_per_epoch() as usize, two_thirds_validators.clone())
+        .extend_slots_some_validators(Spec::SLOTS_PER_EPOCH, two_thirds_validators.clone())
         .await;
 
     check_all_base_rewards_for_subset(&harness, initial_balances, validators_subset).await;
@@ -823,7 +823,7 @@ async fn check_all_electra_rewards(
 ) {
     let mut proposal_rewards_map = HashMap::new();
     let mut sync_committee_rewards_map = HashMap::new();
-    for _ in 0..E::slots_per_epoch() {
+    for _ in 0..Spec::slots_per_epoch() {
         let state = harness.get_current_state();
         let slot = state.slot() + Slot::new(1);
 
@@ -907,10 +907,10 @@ async fn check_all_base_rewards_for_subset(
         .collect();
 
     // capture the amount of epochs generated by the caller
-    let epochs = harness.get_current_slot().epoch(E::slots_per_epoch()) + 1;
+    let epochs = harness.get_current_slot().epoch(Spec::slots_per_epoch()) + 1;
 
     // advance two empty epochs to ensure balances are updated by the epoch boundaries
-    for _ in 0..E::slots_per_epoch() * 2 {
+    for _ in 0..Spec::slots_per_epoch() * 2 {
         harness.advance_slot();
     }
     // fill one slot to ensure state is updated
@@ -918,7 +918,7 @@ async fn check_all_base_rewards_for_subset(
 
     // calculate proposal awards
     let mut proposal_rewards_map = HashMap::new();
-    for slot in 1..(E::slots_per_epoch() * epochs.as_u64()) {
+    for slot in 1..(Spec::slots_per_epoch() * epochs.as_u64()) {
         if let Some(block) = harness
             .chain
             .block_at_slot(Slot::new(slot), WhenSlotSkipped::None)

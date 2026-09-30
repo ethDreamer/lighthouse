@@ -35,7 +35,7 @@ impl CommitteeLengths {
         &self,
         spec: &ChainSpec,
     ) -> Result<usize, Error> {
-        E::get_committee_count_per_slot(self.active_validator_indices_len, spec).map_err(Into::into)
+        Spec::get_committee_count_per_slot(self.active_validator_indices_len, spec.max_committees_per_slot, spec.target_committee_size).map_err(Into::into)
     }
 
     /// Get the length of the committee at the given `slot` and `committee_index`.
@@ -45,7 +45,7 @@ impl CommitteeLengths {
         committee_index: CommitteeIndex,
         spec: &ChainSpec,
     ) -> Result<usize, Error> {
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         let request_epoch = slot.epoch(slots_per_epoch);
 
         // Sanity check.
@@ -127,7 +127,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
         let epoch = state.current_epoch();
         let committee_lengths = CommitteeLengths::new(state)?;
         let source = state.current_justified_checkpoint();
-        let target_slot = epoch.start_slot(E::slots_per_epoch());
+        let target_slot = epoch.start_slot(Spec::slots_per_epoch());
         let target = Checkpoint {
             epoch,
             root: if state.slot() <= target_slot {
@@ -183,7 +183,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
             return Ok(None);
         };
 
-        let request_epoch = request_slot.epoch(E::slots_per_epoch());
+        let request_epoch = request_slot.epoch(Spec::slots_per_epoch());
         if request_epoch != item.epoch {
             return Ok(None);
         }

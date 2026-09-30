@@ -147,7 +147,7 @@ impl<E: EthSpec> ExecutionPayloadHeader<E> {
             0
         } else if fork_name.bellatrix_enabled() {
             // Max size of variable length `extra_data` field
-            E::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len()
+            Spec::MAX_EXTRA_DATA_BYTES * <u8 as Encode>::ssz_fixed_len()
         } else {
             0
         }

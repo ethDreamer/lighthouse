@@ -129,7 +129,7 @@ impl TestContext {
                 PAYLOAD_BUILDER_VERSION,
                 inactive_creds,
                 BUILDER_BALANCE,
-                Slot::new(E::slots_per_epoch()),
+                Slot::new(Spec::slots_per_epoch()),
                 &spec,
             )
             .expect("should register inactive builder");
@@ -202,7 +202,7 @@ impl TestContext {
         let head = self.canonical_head.cached_head();
         let state = &head.snapshot.beacon_state;
         let domain = self.spec.get_domain(
-            bid.slot.epoch(E::slots_per_epoch()),
+            bid.slot.epoch(Spec::slots_per_epoch()),
             Domain::BeaconBuilder,
             &state.fork(),
             state.genesis_validators_root(),
@@ -233,7 +233,7 @@ impl TestContext {
         *head
             .snapshot
             .beacon_state
-            .get_randao_mix(current_slot.epoch(E::slots_per_epoch()))
+            .get_randao_mix(current_slot.epoch(Spec::slots_per_epoch()))
             .expect("should read current epoch randao mix")
     }
 
@@ -370,7 +370,7 @@ fn seed_preferences(ctx: &TestContext, slot: Slot, fee_recipient: Address, gas_l
     let head_state = &cached_head.snapshot.beacon_state;
     let dependent_root = head_state
         .proposer_shuffling_decision_root_at_epoch(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             cached_head.head_block_root(),
             &ctx.spec,
         )
@@ -1058,7 +1058,7 @@ fn invalid_blob_kzg_commitments() {
 
     let max_blobs = ctx
         .spec
-        .max_blobs_per_block(slot.epoch(E::slots_per_epoch())) as usize;
+        .max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let commitments: Vec<KzgCommitment> = (0..=max_blobs)
         .map(|_| KzgCommitment::empty_for_testing())
         .collect();
@@ -1148,7 +1148,7 @@ fn valid_bid_with_parent_in_previous_epoch() {
     if !fork_name_from_env().is_some_and(|fork| fork.gloas_enabled()) {
         return;
     }
-    let epoch_start = E::slots_per_epoch();
+    let epoch_start = Spec::slots_per_epoch();
     for (current_slot, bid_slot) in [
         (epoch_start - 1, epoch_start),
         (epoch_start, epoch_start),

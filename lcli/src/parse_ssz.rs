@@ -57,7 +57,7 @@ pub fn run_parse_ssz<E: EthSpec>(
     info!(
         "Using {} network config ({} preset)",
         spec.config_name.as_deref().unwrap_or("unknown"),
-        E::spec_name()
+        Spec::SPEC_ID
     );
     info!(%type_str, "Type");
 

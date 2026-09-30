@@ -625,7 +625,7 @@ async fn justified_checkpoint_updates_with_non_descendent() {
             state.current_justified_checkpoint_mut().epoch = Epoch::new(3);
             // The new block should **not** include the current justified block as an ancestor.
             state.current_justified_checkpoint_mut().root = *state
-                .get_block_root(Epoch::new(1).start_slot(E::slots_per_epoch()))
+                .get_block_root(Epoch::new(1).start_slot(Spec::slots_per_epoch()))
                 .unwrap();
         })
         .await
@@ -660,7 +660,7 @@ async fn justified_balances_with_attester_slashing() {
         .await
         .apply_blocks(1)
         .await
-        .apply_blocks(2 * E::slots_per_epoch() as usize)
+        .apply_blocks(2 * Spec::SLOTS_PER_EPOCH)
         .await;
 
     let slashed_balances =
@@ -683,7 +683,7 @@ async fn justified_balances_with_slashing_after_skipped_boundary() {
         .await
         .apply_blocks(1)
         .await
-        .apply_blocks(E::slots_per_epoch() as usize)
+        .apply_blocks(Spec::SLOTS_PER_EPOCH)
         .await;
 
     let slashed_balances =
@@ -762,13 +762,13 @@ async fn invalid_block_finalized_slot() {
         .apply_invalid_block_directly_to_fork_choice(
             |block, _| {
                 *block.message_mut().slot_mut() =
-                    Epoch::new(2).start_slot(E::slots_per_epoch()) - 1;
+                    Epoch::new(2).start_slot(Spec::slots_per_epoch()) - 1;
             },
             |err| {
                 assert_invalid_block!(
                     err,
                     InvalidBlock::FinalizedSlot { finalized_slot, .. }
-                    if finalized_slot == Epoch::new(2).start_slot(E::slots_per_epoch())
+                    if finalized_slot == Epoch::new(2).start_slot(Spec::slots_per_epoch())
                 )
             },
         )
@@ -797,7 +797,7 @@ async fn invalid_block_finalized_descendant() {
         .apply_invalid_block_directly_to_fork_choice(
             |block, state| {
                 *block.message_mut().parent_root_mut() = *state
-                    .get_block_root(Epoch::new(1).start_slot(E::slots_per_epoch()))
+                    .get_block_root(Epoch::new(1).start_slot(Spec::slots_per_epoch()))
                     .unwrap();
                 *invalid_ancestor.lock().unwrap() = block.parent_root();
             },
@@ -900,7 +900,7 @@ async fn invalid_attestation_future_epoch() {
 #[tokio::test]
 async fn invalid_attestation_past_epoch() {
     ForkChoiceTest::new()
-        .apply_blocks_without_new_attestations(E::slots_per_epoch() as usize * 3 + 1)
+        .apply_blocks_without_new_attestations(Spec::SLOTS_PER_EPOCH * 3 + 1)
         .await
         .apply_attestation_to_chain(
             MutationDelay::NoDelay,
@@ -924,7 +924,7 @@ async fn invalid_attestation_past_epoch() {
 #[tokio::test]
 async fn invalid_attestation_target_epoch() {
     ForkChoiceTest::new()
-        .apply_blocks_without_new_attestations(E::slots_per_epoch() as usize + 1)
+        .apply_blocks_without_new_attestations(Spec::SLOTS_PER_EPOCH + 1)
         .await
         .apply_attestation_to_chain(
             MutationDelay::NoDelay,
@@ -1232,7 +1232,7 @@ async fn dequeue_attestations_conciliation() {
 #[tokio::test]
 async fn valid_attestation_skip_across_epoch() {
     ForkChoiceTest::new()
-        .apply_blocks(E::slots_per_epoch() as usize - 1)
+        .apply_blocks(Spec::SLOTS_PER_EPOCH - 1)
         .await
         .skip_slots(2)
         .apply_attestation_to_chain(
@@ -1284,7 +1284,7 @@ async fn weak_subjectivity_pass_on_startup() {
     };
 
     ForkChoiceTest::new_with_chain_config(chain_config)
-        .apply_blocks(E::slots_per_epoch() as usize)
+        .apply_blocks(Spec::SLOTS_PER_EPOCH)
         .await
         .assert_shutdown_signal_not_sent();
 }
@@ -1410,7 +1410,7 @@ async fn weak_subjectivity_check_epoch_boundary_is_skip_slot() {
 
     setup_harness
         // epoch 3 will be entirely skip slots
-        .skip_slots(E::slots_per_epoch() as usize)
+        .skip_slots(Spec::SLOTS_PER_EPOCH)
         .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch < 5)
         .await
         .unwrap()
@@ -1435,7 +1435,7 @@ async fn weak_subjectivity_check_epoch_boundary_is_skip_slot() {
             .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch == 0)
             .await
             .unwrap()
-            .skip_slots(E::slots_per_epoch() as usize)
+            .skip_slots(Spec::SLOTS_PER_EPOCH)
             .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch < 5)
             .await
             .unwrap()
@@ -1459,7 +1459,7 @@ async fn weak_subjectivity_check_epoch_boundary_is_skip_slot_failure() {
 
     setup_harness
         // epoch 3 will be entirely skip slots
-        .skip_slots(E::slots_per_epoch() as usize)
+        .skip_slots(Spec::SLOTS_PER_EPOCH)
         .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch < 5)
         .await
         .unwrap()
@@ -1483,7 +1483,7 @@ async fn weak_subjectivity_check_epoch_boundary_is_skip_slot_failure() {
         .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch == 0)
         .await
         .unwrap()
-        .skip_slots(E::slots_per_epoch() as usize)
+        .skip_slots(Spec::SLOTS_PER_EPOCH)
         .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch < 6)
         .await
         .unwrap_err()
@@ -1510,7 +1510,7 @@ async fn progressive_balances_cache_attester_slashing() {
         // expect fork choice to import another epoch of blocks successfully - the slashed
         // attester's balance should be excluded from the current epoch total balance in
         // `ProgressiveBalancesCache` as well.
-        .apply_blocks(E::slots_per_epoch() as usize)
+        .apply_blocks(Spec::SLOTS_PER_EPOCH)
         .await;
 }
 
@@ -1523,7 +1523,7 @@ async fn progressive_balances_cache_proposer_slashing() {
         .apply_blocks_while(|_, state| state.finalized_checkpoint().epoch == 0)
         .await
         .unwrap()
-        .add_previous_epoch_proposer_slashing(E::slots_per_epoch())
+        .add_previous_epoch_proposer_slashing(Spec::slots_per_epoch())
         .await
         // expect fork choice to import blocks successfully after a previous epoch proposer is
         // slashed, i.e. the slashed proposer's balance is correctly excluded from
@@ -1533,6 +1533,6 @@ async fn progressive_balances_cache_proposer_slashing() {
         // expect fork choice to import another epoch of blocks successfully - the slashed
         // proposer's balance should be excluded from the current epoch total balance in
         // `ProgressiveBalancesCache` as well.
-        .apply_blocks(E::slots_per_epoch() as usize)
+        .apply_blocks(Spec::SLOTS_PER_EPOCH)
         .await;
 }

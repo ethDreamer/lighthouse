@@ -1593,7 +1593,7 @@ mod tests {
         /// roots, so an incorrect `active_fields` list would change the result (EIP-7688).
         #[test]
         fn gloas_body_progressive_container_root() {
-            let spec: ChainSpec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+            let spec: ChainSpec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
             let block: BeaconBlock<E> = BeaconBlock::empty(&spec);
             let BeaconBlock::Gloas(block) = block else {
                 panic!("expected a Gloas block");

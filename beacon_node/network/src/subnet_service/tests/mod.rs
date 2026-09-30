@@ -34,7 +34,7 @@ pub struct TestBeaconChain {
 
 impl TestBeaconChain {
     pub fn new_with_system_clock() -> Self {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
 
         get_tracing_subscriber(TEST_LOG_LEVEL);
 
@@ -197,7 +197,7 @@ mod test {
     async fn subscribe_current_slot_wait_for_unsubscribe() {
         // subscription config
         let committee_index = 1;
-        let subnets_per_node = MainnetEthSpec::default_spec().subnets_per_node as usize;
+        let subnets_per_node = Spec::default_spec().subnets_per_node as usize;
 
         // create the attestation service and subscriptions
         let mut subnet_service = get_subnet_service();
@@ -257,7 +257,7 @@ mod test {
         let events = get_events_until_num_slots(
             &mut subnet_service,
             Some(2),
-            (MainnetEthSpec::slots_per_epoch()) as u32,
+            (Spec::slots_per_epoch()) as u32,
         )
         .await;
         assert_eq!(events, expected);
@@ -355,11 +355,11 @@ mod test {
 
     #[tokio::test]
     async fn subscribe_all_subnets() {
-        let attestation_subnet_count = MainnetEthSpec::default_spec().attestation_subnet_count;
+        let attestation_subnet_count = Spec::default_spec().attestation_subnet_count;
         let subscription_slot = 3;
         let subscriptions_count = attestation_subnet_count;
         let committee_count = 1;
-        let subnets_per_node = MainnetEthSpec::default_spec().subnets_per_node as usize;
+        let subnets_per_node = Spec::default_spec().subnets_per_node as usize;
 
         // create the attestation service and subscriptions
         let mut subnet_service = get_subnet_service();
@@ -422,9 +422,9 @@ mod test {
 
     #[tokio::test]
     async fn subscribe_correct_number_of_subnets() {
-        let attestation_subnet_count = MainnetEthSpec::default_spec().attestation_subnet_count;
+        let attestation_subnet_count = Spec::default_spec().attestation_subnet_count;
         let subscription_slot = 10;
-        let subnets_per_node = MainnetEthSpec::default_spec().subnets_per_node as usize;
+        let subnets_per_node = Spec::default_spec().subnets_per_node as usize;
 
         // the 65th subscription should result in no more messages than the previous scenario
         let subscriptions_count = attestation_subnet_count + 1;
@@ -675,7 +675,7 @@ mod test {
         let events = get_events_until_num_slots(
             &mut subnet_service,
             Some(5),
-            (MainnetEthSpec::slots_per_epoch() * 3) as u32, // Have some buffer time before getting 5 events
+            (Spec::slots_per_epoch() * 3) as u32, // Have some buffer time before getting 5 events
         )
         .await;
         assert_eq!(

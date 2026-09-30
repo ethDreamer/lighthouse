@@ -96,8 +96,8 @@ pub fn compute_sync_aggregate_rewards<E: EthSpec>(
     let max_participant_rewards = total_base_rewards
         .safe_mul(SYNC_REWARD_WEIGHT)?
         .safe_div(WEIGHT_DENOMINATOR)?
-        .safe_div(E::slots_per_epoch())?;
-    let participant_reward = max_participant_rewards.safe_div(E::SyncCommitteeSize::to_u64())?;
+        .safe_div(Spec::slots_per_epoch())?;
+    let participant_reward = max_participant_rewards.safe_div(Spec::sync_committee_size())?;
     let proposer_reward = participant_reward
         .safe_mul(PROPOSER_WEIGHT)?
         .safe_div(WEIGHT_DENOMINATOR.safe_sub(PROPOSER_WEIGHT)?)?;

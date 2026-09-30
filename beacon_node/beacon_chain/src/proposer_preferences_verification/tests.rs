@@ -151,7 +151,7 @@ impl TestContext {
         let head = self.canonical_head.cached_head();
         let mut state = head.snapshot.beacon_state.clone();
         let state_root = head.snapshot.beacon_block.message().state_root();
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         state
             .build_all_caches(&self.spec)
             .expect("should build state caches");
@@ -162,7 +162,7 @@ impl TestContext {
         let proposers = state
             .get_beacon_proposer_indices(epoch, &self.spec)
             .expect("should compute proposer indices");
-        let slot_in_epoch = slot.as_usize() % E::slots_per_epoch() as usize;
+        let slot_in_epoch = slot.as_usize() % Spec::SLOTS_PER_EPOCH;
         *proposers.get(slot_in_epoch).expect("slot within epoch") as u64
     }
 
@@ -234,7 +234,7 @@ fn invalid_epoch_too_far_ahead() {
     let ctx = TestContext::new();
     let gossip = ctx.gossip_ctx();
 
-    let far_slot = Slot::new(3 * E::slots_per_epoch());
+    let far_slot = Slot::new(3 * Spec::slots_per_epoch());
     let prefs = make_signed_preferences(far_slot, 0, Hash256::ZERO);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
     assert!(matches!(
@@ -267,9 +267,9 @@ fn wrong_proposer_for_slot() {
     let ctx = TestContext::new();
     // Advance to epoch 1 so the genesis head is a valid dependent root for epoch-2
     // proposals (it is strictly before the start of lookahead epoch 1).
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
-    let slot = Slot::new(2 * E::slots_per_epoch());
+    let slot = Slot::new(2 * Spec::slots_per_epoch());
 
     let actual_proposer = ctx.proposer_at_slot(slot);
     let wrong_validator = if actual_proposer == 0 { 1 } else { 0 };
@@ -290,9 +290,9 @@ fn correct_proposer_bad_signature() {
     let ctx = TestContext::new();
     // Clock and proposal both in epoch 2: the childless genesis head is only a
     // valid dependent root via the head exemption.
-    ctx.slot_clock.set_slot(2 * E::slots_per_epoch());
+    ctx.slot_clock.set_slot(2 * Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
-    let slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
 
     let actual_proposer = ctx.proposer_at_slot(slot);
     let prefs = make_signed_preferences(slot, actual_proposer, ctx.head_block_root);
@@ -318,9 +318,9 @@ fn validator_index_out_of_bounds() {
         return;
     }
     let ctx = TestContext::new();
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
-    let slot = Slot::new(2 * E::slots_per_epoch());
+    let slot = Slot::new(2 * Spec::slots_per_epoch());
 
     let prefs = make_signed_preferences(slot, u64::MAX, ctx.head_block_root);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
@@ -390,7 +390,7 @@ fn invalid_epoch_too_old() {
     }
     let ctx = TestContext::new();
     // Advance the clock so that epoch 0 slots are too old.
-    ctx.slot_clock.set_slot(3 * E::slots_per_epoch());
+    ctx.slot_clock.set_slot(3 * Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
     let old_slot = Slot::new(1);
@@ -411,10 +411,10 @@ fn preferences_for_next_epoch_slot() {
     }
     let ctx = TestContext::new();
     // Clock in epoch 1, proposal in epoch 2 (the next epoch).
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
-    let next_epoch_slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let next_epoch_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let actual_proposer = ctx.proposer_at_slot(next_epoch_slot);
 
     let prefs = make_signed_preferences(next_epoch_slot, actual_proposer, ctx.head_block_root);
@@ -476,7 +476,7 @@ fn dependent_root_too_recent() {
         return;
     }
     let ctx = TestContext::new();
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
     // A block after the start of lookahead epoch 1 cannot be a dependent root for
@@ -485,10 +485,10 @@ fn dependent_root_too_recent() {
     ctx.add_block(
         ctx.head_block_root,
         recent_root,
-        Slot::new(E::slots_per_epoch() + 4),
+        Slot::new(Spec::slots_per_epoch() + 4),
     );
 
-    let proposal_slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let proposal_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let prefs = make_signed_preferences(proposal_slot, 0, recent_root);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
     assert!(matches!(
@@ -505,13 +505,13 @@ fn dependent_root_childless_non_head() {
         return;
     }
     let ctx = TestContext::new();
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
     let branch_root = Hash256::repeat_byte(0xbb);
     ctx.add_block(ctx.head_block_root, branch_root, Slot::new(4));
 
-    let proposal_slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let proposal_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let prefs = make_signed_preferences(proposal_slot, 0, branch_root);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
     assert!(matches!(
@@ -528,7 +528,7 @@ fn dependent_root_child_before_boundary() {
         return;
     }
     let ctx = TestContext::new();
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
     let parent_root = Hash256::repeat_byte(0xcc);
@@ -536,7 +536,7 @@ fn dependent_root_child_before_boundary() {
     ctx.add_block(ctx.head_block_root, parent_root, Slot::new(2));
     ctx.add_block(parent_root, child_root, Slot::new(4));
 
-    let proposal_slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let proposal_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let prefs = make_signed_preferences(proposal_slot, 0, parent_root);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
     assert!(matches!(
@@ -554,15 +554,15 @@ fn dependent_root_valid_via_boundary_crossing_child() {
         return;
     }
     let ctx = TestContext::new();
-    ctx.slot_clock.set_slot(E::slots_per_epoch());
+    ctx.slot_clock.set_slot(Spec::slots_per_epoch());
     let gossip = ctx.gossip_ctx();
 
     let parent_root = Hash256::repeat_byte(0xee);
     let child_root = Hash256::repeat_byte(0xef);
     ctx.add_block(ctx.head_block_root, parent_root, Slot::new(4));
-    ctx.add_block(parent_root, child_root, Slot::new(E::slots_per_epoch() + 4));
+    ctx.add_block(parent_root, child_root, Slot::new(Spec::slots_per_epoch() + 4));
 
-    let proposal_slot = Slot::new(2 * E::slots_per_epoch() + 1);
+    let proposal_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let prefs = make_signed_preferences(proposal_slot, 0, parent_root);
     let result = GossipVerifiedProposerPreferences::new(prefs, &gossip);
     assert!(
@@ -580,7 +580,7 @@ fn pre_gloas_proposal_epoch_ignored() {
     let mut spec = test_spec::<E>();
     spec.gloas_fork_epoch = Some(Epoch::new(2));
 
-    let current_slot = Slot::new(E::slots_per_epoch());
+    let current_slot = Slot::new(Spec::slots_per_epoch());
     let prefs = make_signed_preferences(current_slot + 1, 0, Hash256::ZERO);
     let result = verify_preferences_consistency::<E>(&prefs.message, current_slot, &spec);
     assert!(
@@ -600,7 +600,7 @@ fn gloas_proposal_epoch_passes_fork_check() {
     let mut spec = test_spec::<E>();
     spec.gloas_fork_epoch = Some(Epoch::new(1));
 
-    let current_slot = Slot::new(E::slots_per_epoch());
+    let current_slot = Slot::new(Spec::slots_per_epoch());
     let prefs = make_signed_preferences(current_slot + 1, 0, Hash256::ZERO);
     let result = verify_preferences_consistency::<E>(&prefs.message, current_slot, &spec);
     assert!(result.is_ok(), "got: {result:?}");

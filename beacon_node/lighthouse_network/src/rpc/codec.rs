@@ -484,7 +484,7 @@ fn context_bytes<E: EthSpec>(
     {
         return rpc_variant
             .slot()
-            .map(|slot| fork_context.context_bytes(slot.epoch(E::slots_per_epoch())));
+            .map(|slot| fork_context.context_bytes(slot.epoch(Spec::slots_per_epoch())));
     }
     None
 }

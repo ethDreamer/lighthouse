@@ -270,7 +270,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         // The proposer's gossip-verified preferences for this slot, needed to validate direct bids.
         // Absent (the proposer never submitted any) => direct bids are skipped.
-        let proposal_epoch = produce_at_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = produce_at_slot.epoch(Spec::slots_per_epoch());
         let dependent_root = state.proposer_shuffling_decision_root_at_epoch(
             proposal_epoch,
             parent_root,
@@ -452,7 +452,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             if should_build_on_full {
                 let parent_slot = state.latest_execution_payload_bid()?.slot;
                 let availability_index =
-                    parent_slot.as_usize() % T::EthSpec::slots_per_historical_root();
+                    parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
                 state
                     .execution_payload_availability_mut()?
                     .set(availability_index, true)?;
@@ -1489,7 +1489,7 @@ mod tests {
 
     #[test]
     fn full_exit_withdrawal_request_filters_matching_voluntary_exit() {
-        let spec = TestSpec::default_spec();
+        let spec = Spec::default_spec();
         let validators = vec![pubkey(1), pubkey(2)];
         let mut exits = vec![exit(0), exit(1)];
         let reqs = requests(
@@ -1509,7 +1509,7 @@ mod tests {
 
     #[test]
     fn partial_withdrawal_request_filters_matching_voluntary_exit() {
-        let spec = TestSpec::default_spec();
+        let spec = Spec::default_spec();
         let validators = vec![pubkey(1), pubkey(2)];
         let mut exits = vec![exit(0), exit(1)];
         let reqs = requests(

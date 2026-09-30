@@ -159,7 +159,7 @@ pub fn upgrade_state_to_gloas<E: EthSpec>(
         // All bits set to true per spec:
         // execution_payload_availability = [0b1 for _ in range(SLOTS_PER_HISTORICAL_ROOT)]
         execution_payload_availability: BitVector::from_bytes(
-            vec![0xFFu8; E::SlotsPerHistoricalRoot::to_usize() / 8].into(),
+            vec![0xFFu8; Spec::SLOTS_PER_HISTORICAL_ROOT / 8].into(),
         )
         .map_err(|_| Error::InvalidBitfield)?,
         builder_pending_payments: Vector::from_elem(BuilderPendingPayment::default())?,
@@ -192,7 +192,7 @@ fn initialize_ptc_window<E: EthSpec>(
     state: &mut BeaconState<E>,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
-    let slots_per_epoch = E::slots_per_epoch() as usize;
+    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
 
     let empty_previous_epoch = vec![FixedVector::<u64, E::PTCSize>::from_elem(0); slots_per_epoch];
     let mut ptcs = empty_previous_epoch;
@@ -202,7 +202,7 @@ fn initialize_ptc_window<E: EthSpec>(
     for e in 0..=spec.min_seed_lookahead.as_u64() {
         let epoch = current_epoch.safe_add(e)?;
         let committee_cache = state.initialize_committee_cache_for_lookahead(epoch, spec)?;
-        let start_slot = epoch.start_slot(E::slots_per_epoch());
+        let start_slot = epoch.start_slot(Spec::slots_per_epoch());
         for i in 0..slots_per_epoch {
             let slot = start_slot.safe_add(i as u64)?;
             let ptc = state.compute_ptc_with_cache(slot, &committee_cache, spec)?;
@@ -290,7 +290,7 @@ fn onboard_builders_from_pending_deposits<E: EthSpec>(
                     PAYLOAD_BUILDER_VERSION,
                     deposit.withdrawal_credentials,
                     deposit.amount,
-                    deposit.slot.epoch(E::slots_per_epoch()),
+                    deposit.slot.epoch(Spec::slots_per_epoch()),
                     spec,
                 )?);
             }
@@ -331,7 +331,7 @@ mod tests {
 
 
     fn validator_count() -> usize {
-        E::slots_per_epoch() as usize
+        Spec::SLOTS_PER_EPOCH
     }
 
     fn builder_credentials(spec: &ChainSpec) -> types::Hash256 {
@@ -391,7 +391,7 @@ mod tests {
     }
 
     fn onboarding_fixture() -> OnboardingFixture {
-        let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+        let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
         spec.gloas_fork_epoch = Some(Epoch::new(1024));
         let spec = Arc::new(spec);
 

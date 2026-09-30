@@ -29,7 +29,7 @@ fn create_test_block_and_blobs<E: EthSpec>(
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-    let proofs = vec![KzgProof::empty(); num_of_blobs * E::number_of_columns()]
+    let proofs = vec![KzgProof::empty(); num_of_blobs * Spec::NUMBER_OF_COLUMNS]
         .try_into()
         .unwrap();
 
@@ -37,7 +37,7 @@ fn create_test_block_and_blobs<E: EthSpec>(
 }
 
 fn all_benches(c: &mut Criterion) {
-    let spec = Arc::new(E::default_spec());
+    let spec = Arc::new(Spec::default_spec());
 
     let kzg = get_kzg(&spec);
     for blob_count in [1, 2, 3, 6] {

@@ -366,7 +366,7 @@ pub struct ChainSpec {
 impl ChainSpec {
     /// Construct a `ChainSpec` from a standard config.
     pub fn from_config<E: EthSpec>(config: &Config) -> Option<Self> {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         config.apply_to_chain_spec::<E>(&spec)
     }
 
@@ -378,10 +378,10 @@ impl ChainSpec {
     ) -> EnrForkId {
         EnrForkId {
             fork_digest: self
-                .compute_fork_digest(genesis_validators_root, slot.epoch(E::slots_per_epoch())),
+                .compute_fork_digest(genesis_validators_root, slot.epoch(Spec::slots_per_epoch())),
             next_fork_version: self.next_fork_version::<E>(slot),
             next_fork_epoch: self
-                .next_digest_epoch(slot.epoch(E::slots_per_epoch()))
+                .next_digest_epoch(slot.epoch(Spec::slots_per_epoch()))
                 .unwrap_or(self.far_future_epoch),
         }
     }
@@ -408,7 +408,7 @@ impl ChainSpec {
 
     /// Returns the name of the fork which is active at `slot`.
     pub fn fork_name_at_slot<E: EthSpec>(&self, slot: Slot) -> ForkName {
-        self.fork_name_at_epoch(slot.epoch(E::slots_per_epoch()))
+        self.fork_name_at_epoch(slot.epoch(Spec::slots_per_epoch()))
     }
 
     /// Returns the name of the fork which is active at `epoch`.
@@ -905,7 +905,7 @@ impl ChainSpec {
 
     /// Returns the number of data columns per custody group.
     pub fn data_columns_per_group<E: EthSpec>(&self) -> u64 {
-        (E::number_of_columns() as u64)
+        (Spec::number_of_columns())
             .safe_div(self.number_of_custody_groups)
             .expect("Custody group count must be greater than 0")
     }
@@ -1172,7 +1172,7 @@ impl ChainSpec {
             // of epoch N - 2 (note: min_seed_lookahead=1 in all current configs).
             epoch
                 .saturating_sub(self.min_seed_lookahead)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .saturating_sub(1_u64)
         } else {
             // Pre-Fulu the proposer shuffling decision slot for epoch N is the slot at the end of
@@ -1180,7 +1180,7 @@ impl ChainSpec {
             epoch
                 .saturating_add(Epoch::new(1))
                 .saturating_sub(self.min_seed_lookahead)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .saturating_sub(1_u64)
         }
     }
@@ -2799,7 +2799,7 @@ pub(crate) fn max_data_columns_by_root_request_common<E: EthSpec>(
     let ssz_fixed_size = 40_usize;
 
     let data_columns_by_root_identifier_ssz_size = column_index_ssz_size
-        .safe_mul(E::number_of_columns())
+        .safe_mul(Spec::NUMBER_OF_COLUMNS)
         .and_then(|b| b.safe_add(ssz_fixed_size))
         .expect("should not overflow");
 
@@ -2834,7 +2834,7 @@ fn default_max_request_payloads() -> u64 {
 
 impl Default for Config {
     fn default() -> Self {
-        let chain_spec = MainnetEthSpec::default_spec();
+        let chain_spec = Spec::default_spec();
         Config::from_chain_spec::<MainnetEthSpec>(&chain_spec)
     }
 }
@@ -2884,7 +2884,7 @@ impl Config {
     pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
         Self {
             config_name: spec.config_name.clone(),
-            preset_base: E::spec_name().to_string(),
+            preset_base: Spec::SPEC_ID.to_string(),
 
             terminal_total_difficulty: spec.terminal_total_difficulty,
             terminal_block_hash: spec.terminal_block_hash,
@@ -3145,7 +3145,7 @@ impl Config {
             ref gas_limit_schedule,
         } = self;
 
-        if preset_base != E::spec_name().to_string().as_str() {
+        if preset_base != Spec::SPEC_ID.to_string().as_str() {
             return None;
         }
 
@@ -3439,7 +3439,7 @@ mod tests {
 
         for (_, fork) in ForkName::list_all().into_iter().tuple_windows() {
             if let Some(fork_epoch) = spec.fork_epoch(fork) {
-                last_fork_slot = fork_epoch.start_slot(E::slots_per_epoch());
+                last_fork_slot = fork_epoch.start_slot(Spec::slots_per_epoch());
 
                 // Fork is activated at non-zero epoch: check that `next_fork_epoch` returns
                 // the correct result.
@@ -4084,7 +4084,7 @@ mod yaml_tests {
 
     #[test]
     fn test_max_network_limits_overflow() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         // Should not overflow
         let _ = spec.max_message_size();
         let _ = spec.max_compressed_len();
@@ -4097,7 +4097,7 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_deneb() {
-        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(Spec::default_spec()));
         let blob_retention_epochs = spec.min_epochs_for_blob_sidecars_requests;
 
         // `min_epochs_for_data_sidecar_requests` cannot be earlier than Deneb fork epoch.
@@ -4117,7 +4117,7 @@ mod yaml_tests {
     #[test]
     fn min_epochs_for_data_sidecar_requests_fulu() {
         let spec = {
-            let mut spec = ForkName::Deneb.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Deneb.make_genesis_spec(Spec::default_spec());
             // 4096 * 2 = 8192
             spec.fulu_fork_epoch = Some(Epoch::new(spec.min_epochs_for_blob_sidecars_requests * 2));
             // set a different value for testing purpose, 4096 / 2 = 2048
@@ -4160,7 +4160,7 @@ mod yaml_tests {
     fn min_epochs_for_data_sidecar_requests_fulu_genesis() {
         let spec = {
             // fulu active at genesis
-            let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
             // set a different value for testing purpose, 4096 / 2 = 2048
             spec.min_epochs_for_data_column_sidecars_requests =
                 spec.min_epochs_for_blob_sidecars_requests / 2;
@@ -4193,7 +4193,7 @@ mod yaml_tests {
         let fulu_fork_epoch = 5;
         let gloas_fork_epoch = 10;
         let spec = {
-            let mut spec = ForkName::Electra.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Electra.make_genesis_spec(Spec::default_spec());
             spec.fulu_fork_epoch = Some(Epoch::new(fulu_fork_epoch));
             spec.gloas_fork_epoch = Some(Epoch::new(gloas_fork_epoch));
             Arc::new(spec)
@@ -4204,7 +4204,7 @@ mod yaml_tests {
         for epoch in (0..=fulu_fork_epoch).map(Epoch::new) {
             assert_eq!(
                 spec.proposer_shuffling_decision_slot::<E>(epoch),
-                epoch.start_slot(E::slots_per_epoch()) - 1
+                epoch.start_slot(Spec::slots_per_epoch()) - 1
             );
         }
 
@@ -4212,7 +4212,7 @@ mod yaml_tests {
         for epoch in ((fulu_fork_epoch + 1)..=(gloas_fork_epoch + 1)).map(Epoch::new) {
             assert_eq!(
                 spec.proposer_shuffling_decision_slot::<E>(epoch),
-                (epoch - 1).start_slot(E::slots_per_epoch()) - 1
+                (epoch - 1).start_slot(Spec::slots_per_epoch()) - 1
             );
         }
     }
@@ -4344,7 +4344,7 @@ mod yaml_tests {
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
         let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
             spec.get_attestation_due::<E>(first_gloas_slot - 1),
@@ -4367,7 +4367,7 @@ mod yaml_tests {
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
         let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
             spec.get_aggregate_attestation_due::<E>(first_gloas_slot - 1),
@@ -4390,7 +4390,7 @@ mod yaml_tests {
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
         let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
             spec.get_sync_message_due::<E>(first_gloas_slot - 1),
@@ -4413,7 +4413,7 @@ mod yaml_tests {
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
         let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
             spec.get_contribution_message_due::<E>(first_gloas_slot - 1),

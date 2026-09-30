@@ -544,7 +544,7 @@ impl<'a, T: BeaconChainTypes> IndexedAggregatedAttestation<'a, T> {
         )?;
 
         // Check the attestation's epoch matches its target.
-        if attestation.data().slot.epoch(T::EthSpec::slots_per_epoch())
+        if attestation.data().slot.epoch(Spec::slots_per_epoch())
             != attestation.data().target.epoch
         {
             return Err(Error::InvalidTargetEpoch {
@@ -903,7 +903,7 @@ impl<'a, T: BeaconChainTypes> IndexedUnaggregatedAttestation<'a, T> {
         attestation: &'a SingleAttestation,
         chain: &BeaconChain<T>,
     ) -> Result<(), Error> {
-        let attestation_epoch = attestation.data.slot.epoch(T::EthSpec::slots_per_epoch());
+        let attestation_epoch = attestation.data.slot.epoch(Spec::slots_per_epoch());
 
         // Check the attestation's epoch matches its target.
         if attestation_epoch != attestation.data.target.epoch {
@@ -1070,7 +1070,7 @@ impl<'a, T: BeaconChainTypes> VerifiedUnaggregatedAttestation<'a, T> {
         // Check that the attester is a member of the committee
         let (committee_opt, committees_per_slot) = chain.with_committee_cache(
             attestation.data.target.root,
-            attestation.data.slot.epoch(T::EthSpec::slots_per_epoch()),
+            attestation.data.slot.epoch(Spec::slots_per_epoch()),
             |cached_shuffling, _| {
                 let committee_cache = cached_shuffling.committee_cache.as_ref();
                 let committee_opt = committee_cache
@@ -1310,7 +1310,7 @@ pub fn verify_propagation_slot_range<S: SlotClock, E: EthSpec>(
     let one_epoch_prior = slot_clock
         .now_with_past_tolerance(spec.maximum_gossip_clock_disparity())
         .ok_or(BeaconChainError::UnableToReadSlot)?
-        - E::slots_per_epoch();
+        - Spec::slots_per_epoch();
 
     let current_fork =
         spec.fork_name_at_slot::<E>(slot_clock.now().ok_or(BeaconChainError::UnableToReadSlot)?);
@@ -1318,8 +1318,8 @@ pub fn verify_propagation_slot_range<S: SlotClock, E: EthSpec>(
     let earliest_permissible_slot = if current_fork.deneb_enabled() {
         // EIP-7045
         one_epoch_prior
-            .epoch(E::slots_per_epoch())
-            .start_slot(E::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
+            .start_slot(Spec::slots_per_epoch())
     } else {
         one_epoch_prior
     };
@@ -1376,8 +1376,8 @@ pub fn verify_attestation_target_root<E: EthSpec>(
     attestation_data: &AttestationData,
 ) -> Result<(), Error> {
     // Check the attestation target root.
-    let head_block_epoch = head_block.slot.epoch(E::slots_per_epoch());
-    let attestation_epoch = attestation_data.slot.epoch(E::slots_per_epoch());
+    let head_block_epoch = head_block.slot.epoch(Spec::slots_per_epoch());
+    let attestation_epoch = attestation_data.slot.epoch(Spec::slots_per_epoch());
     if head_block_epoch > attestation_epoch {
         // The epoch references an invalid head block from a future epoch.
         //
@@ -1524,7 +1524,7 @@ fn verify_attestation_is_finalized_checkpoint_or_descendant<T: BeaconChainTypes>
     let finalized_slot = fork_choice
         .finalized_checkpoint()
         .epoch
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     let split = chain.store.get_split_info();
     let is_descendant_from_split_block = split.slot == 0
         || split.slot <= finalized_slot
@@ -1618,7 +1618,7 @@ where
     T: BeaconChainTypes,
     F: Fn((Vec<BeaconCommittee>, CommitteesPerSlot)) -> Result<R, Error>,
 {
-    let attestation_epoch = attestation.data().slot.epoch(T::EthSpec::slots_per_epoch());
+    let attestation_epoch = attestation.data().slot.epoch(Spec::slots_per_epoch());
     let target = &attestation.data().target;
 
     // Attestation target must be for a known block.

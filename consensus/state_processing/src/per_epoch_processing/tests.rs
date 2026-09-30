@@ -15,7 +15,7 @@ async fn runs_without_error() {
     harness.advance_slot();
 
     let target_slot =
-        (MinimalEthSpec::genesis_epoch() + 4).end_slot(MinimalEthSpec::slots_per_epoch());
+        (Epoch::new(Spec::genesis_epoch()) + 4).end_slot(Spec::slots_per_epoch());
 
     let state = harness.get_current_state();
     harness
@@ -46,8 +46,8 @@ mod release_tests {
 
     #[tokio::test]
     async fn altair_state_on_base_fork() {
-        let mut spec = MainnetEthSpec::default_spec();
-        let slots_per_epoch = MainnetEthSpec::slots_per_epoch();
+        let mut spec = Spec::default_spec();
+        let slots_per_epoch = Spec::slots_per_epoch();
         // The Altair fork happens at epoch 1.
         spec.altair_fork_epoch = Some(Epoch::new(1));
 
@@ -116,8 +116,8 @@ mod release_tests {
 
     #[tokio::test]
     async fn base_state_on_altair_fork() {
-        let mut spec = MainnetEthSpec::default_spec();
-        let slots_per_epoch = MainnetEthSpec::slots_per_epoch();
+        let mut spec = Spec::default_spec();
+        let slots_per_epoch = Spec::slots_per_epoch();
         // The Altair fork never happens.
         spec.altair_fork_epoch = None;
 

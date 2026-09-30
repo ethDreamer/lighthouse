@@ -306,7 +306,7 @@ impl<E: EthSpec> PartialDataColumnHeader<E> {
         verify_merkle_proof(
             blob_kzg_commitments_root,
             &self.kzg_commitments_inclusion_proof,
-            E::kzg_commitments_inclusion_proof_depth(),
+            Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH,
             BLOB_KZG_COMMITMENTS_INDEX,
             self.signed_block_header.message.body_root,
         )
@@ -501,7 +501,7 @@ mod tests {
                 signature: Signature::empty(),
             },
             kzg_commitments_inclusion_proof: FixedVector::new(
-                vec![Hash256::zero(); E::kzg_commitments_inclusion_proof_depth()],
+                vec![Hash256::zero(); Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH],
             )
             .unwrap(),
         }

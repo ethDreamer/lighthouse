@@ -193,7 +193,7 @@ pub fn run_basic_sim(matches: &ArgMatches) -> Result<(), String> {
     env.eth2_config.spec = spec.clone();
 
     let slot_duration = spec.get_slot_duration();
-    let slots_per_epoch = MinimalEthSpec::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let initial_validator_count = spec.min_genesis_active_validator_count as usize;
 
     let context = env.core_context();

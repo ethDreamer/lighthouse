@@ -33,7 +33,7 @@ use types::{
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn deposit_contract_custom_network() {
     let validator_count = 24;
-    let mut spec = E::default_spec();
+    let mut spec = Spec::default_spec();
 
     // Rinkeby, which we don't use elsewhere.
     spec.deposit_chain_id = 4;
@@ -60,7 +60,7 @@ async fn deposit_contract_custom_network() {
 async fn state_by_root_pruned_from_fork_choice() {
 
     let validator_count = 24;
-    let spec = ForkName::latest().make_genesis_spec(E::default_spec());
+    let spec = ForkName::latest().make_genesis_spec(Spec::default_spec());
 
     let tester = InteractiveTester::<E>::new_with_initializer_and_mutator(
         Some(spec.clone()),
@@ -86,7 +86,7 @@ async fn state_by_root_pruned_from_fork_choice() {
 
     // Create some chain depth and finalize beyond fork choice's pruning depth.
     let num_epochs = 8_u64;
-    let num_initial = num_epochs * E::slots_per_epoch();
+    let num_initial = num_epochs * Spec::slots_per_epoch();
     harness.advance_slot();
     harness
         .extend_chain_with_sync(
@@ -107,7 +107,7 @@ async fn state_by_root_pruned_from_fork_choice() {
 
     // States that are between the split and the finalized slot should be able to be looked up by
     // state root.
-    for slot in 0..finalized_epoch.start_slot(E::slots_per_epoch()).as_u64() {
+    for slot in 0..finalized_epoch.start_slot(Spec::slots_per_epoch()).as_u64() {
         let state_root = harness
             .chain
             .state_root_at_slot(Slot::new(slot))
@@ -193,7 +193,7 @@ impl Default for ReOrgTest {
     /// Default config represents a regular easy re-org.
     fn default() -> Self {
         Self {
-            head_slot: Slot::new(E::slots_per_epoch() - 2),
+            head_slot: Slot::new(Spec::slots_per_epoch() - 2),
             parent_distance: 1,
             head_distance: 1,
             percent_parent_votes: 100,
@@ -218,7 +218,7 @@ pub async fn proposer_boost_re_org_zero_weight() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_epoch_boundary() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
         should_re_org: true,
         ..Default::default()
     })
@@ -230,7 +230,7 @@ pub async fn proposer_boost_re_org_epoch_boundary_skip1() {
     // Proposing a block on a boundary after a skip will change the set of expected withdrawals
     // sent in the payload attributes.
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(2 * E::slots_per_epoch() - 2),
+        head_slot: Slot::new(2 * Spec::slots_per_epoch() - 2),
         head_distance: 2,
         should_re_org: false,
         expect_withdrawals_change_on_epoch: true,
@@ -243,8 +243,8 @@ pub async fn proposer_boost_re_org_epoch_boundary_skip1() {
 pub async fn proposer_boost_re_org_epoch_boundary_skip32() {
     // Propose a block at 64 after a whole epoch of skipped slots.
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
-        head_distance: E::slots_per_epoch() + 1,
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
+        head_distance: Spec::slots_per_epoch() + 1,
         should_re_org: false,
         expect_withdrawals_change_on_epoch: true,
         ..Default::default()
@@ -255,7 +255,7 @@ pub async fn proposer_boost_re_org_epoch_boundary_skip32() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_slot_after_epoch_boundary() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(2 * E::slots_per_epoch() + 1),
+        head_slot: Slot::new(2 * Spec::slots_per_epoch() + 1),
         ..Default::default()
     })
     .await;
@@ -264,7 +264,7 @@ pub async fn proposer_boost_re_org_slot_after_epoch_boundary() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_bad_ffg() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(2 * E::slots_per_epoch() + (2 * E::slots_per_epoch()).div_ceil(3)),
+        head_slot: Slot::new(2 * Spec::slots_per_epoch() + (2 * Spec::slots_per_epoch()).div_ceil(3)),
         should_re_org: false,
         ..Default::default()
     })
@@ -274,7 +274,7 @@ pub async fn proposer_boost_re_org_bad_ffg() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_no_finality() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(3 * E::slots_per_epoch()),
+        head_slot: Slot::new(3 * Spec::slots_per_epoch()),
         percent_parent_votes: 100,
         percent_empty_votes: 0,
         percent_head_votes: 100,
@@ -287,7 +287,7 @@ pub async fn proposer_boost_re_org_no_finality() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_finality() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(4 * E::slots_per_epoch() + 1),
+        head_slot: Slot::new(4 * Spec::slots_per_epoch() + 1),
         ..Default::default()
     })
     .await;
@@ -296,7 +296,7 @@ pub async fn proposer_boost_re_org_finality() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_parent_distance() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 2),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 2),
         parent_distance: 2,
         should_re_org: false,
         ..Default::default()
@@ -307,7 +307,7 @@ pub async fn proposer_boost_re_org_parent_distance() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_head_distance() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 3),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 3),
         head_distance: 2,
         should_re_org: false,
         ..Default::default()
@@ -318,7 +318,7 @@ pub async fn proposer_boost_re_org_head_distance() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_very_unhealthy() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
         parent_distance: 2,
         head_distance: 2,
         percent_parent_votes: 10,
@@ -376,7 +376,7 @@ pub async fn proposer_boost_re_org_test(
 
     // Ensure there are enough validators to have `attesters_per_slot`.
     let attesters_per_slot = 10;
-    let validator_count = E::slots_per_epoch() as usize * attesters_per_slot;
+    let validator_count = Spec::SLOTS_PER_EPOCH * attesters_per_slot;
     let all_validators = (0..validator_count).collect::<Vec<usize>>();
     let num_initial = head_slot.as_u64().checked_sub(parent_distance + 1).unwrap();
 
@@ -434,7 +434,7 @@ pub async fn proposer_boost_re_org_test(
         .as_ref()
         .unwrap()
         .update_proposer_preparation(
-            head_slot.epoch(E::slots_per_epoch()) + 1,
+            head_slot.epoch(Spec::slots_per_epoch()) + 1,
             proposer_preparation_data.iter().map(|(a, b)| (a, b)),
         )
         .await;
@@ -488,7 +488,7 @@ pub async fn proposer_boost_re_org_test(
     // boundaries.
     if expect_withdrawals_change_on_epoch {
         assert!(
-            slot_c.epoch(E::slots_per_epoch()) >= 2,
+            slot_c.epoch(Spec::slots_per_epoch()) >= 2,
             "for withdrawals to change, test must end at an epoch >= 2"
         );
     }
@@ -696,7 +696,7 @@ pub async fn proposer_boost_re_org_test(
 
     if should_re_org
         || expect_withdrawals_change_on_epoch
-            && slot_c.epoch(E::slots_per_epoch()) != slot_b.epoch(E::slots_per_epoch())
+            && slot_c.epoch(Spec::slots_per_epoch()) != slot_b.epoch(Spec::slots_per_epoch())
     {
         assert_ne!(expected_withdrawals, pre_advance_withdrawals);
     }
@@ -943,7 +943,7 @@ async fn proposer_duties_with_gossip_tolerance() {
     let spec = &harness.spec;
     let client = &tester.client;
 
-    let num_initial = 4 * E::slots_per_epoch() - 1;
+    let num_initial = 4 * Spec::slots_per_epoch() - 1;
     let next_epoch_start_slot = Slot::new(num_initial + 1);
 
     harness.advance_slot();
@@ -975,7 +975,7 @@ async fn proposer_duties_with_gossip_tolerance() {
 
     let head_state = harness.get_current_state();
     let head_block_root = harness.head_block_root();
-    let tolerant_current_epoch = next_epoch_start_slot.epoch(E::slots_per_epoch());
+    let tolerant_current_epoch = next_epoch_start_slot.epoch(Spec::slots_per_epoch());
 
     // This is a regression test for the bug described here:
     // https://github.com/sigp/lighthouse/pull/8130/files#r2386594566
@@ -985,7 +985,7 @@ async fn proposer_duties_with_gossip_tolerance() {
     let wrong_decision_root = head_state
         .proposer_shuffling_decision_root(head_block_root, spec)
         .unwrap();
-    let wrong_proposer_indices = vec![0; E::slots_per_epoch() as usize];
+    let wrong_proposer_indices = vec![0; Spec::slots_per_epoch() as usize];
     harness
         .chain
         .beacon_proposer_cache
@@ -1050,7 +1050,7 @@ async fn proposer_duties_v2_with_gossip_tolerance() {
     let spec = &harness.spec;
     let client = &tester.client;
 
-    let num_initial = 4 * E::slots_per_epoch() - 1;
+    let num_initial = 4 * Spec::slots_per_epoch() - 1;
     let next_epoch_start_slot = Slot::new(num_initial + 1);
 
     harness.advance_slot();
@@ -1082,13 +1082,13 @@ async fn proposer_duties_v2_with_gossip_tolerance() {
 
     let head_state = harness.get_current_state();
     let head_block_root = harness.head_block_root();
-    let tolerant_current_epoch = next_epoch_start_slot.epoch(E::slots_per_epoch());
+    let tolerant_current_epoch = next_epoch_start_slot.epoch(Spec::slots_per_epoch());
 
     // Prime the proposer shuffling cache with an incorrect entry (regression test).
     let wrong_decision_root = head_state
         .proposer_shuffling_decision_root(head_block_root, spec)
         .unwrap();
-    let wrong_proposer_indices = vec![0; E::slots_per_epoch() as usize];
+    let wrong_proposer_indices = vec![0; Spec::slots_per_epoch() as usize];
     harness
         .chain
         .beacon_proposer_cache
@@ -1155,7 +1155,7 @@ async fn proposer_duties_v2_post_fulu_dependent_root() {
     }
 
     let validator_count = 24;
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
@@ -1293,7 +1293,7 @@ async fn lighthouse_restart_custody_backfill() {
     let min_cgc = spec.custody_requirement;
     let max_cgc = spec.number_of_custody_groups;
 
-    let num_blocks = 2 * E::slots_per_epoch();
+    let num_blocks = 2 * Spec::slots_per_epoch();
     let custody_context = &harness.chain.custody_context;
 
     harness.advance_slot();
@@ -1357,8 +1357,8 @@ async fn lighthouse_custody_info() {
     let spec = &harness.spec;
     let client = &tester.client;
 
-    let num_initial = 2 * E::slots_per_epoch();
-    let num_secondary = 2 * E::slots_per_epoch();
+    let num_initial = 2 * Spec::slots_per_epoch();
+    let num_secondary = 2 * Spec::slots_per_epoch();
 
     harness.advance_slot();
     harness
@@ -1399,7 +1399,7 @@ async fn lighthouse_custody_info() {
     assert_eq!(
         info.earliest_custodied_data_column_slot,
         num_initial + num_secondary
-            - spec.min_epochs_for_data_column_sidecars_requests * E::slots_per_epoch()
+            - spec.min_epochs_for_data_column_sidecars_requests * Spec::slots_per_epoch()
     );
     assert_eq!(info.custody_group_count, spec.custody_requirement);
     assert_eq!(

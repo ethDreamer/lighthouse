@@ -891,7 +891,7 @@ impl<T: BeaconChainTypes> GossipVerifiedBlock<T> {
         if let Some(blob_kzg_commitments_len) = block.message().blob_kzg_commitments_len() {
             let max_blobs_at_epoch = chain
                 .spec
-                .max_blobs_per_block(block.slot().epoch(T::EthSpec::slots_per_epoch()))
+                .max_blobs_per_block(block.slot().epoch(Spec::slots_per_epoch()))
                 as usize;
             if blob_kzg_commitments_len > max_blobs_at_epoch {
                 return Err(BlockError::InvalidBlobCount {
@@ -947,7 +947,7 @@ impl<T: BeaconChainTypes> GossipVerifiedBlock<T> {
             block,
         )?;
 
-        let block_epoch = block.slot().epoch(T::EthSpec::slots_per_epoch());
+        let block_epoch = block.slot().epoch(Spec::slots_per_epoch());
         let (parent_block, block) =
             verify_parent_block_and_envelope_are_known::<T>(&fork_choice_read_lock, block)?;
 
@@ -1622,8 +1622,8 @@ impl<T: BeaconChainTypes> ExecutionPendingBlock<T> {
 
         // If the block is sufficiently recent, notify the validator monitor.
         if let Some(slot) = chain.slot_clock.now() {
-            let epoch = slot.epoch(T::EthSpec::slots_per_epoch());
-            if block_slot.epoch(T::EthSpec::slots_per_epoch())
+            let epoch = slot.epoch(Spec::slots_per_epoch());
+            if block_slot.epoch(Spec::slots_per_epoch())
                 + VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64
                 >= epoch
             {
@@ -1798,7 +1798,7 @@ fn check_block_against_finalized_slot<T: BeaconChainTypes>(
         .cached_head()
         .finalized_checkpoint()
         .epoch
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
 
     if block.slot() <= finalized_slot {
         chain.pre_finalization_block_rejected(block_root);
@@ -1831,7 +1831,7 @@ pub fn check_block_is_finalized_checkpoint_or_descendant<
     let finalized_slot = fork_choice
         .finalized_checkpoint()
         .epoch
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     let split = chain.store.get_split_info();
     let is_descendant_from_split_block = split.slot == 0
         || split.slot <= finalized_slot
@@ -2139,7 +2139,7 @@ pub fn cheap_state_advance_to_obtain_committees<'a, E: EthSpec, Err: BlockBlobEr
     builder_onboarding_cache: Option<&OnboardBuildersCache>,
     spec: &ChainSpec,
 ) -> Result<Cow<'a, BeaconState<E>>, Err> {
-    let block_epoch = block_slot.epoch(E::slots_per_epoch());
+    let block_epoch = block_slot.epoch(Spec::slots_per_epoch());
 
     if state.current_epoch() == block_epoch {
         // Build both the current and previous epoch caches, as the previous epoch caches are
@@ -2152,7 +2152,7 @@ pub fn cheap_state_advance_to_obtain_committees<'a, E: EthSpec, Err: BlockBlobEr
         Err(Err::not_later_than_parent_error(block_slot, state.slot()))
     } else {
         let mut state = state.clone();
-        let target_slot = block_epoch.start_slot(E::slots_per_epoch());
+        let target_slot = block_epoch.start_slot(Spec::slots_per_epoch());
 
         // Advance the state into the same epoch as the block. Use the "partial" method since state
         // roots are not important for proposer/attester shuffling.
@@ -2229,7 +2229,7 @@ pub fn verify_header_signature<T: BeaconChainTypes, Err: BlockBlobError>(
         .ok_or(Err::unknown_validator_error(header.message.proposer_index))?;
     let fork = chain
         .spec
-        .fork_at_epoch(header.message.slot.epoch(T::EthSpec::slots_per_epoch()));
+        .fork_at_epoch(header.message.slot.epoch(Spec::slots_per_epoch()));
 
     if header.verify_signature::<T::EthSpec>(
         &proposer_pubkey,

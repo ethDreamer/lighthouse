@@ -350,7 +350,7 @@ mod tests {
         let fork_context = std::sync::Arc::new(ForkContext::new::<MainnetEthSpec>(
             Slot::new(0),
             Hash256::ZERO,
-            &MainnetEthSpec::default_spec(),
+            &Spec::default_spec(),
         ));
         let mut limiter: SelfRateLimiter<AppRequestId, MainnetEthSpec> =
             SelfRateLimiter::new(Some(config), fork_context).unwrap();
@@ -423,7 +423,7 @@ mod tests {
         let fork_context = std::sync::Arc::new(ForkContext::new::<MainnetEthSpec>(
             Slot::new(0),
             Hash256::ZERO,
-            &MainnetEthSpec::default_spec(),
+            &Spec::default_spec(),
         ));
         let mut limiter: SelfRateLimiter<AppRequestId, MainnetEthSpec> =
             SelfRateLimiter::new(None, fork_context).unwrap();
@@ -500,7 +500,7 @@ mod tests {
         let fork_context = std::sync::Arc::new(ForkContext::new::<MainnetEthSpec>(
             Slot::new(0),
             Hash256::ZERO,
-            &MainnetEthSpec::default_spec(),
+            &Spec::default_spec(),
         ));
         let mut limiter: SelfRateLimiter<AppRequestId, MainnetEthSpec> =
             SelfRateLimiter::new(None, fork_context).unwrap();
@@ -577,7 +577,7 @@ mod tests {
         let fork_context = std::sync::Arc::new(ForkContext::new::<MainnetEthSpec>(
             Slot::new(0),
             Hash256::ZERO,
-            &MainnetEthSpec::default_spec(),
+            &Spec::default_spec(),
         ));
         let config = OutboundRateLimiterConfig(RateLimiterConfig {
             ping_quota: Quota::n_every_millis(NonZeroU64::new(1).unwrap(), REPLENISH_DURATION),

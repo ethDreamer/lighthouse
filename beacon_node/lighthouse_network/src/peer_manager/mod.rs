@@ -1738,7 +1738,7 @@ mod tests {
         trusted_peers: Vec<PeerId>,
         target_peer_count: usize,
     ) -> PeerManager<E> {
-        let spec = Arc::new(E::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         build_peer_manager_with_opts(trusted_peers, target_peer_count, spec).await
     }
 
@@ -2158,7 +2158,7 @@ mod tests {
     /// Test a metadata response should update custody subnets
     async fn test_peer_manager_update_custody_subnets() {
         // PeerDAS is enabled from Fulu.
-        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()));
         let mut peer_manager = build_peer_manager_with_opts(vec![], 1, spec).await;
         let pubkey = Keypair::generate_secp256k1().public();
         let peer_id = PeerId::from_public_key(&pubkey);
@@ -3039,9 +3039,9 @@ mod tests {
         }
 
         fn peer_condition_strategy() -> impl Strategy<Value = PeerCondition> {
-            let attestation_len = <E as EthSpec>::SubnetBitfieldLength::to_usize();
-            let sync_committee_len = <E as EthSpec>::SyncCommitteeSubnetCount::to_usize();
-            let spec = E::default_spec();
+            let attestation_len = Spec::SUBNET_BITFIELD_LENGTH;
+            let sync_committee_len = Spec::SYNC_COMMITTEE_SUBNET_COUNT;
+            let spec = Spec::default_spec();
             let total_subnet_count = spec.data_column_sidecar_subnet_count;
             let custody_requirement = spec.custody_requirement;
 
@@ -3133,7 +3133,7 @@ mod tests {
             #[test]
             fn prune_excess_peers(peer_conditions in proptest::collection::vec(peer_condition_strategy(), DEFAULT_TARGET_PEERS..=MAX_TEST_PEERS)) {
                 let target_peer_count = DEFAULT_TARGET_PEERS;
-                let spec = E::default_spec();
+                let spec = Spec::default_spec();
 
                 let trusted_peers: Vec<_> = peer_conditions
                     .iter()

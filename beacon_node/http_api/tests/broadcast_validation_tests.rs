@@ -211,7 +211,7 @@ pub async fn gossip_full_pass_ssz() {
     let validator_count = 64;
     let num_initial: u64 = 31;
     // Deneb epoch set ahead of block slot, to test fork-based decoding
-    let mut spec = ForkName::Capella.make_genesis_spec(MainnetEthSpec::default_spec());
+    let mut spec = ForkName::Capella.make_genesis_spec(Spec::default_spec());
     spec.deneb_fork_epoch = Some(Epoch::new(4));
     let tester = InteractiveTester::<E>::new(Some(spec), validator_count).await;
 
@@ -1071,7 +1071,7 @@ pub async fn blinded_consensus_invalid() {
     let finalized_slot = chain_state_before
         .finalized_checkpoint()
         .epoch
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     assert_ne!(finalized_slot, 0);
     let pre_finalized_block_root = tester
         .harness
@@ -1261,7 +1261,7 @@ pub async fn blinded_equivocation_invalid() {
     let finalized_slot = chain_state_before
         .finalized_checkpoint()
         .epoch
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     assert_ne!(finalized_slot, 0);
     let pre_finalized_block_root = tester
         .harness
@@ -2065,7 +2065,7 @@ fn assert_server_message_error(error_response: eth2::Error, expected_message: St
 }
 
 fn get_custody_columns(tester: &InteractiveTester<E>, slot: Slot) -> HashSet<ColumnIndex> {
-    let epoch = slot.epoch(E::slots_per_epoch());
+    let epoch = slot.epoch(Spec::slots_per_epoch());
     tester
         .ctx
         .chain

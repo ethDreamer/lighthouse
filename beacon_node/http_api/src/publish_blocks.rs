@@ -284,7 +284,7 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
         publish_column_sidecars(network_tx, &gossip_verified_columns, &chain).map_err(|_| {
             warp_utils::reject::custom_server_error("unable to publish data column sidecars".into())
         })?;
-        let epoch = block.slot().epoch(T::EthSpec::slots_per_epoch());
+        let epoch = block.slot().epoch(Spec::slots_per_epoch());
         let sampling_columns_indices = chain.custody_context.sampling_columns_for_epoch(epoch);
         let sampling_columns = gossip_verified_columns
             .into_iter()
@@ -669,7 +669,7 @@ pub async fn reconstruct_block<T: BeaconChainTypes>(
         let full_payload_contents = if payload_header.block_hash() == ExecutionBlockHash::zero() {
             let fork_name = chain
                 .spec
-                .fork_name_at_epoch(block.slot().epoch(T::EthSpec::slots_per_epoch()));
+                .fork_name_at_epoch(block.slot().epoch(Spec::slots_per_epoch()));
             if fork_name == ForkName::Bellatrix {
                 let payload: FullPayload<T::EthSpec> = FullPayloadBellatrix::default().into();
                 ProvenancedPayload::Local(FullPayloadContents::Payload(payload.into()))

@@ -8,16 +8,16 @@ use types::*;
 // This test lives here because one is most likely to muck these up during a spec update.
 fn check_typenum_values<E: EthSpec>() {
     assert_eq!(
-        E::MaxPendingAttestations::to_u64(),
-        E::MaxAttestations::to_u64() * E::SlotsPerEpoch::to_u64()
+        Spec::MAX_PENDING_ATTESTATIONS as u64,
+        Spec::MAX_ATTESTATIONS as u64 * Spec::slots_per_epoch()
     );
     assert_eq!(
-        E::SlotsPerEth1VotingPeriod::to_u64(),
-        E::EpochsPerEth1VotingPeriod::to_u64() * E::SlotsPerEpoch::to_u64()
+        Spec::SLOTS_PER_ETH1_VOTING_PERIOD as u64,
+        Spec::EPOCHS_PER_ETH1_VOTING_PERIOD as u64 * Spec::slots_per_epoch()
     );
     assert_eq!(
-        E::MaxValidatorsPerSlot::to_u64(),
-        E::MaxCommitteesPerSlot::to_u64() * E::MaxValidatorsPerCommittee::to_u64()
+        Spec::MAX_VALIDATORS_PER_SLOT as u64,
+        Spec::MAX_COMMITTEES_PER_SLOT as u64 * Spec::MAX_VALIDATORS_PER_COMMITTEE as u64
     );
 }
 

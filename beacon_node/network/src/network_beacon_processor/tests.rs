@@ -371,7 +371,7 @@ impl TestRig {
         let data_columns = if let Some((kzg_proofs, blobs)) = next_block_tuple.1 {
             if chain.spec.is_peer_das_enabled_for_epoch(block.epoch()) {
                 let kzg = get_kzg(&chain.spec);
-                let epoch = block.slot().epoch(E::slots_per_epoch());
+                let epoch = block.slot().epoch(Spec::slots_per_epoch());
                 let sampling_indices = chain.custody_context.sampling_columns_for_epoch(epoch);
                 let custody_columns: DataColumnSidecarList<E> = blobs_to_data_column_sidecars(
                     &blobs.iter().collect_vec(),
@@ -703,7 +703,7 @@ impl TestRig {
             blob_data_available: true,
         };
         let domain = self.chain.spec.get_domain(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             Domain::PTCAttester,
             &state.fork(),
             state.genesis_validators_root(),
@@ -1052,7 +1052,7 @@ async fn data_column_reconstruction_at_deadline() {
         .slot_clock
         .set_current_time(slot_start + Duration::from_millis(reconstruction_deadline_millis));
 
-    let min_columns_for_reconstruction = E::number_of_columns() / 2;
+    let min_columns_for_reconstruction = Spec::NUMBER_OF_COLUMNS / 2;
 
     // Enqueue all columns first - at deadline, reconstruction races with gossip drain
     for i in 0..min_columns_for_reconstruction {
@@ -2594,7 +2594,7 @@ async fn test_data_columns_by_range_skip_slot_at_fork_boundary() {
     spec.shard_committee_period = 2;
     spec.gloas_fork_epoch = Some(Epoch::new(2));
 
-    let gloas_fork_slot = Epoch::new(2).start_slot(E::slots_per_epoch());
+    let gloas_fork_slot = Epoch::new(2).start_slot(Spec::slots_per_epoch());
 
     // Skip the Gloas fork slot so the last block before the requested range is a Fulu block.
     // Build 160 slots (5 epochs) so finalized_epoch=3 (finalized_slot=96) and a request for

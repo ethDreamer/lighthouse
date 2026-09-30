@@ -197,7 +197,7 @@ mod tests {
     /// by `integer_sqrt(0) = 0`.
     #[test]
     fn into_epoch_cache_zero_total_active_balance() {
-        let spec = MinimalEthSpec::default_spec();
+        let spec = Spec::default_spec();
 
         let cache = PreEpochCache {
             epoch_key: EpochCacheKey {

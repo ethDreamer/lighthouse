@@ -1018,7 +1018,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
 
         let mut request = ActiveCustodyRequest::new(
             block_roots.to_vec(),
-            block_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+            block_epoch.start_slot(Spec::slots_per_epoch()),
             CustodyId { requester },
             &custody_indexes_to_fetch,
             lookup_peers,
@@ -1077,7 +1077,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         debug!(
             method = "BlocksByRange",
             slots = request.count(),
-            epoch = %Slot::new(*request.start_slot()).epoch(T::EthSpec::slots_per_epoch()),
+            epoch = %Slot::new(*request.start_slot()).epoch(Spec::slots_per_epoch()),
             peer = %peer_id,
             %id,
             "Sync RPC request sent"
@@ -1106,7 +1106,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
             id: self.next_id(),
             parent_request_id,
         };
-        let request_epoch = Slot::new(request.start_slot).epoch(T::EthSpec::slots_per_epoch());
+        let request_epoch = Slot::new(request.start_slot).epoch(Spec::slots_per_epoch());
 
         // Create the blob request based on the blocks request.
         self.network_send
@@ -1168,7 +1168,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         debug!(
             method = "DataColumnsByRange",
             slots = request.count,
-            epoch = %Slot::new(request.start_slot).epoch(T::EthSpec::slots_per_epoch()),
+            epoch = %Slot::new(request.start_slot).epoch(Spec::slots_per_epoch()),
             columns = ?request.columns,
             peer = %peer_id,
             %id,

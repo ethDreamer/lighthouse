@@ -60,7 +60,7 @@ impl ForkContext {
             })
             .collect();
 
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let current_fork = epoch_to_forks
             .values()
             .rfind(|&fork| fork.fork_epoch <= current_epoch)
@@ -176,7 +176,7 @@ mod tests {
             },
         ];
 
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(1));
         spec.bellatrix_fork_epoch = Some(Epoch::new(2));
         spec.capella_fork_epoch = Some(Epoch::new(3));
@@ -205,7 +205,7 @@ mod tests {
     fn test_current_fork_name_and_epoch() {
         let spec = make_chain_spec();
         let electra_epoch = spec.electra_fork_epoch.unwrap();
-        let electra_slot = electra_epoch.end_slot(E::slots_per_epoch());
+        let electra_slot = electra_epoch.end_slot(Spec::slots_per_epoch());
         let genesis_root = Hash256::ZERO;
 
         let context = ForkContext::new::<E>(electra_slot, genesis_root, &spec);
@@ -218,7 +218,7 @@ mod tests {
     fn test_next_fork_digest() {
         let spec = make_chain_spec();
         let electra_epoch = spec.electra_fork_epoch.unwrap();
-        let electra_slot = electra_epoch.end_slot(E::slots_per_epoch());
+        let electra_slot = electra_epoch.end_slot(Spec::slots_per_epoch());
         let genesis_root = Hash256::ZERO;
 
         let context = ForkContext::new::<E>(electra_slot, genesis_root, &spec);
@@ -233,7 +233,7 @@ mod tests {
         let spec = make_chain_spec();
         let genesis_root = Hash256::ZERO;
         // Epoch 100 is the last BPO fork in make_chain_spec
-        let last_bpo_slot = Epoch::new(100).end_slot(E::slots_per_epoch());
+        let last_bpo_slot = Epoch::new(100).end_slot(Spec::slots_per_epoch());
 
         let context = ForkContext::new::<E>(last_bpo_slot, genesis_root, &spec);
 
@@ -247,7 +247,7 @@ mod tests {
         let genesis_root = Hash256::ZERO;
         // Start at Gloas (epoch 7)
         let gloas_epoch = spec.gloas_fork_epoch.unwrap();
-        let gloas_slot = gloas_epoch.end_slot(E::slots_per_epoch());
+        let gloas_slot = gloas_epoch.end_slot(Spec::slots_per_epoch());
 
         let context = ForkContext::new::<E>(gloas_slot, genesis_root, &spec);
 

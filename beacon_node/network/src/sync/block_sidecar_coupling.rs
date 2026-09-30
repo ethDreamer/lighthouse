@@ -247,7 +247,7 @@ impl<E: EthSpec> RangeBlockComponentsRequest<E> {
             *state = DataColumnsRequest::Complete(vec![], PeerGroup::from_set(Default::default()));
             return Ok(());
         }
-        let block_epoch = blocks[0].slot().epoch(E::slots_per_epoch());
+        let block_epoch = blocks[0].slot().epoch(Spec::slots_per_epoch());
 
         match cx.custody_lookup_request(
             CustodyRequester::RangeSync(id),

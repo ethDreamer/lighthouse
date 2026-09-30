@@ -201,7 +201,7 @@ mod test {
 
     #[test]
     fn test_validator_fork_epoch_alignments() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.bellatrix_fork_epoch = Some(Epoch::new(256));
         spec.deneb_fork_epoch = Some(Epoch::new(257));

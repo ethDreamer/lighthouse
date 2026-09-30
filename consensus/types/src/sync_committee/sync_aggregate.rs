@@ -57,7 +57,7 @@ impl<E: EthSpec> SyncAggregate<E> {
     ) -> Result<SyncAggregate<E>, Error> {
         let mut sync_aggregate = Self::new();
         let sync_subcommittee_size =
-            E::sync_committee_size().safe_div(SYNC_COMMITTEE_SUBNET_COUNT as usize)?;
+            Spec::SYNC_COMMITTEE_SIZE.safe_div(SYNC_COMMITTEE_SUBNET_COUNT as usize)?;
         for contribution in contributions {
             for (index, participated) in contribution.aggregation_bits.iter().enumerate() {
                 if participated {

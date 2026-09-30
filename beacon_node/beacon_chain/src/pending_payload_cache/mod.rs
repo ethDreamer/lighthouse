@@ -335,7 +335,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
         )
         .map_err(AvailabilityCheckError::InvalidColumn)?;
 
-        let epoch = bid.message.slot.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = bid.message.slot.epoch(Spec::slots_per_epoch());
         let sampling_columns = self.custody_context.sampling_columns_for_epoch(epoch);
         let verified_custody_columns = kzg_verified_columns
             .into_iter()
@@ -361,7 +361,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
         let bid = self
             .get_bid(&block_root)
             .ok_or(AvailabilityCheckError::MissingBid(block_root))?;
-        let epoch = bid.message.slot.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = bid.message.slot.epoch(Spec::slots_per_epoch());
         let sampling_columns = self.custody_context.sampling_columns_for_epoch(epoch);
         let custody_columns = data_columns
             .into_iter()
@@ -512,7 +512,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
         let slot = bid.message.slot;
         let columns_to_sample = self
             .custody_context()
-            .sampling_columns_for_epoch(slot.epoch(T::EthSpec::slots_per_epoch()));
+            .sampling_columns_for_epoch(slot.epoch(Spec::slots_per_epoch()));
 
         let data_columns_to_import_and_publish = all_data_columns
             .into_iter()
@@ -635,7 +635,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
 
         let epoch = pending_components.bid.epoch();
 
-        let total_column_count = T::EthSpec::number_of_columns();
+        let total_column_count = Spec::NUMBER_OF_COLUMNS;
         let sampling_column_count = self.custody_context.num_of_data_columns_to_sample(epoch);
 
         if pending_components.reconstruction_started {
@@ -736,7 +736,7 @@ mod data_availability_checker_tests {
         required_execution_proofs: usize,
     ) -> Setup {
         create_test_tracing_subscriber();
-        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(Spec::default_spec()));
         let kzg = get_kzg(&spec);
         let slot_clock = TestingSlotClock::new(
             Slot::new(0),
@@ -777,7 +777,7 @@ mod data_availability_checker_tests {
         );
         cache.insert_bid(block_root, bid.clone());
 
-        let epoch = bid.message.slot.epoch(E::slots_per_epoch());
+        let epoch = bid.message.slot.epoch(Spec::slots_per_epoch());
         let sampling = cache.custody_context().sampling_columns_for_epoch(epoch);
         let custody = columns
             .into_iter()
@@ -953,7 +953,7 @@ mod data_availability_checker_tests {
     #[tokio::test]
     async fn reconstruction_below_threshold_is_not_started() {
         let s = setup(NodeCustodyType::Supernode);
-        let half = E::number_of_columns() / 2;
+        let half = Spec::NUMBER_OF_COLUMNS / 2;
         s.put_columns(s.custody.iter().take(half - 1).cloned().collect());
         assert!(matches!(
             s.reconstruct().expect("reconstruct call"),

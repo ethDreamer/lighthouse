@@ -55,7 +55,7 @@ impl<E: EthSpec> Consts for Attestation<E> {
 
     /// We need to keep attestations for each slot of the current epoch.
     fn max_slot_capacity() -> usize {
-        2 * E::slots_per_epoch() as usize
+        2 * Spec::SLOTS_PER_EPOCH
     }
 
     /// As a DoS protection measure, the maximum number of distinct `Attestations` or
@@ -87,7 +87,7 @@ impl<E: EthSpec> Consts for SyncCommitteeContribution<E> {
 
     /// We should never receive more aggregates than there are sync committee participants.
     fn max_per_slot_capacity() -> usize {
-        E::sync_committee_size()
+        Spec::SYNC_COMMITTEE_SIZE
     }
 }
 

@@ -75,7 +75,7 @@ impl ApiTester {
         let slot_clock =
             TestingSlotClock::new(Slot::new(0), Duration::from_secs(0), Duration::from_secs(1));
         let genesis_validators_root = Hash256::repeat_byte(42);
-        let spec = Arc::new(E::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         Self::new_with_options(http_config, slot_clock, genesis_validators_root, spec).await
     }
 
@@ -333,7 +333,7 @@ impl ApiTester {
                 builder_proposals: None,
                 builder_boost_factor: None,
                 prefer_builder_proposals: None,
-                deposit_gwei: E::default_spec().max_effective_balance,
+                deposit_gwei: Spec::default_spec().max_effective_balance,
             })
             .collect::<Vec<_>>();
 
@@ -417,7 +417,7 @@ impl ApiTester {
             let deposit_bytes = serde_utils::hex::decode(&item.eth1_deposit_tx_data).unwrap();
 
             let (deposit_data, _) =
-                decode_eth1_tx_data(&deposit_bytes, E::default_spec().max_effective_balance)
+                decode_eth1_tx_data(&deposit_bytes, Spec::default_spec().max_effective_balance)
                     .unwrap();
 
             assert_eq!(
@@ -430,14 +430,14 @@ impl ApiTester {
                 deposit_data.withdrawal_credentials,
                 Hash256::from_slice(&bls::get_withdrawal_credentials(
                     &withdrawal_keypair.pk,
-                    E::default_spec().bls_withdrawal_prefix_byte
+                    Spec::default_spec().bls_withdrawal_prefix_byte
                 )),
                 "the locally generated withdrawal creds should match the deposit data"
             );
 
             assert_eq!(
                 deposit_data.signature,
-                deposit_data.create_signature(&voting_keypair.sk, &E::default_spec()),
+                deposit_data.create_signature(&voting_keypair.sk, &Spec::default_spec()),
                 "the locally-generated deposit sig should create the same deposit sig"
             );
         }

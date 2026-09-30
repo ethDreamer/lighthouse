@@ -10,7 +10,7 @@ use types::{
 };
 
 fn get_state<E: EthSpec>(validator_count: usize) -> BeaconState<E> {
-    let spec = &E::default_spec();
+    let spec = &Spec::default_spec();
     let eth1_data = Eth1Data {
         deposit_root: Hash256::zero(),
         deposit_count: 0,
@@ -47,7 +47,7 @@ fn get_state<E: EthSpec>(validator_count: usize) -> BeaconState<E> {
 
 fn all_benches(c: &mut Criterion) {
     let validator_count = 16_384;
-    let spec = Arc::new(MainnetEthSpec::default_spec());
+    let spec = Arc::new(Spec::default_spec());
 
     let mut g = c.benchmark_group("types");
     g.sample_size(10);

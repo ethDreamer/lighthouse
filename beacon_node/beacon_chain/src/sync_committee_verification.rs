@@ -626,7 +626,7 @@ pub fn verify_signed_aggregate_signatures<T: BeaconChainTypes>(
     }
 
     let next_slot_epoch =
-        (signed_aggregate.message.contribution.slot + 1).epoch(T::EthSpec::slots_per_epoch());
+        (signed_aggregate.message.contribution.slot + 1).epoch(Spec::slots_per_epoch());
     let fork = chain.spec.fork_at_epoch(next_slot_epoch);
 
     let signature_sets = [
@@ -658,7 +658,7 @@ pub fn verify_signed_aggregate_signatures<T: BeaconChainTypes>(
                 .message
                 .contribution
                 .slot
-                .epoch(T::EthSpec::slots_per_epoch()),
+                .epoch(Spec::slots_per_epoch()),
             signed_aggregate.message.contribution.beacon_block_root,
             &fork,
             chain.genesis_validators_root,
@@ -686,14 +686,14 @@ pub fn verify_sync_committee_message<T: BeaconChainTypes>(
         .map(Cow::Borrowed)
         .ok_or(Error::UnknownValidatorPubkey(*pubkey_bytes))?;
 
-    let next_slot_epoch = (sync_message.get_slot() + 1).epoch(T::EthSpec::slots_per_epoch());
+    let next_slot_epoch = (sync_message.get_slot() + 1).epoch(Spec::slots_per_epoch());
     let fork = chain.spec.fork_at_epoch(next_slot_epoch);
 
     let agg_sig = AggregateSignature::from(&sync_message.signature);
     let signature_set = sync_committee_message_set_from_pubkeys::<T::EthSpec>(
         pubkey,
         &agg_sig,
-        sync_message.slot.epoch(T::EthSpec::slots_per_epoch()),
+        sync_message.slot.epoch(Spec::slots_per_epoch()),
         sync_message.beacon_block_root,
         &fork,
         chain.genesis_validators_root,

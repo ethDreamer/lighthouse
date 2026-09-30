@@ -51,7 +51,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 let availability_index = parent_bid
                     .slot
                     .as_usize()
-                    .safe_rem(T::EthSpec::slots_per_historical_root())?;
+                    .safe_rem(Spec::SLOTS_PER_HISTORICAL_ROOT)?;
                 state
                     .execution_payload_availability_mut()?
                     .set(availability_index, true)?;
@@ -211,7 +211,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     Some(next_epoch_end) => next_epoch_end,
                     None => {
                         let state = self.state_at_slot(
-                            epoch.safe_add(1)?.end_slot(T::EthSpec::slots_per_epoch()),
+                            epoch.safe_add(1)?.end_slot(Spec::slots_per_epoch()),
                             StateSkipConfig::WithoutStateRoots,
                         )?;
                         next_epoch_end.get_or_insert(state)
@@ -230,7 +230,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     Some(current_epoch_end) => current_epoch_end,
                     None => {
                         let state = self.state_at_slot(
-                            epoch.end_slot(T::EthSpec::slots_per_epoch()),
+                            epoch.end_slot(Spec::slots_per_epoch()),
                             StateSkipConfig::WithoutStateRoots,
                         )?;
                         current_epoch_end.get_or_insert(state)

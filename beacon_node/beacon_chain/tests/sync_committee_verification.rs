@@ -32,7 +32,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
 
 /// Returns a beacon chain harness.
 fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let mut spec = E::default_spec();
+    let mut spec = Spec::default_spec();
     spec.altair_fork_epoch = Some(Epoch::new(0));
     let harness = BeaconChainHarness::builder()
         .spec(spec.into())
@@ -131,7 +131,7 @@ fn get_non_aggregator(
     slot: Slot,
 ) -> (usize, SecretKey) {
     let state = &harness.chain.head_snapshot().beacon_state;
-    let sync_subcommittee_size = E::sync_committee_size()
+    let sync_subcommittee_size = Spec::SYNC_COMMITTEE_SIZE
         .safe_div(SYNC_COMMITTEE_SUBNET_COUNT as usize)
         .expect("should determine sync subcommittee size");
     let sync_committee = state
@@ -370,7 +370,7 @@ async fn aggregated_gossip_verification() {
         SyncCommitteeError::InvalidSignature
     );
 
-    let too_high_index = <E as EthSpec>::ValidatorRegistryLimit::to_u64() + 1;
+    let too_high_index = Spec::validator_registry_limit() + 1;
     assert_invalid!(
         "aggregate with too-high aggregator index",
         {
@@ -489,7 +489,7 @@ async fn aggregated_gossip_verification() {
     // at genesis.
     let state = harness.get_current_state();
     let target_slot = Slot::new(
-        (2 * harness.spec.epochs_per_sync_committee_period.as_u64() * E::slots_per_epoch()) - 1,
+        (2 * harness.spec.epochs_per_sync_committee_period.as_u64() * Spec::slots_per_epoch()) - 1,
     );
 
     harness
@@ -801,7 +801,7 @@ async fn unaggregated_gossip_verification() {
     // at genesis.
     let state = harness.get_current_state();
     let target_slot = Slot::new(
-        (2 * harness.spec.epochs_per_sync_committee_period.as_u64() * E::slots_per_epoch()) - 1,
+        (2 * harness.spec.epochs_per_sync_committee_period.as_u64() * Spec::slots_per_epoch()) - 1,
     );
 
     harness

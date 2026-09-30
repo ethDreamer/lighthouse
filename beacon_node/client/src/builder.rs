@@ -350,7 +350,7 @@ where
                     let genesis_time = genesis_state.genesis_time();
                     let deneb_time = genesis_time
                         + (deneb_fork_epoch.as_u64()
-                            * E::slots_per_epoch()
+                            * Spec::slots_per_epoch()
                             * spec.get_slot_duration().as_secs());
 
                     // Shrink the blob availability window so users don't start
@@ -360,7 +360,7 @@ where
                         .min_epochs_for_blob_sidecars_requests
                         .saturating_sub(BLOB_AVAILABILITY_REDUCTION_EPOCHS);
                     let blob_availability_window = reduced_p2p_availability_epochs
-                        * E::slots_per_epoch()
+                        * Spec::slots_per_epoch()
                         * spec.get_slot_duration().as_secs();
 
                     if now > deneb_time + blob_availability_window {

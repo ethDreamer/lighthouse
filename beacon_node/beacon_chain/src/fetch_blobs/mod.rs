@@ -149,7 +149,7 @@ async fn fetch_and_process_engine_blobs_inner<T: BeaconChainTypes>(
 
     if chain_adapter
         .spec()
-        .is_peer_das_enabled_for_epoch(header_or_bid.slot().epoch(T::EthSpec::slots_per_epoch()))
+        .is_peer_das_enabled_for_epoch(header_or_bid.slot().epoch(Spec::slots_per_epoch()))
     {
         // `engine_getBlobsV4` lets us request only the columns we custody and assemble partial
         // columns directly from the cells the EL returns. It supports both the Fulu partial-header

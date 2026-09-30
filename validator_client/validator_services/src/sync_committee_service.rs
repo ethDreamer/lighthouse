@@ -102,7 +102,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
             .spec
             .altair_fork_epoch
             .and_then(|fork_epoch| {
-                let current_epoch = self.slot_clock.now()?.epoch(S::E::slots_per_epoch());
+                let current_epoch = self.slot_clock.now()?.epoch(Spec::slots_per_epoch());
                 Some(current_epoch >= fork_epoch)
             })
             .unwrap_or(false)
@@ -545,7 +545,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         let current_period = sync_period_of_slot::<S::E>(slot, spec)?;
 
         if !self.first_subscription_done.load(Ordering::Relaxed)
-            || slot.as_u64() % S::E::slots_per_epoch() == 0
+            || slot.as_u64() % Spec::slots_per_epoch() == 0
         {
             duty_slots.push((slot, current_period));
         }
@@ -553,7 +553,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         // Near the end of the current period, push subscriptions for the next period to the
         // beacon node. We aggressively push every slot in the lead-up, as this is the main way
         // that we want to ensure that the BN is subscribed (well in advance).
-        let lookahead_slot = slot + SUBSCRIPTION_LOOKAHEAD_EPOCHS * S::E::slots_per_epoch();
+        let lookahead_slot = slot + SUBSCRIPTION_LOOKAHEAD_EPOCHS * Spec::slots_per_epoch();
 
         let lookahead_period = sync_period_of_slot::<S::E>(lookahead_slot, spec)?;
 
@@ -655,7 +655,7 @@ fn sync_message_deadline<E: EthSpec>(
 }
 
 fn sync_period_of_slot<E: EthSpec>(slot: Slot, spec: &ChainSpec) -> Result<u64, String> {
-    slot.epoch(E::slots_per_epoch())
+    slot.epoch(Spec::slots_per_epoch())
         .sync_committee_period(spec)
         .map_err(|e| format!("Error computing sync period: {:?}", e))
 }
@@ -695,7 +695,7 @@ mod tests {
 
     impl TestHarness {
         async fn new(head_monitoring: bool) -> Self {
-            let mut spec = E::default_spec();
+            let mut spec = Spec::default_spec();
             spec.altair_fork_epoch = Some(Epoch::new(0));
             Self::new_with_spec(head_monitoring, spec).await
         }
@@ -859,14 +859,14 @@ mod tests {
 
     #[test]
     fn duration_to_sync_message_deadline_is_fork_aware() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         let gloas_fork_epoch = Epoch::new(1);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
 
         let slot_duration = spec.get_slot_duration();
         let genesis_time = slot_duration;
         let slot_clock = ManualSlotClock::new(Slot::new(0), genesis_time, slot_duration);
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
         let last_pre_gloas_slot = first_gloas_slot - 1;
 
         let test_cases = [
@@ -901,7 +901,7 @@ mod tests {
 
     #[test]
     fn delay_stays_attached_to_requested_slot() {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let slot_clock =
             ManualSlotClock::new(Slot::new(0), Duration::ZERO, spec.get_slot_duration());
         let contribution_due = spec.get_contribution_message_due::<E>(Slot::new(0));
@@ -1253,7 +1253,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn timer_deadline_is_fork_aware_at_gloas() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.gloas_fork_epoch = Some(Epoch::new(0));
         let mut harness = TestHarness::new_with_spec(false, spec).await;

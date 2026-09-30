@@ -939,7 +939,7 @@ where
                 }
             }
             RequestType::BlobsByRange(request) => {
-                let epoch = Slot::new(request.start_slot).epoch(E::slots_per_epoch());
+                let epoch = Slot::new(request.start_slot).epoch(Spec::slots_per_epoch());
                 let max_requested_blobs = request.max_blobs_requested(epoch, spec);
                 let max_allowed = spec.max_request_blob_sidecars(current_fork) as u64;
                 if max_requested_blobs > max_allowed {

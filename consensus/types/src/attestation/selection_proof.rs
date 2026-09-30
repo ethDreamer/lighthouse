@@ -25,7 +25,7 @@ impl SelectionProof {
         spec: &ChainSpec,
     ) -> Self {
         let domain = spec.get_domain(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             Domain::SelectionProof,
             fork,
             genesis_validators_root,
@@ -73,7 +73,7 @@ impl SelectionProof {
         spec: &ChainSpec,
     ) -> bool {
         let domain = spec.get_domain(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             Domain::SelectionProof,
             fork,
             genesis_validators_root,

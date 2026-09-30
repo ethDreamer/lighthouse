@@ -308,7 +308,7 @@ impl<E: EthSpec> PendingComponents<E> {
 
         // Or, get epoch from first available blob
         if let Some(blob) = self.verified_blobs.iter().flatten().next() {
-            return Some(blob.as_blob().slot().epoch(E::slots_per_epoch()));
+            return Some(blob.as_blob().slot().epoch(Spec::slots_per_epoch()));
         }
 
         // Or, get epoch from first data column
@@ -607,7 +607,7 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
             return ReconstructColumnsDecision::No("not enough columns");
         };
 
-        let total_column_count = T::EthSpec::number_of_columns();
+        let total_column_count = Spec::NUMBER_OF_COLUMNS;
         let sampling_column_count = self.custody_context.num_of_data_columns_to_sample(epoch);
         let received_column_count = pending_components.verified_data_columns.len();
 
@@ -797,9 +797,9 @@ mod test {
         let deneb_fork_epoch = Epoch::new(4);
         let electra_fork_epoch = Epoch::new(5);
         let fulu_fork_epoch = Epoch::new(6);
-        let fulu_fork_slot = fulu_fork_epoch.start_slot(E::slots_per_epoch());
+        let fulu_fork_slot = fulu_fork_epoch.start_slot(Spec::slots_per_epoch());
 
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(altair_fork_epoch);
         spec.bellatrix_fork_epoch = Some(bellatrix_fork_epoch);
         spec.capella_fork_epoch = Some(capella_fork_epoch);
@@ -962,7 +962,7 @@ mod test {
         // but we only need custody columns
         assert_eq!(
             columns.len(),
-            E::number_of_columns(),
+            Spec::NUMBER_OF_COLUMNS,
             "should have all data columns from block"
         );
         assert!(cache.critical.read().is_empty(), "cache should be empty");
@@ -1026,7 +1026,7 @@ mod test {
         // All columns returned
         assert_eq!(
             columns.len(),
-            E::number_of_columns(),
+            Spec::NUMBER_OF_COLUMNS,
             "should have all data columns"
         );
         let root = pending_block.import_data.block_root;
@@ -1158,7 +1158,7 @@ mod pending_components_tests {
             block: Arc::new(block),
             import_data: BlockImportData {
                 block_root: Default::default(),
-                state: BeaconState::new(0, Default::default(), &E::default_spec()),
+                state: BeaconState::new(0, Default::default(), &Spec::default_spec()),
                 parent_block: dummy_parent,
                 consensus_context: ConsensusContext::new(Slot::new(0)),
             },

@@ -98,7 +98,7 @@ impl<T: BeaconChainTypes> VerifiedPayloadAttestationMessage<T> {
             });
         }
 
-        let message_epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+        let message_epoch = slot.epoch(Spec::slots_per_epoch());
         let ptc = with_cached_shuffling(
             ctx.canonical_head,
             ctx.shuffling_cache,

@@ -50,7 +50,7 @@ async fn rpc_blobs_with_invalid_header_signature() {
 
     let harness = get_harness(VALIDATOR_COUNT, spec);
 
-    let num_blocks = E::slots_per_epoch() as usize;
+    let num_blocks = Spec::SLOTS_PER_EPOCH;
 
     // Add some chain depth.
     harness
@@ -81,7 +81,7 @@ async fn rpc_blobs_with_invalid_header_signature() {
     let max_len = harness
         .chain
         .spec
-        .max_blobs_per_block(slot.epoch(E::slots_per_epoch())) as usize;
+        .max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let mut blob_sidecars = FixedBlobSidecarList::new(vec![None; max_len]);
     for (i, (kzg_proof, blob)) in kzg_proofs.into_iter().zip(blobs).enumerate() {
         let blob_sidecar = BlobSidecar::new(i, blob, &corrupt_block, kzg_proof).unwrap();

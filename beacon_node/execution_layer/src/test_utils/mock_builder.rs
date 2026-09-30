@@ -717,8 +717,8 @@ impl<E: EthSpec> MockBuilder<E> {
                     );
                     let next_slot = head.slot + 1;
                     // Find the next proposer index from the cached data or through a beacon api call
-                    let epoch = next_slot.epoch(E::slots_per_epoch());
-                    let position_in_slot = next_slot.as_u64() % E::slots_per_epoch();
+                    let epoch = next_slot.epoch(Spec::slots_per_epoch());
+                    let position_in_slot = next_slot.as_u64() % Spec::slots_per_epoch();
                     let proposer_data = {
                         let proposers_opt = {
                             let proposers_cache = self.proposers_cache.read();

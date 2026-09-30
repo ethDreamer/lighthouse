@@ -58,7 +58,7 @@ impl TestRig {
         SyncInfo {
             finalized_epoch,
             finalized_root: Hash256::random(),
-            head_slot: finalized_epoch.start_slot(E::slots_per_epoch()),
+            head_slot: finalized_epoch.start_slot(Spec::slots_per_epoch()),
             head_root: Hash256::random(),
             earliest_available_slot: Some(Slot::new(0)),
         }

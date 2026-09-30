@@ -93,7 +93,7 @@ impl<T: BeaconChainTypes> LightClientServerCache<T> {
         let attested_block_root = block_parent_root;
 
         let sync_period = block_slot
-            .epoch(T::EthSpec::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             .sync_committee_period(chain_spec)?;
 
         let attested_block = store.get_blinded_block(attested_block_root)?.ok_or(
@@ -127,7 +127,7 @@ impl<T: BeaconChainTypes> LightClientServerCache<T> {
         let maybe_finalized_block = store.get_blinded_block(&cached_parts.finalized_block_root)?;
 
         let sync_period = block_slot
-            .epoch(T::EthSpec::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             .sync_committee_period(chain_spec)?;
 
         // Spec: Full nodes SHOULD provide the LightClientOptimisticUpdate with the highest
@@ -249,7 +249,7 @@ impl<T: BeaconChainTypes> LightClientServerCache<T> {
         if let Some(latest_light_client_update) = self.latest_light_client_update.read().clone() {
             let latest_lc_update_sync_committee_period = latest_light_client_update
                 .signature_slot()
-                .epoch(T::EthSpec::slots_per_epoch())
+                .epoch(Spec::slots_per_epoch())
                 .sync_committee_period(chain_spec)?;
             if latest_lc_update_sync_committee_period == sync_committee_period {
                 return Ok(Some(latest_light_client_update));
@@ -412,7 +412,7 @@ impl<T: BeaconChainTypes> LightClientServerCache<T> {
 
         let sync_committee_period = block
             .slot()
-            .epoch(T::EthSpec::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             .sync_committee_period(chain_spec)?;
 
         let Some(current_sync_committee_branch) = store.get_sync_committee_branch(block_root)?

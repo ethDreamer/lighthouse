@@ -509,7 +509,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
             .slot_clock
             .now()
             .ok_or("Unable to determine current slot from clock")?
-            .epoch(S::E::slots_per_epoch());
+            .epoch(Spec::slots_per_epoch());
 
         // Make sure the target epoch is not higher than the current epoch to avoid potential attacks.
         if attestation_data.target.epoch > current_epoch {
@@ -802,7 +802,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
     fn spawn_slashing_protection_pruning_task(&self, slot: Slot, pruning_instant: Instant) {
         let attestation_service = self.clone();
         let executor = self.inner.executor.clone();
-        let current_epoch = slot.epoch(S::E::slots_per_epoch());
+        let current_epoch = slot.epoch(Spec::slots_per_epoch());
 
         // Wait for `pruning_instant` in a regular task, and then switch to a blocking one.
         self.inner.executor.spawn(
@@ -834,14 +834,14 @@ mod tests {
     #[test]
     fn duration_to_attestation_deadline_is_fork_aware() {
 
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         let gloas_fork_epoch = Epoch::new(1);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
 
         let slot_duration = spec.get_slot_duration();
         let genesis_time = slot_duration;
         let slot_clock = ManualSlotClock::new(Slot::new(0), genesis_time, slot_duration);
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
         let last_pre_gloas_slot = first_gloas_slot - 1;
 
         let test_cases = [

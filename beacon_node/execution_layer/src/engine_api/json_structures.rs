@@ -1539,7 +1539,7 @@ mod tests {
             signature: SignatureBytes::empty(),
             index: 0,
         };
-        let max = MainnetEthSpec::max_deposit_requests_per_payload();
+        let max = Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD;
         for count in [max, max + 1] {
             let deposits = vec![deposit.clone(); count];
             let json = JsonExecutionRequests(vec![create_request_string(
@@ -1797,22 +1797,22 @@ mod tests {
         check_limit(
             RequestType::Withdrawal,
             withdrawal_request.clone(),
-            MainnetEthSpec::max_withdrawal_requests_per_payload(),
+            Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD,
         );
         check_limit(
             RequestType::Consolidation,
             consolidation_request.clone(),
-            MainnetEthSpec::max_consolidation_requests_per_payload(),
+            Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD,
         );
         check_limit(
             RequestType::BuilderDeposit,
             builder_deposit_request.clone(),
-            MainnetEthSpec::max_builder_deposit_requests_per_payload(),
+            Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD,
         );
         check_limit(
             RequestType::BuilderExit,
             builder_exit_request.clone(),
-            MainnetEthSpec::max_builder_exit_requests_per_payload(),
+            Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD,
         );
 
         // Valid request with all five request types, in ascending prefix order.

@@ -65,5 +65,5 @@ pub async fn create_signed_voluntary_exit<T: 'static + SlotClock + Clone, E: Eth
 
 /// Calculates the current epoch from the genesis time and current time.
 fn get_current_epoch<T: 'static + SlotClock + Clone, E: EthSpec>(slot_clock: T) -> Option<Epoch> {
-    slot_clock.now().map(|s| s.epoch(E::slots_per_epoch()))
+    slot_clock.now().map(|s| s.epoch(Spec::slots_per_epoch()))
 }

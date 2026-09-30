@@ -28,8 +28,8 @@ pub fn scrape_for_metrics<E: EthSpec, U: SlotClock>(clock: &U) {
     set_gauge(&PRESENT_SLOT, present_slot.as_u64() as i64);
     set_gauge(
         &PRESENT_EPOCH,
-        present_slot.epoch(E::slots_per_epoch()).as_u64() as i64,
+        present_slot.epoch(Spec::slots_per_epoch()).as_u64() as i64,
     );
-    set_gauge(&SLOTS_PER_EPOCH, E::slots_per_epoch() as i64);
+    set_gauge(&SLOTS_PER_EPOCH, Spec::SLOTS_PER_EPOCH as i64);
     set_gauge(&SECONDS_PER_SLOT, clock.slot_duration().as_secs() as i64);
 }

@@ -381,7 +381,7 @@ impl DoppelgangerService {
         let indices_only = indices_map.keys().copied().collect();
 
         // Pull the liveness responses from the BN.
-        let request_epoch = request_slot.epoch(E::slots_per_epoch());
+        let request_epoch = request_slot.epoch(Spec::slots_per_epoch());
         let liveness_responses = get_liveness(request_epoch, indices_only).await;
 
         // Process the responses, attempting to detect doppelgangers.
@@ -441,7 +441,7 @@ impl DoppelgangerService {
     where
         S: FnMut(),
     {
-        let request_epoch = request_slot.epoch(E::slots_per_epoch());
+        let request_epoch = request_slot.epoch(Spec::slots_per_epoch());
         let previous_epoch = request_epoch.saturating_sub(1_u64);
         let LivenessResponses {
             previous_epoch_responses,
@@ -509,7 +509,7 @@ impl DoppelgangerService {
         // *probably* seen all the blocks that are permitted to contain attestations from epoch `e`.
         let previous_epoch_satisfaction_slot = previous_epoch
             .saturating_add(1_u64)
-            .end_slot(E::slots_per_epoch());
+            .end_slot(Spec::slots_per_epoch());
         let previous_epoch_is_satisfied = request_slot >= previous_epoch_satisfaction_slot;
 
         // Iterate through all the previous epoch responses, updating `self.doppelganger_states`.
@@ -613,7 +613,7 @@ mod test {
 
 
     fn genesis_epoch() -> Epoch {
-        E::default_spec().genesis_slot.epoch(E::slots_per_epoch())
+        Spec::default_spec().genesis_slot.epoch(Spec::slots_per_epoch())
     }
 
     fn check_detection_indices(detection_indices: &[u64]) {
@@ -704,7 +704,7 @@ mod test {
                 .expect("index should exist");
 
             self.doppelganger
-                .register_new_validator(pubkey, &self.slot_clock, E::slots_per_epoch())
+                .register_new_validator(pubkey, &self.slot_clock, Spec::slots_per_epoch())
                 .unwrap();
             self.doppelganger
                 .doppelganger_states
@@ -832,7 +832,7 @@ mod test {
 
     #[test]
     fn enabled_in_genesis_epoch() {
-        for slot in genesis_epoch().slot_iter(E::slots_per_epoch()) {
+        for slot in genesis_epoch().slot_iter(Spec::slots_per_epoch()) {
             TestBuilder::default()
                 .build()
                 .set_slot(slot)
@@ -849,7 +849,7 @@ mod test {
     fn disabled_after_genesis_epoch() {
         let epoch = genesis_epoch() + 1;
 
-        for slot in epoch.slot_iter(E::slots_per_epoch()) {
+        for slot in epoch.slot_iter(Spec::slots_per_epoch()) {
             TestBuilder::default()
                 .build()
                 .set_slot(slot)
@@ -869,7 +869,7 @@ mod test {
 
         TestBuilder::default()
             .build()
-            .set_slot(epoch.start_slot(E::slots_per_epoch()))
+            .set_slot(epoch.start_slot(Spec::slots_per_epoch()))
             // Register only validator 1.
             .register_validator(1)
             // Ensure validator 1 was registered.
@@ -950,7 +950,7 @@ mod test {
     #[test]
     fn detect_at_genesis() {
         let epoch = genesis_epoch();
-        let slot = epoch.start_slot(E::slots_per_epoch());
+        let slot = epoch.start_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -978,10 +978,10 @@ mod test {
         F: Fn(&mut LivenessResponses),
     {
         let starting_epoch = genesis_epoch() + 1;
-        let starting_slot = starting_epoch.start_slot(E::slots_per_epoch());
+        let starting_slot = starting_epoch.start_slot(Spec::slots_per_epoch());
 
         let checking_epoch = starting_epoch + 2;
-        let checking_slot = checking_epoch.start_slot(E::slots_per_epoch());
+        let checking_slot = checking_epoch.start_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -1057,7 +1057,7 @@ mod test {
     #[test]
     fn detect_doppelganger_in_starting_epoch() {
         let epoch = genesis_epoch() + 1;
-        let slot = epoch.start_slot(E::slots_per_epoch());
+        let slot = epoch.start_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -1094,9 +1094,9 @@ mod test {
     #[test]
     fn no_doppelgangers_for_adequate_time() {
         let initial_epoch = genesis_epoch() + 42;
-        let initial_slot = initial_epoch.start_slot(E::slots_per_epoch());
+        let initial_slot = initial_epoch.start_slot(Spec::slots_per_epoch());
         let activation_slot =
-            (initial_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(E::slots_per_epoch());
+            (initial_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(Spec::slots_per_epoch());
 
         let mut scenario = TestBuilder::default()
             .build()
@@ -1106,7 +1106,7 @@ mod test {
 
         for slot in initial_slot.as_u64()..=activation_slot.as_u64() {
             let slot = Slot::new(slot);
-            let epoch = slot.epoch(E::slots_per_epoch());
+            let epoch = slot.epoch(Spec::slots_per_epoch());
 
             scenario = scenario.simulate_detect_doppelgangers(
                 slot,
@@ -1123,7 +1123,7 @@ mod test {
 
             let is_first_epoch = epoch == initial_epoch;
             let is_second_epoch = epoch == initial_epoch + 1;
-            let is_satisfaction_slot = slot == epoch.end_slot(E::slots_per_epoch());
+            let is_satisfaction_slot = slot == epoch.end_slot(Spec::slots_per_epoch());
             let epochs_since_start = epoch.as_u64().checked_sub(initial_epoch.as_u64()).unwrap();
 
             let expected_state = if is_first_epoch || is_second_epoch {
@@ -1157,7 +1157,7 @@ mod test {
         scenario
             .assert_all_enabled()
             .assert_all_states(&DoppelgangerState {
-                next_check_epoch: activation_slot.epoch(E::slots_per_epoch()),
+                next_check_epoch: activation_slot.epoch(Spec::slots_per_epoch()),
                 remaining_epochs: 0,
             });
     }
@@ -1165,9 +1165,9 @@ mod test {
     #[test]
     fn time_skips_forward_no_doppelgangers() {
         let initial_epoch = genesis_epoch() + 1;
-        let initial_slot = initial_epoch.start_slot(E::slots_per_epoch());
+        let initial_slot = initial_epoch.start_slot(Spec::slots_per_epoch());
         let skipped_forward_epoch = initial_epoch + 42;
-        let skipped_forward_slot = skipped_forward_epoch.end_slot(E::slots_per_epoch());
+        let skipped_forward_slot = skipped_forward_epoch.end_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -1211,9 +1211,9 @@ mod test {
     #[test]
     fn time_skips_forward_with_doppelgangers() {
         let initial_epoch = genesis_epoch() + 1;
-        let initial_slot = initial_epoch.start_slot(E::slots_per_epoch());
+        let initial_slot = initial_epoch.start_slot(Spec::slots_per_epoch());
         let skipped_forward_epoch = initial_epoch + 42;
-        let skipped_forward_slot = skipped_forward_epoch.end_slot(E::slots_per_epoch());
+        let skipped_forward_slot = skipped_forward_epoch.end_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -1261,9 +1261,9 @@ mod test {
     #[test]
     fn time_skips_backward() {
         let initial_epoch = genesis_epoch() + 42;
-        let initial_slot = initial_epoch.start_slot(E::slots_per_epoch());
+        let initial_slot = initial_epoch.start_slot(Spec::slots_per_epoch());
         let skipped_backward_epoch = initial_epoch - 12;
-        let skipped_backward_slot = skipped_backward_epoch.end_slot(E::slots_per_epoch());
+        let skipped_backward_slot = skipped_backward_epoch.end_slot(Spec::slots_per_epoch());
 
         TestBuilder::default()
             .build()
@@ -1308,14 +1308,14 @@ mod test {
     #[test]
     fn staggered_entry() {
         let early_epoch = genesis_epoch() + 42;
-        let early_slot = early_epoch.start_slot(E::slots_per_epoch());
+        let early_slot = early_epoch.start_slot(Spec::slots_per_epoch());
         let early_activation_slot =
-            (early_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(E::slots_per_epoch());
+            (early_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(Spec::slots_per_epoch());
 
         let late_epoch = early_epoch + 1;
-        let late_slot = late_epoch.start_slot(E::slots_per_epoch());
+        let late_slot = late_epoch.start_slot(Spec::slots_per_epoch());
         let late_activation_slot =
-            (late_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(E::slots_per_epoch());
+            (late_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(Spec::slots_per_epoch());
 
         let early_validators: Vec<u64> = (0..DEFAULT_VALIDATORS as u64 / 2).collect();
         let late_validators: Vec<u64> =

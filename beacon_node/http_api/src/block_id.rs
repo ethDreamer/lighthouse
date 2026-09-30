@@ -92,7 +92,7 @@ impl BlockId {
                         .cached_head()
                         .finalized_checkpoint()
                         .epoch
-                        .start_slot(T::EthSpec::slots_per_epoch());
+                        .start_slot(Spec::slots_per_epoch());
                 Ok((root, execution_optimistic, finalized))
             }
             CoreBlockId::Root(root) => {
@@ -506,7 +506,7 @@ impl BlockId {
         })?;
 
         let num_found_column_keys = column_indices.len();
-        let num_required_columns = T::EthSpec::number_of_columns() / 2;
+        let num_required_columns = Spec::NUMBER_OF_COLUMNS / 2;
         let is_blob_available = num_found_column_keys >= num_required_columns;
         let fork_name = chain.spec.fork_name_at_epoch(block.epoch());
 
@@ -574,7 +574,7 @@ mod tests {
     fn gloas_supernode_harness() -> TestHarness {
         BeaconChainHarness::builder()
             .spec(Arc::new(
-                ForkName::Gloas.make_genesis_spec(MinimalEthSpec::default_spec()),
+                ForkName::Gloas.make_genesis_spec(Spec::default_spec()),
             ))
             .deterministic_keypairs(8)
             .fresh_ephemeral_store()

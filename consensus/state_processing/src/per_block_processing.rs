@@ -381,7 +381,7 @@ pub fn get_new_eth1_data<E: EthSpec>(
         .count();
 
     // The +1 is to account for the `eth1_data` supplied to the function.
-    if num_votes.safe_add(1)?.safe_mul(2)? > E::SlotsPerEth1VotingPeriod::to_usize() {
+    if num_votes.safe_add(1)?.safe_mul(2)? > Spec::SLOTS_PER_ETH1_VOTING_PERIOD {
         Ok(Some(eth1_data.clone()))
     } else {
         Ok(None)
@@ -434,7 +434,7 @@ pub fn partially_verify_execution_payload<E: EthSpec, Payload: AbstractExecPaylo
     if let Ok(blob_commitments) = body.blob_kzg_commitments() {
         // Verify commitments are under the limit.
         let max_blobs_per_block =
-            spec.max_blobs_per_block(block_slot.epoch(E::slots_per_epoch())) as usize;
+            spec.max_blobs_per_block(block_slot.epoch(Spec::slots_per_epoch())) as usize;
         block_verify!(
             blob_commitments.len() <= max_blobs_per_block,
             BlockProcessingError::ExecutionInvalidBlobsLen {
@@ -607,7 +607,7 @@ pub fn apply_parent_execution_payload<E: EthSpec>(
 ) -> Result<(), BlockProcessingError> {
     let parent_bid = state.latest_execution_payload_bid()?.clone();
     let parent_slot = parent_bid.slot;
-    let parent_epoch = parent_slot.epoch(E::slots_per_epoch());
+    let parent_epoch = parent_slot.epoch(Spec::slots_per_epoch());
 
     verify_execution_request_list_lengths(requests)?;
 
@@ -620,12 +620,12 @@ pub fn apply_parent_execution_payload<E: EthSpec>(
 
     // Queue the builder payment
     if parent_epoch == state.current_epoch() {
-        let payment_index = E::slots_per_epoch()
-            .safe_add(parent_slot.as_u64().safe_rem(E::slots_per_epoch())?)?
+        let payment_index = Spec::slots_per_epoch()
+            .safe_add(parent_slot.as_u64().safe_rem(Spec::slots_per_epoch())?)?
             as usize;
         settle_builder_payment(state, payment_index)?;
     } else if parent_epoch == state.previous_epoch() {
-        let payment_index = parent_slot.as_u64().safe_rem(E::slots_per_epoch())? as usize;
+        let payment_index = parent_slot.as_u64().safe_rem(Spec::slots_per_epoch())? as usize;
         settle_builder_payment(state, payment_index)?;
     } else if parent_bid.value > 0 {
         // Parent is older than previous epoch -- payment entry has already been
@@ -644,7 +644,7 @@ pub fn apply_parent_execution_payload<E: EthSpec>(
     // Update execution payload availability for the parent slot
     let availability_index = parent_slot
         .as_usize()
-        .safe_rem(E::slots_per_historical_root())?;
+        .safe_rem(Spec::SLOTS_PER_HISTORICAL_ROOT)?;
     state
         .execution_payload_availability_mut()?
         .set(availability_index, true)
@@ -665,22 +665,22 @@ pub fn verify_execution_request_list_lengths<E: EthSpec>(
         (
             "withdrawal_requests",
             requests.withdrawals.len(),
-            E::MaxWithdrawalRequestsPerPayload::to_usize(),
+            Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD,
         ),
         (
             "consolidation_requests",
             requests.consolidations.len(),
-            E::MaxConsolidationRequestsPerPayload::to_usize(),
+            Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD,
         ),
         (
             "builder_deposit_requests",
             requests.builder_deposits.len(),
-            E::MaxBuilderDepositRequestsPerPayload::to_usize(),
+            Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD,
         ),
         (
             "builder_exit_requests",
             requests.builder_exits.len(),
-            E::MaxBuilderExitRequestsPerPayload::to_usize(),
+            Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD,
         ),
     ];
     for (kind, length, max) in checks {
@@ -862,8 +862,8 @@ pub fn process_execution_payload_bid<E: EthSpec>(
             proposer_index,
         };
 
-        let payment_index = E::SlotsPerEpoch::to_usize()
-            .safe_add(bid.slot.as_usize().safe_rem(E::SlotsPerEpoch::to_usize())?)?;
+        let payment_index = Spec::SLOTS_PER_EPOCH
+            .safe_add(bid.slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?)?;
 
         *state
             .builder_pending_payments_mut()?

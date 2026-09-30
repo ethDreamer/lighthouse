@@ -31,7 +31,7 @@ impl SyncSelectionProof {
         spec: &ChainSpec,
     ) -> Self {
         let domain = spec.get_domain(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             Domain::SyncCommitteeSelectionProof,
             fork,
             genesis_validators_root,
@@ -49,7 +49,7 @@ impl SyncSelectionProof {
     pub fn modulo<E: EthSpec>() -> Result<u64, ArithError> {
         Ok(cmp::max(
             1,
-            (E::SyncCommitteeSize::to_u64())
+            (Spec::sync_committee_size())
                 .safe_div(SYNC_COMMITTEE_SUBNET_COUNT)?
                 .safe_div(TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE)?,
         ))
@@ -82,7 +82,7 @@ impl SyncSelectionProof {
         spec: &ChainSpec,
     ) -> bool {
         let domain = spec.get_domain(
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             Domain::SyncCommitteeSelectionProof,
             fork,
             genesis_validators_root,
@@ -123,7 +123,7 @@ mod test {
         let key = keypair(1);
         let fork = &Fork::default();
         let genesis_validators_root = Hash256::zero();
-        let spec = &MainnetEthSpec::default_spec();
+        let spec = &Spec::default_spec();
 
         let proof = SyncSelectionProof::new::<MainnetEthSpec>(
             slot,

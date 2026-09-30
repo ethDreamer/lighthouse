@@ -126,7 +126,7 @@ impl BenchData {
 /// Build the synthetic chain (slots 0..=CHAIN_TIP_SLOT) with `num_validators` voting for scattered
 /// recent blocks, plus an FCR seeded with the shared balances/checkpoints.
 fn build_chain(num_validators: usize) -> BenchData {
-    build_chain_inner(num_validators, E::slots_per_epoch() as usize, None)
+    build_chain_inner(num_validators, Spec::SLOTS_PER_EPOCH, None)
 }
 
 /// `build_chain`, with `seed_validators` in the committee-cached seed state (so `is_in_range`
@@ -136,7 +136,7 @@ fn build_chain_inner(
     seed_validators: usize,
     gap_slot: Option<u64>,
 ) -> BenchData {
-    let spec = E::default_spec();
+    let spec = Spec::default_spec();
     let genesis_root = block_root_at(0);
 
     let genesis_checkpoint = Checkpoint {
@@ -176,11 +176,11 @@ fn build_chain_inner(
             continue;
         }
         let slot = Slot::new(slot_u);
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let root = block_root_at(slot_u);
         let parent_root = block_roots[(slot_u - 1) as usize];
         // Target is the block at the first slot of this block's epoch.
-        let target_root = block_root_at(epoch.as_u64() * E::slots_per_epoch());
+        let target_root = block_root_at(epoch.as_u64() * Spec::slots_per_epoch());
         // Epoch-0 blocks have nothing justified beyond genesis; later blocks see the epoch-1
         // boundary as unrealized-justified, matching the FCR's observed-justified checkpoint.
         let unrealized_justified_checkpoint = if epoch == Epoch::new(0) {
@@ -246,7 +246,7 @@ fn build_chain_inner(
     let balance_source = BalanceSourceData {
         key: BalanceSourceKey::NoSlashings {
             epoch_boundary_root: observed_justified_checkpoint.root,
-            epoch: Slot::new(CHAIN_TIP_SLOT).epoch(E::slots_per_epoch()),
+            epoch: Slot::new(CHAIN_TIP_SLOT).epoch(Spec::slots_per_epoch()),
         },
         total_active_balance,
         effective_balances: vec![BALANCE; num_validators],

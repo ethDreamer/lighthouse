@@ -61,10 +61,10 @@ impl EpochBlockProposers {
     }
 
     pub fn get_slot<E: EthSpec>(&self, slot: Slot) -> Result<Proposer, BeaconChainError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         if epoch == self.epoch {
             self.proposers
-                .get(slot.as_usize() % E::SlotsPerEpoch::to_usize())
+                .get(slot.as_usize() % Spec::SLOTS_PER_EPOCH)
                 .map(|&index| Proposer {
                     index,
                     fork: self.fork,
@@ -102,7 +102,7 @@ impl BeaconProposerCache {
         shuffling_decision_block: Hash256,
         slot: Slot,
     ) -> Option<Proposer> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let key = (epoch, shuffling_decision_block);
         let cache = self.cache.get(&key)?.get()?;
         cache.get_slot::<E>(slot).ok()
@@ -330,7 +330,7 @@ pub fn ensure_state_can_determine_proposers_for_epoch<E: EthSpec>(
     let minimum_slot = spec
         .proposer_shuffling_decision_slot::<E>(target_epoch)
         .safe_add(1)?;
-    let minimum_epoch = minimum_slot.epoch(E::slots_per_epoch());
+    let minimum_epoch = minimum_slot.epoch(Spec::slots_per_epoch());
 
     // Before and after Fulu, the oldest epoch reachable from a state at epoch N is epoch N itself,
     // i.e. we can never "look back".

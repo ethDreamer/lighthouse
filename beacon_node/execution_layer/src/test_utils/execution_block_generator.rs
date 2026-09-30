@@ -536,8 +536,8 @@ impl<E: EthSpec> ExecutionBlockGenerator<E> {
 
     /// Slice the cell proofs for the blob at `blob_idx` out of a Fulu-style bundle.
     fn cell_proofs(blobs_bundle: &BlobsBundle<E>, blob_idx: usize) -> Option<KzgProofs<E>> {
-        let start = blob_idx * E::cells_per_ext_blob();
-        let end = start + E::cells_per_ext_blob();
+        let start = blob_idx * Spec::CELLS_PER_EXT_BLOB;
+        let end = start + Spec::CELLS_PER_EXT_BLOB;
         blobs_bundle
             .proofs
             .get(start..end)?

@@ -22,7 +22,7 @@ fn initialize_proposer_lookahead<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<Vector<u64, E::ProposerLookaheadSlots>, Error> {
     let current_epoch = state.current_epoch();
-    let mut lookahead = Vec::with_capacity(E::proposer_lookahead_slots());
+    let mut lookahead = Vec::with_capacity(Spec::PROPOSER_LOOKAHEAD_SLOTS);
     for i in 0..(spec.min_seed_lookahead.safe_add(1)?.as_u64()) {
         let target_epoch = current_epoch.safe_add(i)?;
         lookahead.extend(

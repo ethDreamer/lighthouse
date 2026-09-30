@@ -33,7 +33,7 @@ impl SyncCommitteeMessage {
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> Self {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(epoch, Domain::SyncCommittee, fork, genesis_validators_root);
         let message = beacon_block_root.signing_root(domain);
         let signature = secret_key.sign(message);

@@ -401,7 +401,7 @@ where
     type Case = cases::SszStatic<T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -424,7 +424,7 @@ where
     type Case = cases::SszStaticTHC<BeaconState<E>>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -445,7 +445,7 @@ where
     type Case = cases::SszStaticWithSpec<T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -469,7 +469,7 @@ impl<E: EthSpec + TypeName> Handler for ShufflingHandler<E> {
     type Case = cases::Shuffling<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -493,7 +493,7 @@ impl<E: EthSpec + TypeName> Handler for SanityBlocksHandler<E> {
     type Case = cases::SanityBlocks<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -519,7 +519,7 @@ impl<E: EthSpec + TypeName> Handler for SanitySlotsHandler<E> {
     type Case = cases::SanitySlots<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -544,7 +544,7 @@ impl<E: EthSpec + TypeName> Handler for RandomHandler<E> {
     type Case = cases::SanityBlocks<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -564,7 +564,7 @@ impl<E: EthSpec + TypeName, T: EpochTransition<E>> Handler for EpochProcessingHa
     type Case = cases::EpochProcessing<E, T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -594,7 +594,7 @@ impl<E: EthSpec + TypeName> Handler for RewardsHandler<E> {
     type Case = cases::RewardsTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -623,7 +623,7 @@ impl<E: EthSpec + TypeName> Handler for ForkHandler<E> {
     type Case = cases::ForkTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -643,7 +643,7 @@ impl<E: EthSpec + TypeName> Handler for TransitionHandler<E> {
     type Case = cases::TransitionTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -664,7 +664,7 @@ impl<E: EthSpec + TypeName> Handler for FinalityHandler<E> {
     type Case = cases::SanityBlocks<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -694,7 +694,7 @@ impl<E: EthSpec + TypeName> Handler for ForkChoiceHandler<E> {
     type Case = cases::ForkChoiceTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -774,7 +774,7 @@ impl<E: EthSpec + TypeName> Handler for ForkChoiceComplianceHandler<E> {
     type Case = cases::ForkChoiceTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -816,7 +816,7 @@ impl<E: EthSpec + TypeName> Handler for FastConfirmationHandler<E> {
     type Case = cases::ForkChoiceTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -849,7 +849,7 @@ impl<E: EthSpec + TypeName> Handler for OptimisticSyncHandler<E> {
     type Case = cases::ForkChoiceTest<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -883,7 +883,7 @@ impl<E: EthSpec + TypeName> Handler for GenesisValidityHandler<E> {
     type Case = cases::GenesisValidity<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -903,7 +903,7 @@ impl<E: EthSpec + TypeName> Handler for GenesisInitializationHandler<E> {
     type Case = cases::GenesisInitialization<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1043,7 +1043,7 @@ impl<E: EthSpec + TypeName> Handler for GetCustodyGroupsHandler<E> {
     type Case = cases::GetCustodyGroups<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1063,7 +1063,7 @@ impl<E: EthSpec + TypeName> Handler for ComputeColumnsForCustodyGroupHandler<E> 
     type Case = cases::ComputeColumnsForCustodyGroups<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1108,7 +1108,7 @@ impl<E: EthSpec + TypeName> Handler for GossipValidationHandler<E> {
     }
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1237,7 +1237,7 @@ impl<E: EthSpec + TypeName> Handler for KzgInclusionMerkleProofValidityHandler<E
     type Case = cases::KzgInclusionMerkleProofValidity<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1266,7 +1266,7 @@ impl<E: EthSpec + TypeName> Handler for MerkleProofValidityHandler<E> {
     type Case = cases::GenericMerkleProofValidity<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1295,7 +1295,7 @@ impl<E: EthSpec + TypeName> Handler for LightClientUpdateHandler<E> {
     type Case = cases::LightClientVerifyIsBetterUpdate<E>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1325,7 +1325,7 @@ impl<E: EthSpec + TypeName, O: Operation<E>> Handler for OperationsHandler<E, O>
     type Case = cases::Operations<E, O>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {

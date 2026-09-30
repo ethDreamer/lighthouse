@@ -250,7 +250,7 @@ mod tests {
         LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
 
     fn get_harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
-        let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
         BeaconChainHarness::builder()
             .spec(spec.into())
             .keypairs(KEYPAIRS.to_vec())

@@ -63,7 +63,7 @@ impl StateId {
                         .cached_head()
                         .finalized_checkpoint()
                         .epoch
-                        .start_slot(T::EthSpec::slots_per_epoch()),
+                        .start_slot(Spec::slots_per_epoch()),
             ),
             CoreStateId::Root(root) => {
                 if let Some(hot_summary) = chain
@@ -262,7 +262,7 @@ pub fn checkpoint_slot_and_execution_optimistic<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
     checkpoint: Checkpoint,
 ) -> Result<(Slot, ExecutionOptimistic), warp::reject::Rejection> {
-    let slot = checkpoint.epoch.start_slot(T::EthSpec::slots_per_epoch());
+    let slot = checkpoint.epoch.start_slot(Spec::slots_per_epoch());
     let fork_choice = chain.canonical_head.fork_choice_read_lock();
     let finalized_checkpoint = fork_choice.cached_fork_choice_view().finalized_checkpoint;
 

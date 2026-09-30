@@ -11,7 +11,7 @@ use types::{BeaconBlock, Epoch};
 pub const VALIDATOR_INDEX: u64 = 0;
 
 pub static STATE_EPOCH: LazyLock<Epoch> =
-    LazyLock::new(|| Epoch::new(E::default_spec().shard_committee_period));
+    LazyLock::new(|| Epoch::new(Spec::default_spec().shard_committee_period));
 
 struct ExitTest {
     validator_index: u64,
@@ -42,7 +42,7 @@ impl Default for ExitTest {
 impl ExitTest {
     async fn block_and_pre_state(self) -> (SignedBeaconBlock<E>, BeaconState<E>) {
         let harness = get_harness::<E>(
-            self.state_epoch.start_slot(E::slots_per_epoch()),
+            self.state_epoch.start_slot(Spec::slots_per_epoch()),
             VALIDATOR_COUNT,
         )
         .await;
@@ -192,7 +192,7 @@ vectors_and_tests!(
     ExitTest {
         state_modifier: Box::new(|state| {
             state.validators_mut().get_mut(0).unwrap().activation_epoch =
-                E::default_spec().far_future_epoch;
+                Spec::default_spec().far_future_epoch;
         }),
         expected: Err(BlockProcessingError::ExitInvalid {
             index: 0,
@@ -332,7 +332,7 @@ mod custom_tests {
     use super::*;
 
     fn assert_exited(state: &BeaconState<E>, validator_index: usize) {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
 
         let validator = &state.validators().get(validator_index).unwrap();
         assert_eq!(
@@ -344,7 +344,7 @@ mod custom_tests {
         );
         assert_eq!(
             validator.withdrawable_epoch,
-            validator.exit_epoch + E::default_spec().min_validator_withdrawability_delay,
+            validator.exit_epoch + Spec::default_spec().min_validator_withdrawability_delay,
             "withdrawable epoch"
         );
     }

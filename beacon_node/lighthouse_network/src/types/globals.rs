@@ -279,7 +279,7 @@ mod test {
     #[test]
     fn test_sampling_subnets() {
         create_test_tracing_subscriber();
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.fulu_fork_epoch = Some(Epoch::new(0));
 
         let custody_group_count = spec.number_of_custody_groups / 2;

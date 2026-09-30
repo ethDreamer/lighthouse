@@ -268,7 +268,7 @@ mod test {
 
     fn get_store() -> BeaconStore<T> {
         create_test_tracing_subscriber();
-        Arc::new(HotColdDB::open_ephemeral(<_>::default(), Arc::new(E::default_spec())).unwrap())
+        Arc::new(HotColdDB::open_ephemeral(<_>::default(), Arc::new(Spec::default_spec())).unwrap())
     }
 
     #[allow(clippy::needless_range_loop)]

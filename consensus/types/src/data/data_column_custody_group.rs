@@ -164,11 +164,11 @@ mod test {
 
     #[test]
     fn test_compute_columns_for_custody_group() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.number_of_custody_groups = 64;
 
         let columns_per_custody_group =
-            E::number_of_columns() / (spec.number_of_custody_groups as usize);
+            Spec::NUMBER_OF_COLUMNS / (spec.number_of_custody_groups as usize);
 
         for custody_group in 0..spec.number_of_custody_groups {
             let columns = compute_columns_for_custody_group::<E>(custody_group, &spec)
@@ -180,7 +180,7 @@ mod test {
 
     #[test]
     fn test_compute_subnets_from_custody_group() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.number_of_custody_groups = 64;
         spec.data_column_sidecar_subnet_count = 128;
 

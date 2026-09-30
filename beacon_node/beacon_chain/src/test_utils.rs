@@ -216,8 +216,8 @@ pub fn fork_name_from_env() -> Option<ForkName> {
 /// starting test networks prior to Bellatrix).
 pub fn test_spec<E: EthSpec>() -> ChainSpec {
     let mut spec = fork_name_from_env()
-        .map(|fork| fork.make_genesis_spec(E::default_spec()))
-        .unwrap_or_else(|| ForkName::Bellatrix.make_genesis_spec(E::default_spec()));
+        .map(|fork| fork.make_genesis_spec(Spec::default_spec()))
+        .unwrap_or_else(|| ForkName::Bellatrix.make_genesis_spec(Spec::default_spec()));
 
     // Set target aggregators to a high value by default.
     spec.target_aggregators_per_committee = DEFAULT_TARGET_AGGREGATORS;
@@ -575,25 +575,25 @@ where
         mock.server.execution_block_generator().shanghai_time =
             spec.capella_fork_epoch.map(|epoch| {
                 genesis_time
-                    + spec.get_slot_duration().as_secs() * E::slots_per_epoch() * epoch.as_u64()
+                    + spec.get_slot_duration().as_secs() * Spec::slots_per_epoch() * epoch.as_u64()
             });
         mock.server.execution_block_generator().cancun_time = spec.deneb_fork_epoch.map(|epoch| {
             genesis_time
-                + spec.get_slot_duration().as_secs() * E::slots_per_epoch() * epoch.as_u64()
+                + spec.get_slot_duration().as_secs() * Spec::slots_per_epoch() * epoch.as_u64()
         });
         mock.server.execution_block_generator().prague_time =
             spec.electra_fork_epoch.map(|epoch| {
                 genesis_time
-                    + spec.get_slot_duration().as_secs() * E::slots_per_epoch() * epoch.as_u64()
+                    + spec.get_slot_duration().as_secs() * Spec::slots_per_epoch() * epoch.as_u64()
             });
         mock.server.execution_block_generator().osaka_time = spec.fulu_fork_epoch.map(|epoch| {
             genesis_time
-                + spec.get_slot_duration().as_secs() * E::slots_per_epoch() * epoch.as_u64()
+                + spec.get_slot_duration().as_secs() * Spec::slots_per_epoch() * epoch.as_u64()
         });
         mock.server.execution_block_generator().amsterdam_time =
             spec.gloas_fork_epoch.map(|epoch| {
                 genesis_time
-                    + spec.get_slot_duration().as_secs() * E::slots_per_epoch() * epoch.as_u64()
+                    + spec.get_slot_duration().as_secs() * Spec::slots_per_epoch() * epoch.as_u64()
             });
 
         self
@@ -717,27 +717,27 @@ pub fn mock_execution_layer_from_parts<E: EthSpec>(
 ) -> MockExecutionLayer<E> {
     let shanghai_time = spec.capella_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
     let cancun_time = spec.deneb_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
     let prague_time = spec.electra_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
     let osaka_time = spec.fulu_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
     let amsterdam_time = spec.gloas_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
     let heze_time = spec.heze_fork_epoch.map(|epoch| {
         HARNESS_GENESIS_TIME
-            + (spec.get_slot_duration().as_secs()) * E::slots_per_epoch() * epoch.as_u64()
+            + (spec.get_slot_duration().as_secs()) * Spec::slots_per_epoch() * epoch.as_u64()
     });
 
     let kzg = get_kzg(&spec);
@@ -944,12 +944,12 @@ where
     }
 
     pub fn slots_per_epoch(&self) -> u64 {
-        E::slots_per_epoch()
+        Spec::slots_per_epoch()
     }
 
     pub fn epoch_start_slot(&self, epoch: u64) -> u64 {
         let epoch = Epoch::new(epoch);
-        epoch.start_slot(E::slots_per_epoch()).into()
+        epoch.start_slot(Spec::slots_per_epoch()).into()
     }
 
     pub fn shutdown_reasons(&self) -> Vec<ShutdownReason> {
@@ -1328,7 +1328,7 @@ where
                 .write()
                 .remove(signed_block.canonical_root())
                 .map(|envelope| {
-                    let epoch = slot.epoch(E::slots_per_epoch());
+                    let epoch = slot.epoch(Spec::slots_per_epoch());
                     let domain = self.spec.get_domain(
                         epoch,
                         Domain::BeaconBuilder,
@@ -1435,7 +1435,7 @@ where
         proposer_index: usize,
         slot: Slot,
     ) -> Signature {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let domain = self.spec.get_domain(
             epoch,
             Domain::Randao,
@@ -1558,7 +1558,7 @@ where
         aggregation_bit_index: usize,
         validator_index: usize,
     ) -> Result<SingleAttestation, BeaconChainError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
 
         if state.slot() > slot {
             return Err(BeaconChainError::CannotAttestToFutureState);
@@ -1567,7 +1567,7 @@ where
             complete_state_advance(
                 mut_state,
                 Some(state_root),
-                epoch.start_slot(E::slots_per_epoch()),
+                epoch.start_slot(Spec::slots_per_epoch()),
                 None,
                 &self.spec,
             )?;
@@ -1576,7 +1576,7 @@ where
 
         let committee_len = state.get_beacon_committee(slot, index)?.committee.len();
 
-        let target_slot = epoch.start_slot(E::slots_per_epoch());
+        let target_slot = epoch.start_slot(Spec::slots_per_epoch());
         let target_root = if state.slot() <= target_slot {
             beacon_block_root
         } else {
@@ -1685,7 +1685,7 @@ where
             state_root,
         );
 
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
 
         if state.slot() > slot {
             return Err(BeaconChainError::CannotAttestToFutureState);
@@ -1694,7 +1694,7 @@ where
             complete_state_advance(
                 mut_state,
                 Some(state_root),
-                epoch.start_slot(E::slots_per_epoch()),
+                epoch.start_slot(Spec::slots_per_epoch()),
                 None,
                 &self.spec,
             )?;
@@ -1703,7 +1703,7 @@ where
 
         let committee_len = state.get_beacon_committee(slot, index)?.committee.len();
 
-        let target_slot = epoch.start_slot(E::slots_per_epoch());
+        let target_slot = epoch.start_slot(Spec::slots_per_epoch());
         let target_root = if state.slot() <= target_slot {
             beacon_block_root
         } else {
@@ -1752,7 +1752,7 @@ where
     ) -> Vec<CommitteeSingleAttestations> {
         let fork = self
             .spec
-            .fork_at_epoch(attestation_slot.epoch(E::slots_per_epoch()));
+            .fork_at_epoch(attestation_slot.epoch(Spec::slots_per_epoch()));
         self.make_single_attestations_with_opts(
             attesting_validators,
             state,
@@ -1783,7 +1783,7 @@ where
     ) -> Vec<CommitteeAttestations<E>> {
         let fork = self
             .spec
-            .fork_at_epoch(attestation_slot.epoch(E::slots_per_epoch()));
+            .fork_at_epoch(attestation_slot.epoch(Spec::slots_per_epoch()));
         self.make_unaggregated_attestations_with_opts(
             attesting_validators,
             state,
@@ -2010,12 +2010,12 @@ where
         };
         let fork = self
             .spec
-            .fork_at_epoch(message_slot.epoch(E::slots_per_epoch()));
+            .fork_at_epoch(message_slot.epoch(Spec::slots_per_epoch()));
 
         sync_committee
             .pubkeys
             .as_ref()
-            .chunks(E::sync_subcommittee_size())
+            .chunks(Spec::SYNC_SUBCOMMITTEE_SIZE)
             .map(|subcommittee| {
                 subcommittee
                     .iter()
@@ -2127,7 +2127,7 @@ where
         slot: Slot,
         limit: Option<usize>,
     ) -> (HarnessAttestations<E>, Vec<usize>) {
-        let fork = self.spec.fork_at_epoch(slot.epoch(E::slots_per_epoch()));
+        let fork = self.spec.fork_at_epoch(slot.epoch(Spec::slots_per_epoch()));
         self.make_attestations_with_opts(
             attesting_validators,
             state,
@@ -2256,7 +2256,7 @@ where
         data: PayloadAttestationData,
         fork: &Fork,
     ) -> PayloadAttestationMessage {
-        let epoch = data.slot.epoch(E::slots_per_epoch());
+        let epoch = data.slot.epoch(Spec::slots_per_epoch());
         let domain = self.spec.get_domain(
             epoch,
             Domain::PTCAttester,
@@ -2282,7 +2282,7 @@ where
         slot: Slot,
         votes: Vec<PayloadAttestationVote>,
     ) -> (HarnessPayloadAttestationMessages, Vec<usize>) {
-        let fork = self.spec.fork_at_epoch(slot.epoch(E::slots_per_epoch()));
+        let fork = self.spec.fork_at_epoch(slot.epoch(Spec::slots_per_epoch()));
         self.make_payload_attestation_messages_with_opts(
             &self.get_all_validators(),
             state,
@@ -3287,7 +3287,7 @@ where
         }
 
         Ok(if self.spec.is_peer_das_enabled_for_epoch(block.epoch()) {
-            let epoch = block.slot().epoch(E::slots_per_epoch());
+            let epoch = block.slot().epoch(Spec::slots_per_epoch());
             let sampling_columns = self.chain.custody_context.sampling_columns_for_epoch(epoch);
 
             if blob_items.is_some_and(|(kzg_proofs, _)| !kzg_proofs.is_empty()) {
@@ -3399,8 +3399,8 @@ where
 
     pub fn set_current_slot(&self, slot: Slot) {
         let current_slot = self.chain.slot().unwrap();
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         assert!(
             epoch >= current_epoch,
             "Jumping backwards to an earlier epoch isn't well defined. \
@@ -3499,7 +3499,7 @@ where
             // (see `BeaconChain::sync_committee_at_next_slot`), so we must sign with `Next` only
             // when `slot + 1` crosses into a new sync committee period, not for the whole first
             // epoch of the period.
-            let slots_per_epoch = E::slots_per_epoch();
+            let slots_per_epoch = Spec::slots_per_epoch();
             let crosses_period = slot
                 .epoch(slots_per_epoch)
                 .sync_committee_period(&self.spec)
@@ -3686,7 +3686,7 @@ where
         &self,
         chains: Vec<(BeaconState<E>, Vec<Slot>, Vec<usize>)>,
     ) -> Vec<AddBlocksResult<E>> {
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
 
         let min_epoch = chains
             .iter()
@@ -4028,7 +4028,7 @@ where
     ) {
         assert!(self.chain.spec.is_peer_das_enabled_for_epoch(block.epoch()));
         let custody_columns = custody_columns_opt.unwrap_or_else(|| {
-            let epoch = block.slot().epoch(E::slots_per_epoch());
+            let epoch = block.slot().epoch(Spec::slots_per_epoch());
             self.chain
                 .custody_context
                 .sampling_columns_for_epoch(epoch)
@@ -4235,7 +4235,7 @@ pub fn generate_data_column_sidecars_from_block<E: EthSpec>(
         let template_data_columns =
             RuntimeVariableList::<DataColumnSidecarGloas<E>>::from_ssz_bytes(
                 TEST_DATA_COLUMN_SIDECARS_GLOAS_SSZ,
-                E::number_of_columns(),
+                Spec::NUMBER_OF_COLUMNS,
             )
             .unwrap();
 
@@ -4280,7 +4280,7 @@ pub fn generate_data_column_sidecars_from_block<E: EthSpec>(
         let template_data_columns =
             RuntimeVariableList::<DataColumnSidecarFulu<E>>::from_ssz_bytes(
                 TEST_DATA_COLUMN_SIDECARS_SSZ,
-                E::number_of_columns(),
+                Spec::NUMBER_OF_COLUMNS,
             )
             .unwrap();
 
@@ -4313,7 +4313,7 @@ pub fn generate_data_column_sidecars_from_block<E: EthSpec>(
 }
 
 pub fn generate_data_column_indices_rand_order<E: EthSpec>() -> Vec<CustodyIndex> {
-    let mut indices = (0..E::number_of_columns() as u64).collect::<Vec<_>>();
+    let mut indices = (0..Spec::number_of_columns()).collect::<Vec<_>>();
     indices.shuffle(&mut StdRng::seed_from_u64(42));
     indices
 }

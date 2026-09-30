@@ -155,7 +155,7 @@ fn map_light_client_update_to_response_chunk<T: BeaconChainTypes>(
 ) -> LightClientUpdateResponseChunk<T::EthSpec> {
     let epoch = light_client_update
         .attested_header_slot()
-        .epoch(T::EthSpec::slots_per_epoch());
+        .epoch(Spec::slots_per_epoch());
     let fork_digest = chain.compute_fork_digest(epoch);
 
     let response_chunk_len = fork_digest.len() + light_client_update.ssz_bytes_len();

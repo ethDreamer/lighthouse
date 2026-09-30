@@ -55,7 +55,7 @@ pub fn run<E: EthSpec>(
     let beacon_url: Option<SensitiveUrl> = parse_optional(matches, "beacon-url")?;
     let runs: usize = parse_required(matches, "runs")?;
 
-    info!("Using {} spec", E::spec_name());
+    info!("Using {} spec", Spec::SPEC_ID);
     info!("Doing {} runs", runs);
 
     /*

@@ -240,7 +240,7 @@ where
                 .gloas_fork_epoch
                 .and_then(|fork_epoch| {
                     let pre_fork_slot = fork_epoch
-                        .start_slot(S::E::slots_per_epoch())
+                        .start_slot(Spec::slots_per_epoch())
                         .saturating_sub(1u64);
                     self.slot_clock.duration_to_slot(pre_fork_slot)
                 })

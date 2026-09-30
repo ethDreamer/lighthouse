@@ -342,7 +342,7 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignedBeaconBlock<E, Payload> 
 
     /// Convenience accessor for the block's epoch.
     pub fn epoch(&self) -> Epoch {
-        self.message().slot().epoch(E::slots_per_epoch())
+        self.message().slot().epoch(Spec::slots_per_epoch())
     }
 
     /// Convenience accessor for the block's parent root.
@@ -771,7 +771,7 @@ mod test {
     #[test]
     fn add_remove_payload_roundtrip() {
 
-        let spec = &E::default_spec();
+        let spec = &Spec::default_spec();
         let sig = Signature::empty();
         let blocks = vec![
             SignedBeaconBlock::<E>::from_block(
@@ -809,7 +809,7 @@ mod test {
     }
 
     fn spec_with_all_forks_enabled<E: EthSpec>() -> ChainSpec {
-        let mut chain_spec = E::default_spec();
+        let mut chain_spec = Spec::default_spec();
         chain_spec.altair_fork_epoch = Some(Epoch::new(1));
         chain_spec.bellatrix_fork_epoch = Some(Epoch::new(2));
         chain_spec.capella_fork_epoch = Some(Epoch::new(3));

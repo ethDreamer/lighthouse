@@ -40,7 +40,7 @@ fn get_harness(
 // Regression test for off-by-one caching issue in missed block detection.
 #[tokio::test]
 async fn missed_blocks_across_epochs() {
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let all_validators = (0..VALIDATOR_COUNT).collect::<Vec<_>>();
 
     let harness = get_harness(VALIDATOR_COUNT, vec![]);
@@ -118,7 +118,7 @@ async fn missed_blocks_basic() {
     // >= 32 validators required for Gloas genesis with MainnetEthSpec (32 slots/epoch).
     let validator_count = 32;
 
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     let nb_epoch_to_simulate = Epoch::new(2);
 

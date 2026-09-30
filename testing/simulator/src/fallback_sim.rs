@@ -198,7 +198,7 @@ pub fn run_fallback_sim(matches: &ArgMatches) -> Result<(), String> {
     env.eth2_config.spec = spec.clone();
 
     let slot_duration = spec.get_slot_duration();
-    let slots_per_epoch = MinimalEthSpec::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     let disconnection_epoch = 1;
     let epochs_disconnected = 14;

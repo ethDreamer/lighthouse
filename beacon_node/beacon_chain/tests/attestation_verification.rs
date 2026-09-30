@@ -77,7 +77,7 @@ fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessTyp
 fn get_harness_capella_spec(
     validator_count: usize,
 ) -> (BeaconChainHarness<EphemeralHarnessType<E>>, Arc<ChainSpec>) {
-    let mut spec = E::default_spec();
+    let mut spec = Spec::default_spec();
     spec.altair_fork_epoch = Some(Epoch::new(0));
     spec.bellatrix_fork_epoch = Some(Epoch::new(0));
     spec.capella_fork_epoch = Some(Epoch::new(CAPELLA_FORK_EPOCH as u64));
@@ -303,7 +303,7 @@ impl GossipTester {
         // Extend the chain out a few epochs so we have some chain depth to play with.
         harness
             .extend_chain(
-                MainnetEthSpec::slots_per_epoch() as usize * 3 - 1,
+                Spec::SLOTS_PER_EPOCH * 3 - 1,
                 BlockStrategy::OnCanonicalHead,
                 AttestationStrategy::AllValidators,
             )
@@ -388,17 +388,17 @@ impl GossipTester {
             .deneb_enabled()
         {
             // EIP-7045
-            let epoch_slot_offset = (self.slot() % E::slots_per_epoch()).as_u64();
+            let epoch_slot_offset = (self.slot() % Spec::slots_per_epoch()).as_u64();
             if epoch_slot_offset != 0 {
-                E::slots_per_epoch() + epoch_slot_offset
+                Spec::slots_per_epoch() + epoch_slot_offset
             } else {
                 // Here the propagation tolerance will cause the cutoff to be an entire epoch earlier
-                2 * E::slots_per_epoch()
+                2 * Spec::slots_per_epoch()
             }
         } else {
             // Subtract an additional slot since the harness will be exactly on the start of the
             // slot and the propagation tolerance will allow an extra slot.
-            E::slots_per_epoch() + 1
+            Spec::slots_per_epoch() + 1
         };
 
         self.slot()
@@ -616,17 +616,17 @@ async fn aggregated_gossip_verification() {
                     SignedAggregateAndProofRefMut::Base(att) => {
                         att.message.aggregate.data.slot = too_early_slot;
                         att.message.aggregate.data.target.epoch =
-                            too_early_slot.epoch(E::slots_per_epoch());
+                            too_early_slot.epoch(Spec::slots_per_epoch());
                     }
                     SignedAggregateAndProofRefMut::Electra(att) => {
                         att.message.aggregate.data.slot = too_early_slot;
                         att.message.aggregate.data.target.epoch =
-                            too_early_slot.epoch(E::slots_per_epoch());
+                            too_early_slot.epoch(Spec::slots_per_epoch());
                     }
                     SignedAggregateAndProofRefMut::Gloas(att) => {
                         att.message.aggregate.data.slot = too_early_slot;
                         att.message.aggregate.data.target.epoch =
-                            too_early_slot.epoch(E::slots_per_epoch());
+                            too_early_slot.epoch(Spec::slots_per_epoch());
                     }
                 }
             },
@@ -867,22 +867,22 @@ async fn aggregated_gossip_verification() {
             |_, a| match a.to_mut() {
                 SignedAggregateAndProofRefMut::Base(att) => {
                     att.message.aggregator_index =
-                        <E as EthSpec>::ValidatorRegistryLimit::to_u64() + 1
+                        Spec::validator_registry_limit() + 1
                 }
                 SignedAggregateAndProofRefMut::Electra(att) => {
                     att.message.aggregator_index =
-                        <E as EthSpec>::ValidatorRegistryLimit::to_u64() + 1
+                        Spec::validator_registry_limit() + 1
                 }
                 SignedAggregateAndProofRefMut::Gloas(att) => {
                     att.message.aggregator_index =
-                        <E as EthSpec>::ValidatorRegistryLimit::to_u64() + 1
+                        Spec::validator_registry_limit() + 1
                 }
             },
             |_, err| {
                 assert!(matches!(
                     err,
                     AttnError::ValidatorIndexTooHigh(index)
-                    if index == (<E as EthSpec>::ValidatorRegistryLimit::to_u64() + 1) as usize
+                    if index == (Spec::validator_registry_limit() + 1) as usize
                 ))
             },
         )
@@ -1150,7 +1150,7 @@ async fn unaggregated_gossip_verification() {
             |tester, a, _, _| {
                 let too_early_slot = tester.earliest_valid_attestation_slot() - 1;
                 a.data.slot = too_early_slot;
-                a.data.target.epoch = too_early_slot.epoch(E::slots_per_epoch());
+                a.data.target.epoch = too_early_slot.epoch(Spec::slots_per_epoch());
             },
             |tester, err| {
                 let valid_early_slot = tester.earliest_valid_attestation_slot();
@@ -1292,7 +1292,7 @@ async fn attestation_that_skips_epochs() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 3 + 1,
+            Spec::SLOTS_PER_EPOCH * 3 + 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )
@@ -1301,7 +1301,7 @@ async fn attestation_that_skips_epochs() {
     let current_slot = harness.chain.slot().expect("should get slot");
     let current_epoch = harness.chain.epoch().expect("should get epoch");
 
-    let earlier_slot = (current_epoch - 2).start_slot(MainnetEthSpec::slots_per_epoch());
+    let earlier_slot = (current_epoch - 2).start_slot(Spec::slots_per_epoch());
     let earlier_block = harness
         .chain
         .block_at_slot(earlier_slot, WhenSlotSkipped::Prev)
@@ -1355,7 +1355,7 @@ async fn attestation_that_skips_epochs() {
         .slot();
 
     assert!(
-        attestation.data.slot - block_slot > E::slots_per_epoch() * 2,
+        attestation.data.slot - block_slot > Spec::slots_per_epoch() * 2,
         "the attestation must skip more than two epochs"
     );
 
@@ -1379,7 +1379,7 @@ async fn attestation_validator_receive_proposer_reward_and_withdrawals() {
         .extend_chain(
             // To trigger the bug we need the proposer attestation reward to be signed at a block
             // that isn't the first in the epoch.
-            MainnetEthSpec::slots_per_epoch() as usize + 1,
+            Spec::SLOTS_PER_EPOCH + 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(attesters),
         )
@@ -1417,7 +1417,7 @@ async fn attestation_validator_receive_proposer_reward_and_withdrawals() {
     harness.advance_slot();
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 2,
+            Spec::SLOTS_PER_EPOCH * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )
@@ -1477,7 +1477,7 @@ async fn attestation_to_finalized_block() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 4 + 1,
+            Spec::SLOTS_PER_EPOCH * 4 + 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -1493,7 +1493,7 @@ async fn attestation_to_finalized_block() {
 
     let earlier_slot = finalized_checkpoint
         .epoch
-        .start_slot(MainnetEthSpec::slots_per_epoch())
+        .start_slot(Spec::slots_per_epoch())
         - 1;
     let earlier_block = harness
         .chain
@@ -1571,7 +1571,7 @@ async fn verify_aggregate_for_gossip_doppelganger_detection() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 3 - 1,
+            Spec::SLOTS_PER_EPOCH * 3 - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -1583,7 +1583,7 @@ async fn verify_aggregate_for_gossip_doppelganger_detection() {
     let current_slot = harness.chain.slot().expect("should get slot");
 
     assert_eq!(
-        current_slot % E::slots_per_epoch(),
+        current_slot % Spec::slots_per_epoch(),
         0,
         "the test requires a new epoch to avoid already-seen errors"
     );
@@ -1651,7 +1651,7 @@ async fn verify_attestation_for_gossip_doppelganger_detection() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 3 - 1,
+            Spec::SLOTS_PER_EPOCH * 3 - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -1663,7 +1663,7 @@ async fn verify_attestation_for_gossip_doppelganger_detection() {
     let current_slot = harness.chain.slot().expect("should get slot");
 
     assert_eq!(
-        current_slot % E::slots_per_epoch(),
+        current_slot % Spec::slots_per_epoch(),
         0,
         "the test requires a new epoch to avoid already-seen errors"
     );
@@ -1714,7 +1714,7 @@ async fn attestation_verification_use_head_state_fork() {
     // Advance to last block of the pre-Capella fork epoch. Capella is at slot 32.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * CAPELLA_FORK_EPOCH - 1,
+            Spec::SLOTS_PER_EPOCH * CAPELLA_FORK_EPOCH - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )
@@ -1821,7 +1821,7 @@ async fn aggregated_attestation_verification_use_head_state_fork() {
     // Advance to last block of the pre-Capella fork epoch. Capella is at slot 32.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * CAPELLA_FORK_EPOCH - 1,
+            Spec::SLOTS_PER_EPOCH * CAPELLA_FORK_EPOCH - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )
@@ -1936,7 +1936,7 @@ async fn gloas_unaggregated_attestation_same_slot_index_must_be_zero() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 3 - 1,
+            Spec::SLOTS_PER_EPOCH * 3 - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2013,7 +2013,7 @@ async fn gloas_aggregated_attestation_same_slot_index_must_be_zero() {
     // Extend the chain out a few epochs so we have some chain depth to play with.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 3 - 1,
+            Spec::SLOTS_PER_EPOCH * 3 - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2112,7 +2112,7 @@ async fn gloas_unaggregated_attestation_unknown_payload_envelope() {
     // produced so far has `payload_received == true`.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 2,
+            Spec::SLOTS_PER_EPOCH * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2193,7 +2193,7 @@ async fn gloas_aggregated_attestation_unknown_payload_envelope() {
     // produced so far has `payload_received == true`.
     harness
         .extend_chain(
-            MainnetEthSpec::slots_per_epoch() as usize * 2,
+            Spec::SLOTS_PER_EPOCH * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2302,7 +2302,7 @@ async fn unaggregated_attestation_bogus_attester_index_not_sent_to_slasher() {
 
     // Drain any attestations already queued from block production.
     slasher
-        .process_queued(harness.get_current_slot().epoch(E::slots_per_epoch()))
+        .process_queued(harness.get_current_slot().epoch(Spec::slots_per_epoch()))
         .unwrap();
     let queue_len_before = slasher.attestation_queue_len();
     assert_eq!(queue_len_before, 0);

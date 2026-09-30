@@ -393,8 +393,8 @@ impl<E: EthSpec> AggregateMap for SyncContributionAggregateMap<E> {
                 Ok(InsertOutcome::SignatureAggregated { committee_index })
             }
         } else {
-            if self.map.len() >= E::sync_committee_size() {
-                return Err(Error::ReachedMaxItemsPerSlot(E::sync_committee_size()));
+            if self.map.len() >= Spec::SYNC_COMMITTEE_SIZE {
+                return Err(Error::ReachedMaxItemsPerSlot(Spec::SYNC_COMMITTEE_SIZE));
             }
 
             self.map.insert(sync_data_root, contribution.clone());
@@ -633,7 +633,7 @@ mod tests {
             i,
             &Fork::default(),
             genesis_validators_root,
-            &E::default_spec(),
+            &Spec::default_spec(),
         )
         .expect("should sign attestation");
     }
@@ -650,7 +650,7 @@ mod tests {
             &generate_deterministic_keypair(i).sk,
             &Fork::default(),
             genesis_validators_root,
-            &E::default_spec(),
+            &Spec::default_spec(),
         );
         let signed_contribution: SyncCommitteeContribution<E> =
             SyncCommitteeContribution::from_message(&sync_message, a.subcommittee_index, i)
@@ -989,6 +989,6 @@ mod tests {
         sync_contribution_block_root_comparator,
         key_from_sync_contribution,
         SyncContributionAggregateMap,
-        E::sync_committee_size()
+        Spec::SYNC_COMMITTEE_SIZE
     }
 }

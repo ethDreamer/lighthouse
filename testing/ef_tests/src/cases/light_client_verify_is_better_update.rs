@@ -37,7 +37,7 @@ impl<E: EthSpec> Case for LightClientVerifyIsBetterUpdate<E> {
     // all light client updates in a nested loop to make all possible comparisons. If a light client update
     // at index `i`` is considered 'better' than a light client update at index `j`` when `i > j`, this test fails.
     fn result(&self, _case_index: usize, fork_name: ForkName) -> Result<(), Error> {
-        let spec = fork_name.make_genesis_spec(E::default_spec());
+        let spec = fork_name.make_genesis_spec(Spec::default_spec());
         for (i, ith_light_client_update) in self.light_client_updates.iter().enumerate() {
             for (j, jth_light_client_update) in self.light_client_updates.iter().enumerate() {
                 eprintln!("{i} {j}");

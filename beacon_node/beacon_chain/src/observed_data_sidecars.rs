@@ -54,7 +54,7 @@ impl<E: EthSpec> ObservableDataSidecar for BlobSidecar<E> {
     }
 
     fn max_num_of_items(spec: &ChainSpec, slot: Slot) -> usize {
-        spec.max_blobs_per_block(slot.epoch(E::slots_per_epoch())) as usize
+        spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize
     }
 }
 
@@ -76,7 +76,7 @@ impl<E: EthSpec> ObservableDataSidecar for DataColumnSidecar<E> {
     }
 
     fn max_num_of_items(_spec: &ChainSpec, _slot: Slot) -> usize {
-        E::number_of_columns()
+        Spec::NUMBER_OF_COLUMNS
     }
 }
 
@@ -280,7 +280,7 @@ mod tests {
             signed_block_header,
             kzg_commitments_inclusion_proof: vec![
                 Hash256::ZERO;
-                E::kzg_commitments_inclusion_proof_depth()
+                Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH
             ]
             .try_into()
             .unwrap(),
@@ -379,10 +379,10 @@ mod tests {
          * Check that a prune empties the cache
          */
 
-        cache.prune(E::slots_per_epoch().into());
+        cache.prune(Spec::slots_per_epoch().into());
         assert_eq!(
             cache.finalized_slot,
-            Slot::from(E::slots_per_epoch()),
+            Slot::from(Spec::slots_per_epoch()),
             "finalized slot is updated"
         );
         assert_eq!(cache.items.len(), 0, "no items left");
@@ -392,13 +392,13 @@ mod tests {
          */
 
         // First slot of finalized epoch
-        let sidecar_b = get_sidecar(E::slots_per_epoch(), 419, 0, fork_name);
+        let sidecar_b = get_sidecar(Spec::slots_per_epoch(), 419, 0, fork_name);
 
         assert_eq!(
             cache.observe_sidecar(sidecar_b.as_ref()),
             Err(Error::FinalizedDataSidecar {
-                slot: E::slots_per_epoch().into(),
-                finalized_slot: E::slots_per_epoch().into(),
+                slot: Spec::slots_per_epoch().into(),
+                finalized_slot: Spec::slots_per_epoch().into(),
             }),
             "cant insert finalized sidecar"
         );
@@ -409,7 +409,7 @@ mod tests {
          * Check that we _can_ insert a non-finalized sidecar
          */
 
-        let three_epochs = E::slots_per_epoch() * 3;
+        let three_epochs = Spec::slots_per_epoch() * 3;
 
         let key_b = 421;
         let sidecar_b = get_sidecar(three_epochs, key_b, 0, fork_name);
@@ -436,7 +436,7 @@ mod tests {
          * Check that a prune doesnt wipe later sidecars
          */
 
-        let two_epochs = E::slots_per_epoch() * 2;
+        let two_epochs = Spec::slots_per_epoch() * 2;
         cache.prune(two_epochs.into());
 
         assert_eq!(
@@ -646,7 +646,7 @@ mod tests {
         );
 
         // Try adding an out of bounds index
-        let invalid_index = E::number_of_columns() as u64;
+        let invalid_index = Spec::number_of_columns();
         let sidecar_e = get_sidecar(0, key_a, invalid_index, fork_name);
         assert_eq!(
             cache.observe_sidecar(sidecar_e.as_ref()),

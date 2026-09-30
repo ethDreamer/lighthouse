@@ -247,7 +247,7 @@ impl ValidatorStatuses {
         // 2. `process_rewards_and_penalties` - this function is also a no-operation at the genesis epoch
         // 3. `process_slashings` - the `total_balances.current_epoch()` is calculated with ValidatorStatuses::new(), not in process_attestation
         // therefore, it is safe to return early this function at the genesis_epoch
-        if state.current_epoch() == E::genesis_epoch() {
+        if state.current_epoch() == Epoch::new(Spec::genesis_epoch()) {
             return Ok(());
         }
 
@@ -346,7 +346,7 @@ fn target_matches_epoch_start_block<E: EthSpec>(
     state: &BeaconState<E>,
     epoch: Epoch,
 ) -> Result<bool, BeaconStateError> {
-    let slot = epoch.start_slot(E::slots_per_epoch());
+    let slot = epoch.start_slot(Spec::slots_per_epoch());
     let state_boundary_root = *state.get_block_root(slot)?;
 
     Ok(a.data.target.root == state_boundary_root)

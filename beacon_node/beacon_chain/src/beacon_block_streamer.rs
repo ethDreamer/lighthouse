@@ -391,7 +391,7 @@ mod tests {
     // TODO(EIP-7732) Extend this test for gloas
     #[tokio::test]
     async fn check_all_blocks_from_altair_to_fulu() {
-        let slots_per_epoch = MinimalEthSpec::slots_per_epoch() as usize;
+        let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
         let num_epochs = 12;
         let bellatrix_fork_epoch = 0usize;
         let capella_fork_epoch = 4usize;
@@ -425,7 +425,7 @@ mod tests {
         );
         assert_eq!(
             state.current_epoch(),
-            num_blocks_produced as u64 / MinimalEthSpec::slots_per_epoch(),
+            num_blocks_produced as u64 / Spec::slots_per_epoch(),
             "head should be at the expected epoch"
         );
         assert_eq!(

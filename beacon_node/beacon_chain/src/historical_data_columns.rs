@@ -71,8 +71,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         let forward_blocks_iter = self
             .forwards_iter_block_roots_until(
-                epoch.start_slot(T::EthSpec::slots_per_epoch()),
-                epoch.end_slot(T::EthSpec::slots_per_epoch()),
+                epoch.start_slot(Spec::slots_per_epoch()),
+                epoch.end_slot(Spec::slots_per_epoch()),
             )
             .map_err(|e| HistoricalDataColumnError::BeaconChainError(Box::new(e)))?;
 

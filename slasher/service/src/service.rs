@@ -98,7 +98,7 @@ impl<T: BeaconChainTypes> SlasherService<T> {
         loop {
             interval.tick().await;
             if let Some(current_slot) = beacon_chain.slot_clock.now() {
-                let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+                let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
                 if let Err(TrySendError::Disconnected(_)) = notif_sender.try_send(current_epoch) {
                     break;
                 }

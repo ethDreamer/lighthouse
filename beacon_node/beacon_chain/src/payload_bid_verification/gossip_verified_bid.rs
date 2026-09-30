@@ -71,7 +71,7 @@ fn verify_bid_blobs<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
     let max_blobs_per_block =
-        spec.max_blobs_per_block(bid.slot.epoch(E::slots_per_epoch())) as usize;
+        spec.max_blobs_per_block(bid.slot.epoch(Spec::slots_per_epoch())) as usize;
 
     if bid.blob_kzg_commitments.len() > max_blobs_per_block {
         return Err(PayloadBidError::InvalidBlobKzgCommitments {
@@ -381,7 +381,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
 
         // Look up the preferences keyed by the dependent root that is canonical from our head's
         // perspective, so we don't pick up preferences cached for a competing branch's proposer.
-        let proposal_epoch = bid_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = bid_slot.epoch(Spec::slots_per_epoch());
         let dependent_root = head_state.proposer_shuffling_decision_root_at_epoch(
             proposal_epoch,
             cached_head.head_block_root(),

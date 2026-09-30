@@ -45,7 +45,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         );
 
         // Get state
-        let state_slot = (epoch + 1).end_slot(T::EthSpec::slots_per_epoch());
+        let state_slot = (epoch + 1).end_slot(Spec::slots_per_epoch());
 
         let state_root = self
             .state_root_at_slot(state_slot)?

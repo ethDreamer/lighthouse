@@ -674,7 +674,7 @@ async fn assert_invalid_signature(
         .fork_choice_read_lock()
         .finalized_checkpoint()
         .epoch
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     let ancestor_blocks: Vec<RangeSyncBlock<E>> = chain_segment
         .iter()
         .take(block_index)
@@ -1344,7 +1344,7 @@ async fn block_gossip_verification() {
     let expected_finalized_slot = harness
         .finalized_checkpoint()
         .epoch
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     *block.slot_mut() = expected_finalized_slot;
     assert!(
         matches!(
@@ -1534,7 +1534,7 @@ async fn block_gossip_verification() {
     let kzg_commitments_len = harness
         .chain
         .spec
-        .max_blobs_per_block(block.slot().epoch(E::slots_per_epoch()))
+        .max_blobs_per_block(block.slot().epoch(Spec::slots_per_epoch()))
         as usize;
 
     if let Ok(kzg_commitments) = block.body_mut().blob_kzg_commitments_mut() {
@@ -1766,8 +1766,8 @@ async fn verify_block_for_gossip_doppelganger_detection() {
 
 #[tokio::test]
 async fn add_base_block_to_altair_chain() {
-    let mut spec = MainnetEthSpec::default_spec();
-    let slots_per_epoch = MainnetEthSpec::slots_per_epoch();
+    let mut spec = Spec::default_spec();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     // The Altair fork happens at epoch 1.
     spec.altair_fork_epoch = Some(Epoch::new(1));
@@ -1921,7 +1921,7 @@ async fn add_base_block_to_altair_chain() {
 
 #[tokio::test]
 async fn add_altair_block_to_base_chain() {
-    let mut spec = MainnetEthSpec::default_spec();
+    let mut spec = Spec::default_spec();
 
     // Altair never happens.
     spec.altair_fork_epoch = None;
@@ -2097,7 +2097,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
         .build();
 
     harness
-        .extend_slots(E::slots_per_epoch() as usize * 3)
+        .extend_slots(Spec::SLOTS_PER_EPOCH * 3)
         .await;
 
     let justified_checkpoint = harness.justified_checkpoint();
@@ -2114,14 +2114,14 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
     harness.advance_slot();
     harness
         .extend_chain(
-            E::slots_per_epoch() as usize * 2,
+            Spec::SLOTS_PER_EPOCH * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )
         .await;
 
     let current_slot = harness.get_current_slot();
-    let current_epoch = current_slot.epoch(E::slots_per_epoch());
+    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
     assert_eq!(
         harness
             .chain
@@ -2159,10 +2159,10 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
 
     let all_validators = harness.get_all_validators();
     let mut validators_with_empty_vote = [false; VALIDATOR_COUNT];
-    let attestation_start_slot = (current_epoch - 1).start_slot(E::slots_per_epoch());
+    let attestation_start_slot = (current_epoch - 1).start_slot(Spec::slots_per_epoch());
     let attestation_slot = current_slot - 1;
     assert_eq!(
-        attestation_start_slot + E::slots_per_epoch() - 1,
+        attestation_start_slot + Spec::slots_per_epoch() - 1,
         attestation_slot
     );
 
@@ -2186,7 +2186,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
             justified_root
         );
 
-        let fork = spec.fork_at_epoch(slot.epoch(E::slots_per_epoch()));
+        let fork = spec.fork_at_epoch(slot.epoch(Spec::slots_per_epoch()));
         let (attestations, attesters) = harness.make_attestations_with_opts(
             &all_validators,
             &attestation_state,
@@ -2239,7 +2239,7 @@ async fn import_duplicate_block_unrealized_justification() {
     harness.advance_slot();
 
     // Build the chain out to the first justification opportunity 2/3rds of the way through epoch 2.
-    let num_slots = E::slots_per_epoch() as usize * 8 / 3;
+    let num_slots = Spec::SLOTS_PER_EPOCH * 8 / 3;
     harness
         .extend_chain(
             num_slots,
@@ -2715,7 +2715,7 @@ async fn filter_chain_segment_keeps_checkpoint_gloas_block_by_split_root() {
         .unwrap();
 
     harness
-        .extend_slots(E::slots_per_epoch() as usize * 4 - 1)
+        .extend_slots(Spec::SLOTS_PER_EPOCH * 4 - 1)
         .await;
 
     let finalized_checkpoint = harness
@@ -2723,7 +2723,7 @@ async fn filter_chain_segment_keeps_checkpoint_gloas_block_by_split_root() {
         .canonical_head
         .cached_head()
         .finalized_checkpoint();
-    let finalized_slot = finalized_checkpoint.epoch.start_slot(E::slots_per_epoch());
+    let finalized_slot = finalized_checkpoint.epoch.start_slot(Spec::slots_per_epoch());
     assert!(finalized_slot > Slot::new(1));
 
     let (mut block_message, signature) = block.deconstruct();
@@ -2802,7 +2802,7 @@ async fn range_sync_block_construction_fails_with_wrong_blob_count() {
 
     harness
         .extend_chain(
-            E::slots_per_epoch() as usize * 2,
+            Spec::SLOTS_PER_EPOCH * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2983,7 +2983,7 @@ async fn rpc_block_allows_construction_past_da_boundary() {
             // current_epoch - min_epochs_for_data_column_sidecars_requests > block_epoch
             let min_epochs_for_data = harness.spec.min_epochs_for_data_column_sidecars_requests;
             let future_epoch = block_epoch + min_epochs_for_data + 10;
-            let future_slot = future_epoch.start_slot(E::slots_per_epoch());
+            let future_slot = future_epoch.start_slot(Spec::slots_per_epoch());
             harness.chain.slot_clock.set_slot(future_slot.as_u64());
 
             // Now verify the block is past the DA boundary

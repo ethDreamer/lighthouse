@@ -270,7 +270,7 @@ impl ProtoNode {
                 .num_set_bits()
                 .saturating_sub(node.payload_timeliness_votes.num_set_bits())
         };
-        Ok(matching_votes > E::payload_timely_threshold())
+        Ok(matching_votes > Spec::payload_timely_threshold())
     }
 
     /// Checks if `available` matches our view of payload data availability.
@@ -298,7 +298,7 @@ impl ProtoNode {
                 .num_set_bits()
                 .saturating_sub(node.payload_data_availability_votes.num_set_bits())
         };
-        Ok(matching_votes > E::data_availability_timely_threshold())
+        Ok(matching_votes > Spec::data_availability_timely_threshold())
     }
 }
 
@@ -2073,8 +2073,8 @@ impl ProtoArray {
         }
 
         let genesis_epoch = Epoch::new(0);
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
-        let node_epoch = node.slot().epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
+        let node_epoch = node.slot().epoch(Spec::slots_per_epoch());
         let node_justified_checkpoint = node.justified_checkpoint();
 
         let voting_source = if current_epoch > node_epoch {
@@ -2183,7 +2183,7 @@ impl ProtoArray {
         let finalized_root = best_finalized_checkpoint.root;
         let finalized_slot = best_finalized_checkpoint
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let Some(mut node) = self
             .indices
@@ -2321,7 +2321,7 @@ pub fn calculate_committee_fraction<E: EthSpec>(
 ) -> Option<u64> {
     let committee_weight = justified_balances
         .total_effective_balance
-        .checked_div(E::slots_per_epoch())?;
+        .checked_div(Spec::slots_per_epoch())?;
     committee_weight
         .checked_mul(proposer_score_boost)?
         .checked_div(100)

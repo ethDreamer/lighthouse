@@ -195,7 +195,7 @@ impl Eth2NetworkConfig {
         ChainSpec::from_config::<E>(&self.config).ok_or_else(|| {
             format!(
                 "YAML configuration incompatible with spec constants for {}",
-                E::spec_name()
+                Spec::SPEC_ID
             )
         })
     }
@@ -557,7 +557,7 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let spec = &E::default_spec();
+        let spec = &Spec::default_spec();
 
         let eth1_data = Eth1Data {
             deposit_root: Hash256::zero(),

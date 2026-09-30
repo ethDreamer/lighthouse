@@ -629,7 +629,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .cached_head()
             .finalized_checkpoint()
             .epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let is_canonical = self
             .block_root_at_slot(block_slot, WhenSlotSkipped::None)?
             .is_some_and(|canonical_root| block_root == &canonical_root);
@@ -659,7 +659,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .cached_head()
             .finalized_checkpoint()
             .epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let slot_is_finalized = state_slot <= finalized_slot;
         let canonical = self
             .state_root_at_slot(state_slot)?
@@ -766,7 +766,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// is before genesis (i.e., a negative epoch).
     pub fn epoch(&self) -> Result<Epoch, Error> {
         self.slot()
-            .map(|slot| slot.epoch(T::EthSpec::slots_per_epoch()))
+            .map(|slot| slot.epoch(Spec::slots_per_epoch()))
     }
 
     /// Iterates across all `(block_root, slot)` pairs from `start_slot`
@@ -1409,7 +1409,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         &self,
         slot: Slot,
     ) -> Result<Arc<SyncCommittee<T::EthSpec>>, Error> {
-        let epoch = slot.safe_add(1)?.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = slot.safe_add(1)?.epoch(Spec::slots_per_epoch());
         self.sync_committee_at_epoch(epoch)
     }
 
@@ -1469,7 +1469,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             self.spec.epochs_per_sync_committee_period * sync_committee_period.saturating_sub(1),
             altair_fork_epoch,
         )
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
 
         self.state_at_slot(load_slot, StateSkipConfig::WithoutStateRoots)
     }
@@ -1525,7 +1525,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         match slot.cmp(&head_state.slot()) {
             Ordering::Equal => Ok(head_state),
             Ordering::Greater => {
-                if slot > head_state.slot() + T::EthSpec::slots_per_epoch() {
+                if slot > head_state.slot() + Spec::slots_per_epoch() {
                     warn!(
                         head_slot = %head_state.slot(),
                         request_slot = %slot,
@@ -1826,7 +1826,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .map_err(BeaconChainError::DBError)?
             .ok_or(BeaconChainError::MissingHotStateSummary(state_root))?;
 
-        if slot != checkpoint.epoch.start_slot(T::EthSpec::slots_per_epoch())
+        if slot != checkpoint.epoch.start_slot(Spec::slots_per_epoch())
             || latest_block_root != *checkpoint.root
         {
             return Err(BeaconChainError::InvalidCheckpoint {
@@ -2015,7 +2015,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             ),
         }
 
-        let slots_per_epoch = T::EthSpec::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         let request_epoch = request_slot.epoch(slots_per_epoch);
 
         /*
@@ -2057,7 +2057,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             // This function will eventually fail when trying to access a slot which is
             // out-of-bounds of `state.block_roots`. This explicit error is intended to provide a
             // clearer message to the user than an ambiguous `SlotOutOfBounds` error.
-            let slots_per_historical_root = T::EthSpec::slots_per_historical_root() as u64;
+            let slots_per_historical_root = Spec::slots_per_historical_root();
             let lowest_permissible_slot =
                 head_state.slot().saturating_sub(slots_per_historical_root);
             if request_slot < lowest_permissible_slot {
@@ -2087,7 +2087,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 is_same_slot_attestation = prior_slot_root != Some(&beacon_block_root);
             };
 
-            let target_slot = request_epoch.start_slot(T::EthSpec::slots_per_epoch());
+            let target_slot = request_epoch.start_slot(Spec::slots_per_epoch());
             let target_root = if head_state.slot() <= target_slot {
                 // If the state is earlier than the target slot then the target *must* be the head
                 // block root.
@@ -2141,7 +2141,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     partial_state_advance(
                         &mut state,
                         Some(advanced_state_root),
-                        request_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                        request_epoch.start_slot(Spec::slots_per_epoch()),
                         self.builder_onboarding_cache.as_deref(),
                         &self.spec,
                     )
@@ -2825,7 +2825,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .slot_clock
             .now_with_future_tolerance(self.spec.maximum_gossip_clock_disparity())
             .ok_or(Error::UnableToReadSlot)?
-            .epoch(T::EthSpec::slots_per_epoch());
+            .epoch(Spec::slots_per_epoch());
 
         let validator_index = exit.message.validator_index;
         if exit.message.epoch > wall_clock_epoch {
@@ -3476,7 +3476,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // Check if we have custody of this column
         let sampling_columns = self
             .custody_context
-            .sampling_columns_for_epoch(slot.epoch(T::EthSpec::slots_per_epoch()));
+            .sampling_columns_for_epoch(slot.epoch(Spec::slots_per_epoch()));
         if !sampling_columns.contains(&column_index) {
             return Ok(None);
         }
@@ -3657,7 +3657,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 return;
             };
             let imported_data_columns = self
-                .cached_data_column_indexes(block_root, slot.epoch(T::EthSpec::slots_per_epoch()))
+                .cached_data_column_indexes(block_root, slot.epoch(Spec::slots_per_epoch()))
                 .unwrap_or_default();
             let new_data_columns =
                 data_columns_iter.filter(|b| !imported_data_columns.contains(b.index()));
@@ -4407,7 +4407,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // unless it must run before fork choice.
         // -----------------------------------------------------------------------------------------
         let current_slot = self.slot()?;
-        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let block = signed_block.message();
         let post_exec_timer = metrics::start_timer(&metrics::BLOCK_PROCESSING_POST_EXEC_PROCESSING);
 
@@ -4542,7 +4542,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             let head_slot = state.slot();
                             let state_root = block.state_root();
                             let is_epoch_transition = state.current_epoch()
-                                > old_head_slot.epoch(T::EthSpec::slots_per_epoch());
+                                > old_head_slot.epoch(Spec::slots_per_epoch());
 
                             let dependent_root = state.attester_shuffling_decision_root(
                                 self.genesis_block_root,
@@ -4586,7 +4586,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             let head_slot = state.slot();
                             let state_root = block.state_root();
                             let is_epoch_transition = state.current_epoch()
-                                > old_head_slot.epoch(T::EthSpec::slots_per_epoch());
+                                > old_head_slot.epoch(Spec::slots_per_epoch());
 
                             let current_epoch_dependent_root = state
                                 .attester_shuffling_decision_root(
@@ -4875,7 +4875,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     ) {
         // Only register blocks with the validator monitor when the block is sufficiently close to
         // the current slot.
-        if VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64 * T::EthSpec::slots_per_epoch()
+        if VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64 * Spec::slots_per_epoch()
             + block.slot().as_u64()
             < current_slot.as_u64()
         {
@@ -4884,7 +4884,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         // Allow the validator monitor to learn about a new valid state.
         self.validator_monitor.write().process_valid_state(
-            current_slot.epoch(T::EthSpec::slots_per_epoch()),
+            current_slot.epoch(Spec::slots_per_epoch()),
             state,
             &self.spec,
         );
@@ -5059,7 +5059,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // Only present some metrics for blocks from the previous epoch or later.
         //
         // This helps avoid noise in the metrics during sync.
-        if block.slot() + 2 * T::EthSpec::slots_per_epoch() >= current_slot {
+        if block.slot() + 2 * Spec::slots_per_epoch() >= current_slot {
             metrics::observe(
                 &metrics::OPERATIONS_PER_BLOCK_ATTESTATION,
                 block.body().attestations_len() as f64,
@@ -5213,7 +5213,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         proposer_head: Hash256,
         cached_head: &CachedHead<T::EthSpec>,
     ) -> Result<Option<PrePayloadAttributes>, Error> {
-        let proposal_epoch = proposal_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
 
         let head_block_root = cached_head.head_block_root();
         let head_parent_block_root = cached_head.parent_block_root();
@@ -5229,7 +5229,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         }
 
         // Compute the proposer index.
-        let head_epoch = cached_head.head_slot().epoch(T::EthSpec::slots_per_epoch());
+        let head_epoch = cached_head.head_slot().epoch(Spec::slots_per_epoch());
         let shuffling_decision_root = cached_head
             .snapshot
             .beacon_state
@@ -5557,8 +5557,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             // Since Fulu, proposer shuffling is computed one epoch in advance, so the shuffling
             // for the re-org block's epoch is always decided by an ancestor of the head, even
             // when the re-org block lies in the epoch after the head (epoch boundary re-org).
-            let proposal_in_head_epoch = re_org_block_slot.epoch(T::EthSpec::slots_per_epoch())
-                == head_slot.epoch(T::EthSpec::slots_per_epoch());
+            let proposal_in_head_epoch = re_org_block_slot.epoch(Spec::slots_per_epoch())
+                == head_slot.epoch(Spec::slots_per_epoch());
             let shuffling_decision_root = if self
                 .spec
                 .fork_name_at_slot::<T::EthSpec>(re_org_block_slot)
@@ -5573,7 +5573,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             let proposer_index = self
                 .with_proposer_cache::<u64, Error>(
                     shuffling_decision_root,
-                    re_org_block_slot.epoch(T::EthSpec::slots_per_epoch()),
+                    re_org_block_slot.epoch(Spec::slots_per_epoch()),
                     |proposers| {
                         proposers
                             .get_slot::<T::EthSpec>(re_org_block_slot)
@@ -6681,7 +6681,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // Use a blocking task since blocking the core executor on the canonical head read lock can
         // block the core tokio executor.
         let chain = self.clone();
-        let tolerance_slots = self.config.sync_tolerance_epochs * T::EthSpec::slots_per_epoch();
+        let tolerance_slots = self.config.sync_tolerance_epochs * Spec::slots_per_epoch();
         let maybe_prep_data = self
             .spawn_blocking_handle(
                 move || {
@@ -6716,7 +6716,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         .snapshot
                         .beacon_state
                         .proposer_shuffling_decision_root_at_epoch(
-                            prepare_slot.epoch(T::EthSpec::slots_per_epoch()),
+                            prepare_slot.epoch(Spec::slots_per_epoch()),
                             fcu_params.head_root,
                             &chain.spec,
                         )?;
@@ -6809,7 +6809,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 }
                 Some(preferred_gas_limit.unwrap_or_else(|| {
                     self.spec
-                        .default_gas_limit(prepare_slot.epoch(T::EthSpec::slots_per_epoch()))
+                        .default_gas_limit(prepare_slot.epoch(Spec::slots_per_epoch()))
                 }))
             } else {
                 None
@@ -6944,7 +6944,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // onwards, as fcuV4 is the first version that accepts custody columns.
         let custody_columns = self
             .custody_context
-            .custody_columns_for_epoch(Some(current_slot.epoch(T::EthSpec::slots_per_epoch())));
+            .custody_columns_for_epoch(Some(current_slot.epoch(Spec::slots_per_epoch())));
 
         // Take the global lock for updating the execution engine fork choice.
         //
@@ -7121,7 +7121,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     pub fn slot_is_prior_to_bellatrix(&self, slot: Slot) -> bool {
         self.spec
             .bellatrix_fork_epoch
-            .is_none_or(|bellatrix| slot.epoch(T::EthSpec::slots_per_epoch()) < bellatrix)
+            .is_none_or(|bellatrix| slot.epoch(Spec::slots_per_epoch()) < bellatrix)
     }
 
     /// Returns the value of `execution_optimistic` for `head_block`.
@@ -7197,7 +7197,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         } else if wss_checkpoint.epoch < finalized_checkpoint.epoch {
             let slot = wss_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch());
+                .start_slot(Spec::slots_per_epoch());
 
             // Iterate backwards through block roots from the given state. If first slot of the epoch is a skip-slot,
             // this will return the root of the closest prior non-skipped slot.
@@ -7372,8 +7372,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         parent_block_root: Hash256,
         slot: Slot,
     ) -> Result<(InclusionListCommittee<T::EthSpec>, DependentRoot), Error> {
-        let shuffling_epoch = slot.epoch(T::EthSpec::slots_per_epoch());
-        let committee_size = T::EthSpec::inclusion_list_committee_size();
+        let shuffling_epoch = slot.epoch(Spec::slots_per_epoch());
+        let committee_size = Spec::INCLUSION_LIST_COMMITTEE_SIZE;
 
         self.with_committee_cache(
             parent_block_root,
@@ -7402,7 +7402,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         slot: Slot,
         only_timely: bool,
     ) -> Result<Vec<ProgressiveVariableList<u8>>, Error> {
-        let shuffling_epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+        let shuffling_epoch = slot.epoch(Spec::slots_per_epoch());
         let parent_block = self
             .canonical_head
             .fork_choice_read_lock()
@@ -7419,7 +7419,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         .map(|id| id.shuffling_decision_block)
         .ok_or(Error::InvalidShufflingId {
             shuffling_epoch,
-            head_block_epoch: parent_block.slot.epoch(T::EthSpec::slots_per_epoch()),
+            head_block_epoch: parent_block.slot.epoch(Spec::slots_per_epoch()),
         })?;
 
         Ok(self
@@ -7607,10 +7607,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // If we are unable to read the slot clock we assume that it is prior to genesis and
         // therefore use the genesis slot.
         let slot = self.slot().unwrap_or(self.spec.genesis_slot);
-        let epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
 
         let next_digest_epoch = self.spec.next_digest_epoch(epoch)?;
-        let next_digest_slot = next_digest_epoch.start_slot(T::EthSpec::slots_per_epoch());
+        let next_digest_slot = next_digest_epoch.start_slot(Spec::slots_per_epoch());
 
         self.slot_clock
             .duration_to_slot(next_digest_slot)
@@ -7637,10 +7637,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .flatten()
             .and_then(|info| info.earliest_data_column_slot)
             .map(|slot| {
-                let mut epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+                let mut epoch = slot.epoch(Spec::slots_per_epoch());
                 // If the earliest custodied slot isn't the first slot in the epoch
                 // The node has only met its custody requirements for the next epoch.
-                if slot > epoch.start_slot(T::EthSpec::slots_per_epoch()) {
+                if slot > epoch.start_slot(Spec::slots_per_epoch()) {
                     epoch += 1;
                 }
                 epoch
@@ -7677,7 +7677,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         if can_update_data_column_custody_info {
             self.store.put_data_column_custody_info(Some(
-                effective_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                effective_epoch.start_slot(Spec::slots_per_epoch()),
             ))?;
         } else {
             error!(
@@ -7754,14 +7754,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let head_skips_check = head_skips.as_usize() <= self.config.builder_fallback_skips;
 
         // Check if finalization is advancing.
-        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let epochs_since_finalization =
             current_epoch.saturating_sub(cached_head.finalized_checkpoint().epoch);
         let finalization_check = epochs_since_finalization.as_usize()
             <= self.config.builder_fallback_epochs_since_finalization;
 
         // Check skip slots in the last `SLOTS_PER_EPOCH`.
-        let start_slot = current_slot.saturating_sub(T::EthSpec::slots_per_epoch());
+        let start_slot = current_slot.saturating_sub(Spec::slots_per_epoch());
         let mut epoch_skips = 0;
         for slot in start_slot.as_u64()..current_slot.as_u64() {
             if self
@@ -7818,7 +7818,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 }
                 visited.insert(block_hash);
 
-                if signed_beacon_block.slot() % T::EthSpec::slots_per_epoch() == 0 {
+                if signed_beacon_block.slot() % Spec::slots_per_epoch() == 0 {
                     let block = self.get_blinded_block(&block_hash).unwrap().unwrap();
                     // This branch is reached from the HTTP API. We assume the user wants
                     // to cache states so that future calls are faster.
@@ -7958,7 +7958,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             }
             AvailableBlockData::DataColumns(mut data_columns) => {
                 let columns_to_custody = self.custody_context.custody_columns_for_epoch(Some(
-                    block_slot.epoch(T::EthSpec::slots_per_epoch()),
+                    block_slot.epoch(Spec::slots_per_epoch()),
                 ));
                 // Supernodes need to persist all sampled custody columns
                 if columns_to_custody.len() != self.spec.number_of_custody_groups as usize {

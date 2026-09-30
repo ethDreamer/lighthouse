@@ -22,7 +22,7 @@ pub fn process_slashings<E: EthSpec>(
     );
 
     let target_withdrawable_epoch =
-        epoch.safe_add(E::EpochsPerSlashingsVector::to_u64().safe_div(2)?)?;
+        epoch.safe_add(Spec::epochs_per_slashings_vector().safe_div(2)?)?;
     let indices = state
         .validators()
         .iter()

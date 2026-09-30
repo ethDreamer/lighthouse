@@ -173,7 +173,7 @@ impl BeaconProcessorQueueLengths {
             };
         let active_validator_count =
             (ACTIVE_VALIDATOR_COUNT_OVERPROVISION_PERCENT * active_validator_count) / 100;
-        let slots_per_epoch = E::slots_per_epoch() as usize;
+        let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
 
         Ok(Self {
             aggregate_queue: 4096,
@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn min_queue_len() {
         // State with no validators.
-        let spec = ForkName::latest().make_genesis_spec(MainnetEthSpec::default_spec());
+        let spec = ForkName::latest().make_genesis_spec(Spec::default_spec());
         let genesis_time = 0;
         let state = BeaconState::<MainnetEthSpec>::new(genesis_time, Eth1Data::default(), &spec);
         assert_eq!(state.validators().len(), 0);

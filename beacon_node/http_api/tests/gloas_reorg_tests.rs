@@ -142,7 +142,7 @@ impl Default for ReOrgTest {
     /// Default config represents a regular easy re-org.
     fn default() -> Self {
         Self {
-            head_slot: Slot::new(E::slots_per_epoch() - 2),
+            head_slot: Slot::new(Spec::slots_per_epoch() - 2),
             parent_distance: 1,
             head_distance: 1,
             percent_parent_votes: 100,
@@ -255,7 +255,7 @@ pub async fn proposer_boost_re_org_zero_weight() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_epoch_boundary() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
         should_re_org: true,
         expected_first_update_lookahead: ExpectedFirstUpdateLookahead::BlockProduction,
         ..Default::default()
@@ -268,7 +268,7 @@ pub async fn proposer_boost_re_org_epoch_boundary_skip1() {
     // Proposing a block on a boundary after a skip will change the set of expected withdrawals
     // sent in the payload attributes.
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(2 * E::slots_per_epoch() - 2),
+        head_slot: Slot::new(2 * Spec::slots_per_epoch() - 2),
         head_distance: 2,
         should_re_org: false,
         expect_withdrawals_change_on_epoch: true,
@@ -281,8 +281,8 @@ pub async fn proposer_boost_re_org_epoch_boundary_skip1() {
 pub async fn proposer_boost_re_org_epoch_boundary_skip32() {
     // Propose a block at 64 after a whole epoch of skipped slots.
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
-        head_distance: E::slots_per_epoch() + 1,
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
+        head_distance: Spec::slots_per_epoch() + 1,
         should_re_org: false,
         expect_withdrawals_change_on_epoch: true,
         ..Default::default()
@@ -336,7 +336,7 @@ pub async fn proposer_boost_re_org_finality() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_parent_distance() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 2),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 2),
         parent_distance: 2,
         should_re_org: false,
         ..Default::default()
@@ -347,7 +347,7 @@ pub async fn proposer_boost_re_org_parent_distance() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_head_distance() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 3),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 3),
         head_distance: 2,
         should_re_org: false,
         ..Default::default()
@@ -358,7 +358,7 @@ pub async fn proposer_boost_re_org_head_distance() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_very_unhealthy() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(E::slots_per_epoch() - 1),
+        head_slot: Slot::new(Spec::slots_per_epoch() - 1),
         parent_distance: 2,
         head_distance: 2,
         percent_parent_votes: 10,
@@ -418,8 +418,8 @@ pub async fn proposer_boost_re_org_test(
     }
 
     // Ensure there are enough validators to have `ATTESTERS_PER_SLOT`.
-    assert!(ATTESTERS_PER_SLOT >= E::ptc_size());
-    let validator_count = E::slots_per_epoch() as usize * ATTESTERS_PER_SLOT;
+    assert!(ATTESTERS_PER_SLOT >= Spec::PTC_SIZE);
+    let validator_count = Spec::SLOTS_PER_EPOCH * ATTESTERS_PER_SLOT;
     let all_validators = (0..validator_count).collect::<Vec<usize>>();
     let num_initial = head_slot.as_u64().checked_sub(parent_distance + 1).unwrap();
 
@@ -435,10 +435,10 @@ pub async fn proposer_boost_re_org_test(
     let num_skip_full_votes = Some(ATTESTERS_PER_SLOT * percent_skip_full_votes / 100);
     let num_head_votes = Some(ATTESTERS_PER_SLOT * percent_head_votes / 100);
 
-    assert_eq!((percent_parent_ptc_present_votes * E::ptc_size()) % 100, 0);
-    let num_parent_ptc_present_votes = percent_parent_ptc_present_votes * E::ptc_size() / 100;
-    assert_eq!((percent_parent_ptc_absent_votes * E::ptc_size()) % 100, 0);
-    let num_parent_ptc_absent_votes = percent_parent_ptc_absent_votes * E::ptc_size() / 100;
+    assert_eq!((percent_parent_ptc_present_votes * Spec::PTC_SIZE) % 100, 0);
+    let num_parent_ptc_present_votes = percent_parent_ptc_present_votes * Spec::PTC_SIZE / 100;
+    assert_eq!((percent_parent_ptc_absent_votes * Spec::PTC_SIZE) % 100, 0);
+    let num_parent_ptc_absent_votes = percent_parent_ptc_absent_votes * Spec::PTC_SIZE / 100;
 
     // We must configure the prepare payload lookahead so it scales with the minimal config,
     // otherwise the late block reveal for A halfway through the slot can end up being *after*
@@ -485,7 +485,7 @@ pub async fn proposer_boost_re_org_test(
         .as_ref()
         .unwrap()
         .update_proposer_preparation(
-            head_slot.epoch(E::slots_per_epoch()) + 1,
+            head_slot.epoch(Spec::slots_per_epoch()) + 1,
             proposer_preparation_data.iter().map(|(a, b)| (a, b)),
         )
         .await;
@@ -539,7 +539,7 @@ pub async fn proposer_boost_re_org_test(
     // boundaries.
     if expect_withdrawals_change_on_epoch {
         assert!(
-            slot_c.epoch(E::slots_per_epoch()) >= 2,
+            slot_c.epoch(Spec::slots_per_epoch()) >= 2,
             "for withdrawals to change, test must end at an epoch >= 2"
         );
     }
@@ -862,7 +862,7 @@ pub async fn proposer_boost_re_org_test(
     if !expected_withdrawals.is_empty()
         && (should_re_org
             || expect_withdrawals_change_on_epoch
-                && slot_c.epoch(E::slots_per_epoch()) != slot_b.epoch(E::slots_per_epoch()))
+                && slot_c.epoch(Spec::slots_per_epoch()) != slot_b.epoch(Spec::slots_per_epoch()))
     {
         assert_ne!(expected_withdrawals, pre_advance_withdrawals);
     }

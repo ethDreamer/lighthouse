@@ -37,9 +37,9 @@ async fn get_harness<E: EthSpec>(
 ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
     // Set the state and block to be in the last slot of the `epoch_offset`th epoch.
     let last_slot_of_epoch =
-        (MainnetEthSpec::genesis_epoch() + epoch_offset).end_slot(E::slots_per_epoch());
+        (Epoch::new(Spec::genesis_epoch()) + epoch_offset).end_slot(Spec::slots_per_epoch());
     // Use Electra spec to ensure blocks are created at the same fork as the state
-    let spec = Arc::new(ForkName::Electra.make_genesis_spec(E::default_spec()));
+    let spec = Arc::new(ForkName::Electra.make_genesis_spec(Spec::default_spec()));
     let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
         .spec(spec.clone())
         .keypairs(KEYPAIRS[0..num_validators].to_vec())
@@ -638,7 +638,7 @@ async fn invalid_attestation_included_too_early() {
         .deconstruct()
         .0;
     let new_attesation_slot = head_block.body().attestations().next().unwrap().data().slot
-        + Slot::new(MainnetEthSpec::slots_per_epoch());
+        + Slot::new(Spec::slots_per_epoch());
     head_block
         .to_mut()
         .body_mut()

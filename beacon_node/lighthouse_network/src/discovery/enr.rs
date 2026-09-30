@@ -369,7 +369,7 @@ mod test {
     const TEST_NFD: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
 
     fn make_fulu_spec() -> ChainSpec {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.fulu_fork_epoch = Some(Epoch::new(10));
         spec
     }
@@ -405,7 +405,7 @@ mod test {
 
     #[test]
     fn test_encode_decode_eth2_enr() {
-        let (enr, _key) = build_enr_with_config(NetworkConfig::default(), 4, &E::default_spec());
+        let (enr, _key) = build_enr_with_config(NetworkConfig::default(), 4, &Spec::default_spec());
         // Check all Eth2 Mappings are decodeable
         enr.eth2().unwrap();
         enr.attestation_bitfield::<MainnetEthSpec>().unwrap();

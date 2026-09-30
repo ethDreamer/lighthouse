@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let spec = &E::default_spec();
+        let spec = &Spec::default_spec();
 
         let keypair = generate_deterministic_keypair(42);
         let original = get_deposit(keypair, spec);

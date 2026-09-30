@@ -362,7 +362,7 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
         // This is required because `data_columns_by_root` requests the **latest** CGC that _may_
         // not be yet effective for data availability check, as CGC changes are only effecive from
         // a new epoch.
-        let epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let sampling_columns = self.custody_context().sampling_columns_for_epoch(epoch);
         let verified_custody_columns = kzg_verified_columns
             .into_iter()
@@ -400,7 +400,7 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
         slot: Slot,
         data_columns: I,
     ) -> Result<Availability<T::EthSpec>, AvailabilityCheckError> {
-        let epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let sampling_columns = self.custody_context().sampling_columns_for_epoch(epoch);
         let custody_columns = data_columns
             .into_iter()
@@ -593,7 +593,7 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
 
         let columns_to_sample = self
             .custody_context()
-            .sampling_columns_for_epoch(slot.epoch(T::EthSpec::slots_per_epoch()));
+            .sampling_columns_for_epoch(slot.epoch(Spec::slots_per_epoch()));
 
         // We only need to import and publish columns that we need to sample
         // and columns that we haven't already received
@@ -691,11 +691,11 @@ async fn availability_cache_maintenance_service<T: BeaconChainTypes>(
     overflow_cache: Arc<DataAvailabilityCheckerInner<T>>,
     partial_assembler: Option<Arc<PartialDataColumnAssembler<T::EthSpec>>>,
 ) {
-    let epoch_duration = chain.slot_clock.slot_duration() * T::EthSpec::slots_per_epoch() as u32;
+    let epoch_duration = chain.slot_clock.slot_duration() * Spec::SLOTS_PER_EPOCH as u32;
     loop {
         match chain
             .slot_clock
-            .duration_to_next_epoch(T::EthSpec::slots_per_epoch())
+            .duration_to_next_epoch(Spec::slots_per_epoch())
         {
             Some(duration) => {
                 // this service should run 3/4 of the way through the epoch
@@ -711,7 +711,7 @@ async fn availability_cache_maintenance_service<T: BeaconChainTypes>(
                 let Some(current_epoch) = chain
                     .slot_clock
                     .now()
-                    .map(|slot| slot.epoch(T::EthSpec::slots_per_epoch()))
+                    .map(|slot| slot.epoch(Spec::slots_per_epoch()))
                 else {
                     continue;
                 };
@@ -1038,7 +1038,7 @@ mod test {
     #[test]
     fn should_exclude_rpc_columns_not_required_for_sampling() {
         // SETUP
-        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()));
         let mut u = types::test_utils::test_unstructured();
 
         let da_checker = new_da_checker(spec.clone());
@@ -1049,7 +1049,7 @@ mod test {
         let validator_0 = 0;
         custody_context.register_validators(
             vec![(validator_0, 32_000_000_000)],
-            epoch.start_slot(E::slots_per_epoch()),
+            epoch.start_slot(Spec::slots_per_epoch()),
         );
         assert_eq!(
             custody_context.num_of_data_columns_to_sample(epoch),
@@ -1059,7 +1059,7 @@ mod test {
 
         // WHEN additional attached validators result in a CGC increase to 10 at the end slot of the same epoch
         let validator_1 = 1;
-        let cgc_change_slot = epoch.end_slot(E::slots_per_epoch());
+        let cgc_change_slot = epoch.end_slot(Spec::slots_per_epoch());
         custody_context
             .register_validators(vec![(validator_1, 32_000_000_000 * 9)], cgc_change_slot);
         // AND custody columns (8) and any new extra columns (2) are received via RPC responses.
@@ -1121,7 +1121,7 @@ mod test {
     #[test]
     fn should_exclude_gossip_columns_not_required_for_sampling() {
         // SETUP
-        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()));
         let mut u = types::test_utils::test_unstructured();
 
         let da_checker = new_da_checker(spec.clone());
@@ -1132,7 +1132,7 @@ mod test {
         let validator_0 = 0;
         custody_context.register_validators(
             vec![(validator_0, 32_000_000_000)],
-            epoch.start_slot(E::slots_per_epoch()),
+            epoch.start_slot(Spec::slots_per_epoch()),
         );
         assert_eq!(
             custody_context.num_of_data_columns_to_sample(epoch),
@@ -1142,7 +1142,7 @@ mod test {
 
         // WHEN additional attached validators result in a CGC increase to 10 at the end slot of the same epoch
         let validator_1 = 1;
-        let cgc_change_slot = epoch.end_slot(E::slots_per_epoch());
+        let cgc_change_slot = epoch.end_slot(Spec::slots_per_epoch());
         custody_context
             .register_validators(vec![(validator_1, 32_000_000_000 * 9)], cgc_change_slot);
         // AND custody columns (8) and any new extra columns (2) are received via gossip.
@@ -1201,7 +1201,7 @@ mod test {
     /// Regression test for KZG verification truncation bug (https://github.com/sigp/lighthouse/pull/7927)
     #[test]
     fn verify_kzg_for_range_sync_blocks_should_not_truncate_data_columns_fulu() {
-        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()));
         let mut u = types::test_utils::test_unstructured();
         let da_checker = new_da_checker(spec.clone());
 
@@ -1259,7 +1259,7 @@ mod test {
     #[test]
     fn should_exclude_reconstructed_columns_not_required_for_sampling() {
         // SETUP
-        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()));
         let mut u = types::test_utils::test_unstructured();
 
         let da_checker = new_da_checker(spec.clone());

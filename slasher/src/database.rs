@@ -755,7 +755,7 @@ impl<E: EthSpec> SlasherDB<E> {
         let min_slot = current_epoch
             .saturating_add(1u64)
             .saturating_sub(self.config.history_length)
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let mut cursor = txn.cursor(&self.databases.proposers_db)?;
 
@@ -924,7 +924,7 @@ mod test {
     /// Check that `IndexedAttestationOnDisk` and `IndexedAttestation` have compatible encodings.
     #[test]
     fn indexed_attestation_on_disk_roundtrip_base() {
-        let spec = ForkName::Base.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());
         let make_attestation = |attesting_indices, data, signature| {
             IndexedAttestation::<E>::Base(IndexedAttestationBase {
                 attesting_indices: VariableList::new(attesting_indices).unwrap(),
@@ -935,13 +935,13 @@ mod test {
         indexed_attestation_on_disk_roundtrip_test(
             &spec,
             make_attestation,
-            <E as EthSpec>::MaxValidatorsPerCommittee::to_u64(),
+            Spec::MAX_VALIDATORS_PER_COMMITTEE as u64,
         )
     }
 
     #[test]
     fn indexed_attestation_on_disk_roundtrip_electra() {
-        let spec = ForkName::Electra.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Electra.make_genesis_spec(Spec::default_spec());
         let make_attestation = |attesting_indices, data, signature| {
             IndexedAttestation::<E>::Electra(IndexedAttestationElectra {
                 attesting_indices: VariableList::new(attesting_indices).unwrap(),
@@ -952,7 +952,7 @@ mod test {
         indexed_attestation_on_disk_roundtrip_test(
             &spec,
             make_attestation,
-            <E as EthSpec>::MaxValidatorsPerSlot::to_u64(),
+            Spec::MAX_VALIDATORS_PER_SLOT as u64,
         )
     }
 }

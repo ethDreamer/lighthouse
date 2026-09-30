@@ -61,7 +61,7 @@ async fn child_unrealized_checkpoints_recomputed_after_same_epoch_slashing() {
 #[tokio::test]
 async fn child_with_stale_voting_source_not_head_at_epoch_plus_two() {
     let scenario = same_epoch_attester_slashing_child().await;
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let divergence_slot = scenario
         .parent_epoch
         .saturating_add(2u64)
@@ -166,7 +166,7 @@ where
             .mock_execution_layer()
             .build();
 
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     // Minimum warm-up for the parent to reach FFG steady state (justified == epoch, finalized ==
     // epoch - 1); 2 epochs is too few.

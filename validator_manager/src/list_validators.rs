@@ -187,7 +187,7 @@ async fn run<E: EthSpec>(config: ListConfig) -> Result<Vec<SingleKeystoreRespons
                         "Exit epoch in approximately {} secs",
                         (exit_epoch - current_epoch)
                             * spec.get_slot_duration().as_secs()
-                            * E::slots_per_epoch()
+                            * Spec::slots_per_epoch()
                     );
                 }
                 ValidatorStatus::ExitedSlashed | ValidatorStatus::ExitedUnslashed => {

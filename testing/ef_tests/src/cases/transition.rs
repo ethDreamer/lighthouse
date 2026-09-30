@@ -32,7 +32,7 @@ impl<E: EthSpec> LoadCase for TransitionTest<E> {
         assert_eq!(ForkName::from_str(&metadata.post_fork).unwrap(), fork_name);
 
         // Make spec with appropriate fork block.
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         match fork_name {
             ForkName::Base => panic!("cannot fork to base/phase0"),
             ForkName::Altair => {

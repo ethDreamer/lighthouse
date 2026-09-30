@@ -304,11 +304,11 @@ impl<T: BeaconChainTypes> CustodyBackFillSync<T> {
         Ok(SyncStart::Syncing {
             completed: (self.validated_batches
                 * CUSTODY_BACKFILL_EPOCHS_PER_BATCH
-                * T::EthSpec::slots_per_epoch()) as usize,
+                * Spec::slots_per_epoch()) as usize,
             remaining: self
                 .current_start
-                .end_slot(T::EthSpec::slots_per_epoch())
-                .saturating_sub(column_da_boundary.start_slot(T::EthSpec::slots_per_epoch()))
+                .end_slot(Spec::slots_per_epoch())
+                .saturating_sub(column_da_boundary.start_slot(Spec::slots_per_epoch()))
                 .as_usize(),
         })
     }

@@ -104,7 +104,7 @@ pub async fn notify<S: ValidatorStore, T: SlotClock + 'static>(
     }
 
     if let Some(slot) = duties_service.slot_clock.now() {
-        let epoch = slot.epoch(S::E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
 
         let total_validators = duties_service.total_validator_count();
         let proposing_validators = duties_service.proposer_count(epoch);

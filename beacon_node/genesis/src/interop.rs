@@ -199,7 +199,7 @@ mod test {
     fn interop_state() {
         let validator_count = 16;
         let genesis_time = 42;
-        let spec = &TestEthSpec::default_spec();
+        let spec = &Spec::default_spec();
 
         let keypairs = generate_deterministic_keypairs(validator_count);
 
@@ -267,9 +267,9 @@ mod test {
     fn gloas_state_progressive_container_root() {
         use tree_hash::TreeHash;
 
-        let validator_count = 2 * TestEthSpec::slots_per_epoch() as usize;
+        let validator_count = 2 * Spec::SLOTS_PER_EPOCH;
         let genesis_time = 42;
-        let spec = &types::ForkName::Gloas.make_genesis_spec(TestEthSpec::default_spec());
+        let spec = &types::ForkName::Gloas.make_genesis_spec(Spec::default_spec());
 
         let keypairs = generate_deterministic_keypairs(validator_count);
 
@@ -357,7 +357,7 @@ mod test {
     fn interop_state_with_eth1() {
         let validator_count = 16;
         let genesis_time = 42;
-        let spec = &TestEthSpec::default_spec();
+        let spec = &Spec::default_spec();
 
         let keypairs = generate_deterministic_keypairs(validator_count);
 

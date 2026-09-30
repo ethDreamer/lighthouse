@@ -146,7 +146,7 @@ impl<E: EthSpec> AggregateAndProof<E> {
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> bool {
-        let target_epoch = self.aggregate().data().slot.epoch(E::slots_per_epoch());
+        let target_epoch = self.aggregate().data().slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             target_epoch,
             Domain::SelectionProof,

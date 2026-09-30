@@ -420,7 +420,7 @@ impl DataColumnsByRangeRequest {
         DataColumnsByRangeRequest {
             start_slot: 0,
             count: 0,
-            columns: vec![0; E::number_of_columns()],
+            columns: vec![0; Spec::NUMBER_OF_COLUMNS],
         }
         .as_ssz_bytes()
         .len()

@@ -84,7 +84,7 @@ impl GossipVerifiedExecutionProof {
         // [REJECT] The validator is active at the epoch of the referenced block. The committee
         // cache is keyed by the block's shuffling id, so proofs for blocks on non-canonical
         // forks are judged against their own fork's active set without loading a state.
-        let block_epoch = block_slot.epoch(T::EthSpec::slots_per_epoch());
+        let block_epoch = block_slot.epoch(Spec::slots_per_epoch());
         let is_active = with_cached_shuffling(
             ctx.canonical_head,
             ctx.shuffling_cache,

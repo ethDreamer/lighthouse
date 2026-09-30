@@ -480,7 +480,7 @@ pub async fn serve<T: BeaconChainTypes>(
                                 })?;
 
                             let tolerance =
-                                chain.config.sync_tolerance_epochs * T::EthSpec::slots_per_epoch();
+                                chain.config.sync_tolerance_epochs * Spec::slots_per_epoch();
 
                             if head_slot + tolerance >= current_slot {
                                 Ok(())
@@ -3203,7 +3203,7 @@ pub async fn serve<T: BeaconChainTypes>(
                         .canonical_head
                         .cached_head()
                         .head_slot()
-                        .epoch(T::EthSpec::slots_per_epoch())
+                        .epoch(Spec::slots_per_epoch())
                         + 1;
                     // Reset validator custody requirements to `effective_epoch` with the latest
                     // cgc requiremnets.
@@ -3212,7 +3212,7 @@ pub async fn serve<T: BeaconChainTypes>(
                         .reset_validator_custody_requirements(effective_epoch);
                     // Update `DataColumnCustodyInfo` to reflect the custody change.
                     chain.update_data_column_custody_info(Some(
-                        effective_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                        effective_epoch.start_slot(Spec::slots_per_epoch()),
                     ));
                     Ok(())
                 })

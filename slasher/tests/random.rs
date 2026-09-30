@@ -103,7 +103,7 @@ fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> Slas
         // Maybe add a random block too
         if test_config.add_blocks && rng.random_bool(0.1) {
             let slot =
-                rng.random_range(0..1 + 3 * current_epoch.as_u64() * E::slots_per_epoch() / 2);
+                rng.random_range(0..1 + 3 * current_epoch.as_u64() * Spec::slots_per_epoch() / 2);
             let proposer = rng.random_range(0..num_validators as u64);
             let block_root = rng.random_range(0..2);
             slasher.accept_block_header(block(slot, proposer, block_root));

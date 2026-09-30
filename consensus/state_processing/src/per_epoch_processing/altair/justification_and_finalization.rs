@@ -10,7 +10,7 @@ pub fn process_justification_and_finalization<E: EthSpec>(
     state: &BeaconState<E>,
 ) -> Result<JustificationAndFinalizationState<E>, Error> {
     let justification_and_finalization_state = JustificationAndFinalizationState::new(state);
-    if state.current_epoch() <= E::genesis_epoch().safe_add(1)? {
+    if state.current_epoch() <= Epoch::new(Spec::genesis_epoch()).safe_add(1)? {
         return Ok(justification_and_finalization_state);
     }
 

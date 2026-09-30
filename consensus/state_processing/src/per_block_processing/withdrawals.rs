@@ -22,7 +22,7 @@ pub fn get_expected_withdrawals<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<ExpectedWithdrawals<E>, BlockProcessingError> {
     let mut withdrawal_index = state.next_withdrawal_index()?;
-    let mut withdrawals = Vec::<Withdrawal>::with_capacity(E::max_withdrawals_per_payload());
+    let mut withdrawals = Vec::<Withdrawal>::with_capacity(Spec::MAX_WITHDRAWALS_PER_PAYLOAD);
 
     // [New in Gloas:EIP7732]
     // Get builder withdrawals
@@ -84,7 +84,7 @@ pub fn get_builder_withdrawals<E: EthSpec>(
         return Ok(None);
     };
 
-    let withdrawals_limit = E::max_withdrawals_per_payload().safe_sub(1)?;
+    let withdrawals_limit = Spec::MAX_WITHDRAWALS_PER_PAYLOAD.safe_sub(1)?;
 
     block_verify!(
         withdrawals.len() <= withdrawals_limit,
@@ -132,7 +132,7 @@ pub fn get_pending_partial_withdrawals<E: EthSpec>(
         withdrawals
             .len()
             .safe_add(spec.max_pending_partials_per_withdrawals_sweep as usize)?,
-        E::max_withdrawals_per_payload().safe_sub(1)?,
+        Spec::MAX_WITHDRAWALS_PER_PAYLOAD.safe_sub(1)?,
     );
 
     block_verify!(
@@ -198,9 +198,9 @@ pub fn get_builders_sweep_withdrawals<E: EthSpec>(
     }
 
     let epoch = state.current_epoch();
-    let builders_limit = std::cmp::min(builders.len(), E::max_builders_per_withdrawals_sweep());
+    let builders_limit = std::cmp::min(builders.len(), Spec::MAX_BUILDERS_PER_WITHDRAWALS_SWEEP);
 
-    let withdrawals_limit = E::max_withdrawals_per_payload().safe_sub(1)?;
+    let withdrawals_limit = Spec::MAX_WITHDRAWALS_PER_PAYLOAD.safe_sub(1)?;
 
     block_verify!(
         withdrawals.len() <= withdrawals_limit,
@@ -258,7 +258,7 @@ pub fn get_validators_sweep_withdrawals<E: EthSpec>(
         state.validators().len() as u64,
         spec.max_validators_per_withdrawals_sweep,
     );
-    let withdrawals_limit = E::max_withdrawals_per_payload();
+    let withdrawals_limit = Spec::MAX_WITHDRAWALS_PER_PAYLOAD;
 
     // There must be at least one space reserved for validator sweep withdrawals
     block_verify!(
@@ -399,7 +399,7 @@ fn update_next_withdrawal_validator_index<E: EthSpec>(
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
     // Update the next validator index to start the next withdrawal sweep
-    if withdrawals.len() == E::max_withdrawals_per_payload() {
+    if withdrawals.len() == Spec::MAX_WITHDRAWALS_PER_PAYLOAD {
         // Next sweep starts after the latest withdrawal's validator index
         let latest_withdrawal = withdrawals
             .last()

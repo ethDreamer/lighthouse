@@ -1148,7 +1148,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .canonical_head
                 .fork_choice_read_lock()
                 .get_block(&parent_root)
-                .map(|parent| parent.slot.epoch(T::EthSpec::slots_per_epoch()));
+                .map(|parent| parent.slot.epoch(Spec::slots_per_epoch()));
             let is_epoch_transition =
                 parent_epoch.is_some_and(|parent_epoch| head_epoch > parent_epoch);
 
@@ -1257,9 +1257,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         // A previous-epoch head is pulled up to the current epoch boundary; a current-epoch
         // head is already pulled up, so leave it as-is.
-        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         if head_state.current_epoch() < current_epoch {
-            let epoch_start = current_epoch.start_slot(T::EthSpec::slots_per_epoch());
+            let epoch_start = current_epoch.start_slot(Spec::slots_per_epoch());
             complete_state_advance(
                 &mut head_state,
                 Some(state_root),
@@ -1340,7 +1340,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     ) -> Result<FastConfirmationRule, FastConfirmationError> {
         let target_slot = finalized_checkpoint
             .epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let snapshot_is_checkpoint_state = snapshot.beacon_block_root == finalized_checkpoint.root
             && snapshot.beacon_state.slot() == target_slot;
         let loaded_checkpoint_state = if snapshot_is_checkpoint_state {
@@ -1382,7 +1382,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 block: checkpoint.root,
                 epoch: checkpoint.epoch,
             })?;
-        let target_slot = checkpoint.epoch.start_slot(T::EthSpec::slots_per_epoch());
+        let target_slot = checkpoint.epoch.start_slot(Spec::slots_per_epoch());
         let (state_root, mut state) = store
             .get_advanced_hot_state(checkpoint.root, target_slot, block.state_root())
             .map_err(|e| FastConfirmationError::UnableToObtainCheckpointState(format!("{e:?}")))?
@@ -1439,11 +1439,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let is_epoch_transition = old_snapshot
             .beacon_block
             .slot()
-            .epoch(T::EthSpec::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             < new_snapshot
                 .beacon_state
                 .slot()
-                .epoch(T::EthSpec::slots_per_epoch());
+                .epoch(Spec::slots_per_epoch());
 
         // This field is used for server-sent events.
         let head_slot = new_snapshot.beacon_state.slot();
@@ -1492,7 +1492,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 old_head_state: old_snapshot.beacon_state_root(),
                 new_head_block: new_snapshot.beacon_block_root,
                 new_head_state: new_snapshot.beacon_state_root(),
-                epoch: head_slot.epoch(T::EthSpec::slots_per_epoch()),
+                epoch: head_slot.epoch(Spec::slots_per_epoch()),
                 execution_optimistic: new_head_is_optimistic,
             }));
         }
@@ -1521,35 +1521,35 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             new_view
                 .finalized_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
         );
 
         self.observed_column_sidecars.write().prune(
             new_view
                 .finalized_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
         );
 
         self.observed_slashable.write().prune(
             new_view
                 .finalized_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
         );
 
         self.observed_execution_proofs.write().prune(
             new_view
                 .finalized_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
         );
 
         self.observed_payload_envelopes.prune(
             new_view
                 .finalized_checkpoint
                 .epoch
-                .start_slot(T::EthSpec::slots_per_epoch()),
+                .start_slot(Spec::slots_per_epoch()),
         );
 
         // Prune the Gloas pending-payload cache. Anything older than the data-availability
@@ -1559,7 +1559,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             let current_epoch = new_snapshot
                 .beacon_state
                 .slot()
-                .epoch(T::EthSpec::slots_per_epoch());
+                .epoch(Spec::slots_per_epoch());
             if let Some(min_epochs_for_blobs) = self
                 .spec
                 .min_epoch_data_availability_boundary(current_epoch)
@@ -1591,7 +1591,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let new_finalized_slot = new_view
             .finalized_checkpoint
             .epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let new_finalized_state_root = if new_finalized_slot == finalized_proto_block.slot {
             // Fast-path for the common case where the finalized state is not at a skipped slot.
             finalized_proto_block.state_root
@@ -1954,7 +1954,7 @@ pub fn find_reorg_slot<E: EthSpec>(
     Ok(old_state
         .finalized_checkpoint()
         .epoch
-        .start_slot(E::slots_per_epoch()))
+        .start_slot(Spec::slots_per_epoch()))
 }
 
 fn observe_head_block_delays<E: EthSpec, S: SlotClock>(

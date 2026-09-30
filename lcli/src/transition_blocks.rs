@@ -123,7 +123,7 @@ pub fn run<E: EthSpec>(
         exclude_post_block_thc: matches.get_flag("exclude-post-block-thc"),
     };
 
-    info!("Using {} spec", E::spec_name());
+    info!("Using {} spec", Spec::SPEC_ID);
     info!("Doing {} runs", runs);
     info!("{:?}", &config);
 

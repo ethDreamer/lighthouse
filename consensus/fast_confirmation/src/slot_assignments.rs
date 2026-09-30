@@ -44,7 +44,7 @@ impl WindowEpoch {
                 let epoch = self.epoch(state);
                 let shuffling_decision_slot = epoch
                     .saturating_sub(1u64)
-                    .start_slot(E::slots_per_epoch())
+                    .start_slot(Spec::slots_per_epoch())
                     .saturating_sub(1u64);
                 let shuffling_decision_root = state
                     .get_block_root(shuffling_decision_slot)
@@ -118,8 +118,8 @@ impl SlotAssignment {
         Ok(Self {
             key,
             committee_cache: window_epoch.committee_cache(state, spec)?,
-            epoch_start_slot: epoch.start_slot(E::slots_per_epoch()),
-            epoch_end_slot: epoch.end_slot(E::slots_per_epoch()),
+            epoch_start_slot: epoch.start_slot(Spec::slots_per_epoch()),
+            epoch_end_slot: epoch.end_slot(Spec::slots_per_epoch()),
         })
     }
 }
@@ -206,7 +206,7 @@ mod tests {
 
 
     fn genesis_state(n: usize) -> (BeaconState<E>, types::ChainSpec) {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let mut state = BeaconState::new(0, Default::default(), &spec);
         for _ in 0..n {
             state
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn every_validator_attests_once_in_current_epoch() {
         let (mut state, spec) = genesis_state(64);
-        let spe = E::slots_per_epoch();
+        let spe = Spec::slots_per_epoch();
         let start = Slot::new(spe * 2);
         advance_state(&mut state, start, &spec);
         let sa = SlotAssignments::new::<E>(&state, &spec, None).expect("build");
@@ -272,7 +272,7 @@ mod tests {
     fn is_in_range_returns_false_for_uncovered_epochs() {
         let (state, spec) = genesis_state(64);
         let sa = SlotAssignments::new::<E>(&state, &spec, None).expect("build");
-        let far = Slot::new(E::slots_per_epoch() * 5);
+        let far = Slot::new(Spec::slots_per_epoch() * 5);
         for val_idx in 0..state.validators().len() {
             assert!(!sa.is_in_range(val_idx, far, far).unwrap());
         }

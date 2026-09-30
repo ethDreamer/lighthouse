@@ -73,7 +73,7 @@ impl Harness {
     /// Create a `ValidatorDir` from the `config`, then assert that the `ValidatorDir` was generated
     /// correctly with respect to the `config`.
     pub fn create_and_test(&self, config: &BuildConfig) -> ValidatorDir {
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
 
         /*
          * Build the `ValidatorDir`.
@@ -219,7 +219,7 @@ fn without_voting_keystore() {
 #[test]
 fn without_withdrawal_keystore() {
     let harness = Harness::new();
-    let spec = &MainnetEthSpec::default_spec();
+    let spec = &Spec::default_spec();
 
     // Should build without withdrawal keystore if not storing the it or creating eth1 data.
     Builder::new(harness.validators_dir.path().into())

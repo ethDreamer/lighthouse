@@ -41,7 +41,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
         // DA checker only accepts sampling columns, so we need to create one with a sampling index.
         if fork_name.gloas_enabled() {
             let mut random_sidecar = DataColumnSidecarGloas::arbitrary(&mut u).unwrap();
-            let epoch = slot.epoch(E::slots_per_epoch());
+            let epoch = slot.epoch(Spec::slots_per_epoch());
             random_sidecar.slot = slot;
             random_sidecar.index = harness
                 .chain
@@ -59,7 +59,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
             DataColumnSidecar::Gloas(random_sidecar)
         } else {
             let mut random_sidecar = DataColumnSidecarFulu::arbitrary(&mut u).unwrap();
-            let epoch = slot.epoch(E::slots_per_epoch());
+            let epoch = slot.epoch(Spec::slots_per_epoch());
             random_sidecar.signed_block_header.message.slot = slot;
             random_sidecar.index = harness
                 .chain
@@ -365,7 +365,7 @@ async fn payload_attestation_message_event_on_gossip_verification() {
     let validator_index = *ptc.0.first().expect("PTC should have at least one member") as u64;
 
     // Sign a payload attestation.
-    let target_epoch = target_slot.epoch(E::slots_per_epoch());
+    let target_epoch = target_slot.epoch(Spec::slots_per_epoch());
     let domain = harness.spec.get_domain(
         target_epoch,
         Domain::PTCAttester,
@@ -429,11 +429,11 @@ async fn proposer_preferences_event_on_gossip_verification() {
 
     // Pick a proposal slot in the next epoch so it is always a valid, future slot. The lookahead
     // covers 2 epochs: index = epoch_offset * slots_per_epoch + slot_in_epoch.
-    let slots_per_epoch = E::slots_per_epoch() as usize;
+    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
     let proposer_lookahead = head_state
         .proposer_lookahead()
         .expect("gloas state should have proposer lookahead");
-    let next_epoch_start = (head_state.current_epoch() + 1).start_slot(E::slots_per_epoch());
+    let next_epoch_start = (head_state.current_epoch() + 1).start_slot(Spec::slots_per_epoch());
     let proposal_slot = next_epoch_start + 1;
     let lookahead_index = slots_per_epoch + 1;
     let validator_index = *proposer_lookahead
@@ -444,7 +444,7 @@ async fn proposer_preferences_event_on_gossip_verification() {
     // gossip verification can resolve the proposer shuffling from it.
     let dependent_root = head_state
         .proposer_shuffling_decision_root_at_epoch(
-            proposal_slot.epoch(E::slots_per_epoch()),
+            proposal_slot.epoch(Spec::slots_per_epoch()),
             head.head_block_root(),
             &harness.spec,
         )
@@ -459,7 +459,7 @@ async fn proposer_preferences_event_on_gossip_verification() {
         target_gas_limit: 30_000_000,
     };
     let domain = harness.spec.get_domain(
-        proposal_slot.epoch(E::slots_per_epoch()),
+        proposal_slot.epoch(Spec::slots_per_epoch()),
         Domain::ProposerPreferences,
         &head_state.fork(),
         genesis_validators_root,

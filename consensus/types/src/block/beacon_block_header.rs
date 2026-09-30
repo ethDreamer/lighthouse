@@ -44,7 +44,7 @@ impl BeaconBlockHeader {
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> SignedBeaconBlockHeader {
-        let epoch = self.slot.epoch(E::slots_per_epoch());
+        let epoch = self.slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(epoch, Domain::BeaconProposer, fork, genesis_validators_root);
         let message = self.signing_root(domain);
         let signature = secret_key.sign(message);

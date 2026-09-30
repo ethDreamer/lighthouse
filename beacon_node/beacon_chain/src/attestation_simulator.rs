@@ -98,7 +98,7 @@ pub fn produce_unaggregated_attestation<T: BeaconChainTypes>(
     //
     // This helps prevent the simulator from becoming a burden by computing
     // committees from old states.
-    let syncing_tolerance_slots = SYNCING_TOLERANCE_EPOCHS * T::EthSpec::slots_per_epoch();
+    let syncing_tolerance_slots = SYNCING_TOLERANCE_EPOCHS * Spec::slots_per_epoch();
     if chain.best_slot() + syncing_tolerance_slots < current_slot {
         return;
     }

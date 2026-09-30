@@ -50,7 +50,7 @@ mod test {
 
     #[test]
     fn bls_withdrawal_credentials() {
-        let spec = &MainnetEthSpec::default_spec();
+        let spec = &Spec::default_spec();
         let keypair = generate_deterministic_keypair(0);
         let credentials = WithdrawalCredentials::type_0x00(&keypair.pk, spec);
         let manually_generated_credentials =
@@ -62,7 +62,7 @@ mod test {
 
     #[test]
     fn non_compounding_withdrawal_credentials() {
-        let spec = &MainnetEthSpec::default_spec();
+        let spec = &Spec::default_spec();
         let address = Address::from_str(ADDRESS).unwrap();
         let credentials = WithdrawalCredentials::type_0x01(address, spec);
         let hash: Hash256 = credentials.into();
@@ -75,7 +75,7 @@ mod test {
 
     #[test]
     fn compounding_withdrawal_credentials() {
-        let spec = &MainnetEthSpec::default_spec();
+        let spec = &Spec::default_spec();
         let address = Address::from_str(ADDRESS).unwrap();
         let credentials = WithdrawalCredentials::type_0x02(address, spec);
         let hash: Hash256 = credentials.into();

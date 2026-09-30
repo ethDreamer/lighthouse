@@ -258,7 +258,7 @@ impl<E: EthSpec> PeerDB<E> {
             .filter(move |(_, info)| {
                 info.is_connected()
                     && info.is_synced_or_advanced_with_available_slot(
-                        epoch.start_slot(E::slots_per_epoch()),
+                        epoch.start_slot(Spec::slots_per_epoch()),
                     )
             })
             .map(|(peer_id, _)| peer_id)
@@ -324,7 +324,7 @@ impl<E: EthSpec> PeerDB<E> {
         let good_sync_peers_for_epoch = self.peers.values().filter(|&info| {
             info.is_connected()
                 && info.is_synced_or_advanced_with_available_slot(
-                    epoch.start_slot(E::slots_per_epoch()),
+                    epoch.start_slot(Spec::slots_per_epoch()),
                 )
         });
 

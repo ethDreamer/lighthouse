@@ -326,7 +326,7 @@ fn test_tcp_light_client_updates_by_range_chunked_rpc() {
         let response_slot = spec
             .capella_fork_epoch
             .expect("Capella fork is configured")
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let (mut sender, mut receiver) = common::build_node_pair(
             Arc::downgrade(&rt),
             ForkName::Capella,
@@ -462,7 +462,7 @@ fn test_blobs_by_range_chunked_rpc() {
         let deneb_slot = spec
             .deneb_fork_epoch
             .expect("deneb must be scheduled")
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         let rpc_request = RequestType::BlobsByRange(BlobsByRangeRequest {
             start_slot: deneb_slot.as_u64(),
             count: slot_count,
@@ -1071,14 +1071,14 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
     let log_level = "debug";
     let enable_logging = false;
     let _subscriber = build_tracing_subscriber(log_level, enable_logging);
-    let num_of_columns = E::number_of_columns();
+    let num_of_columns = Spec::NUMBER_OF_COLUMNS;
     let messages_to_send = 32 * num_of_columns;
 
     let spec = Arc::new(spec_with_all_forks_enabled());
     let slot = spec
         .fork_epoch(fork_name)
         .expect("fork must be scheduled")
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
 
     let rt = Arc::new(Runtime::new().unwrap());
     // get sender/receiver
@@ -1101,7 +1101,7 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
                 DataColumnsByRootIdentifier {
                     block_root: Hash256::zero(),
                     columns: VariableList::new(
-                        (0..E::number_of_columns() as u64).collect::<Vec<_>>()
+                        (0..Spec::NUMBER_OF_COLUMNS as u64).collect::<Vec<_>>()
                     )
                     .unwrap(),
                 };
@@ -1128,7 +1128,7 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
                 slot,
                 beacon_block_root: Hash256::zero(),
 
-                column: vec![vec![0; E::bytes_per_cell()].try_into().unwrap()]
+                column: vec![vec![0; Spec::BYTES_PER_CELL].try_into().unwrap()]
                     .try_into()
                     .unwrap(),
                 kzg_proofs: vec![KzgProof::empty()].try_into().unwrap(),
@@ -1146,14 +1146,14 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
                     },
                     signature: Signature::empty(),
                 },
-                column: vec![vec![0; E::bytes_per_cell()].try_into().unwrap()]
+                column: vec![vec![0; Spec::BYTES_PER_CELL].try_into().unwrap()]
                     .try_into()
                     .unwrap(),
                 kzg_commitments: vec![KzgCommitment::empty_for_testing()].try_into().unwrap(),
                 kzg_proofs: vec![KzgProof::empty()].try_into().unwrap(),
                 kzg_commitments_inclusion_proof: vec![
                     Hash256::zero();
-                    E::kzg_commitments_inclusion_proof_depth()
+                    Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH
                 ]
                 .try_into()
                 .unwrap(),
@@ -1268,7 +1268,7 @@ fn test_tcp_columns_by_range_chunked_rpc_for_fork(fork_name: ForkName) {
     let slot = spec
         .fork_epoch(fork_name)
         .expect("fork must be scheduled")
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
 
     let rt = Arc::new(Runtime::new().unwrap());
     // get sender/receiver
@@ -1287,7 +1287,7 @@ fn test_tcp_columns_by_range_chunked_rpc_for_fork(fork_name: ForkName) {
         let rpc_request = RequestType::DataColumnsByRange(DataColumnsByRangeRequest {
             start_slot: slot.as_u64(),
             count: 32,
-            columns: (0..E::number_of_columns() as u64).collect(),
+            columns: (0..Spec::number_of_columns()).collect(),
         });
 
         // DataColumnsByRange Response
@@ -1296,7 +1296,7 @@ fn test_tcp_columns_by_range_chunked_rpc_for_fork(fork_name: ForkName) {
                 index: 1,
                 slot,
                 beacon_block_root: Hash256::zero(),
-                column: vec![vec![0; E::bytes_per_cell()].try_into().unwrap()]
+                column: vec![vec![0; Spec::BYTES_PER_CELL].try_into().unwrap()]
                     .try_into()
                     .unwrap(),
                 kzg_proofs: vec![KzgProof::empty()].try_into().unwrap(),
@@ -1314,14 +1314,14 @@ fn test_tcp_columns_by_range_chunked_rpc_for_fork(fork_name: ForkName) {
                     },
                     signature: Signature::empty(),
                 },
-                column: vec![vec![0; E::bytes_per_cell()].try_into().unwrap()]
+                column: vec![vec![0; Spec::BYTES_PER_CELL].try_into().unwrap()]
                     .try_into()
                     .unwrap(),
                 kzg_commitments: vec![KzgCommitment::empty_for_testing()].try_into().unwrap(),
                 kzg_proofs: vec![KzgProof::empty()].try_into().unwrap(),
                 kzg_commitments_inclusion_proof: vec![
                     Hash256::zero();
-                    E::kzg_commitments_inclusion_proof_depth()
+                    Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH
                 ]
                 .try_into()
                 .unwrap(),
@@ -1969,7 +1969,7 @@ fn test_request_too_large_data_columns_by_range() {
             start_slot: 0,
             count: 0,
             // exceeds the max request defined in the spec.
-            columns: vec![0; E::number_of_columns() + 1],
+            columns: vec![0; Spec::NUMBER_OF_COLUMNS + 1],
         }),
     );
 }

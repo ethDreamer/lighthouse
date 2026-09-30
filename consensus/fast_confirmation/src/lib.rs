@@ -400,7 +400,7 @@ impl FastConfirmationRule {
         votes: &[VoteTracker],
         equivocating_indices: &BTreeSet<u64>,
     ) -> Result<Hash256, Error> {
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let is_epoch_start = is_start_slot_at_epoch::<E>(current_slot);
         let mut confirmed_root = self.confirmed_root;
 
@@ -465,7 +465,7 @@ impl FastConfirmationRule {
         )?;
         // 2) epoch of fcr_store.current_epoch_observed_justified_checkpoint.root equals to the previous epoch,
         let is_observed_justified_block_epoch_ok = observed_justified_block_slot
-            .epoch(E::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
             .safe_add(1)?
             == current_epoch;
         // 3) fcr_store.current_epoch_observed_justified_checkpoint equals to unrealized justification of the head,
@@ -522,7 +522,7 @@ impl FastConfirmationRule {
     ) -> Result<Hash256, Error> {
         let _span = debug_span!("fcr_find_confirmed_descendant").entered();
 
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let mut confirmed_root = latest_confirmed_root;
 
         // Precompute attestation scores for the whole chain (confirmed → head) in one O(V × depth)
@@ -702,7 +702,7 @@ impl FastConfirmationRule {
             return Ok(Some("off_justified_chain"));
         }
 
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let start_root_exclusive = if self
             .current_epoch_observed_justified
             .checkpoint()
@@ -821,7 +821,7 @@ impl FastConfirmationRule {
     ) -> Result<u64, Error> {
         let committee_weight = balance_source
             .total_active_balance
-            .safe_div(E::slots_per_epoch())?;
+            .safe_div(Spec::slots_per_epoch())?;
         Ok(committee_weight
             .safe_mul(self.proposer_score_boost)?
             .safe_div(100)?)
@@ -1113,7 +1113,7 @@ impl FastConfirmationRule {
             };
             let vote_root = vote.current_root();
             // Spec: get_latest_message_epoch(latest_messages[i]).
-            let vote_epoch = vote.current_slot().epoch(E::slots_per_epoch());
+            let vote_epoch = vote.current_slot().epoch(Spec::slots_per_epoch());
             // vote_root.is_zero() == true means no latest message
             if !vote_root.is_zero()
                 && vote_epoch == target.epoch
@@ -1143,7 +1143,7 @@ impl FastConfirmationRule {
         equivocating_indices: &BTreeSet<u64>,
     ) -> Result<u64, Error> {
         let _s = debug_span!("fcr_honest_ffg").entered();
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         let balance_source = &self.head_balance_source;
         let total_active_balance = balance_source.total_active_balance;
 
@@ -1237,7 +1237,7 @@ fn get_block_epoch<E: EthSpec>(
     root: Hash256,
     proto_array: &ProtoArray,
 ) -> Result<types::Epoch, Error> {
-    Ok(get_block_slot(root, proto_array)?.epoch(E::slots_per_epoch()))
+    Ok(get_block_slot(root, proto_array)?.epoch(Spec::slots_per_epoch()))
 }
 
 fn parent_root(root: Hash256, proto_array: &ProtoArray) -> Result<Hash256, Error> {
@@ -1332,8 +1332,8 @@ fn get_voting_source_epoch<E: EthSpec>(
     proto_array: &ProtoArray,
 ) -> Result<types::Epoch, Error> {
     let node = get_block(root, proto_array)?;
-    let current_epoch = current_slot.epoch(E::slots_per_epoch());
-    let block_epoch = node.slot().epoch(E::slots_per_epoch());
+    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
+    let block_epoch = node.slot().epoch(Spec::slots_per_epoch());
     if current_epoch > block_epoch {
         node.unrealized_justified_checkpoint()
             .map(|cp| cp.epoch)
@@ -1349,7 +1349,7 @@ fn get_current_target<E: EthSpec>(
     current_slot: Slot,
     proto_array: &ProtoArray,
 ) -> Result<Checkpoint, Error> {
-    let current_epoch = current_slot.epoch(E::slots_per_epoch());
+    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
     get_checkpoint_for_block::<E>(head_root, current_epoch, proto_array)
         .ok_or(Error::HeadCheckpointNotFound(head_root))
 }
@@ -1398,12 +1398,12 @@ fn get_attestation_score(
 
 /// Spec: `is_start_slot_at_epoch`.
 fn is_start_slot_at_epoch<E: EthSpec>(slot: Slot) -> bool {
-    slot.as_u64().is_multiple_of(E::slots_per_epoch())
+    slot.as_u64().is_multiple_of(Spec::slots_per_epoch())
 }
 
 /// Spec: `compute_start_slot_at_epoch`.
 fn compute_start_slot_at_epoch<E: EthSpec>(epoch: Epoch) -> Slot {
-    epoch.start_slot(E::slots_per_epoch())
+    epoch.start_slot(Spec::slots_per_epoch())
 }
 
 /// Spec: `is_full_validator_set_covered`.
@@ -1411,7 +1411,7 @@ fn is_full_validator_set_covered<E: EthSpec>(
     start_slot: Slot,
     end_slot: Slot,
 ) -> Result<bool, Error> {
-    let spe = E::slots_per_epoch();
+    let spe = Spec::slots_per_epoch();
     let start_full_epoch = start_slot.safe_add(spe.safe_sub(1)?)?.epoch(spe);
     let end_full_epoch = end_slot.safe_add(1)?.epoch(spe);
     Ok(start_full_epoch < end_full_epoch)
@@ -1433,7 +1433,7 @@ fn estimate_committee_weight_between_slots<E: EthSpec>(
     start_slot: Slot,
     end_slot: Slot,
 ) -> Result<u64, Error> {
-    let spe = E::slots_per_epoch();
+    let spe = Spec::slots_per_epoch();
 
     if start_slot > end_slot {
         return Ok(0);
@@ -1500,7 +1500,7 @@ mod tests {
 
     #[test]
     fn test_is_full_validator_set_covered() {
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         // Full epoch
         assert!(
             is_full_validator_set_covered::<E>(Slot::new(0), Slot::new(slots_per_epoch - 1))
@@ -1521,7 +1521,7 @@ mod tests {
 
     #[test]
     fn test_estimate_committee_weight_same_epoch() {
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         // The total should divide evenly across the epoch. 32B gwei on Mainnet, 1B per slot.
         let total = slots_per_epoch * 1_000_000_000;
 
@@ -1582,7 +1582,7 @@ mod tests {
         use state_processing::{GloasVerificationContext, per_slot_processing};
         use types::MinimalEthSpec;
 
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let mut state: BeaconState<E> = BeaconState::new(0, Default::default(), &spec);
         for _ in 0..32 {
             let validator = types::Validator {
@@ -1607,7 +1607,7 @@ mod tests {
 
         // Advance to a mid-epoch slot: at an epoch start the dependent root changes and would
         // rebuild the source regardless, masking the bug.
-        let mid_epoch_slot = Slot::new(E::slots_per_epoch() + 4);
+        let mid_epoch_slot = Slot::new(Spec::slots_per_epoch() + 4);
         while state.slot() < mid_epoch_slot {
             per_slot_processing(
                 &mut state,

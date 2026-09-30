@@ -344,7 +344,7 @@ impl<E: EthSpec> HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend> {
         let deneb_fork_slot = db
             .spec
             .deneb_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let new_blob_info = match &blob_info {
             Some(blob_info) => {
                 // If the oldest block slot is already set do not allow the blob DB path to be
@@ -374,7 +374,7 @@ impl<E: EthSpec> HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend> {
         let fulu_fork_slot = db
             .spec
             .fulu_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let new_data_column_info = match &data_column_info {
             Some(data_column_info) => {
                 // Set the oldest data column slot to the fork slot if it is not yet set.
@@ -2098,7 +2098,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         // state that this state is based on. It may be useful as the basis of more states
         // in the same epoch.
         let state_cache_hook = |state_root, state: &mut BeaconState<E>| {
-            if !update_cache || state.slot() % E::slots_per_epoch() != 0 {
+            if !update_cache || state.slot() % Spec::slots_per_epoch() != 0 {
                 return Ok(());
             }
             // Ensure all caches are built before attempting to cache.
@@ -2740,7 +2740,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
     /// Unlike `get_data_column_keys`, these keys are not necessarily all present in the database,
     /// due to the node's custody requirements many just store a subset.
     pub fn get_all_data_column_keys(&self, block_root: Hash256) -> Vec<Vec<u8>> {
-        (0..E::number_of_columns() as u64)
+        (0..Spec::number_of_columns())
             .map(|column_index| get_data_column_key(&block_root, &column_index))
             .collect()
     }
@@ -2915,7 +2915,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
     /// Initialize the `BlobInfo` when starting from genesis or a checkpoint.
     pub fn init_blob_info(&self, anchor_slot: Slot) -> Result<KeyValueStoreOp, Error> {
         let oldest_blob_slot = self.spec.deneb_fork_epoch.map(|fork_epoch| {
-            std::cmp::max(anchor_slot, fork_epoch.start_slot(E::slots_per_epoch()))
+            std::cmp::max(anchor_slot, fork_epoch.start_slot(Spec::slots_per_epoch()))
         });
         let blob_info = BlobInfo {
             oldest_blob_slot,
@@ -2934,7 +2934,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
     /// Initialize the `DataColumnInfo` when starting from genesis or a checkpoint.
     pub fn init_data_column_info(&self, anchor_slot: Slot) -> Result<KeyValueStoreOp, Error> {
         let oldest_data_column_slot = self.spec.fulu_fork_epoch.map(|fork_epoch| {
-            std::cmp::max(anchor_slot, fork_epoch.start_slot(E::slots_per_epoch()))
+            std::cmp::max(anchor_slot, fork_epoch.start_slot(Spec::slots_per_epoch()))
         });
         let data_column_info = DataColumnInfo {
             oldest_data_column_slot,
@@ -3266,7 +3266,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         }
 
         let bellatrix_fork_slot = if let Some(epoch) = self.spec.bellatrix_fork_epoch {
-            epoch.start_slot(E::slots_per_epoch())
+            epoch.start_slot(Spec::slots_per_epoch())
         } else {
             return Ok(());
         };
@@ -3393,7 +3393,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         // The current epoch is >= split_epoch + 2. It could be greater if the database is
         // configured to delay updating the split or finalization has ceased. In this instance we
         // choose to also delay the pruning of blobs (we never prune without finalization anyway).
-        let min_current_epoch = self.get_split_slot().epoch(E::slots_per_epoch()) + 2;
+        let min_current_epoch = self.get_split_slot().epoch(Spec::slots_per_epoch()) + 2;
         let Some(min_data_availability_boundary) = self
             .spec
             .min_epoch_data_availability_boundary(min_current_epoch)
@@ -3445,7 +3445,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         // The start epoch is not necessarily iterated back to, but is used for deciding whether we
         // should attempt pruning. We could probably refactor it out eventually (while reducing our
         // dependence on BlobInfo).
-        let start_epoch = oldest_blob_slot.epoch(E::slots_per_epoch());
+        let start_epoch = oldest_blob_slot.epoch(Spec::slots_per_epoch());
 
         // Prune blobs up until the `data_availability_boundary - margin` or the split
         // slot's epoch, whichever is older. We can't prune blobs newer than the split.
@@ -3453,9 +3453,9 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         let split = self.get_split_info();
         let end_epoch = std::cmp::min(
             data_availability_boundary - margin_epochs - 1,
-            split.slot.epoch(E::slots_per_epoch()) - 1,
+            split.slot.epoch(Spec::slots_per_epoch()) - 1,
         );
-        let end_slot = end_epoch.end_slot(E::slots_per_epoch());
+        let end_slot = end_epoch.end_slot(Spec::slots_per_epoch());
 
         let can_prune = end_epoch != 0 && start_epoch <= end_epoch;
         let should_prune = start_epoch + epochs_per_blob_prune <= end_epoch + 1;
@@ -3702,7 +3702,7 @@ pub fn migrate_database<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
 
     // finalized_state.slot() must be at an epoch boundary
     // else we may introduce bugs to the migration/pruning logic
-    if finalized_state.slot() % E::slots_per_epoch() != 0 {
+    if finalized_state.slot() % Spec::slots_per_epoch() != 0 {
         return Err(HotColdDBError::FreezeSlotUnaligned(finalized_state.slot()).into());
     }
 
@@ -3944,7 +3944,7 @@ pub fn get_ancestor_state_root<'a, E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
         //   below
         let oldest_slot_in_state_roots = from_state
             .slot()
-            .saturating_sub(Slot::new(E::SlotsPerHistoricalRoot::to_u64()));
+            .saturating_sub(Slot::new(Spec::slots_per_historical_root()));
 
         // Don't start with a slot that prior to the finalized state slot. We may be attempting to read
         // a hot state summary that has already been pruned as part of the migration and error. HDiffs
@@ -4222,7 +4222,7 @@ mod tests {
     #[test]
     fn payload_pruning_fast_path_skips_withheld_gloas_blocks() {
 
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = Some(Epoch::new(0));
         let store = HotColdDB::<E, MemoryStore, MemoryStore>::open_ephemeral(
             StoreConfig::default(),

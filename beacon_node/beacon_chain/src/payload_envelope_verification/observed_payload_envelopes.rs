@@ -89,7 +89,7 @@ mod tests {
             },
             signature: Signature::empty(),
         };
-        let mut block = BeaconBlock::empty(&E::default_spec());
+        let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot;
 
         GossipVerifiedEnvelope {

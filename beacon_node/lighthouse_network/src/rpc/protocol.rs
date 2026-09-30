@@ -30,7 +30,7 @@ use types::{
 pub static SIGNED_BEACON_BLOCK_BASE_MIN: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<MainnetEthSpec>::from_block(
         BeaconBlock::Base(BeaconBlockBase::<MainnetEthSpec>::empty(
-            &MainnetEthSpec::default_spec(),
+            &Spec::default_spec(),
         )),
         Signature::empty(),
     )
@@ -39,7 +39,7 @@ pub static SIGNED_BEACON_BLOCK_BASE_MIN: LazyLock<usize> = LazyLock::new(|| {
 });
 pub static SIGNED_BEACON_BLOCK_BASE_MAX: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<MainnetEthSpec>::from_block(
-        BeaconBlock::Base(BeaconBlockBase::full(&MainnetEthSpec::default_spec())),
+        BeaconBlock::Base(BeaconBlockBase::full(&Spec::default_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -48,7 +48,7 @@ pub static SIGNED_BEACON_BLOCK_BASE_MAX: LazyLock<usize> = LazyLock::new(|| {
 
 pub static SIGNED_BEACON_BLOCK_ALTAIR_MAX: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<MainnetEthSpec>::from_block(
-        BeaconBlock::Altair(BeaconBlockAltair::full(&MainnetEthSpec::default_spec())),
+        BeaconBlock::Altair(BeaconBlockAltair::full(&Spec::default_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -714,7 +714,7 @@ impl ProtocolId {
 }
 
 pub fn rpc_blob_limits<E: EthSpec>() -> RpcLimits {
-    match E::spec_name() {
+    match Spec::SPEC_ID {
         EthSpecId::Minimal => {
             RpcLimits::new(*BLOB_SIDECAR_SIZE_MINIMAL, *BLOB_SIDECAR_SIZE_MINIMAL)
         }
@@ -1242,7 +1242,7 @@ mod tests {
     #[test]
     fn all_protocols_registered() {
         for fork in ForkName::list_all() {
-            let spec = fork.make_genesis_spec(E::default_spec());
+            let spec = fork.make_genesis_spec(Spec::default_spec());
             let fork_context = Arc::new(ForkContext::new::<E>(Slot::new(0), Hash256::ZERO, &spec));
 
             let currently_supported: HashSet<SupportedProtocol> =

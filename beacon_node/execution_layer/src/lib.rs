@@ -739,14 +739,14 @@ impl<E: EthSpec> ExecutionLayer<E> {
             // Start the loop to periodically clean proposer preparation cache.
             loop {
                 if let Some(duration_to_next_epoch) =
-                    slot_clock.duration_to_next_epoch(E::slots_per_epoch())
+                    slot_clock.duration_to_next_epoch(Spec::slots_per_epoch())
                 {
                     // Wait for next epoch
                     sleep(duration_to_next_epoch).await;
 
                     match slot_clock
                         .now()
-                        .map(|slot| slot.epoch(E::slots_per_epoch()))
+                        .map(|slot| slot.epoch(Spec::slots_per_epoch()))
                     {
                         Some(current_epoch) => el
                             .clean_proposer_caches(current_epoch)
@@ -854,7 +854,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         });
         drop(proposer_preparation_data);
 
-        let retain_slot = retain_epoch.start_slot(E::slots_per_epoch());
+        let retain_slot = retain_epoch.start_slot(Spec::slots_per_epoch());
         self.proposers()
             .write()
             .await
@@ -2276,7 +2276,7 @@ mod test {
 
     #[tokio::test]
     async fn test_expected_gas_limit() {
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
         assert_eq!(
             expected_gas_limit(30_000_000, 30_000_000, &spec),
             Some(30_000_000)

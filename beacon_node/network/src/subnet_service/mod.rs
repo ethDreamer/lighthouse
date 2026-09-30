@@ -142,7 +142,7 @@ impl<T: BeaconChainTypes> SubnetService<T> {
         // Set up the sync committee subscriptions
         let spec = &beacon_chain.spec;
         let epoch_duration_secs =
-            beacon_chain.slot_clock.slot_duration().as_secs() * T::EthSpec::slots_per_epoch();
+            beacon_chain.slot_clock.slot_duration().as_secs() * Spec::slots_per_epoch();
         let default_sync_committee_duration = Duration::from_secs(
             epoch_duration_secs.saturating_mul(spec.epochs_per_sync_committee_period.as_u64()),
         );
@@ -297,7 +297,7 @@ impl<T: BeaconChainTypes> SubnetService<T> {
                         let subnet = Subnet::SyncCommittee(subnet_id);
                         let slot_required_until = subscription
                             .until_epoch
-                            .start_slot(T::EthSpec::slots_per_epoch());
+                            .start_slot(Spec::slots_per_epoch());
                         subnets_to_discover.insert(subnet, slot_required_until);
 
                         let Some(duration_to_unsubscribe) = self

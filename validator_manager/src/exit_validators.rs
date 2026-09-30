@@ -282,7 +282,7 @@ pub fn get_current_epoch<E: EthSpec>(genesis_time: u64, spec: &ChainSpec) -> Opt
         Duration::from_secs(genesis_time),
         spec.get_slot_duration(),
     );
-    slot_clock.now().map(|s| s.epoch(E::slots_per_epoch()))
+    slot_clock.now().map(|s| s.epoch(Spec::slots_per_epoch()))
 }
 
 #[cfg(not(debug_assertions))]
@@ -318,7 +318,7 @@ mod test {
 
     impl TestBuilder {
         async fn new() -> Self {
-            let mut spec = MainnetEthSpec::default_spec();
+            let mut spec = Spec::default_spec();
             spec.shard_committee_period = 1;
             // Enough churn for all exits in a test to share one epoch (minimal's default is 2).
             spec.min_per_epoch_churn_limit = 4;

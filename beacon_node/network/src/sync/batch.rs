@@ -184,8 +184,8 @@ impl<E: EthSpec, B: BatchConfig, D: Hash> BatchInfo<E, B, D> {
     /// deal with this for now.
     /// This means finalization might be slower in deneb
     pub fn new(start_epoch: &Epoch, num_of_epochs: u64, batch_type: ByRangeRequestType) -> Self {
-        let start_slot = start_epoch.start_slot(E::slots_per_epoch());
-        let end_slot = start_slot + num_of_epochs * E::slots_per_epoch();
+        let start_slot = start_epoch.start_slot(Spec::slots_per_epoch());
+        let end_slot = start_slot + num_of_epochs * Spec::slots_per_epoch();
         Self {
             start_slot,
             end_slot,

@@ -143,7 +143,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     pub fn new(db: Arc<HotColdDB<E, Hot, Cold>>, config: MigratorConfig) -> Self {
         // Estimate last migration run from DB split slot.
         let prev_migration = Arc::new(Mutex::new(PrevMigration {
-            epoch: db.get_split_slot().epoch(E::slots_per_epoch()),
+            epoch: db.get_split_slot().epoch(Spec::slots_per_epoch()),
             epochs_per_migration: config.epochs_per_migration,
         }));
         let tx_thread = if config.blocking {
@@ -515,7 +515,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     ) -> Result<PruningOutcome, BeaconChainError> {
         let new_finalized_slot = new_finalized_checkpoint
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         // The finalized state must be for the epoch boundary slot, not the slot of the finalized
         // block.
@@ -808,7 +808,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
             // Approximation of the previous finalized checkpoint. Only used in the compaction to
             // compute time since last compaction.
             old_finalized_checkpoint_epoch: newly_finalized_states_min_slot
-                .epoch(E::slots_per_epoch()),
+                .epoch(Spec::slots_per_epoch()),
         })
     }
 
@@ -877,7 +877,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
             // at epoch boundaries by storing them in the `epoch_boundary_blocks` hash set.
             // We then ensure that block roots at the epoch boundary aren't included in the
             // `non_checkpoint_block_roots` hash set.
-            if *slot % E::slots_per_epoch() == 0 {
+            if *slot % Spec::slots_per_epoch() == 0 {
                 epoch_boundary_blocks.insert(block_root);
             } else {
                 non_checkpoint_block_roots.insert(block_root);

@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn from_justified_state_handles_slashed_and_inactive_validators() {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);
         let epoch = state.current_epoch();
 

@@ -51,7 +51,7 @@ pub fn complete_kzg_commitment_merkle_proof<E: EthSpec>(
         .iter()
         .map(|commitment| commitment.tree_hash_root())
         .collect::<Vec<_>>();
-    let depth = E::max_blob_commitments_per_block()
+    let depth = Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK
         .next_power_of_two()
         .ilog2();
     let tree = MerkleTree::create(&blob_leaves, depth as usize);

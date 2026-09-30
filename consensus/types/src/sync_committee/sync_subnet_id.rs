@@ -45,7 +45,7 @@ impl SyncSubnetId {
     pub fn compute_subnets_for_sync_committee<E: EthSpec>(
         sync_committee_indices: &[u64],
     ) -> Result<HashSet<Self>, ArithError> {
-        let subcommittee_size = E::SyncSubcommitteeSize::to_u64();
+        let subcommittee_size = Spec::sync_subcommittee_size();
 
         sync_committee_indices
             .iter()

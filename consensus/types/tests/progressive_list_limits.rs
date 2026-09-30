@@ -32,70 +32,70 @@ fn check_limits<E: EthSpec>() {
         }};
     }
 
-    let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+    let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
     let block = BeaconBlockGloas::<E>::empty(&spec);
-    check!(block, body.proposer_slashings, E::MaxProposerSlashings);
+    check!(block, body.proposer_slashings, Spec::MAX_PROPOSER_SLASHINGS);
     check!(
         block,
         body.attester_slashings,
-        E::MaxAttesterSlashingsElectra
+        Spec::MAX_ATTESTER_SLASHINGS_ELECTRA
     );
-    check!(block, body.attestations, E::MaxAttestationsElectra);
-    check!(block, body.deposits, E::MaxDeposits);
-    check!(block, body.voluntary_exits, E::MaxVoluntaryExits);
+    check!(block, body.attestations, Spec::MAX_ATTESTATIONS_ELECTRA);
+    check!(block, body.deposits, Spec::MAX_DEPOSITS);
+    check!(block, body.voluntary_exits, Spec::MAX_VOLUNTARY_EXITS);
     check!(
         block,
         body.bls_to_execution_changes,
-        E::MaxBlsToExecutionChanges
+        Spec::MAX_BLS_TO_EXECUTION_CHANGES
     );
-    check!(block, body.payload_attestations, E::MaxPayloadAttestations);
+    check!(block, body.payload_attestations, Spec::MAX_PAYLOAD_ATTESTATIONS);
     check!(
         block,
         body.signed_execution_payload_bid
             .message
             .blob_kzg_commitments,
-        E::MaxBlobCommitmentsPerBlock
+        Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK
     );
 
     let envelope = ExecutionPayloadEnvelope::<E>::empty();
-    check!(envelope, payload.withdrawals, E::MaxWithdrawalsPerPayload);
+    check!(envelope, payload.withdrawals, Spec::MAX_WITHDRAWALS_PER_PAYLOAD);
     check!(
         envelope,
         execution_requests.withdrawals,
-        E::MaxWithdrawalRequestsPerPayload
+        Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD
     );
     check!(
         envelope,
         execution_requests.consolidations,
-        E::MaxConsolidationRequestsPerPayload
+        Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD
     );
     check!(
         envelope,
         execution_requests.builder_deposits,
-        E::MaxBuilderDepositRequestsPerPayload
+        Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD
     );
     check!(
         envelope,
         execution_requests.builder_exits,
-        E::MaxBuilderExitRequestsPerPayload
+        Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD
     );
 
     // Gloas deliberately removed the Electra deposit-request limit.
     let mut envelope = envelope;
     envelope.execution_requests.deposits = ProgressiveVariableList::new(vec![
-        test_arbitrary_instance(); E::max_deposit_requests_per_payload() + 1
+        test_arbitrary_instance(); Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD + 1
     ])
     .unwrap();
     assert!(round_trip(&envelope).is_ok());
 
     let attestation: IndexedAttestationGloas<E> = test_arbitrary_instance();
-    check!(attestation, attesting_indices, E::MaxValidatorsPerSlot);
+    check!(attestation, attesting_indices, Spec::MAX_VALIDATORS_PER_SLOT);
     let column: DataColumnSidecarGloas<E> = test_arbitrary_instance();
-    check!(column, column, E::MaxBlobCommitmentsPerBlock);
-    check!(column, kzg_proofs, E::MaxBlobCommitmentsPerBlock);
+    check!(column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
+    check!(column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
     let partial_column: PartialDataColumnSidecarGloas<E> = test_arbitrary_instance();
-    check!(partial_column, column, E::MaxBlobCommitmentsPerBlock);
-    check!(partial_column, kzg_proofs, E::MaxBlobCommitmentsPerBlock);
+    check!(partial_column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
+    check!(partial_column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
 }
 
 #[test]
@@ -108,12 +108,12 @@ fn progressive_list_limits() {
 #[test]
 fn progressive_block_body_errors_propagate() {
     for fork in [ForkName::Gloas, ForkName::Heze] {
-        let spec = fork.make_genesis_spec(E::default_spec());
+        let spec = fork.make_genesis_spec(Spec::default_spec());
         let mut block = BeaconBlock::<E>::empty(&spec);
         let mut body = block.body_mut();
         body.set_deposits_from_iter(vec![
             test_arbitrary_instance();
-            <E as EthSpec>::MaxDeposits::to_usize()
+            Spec::MAX_DEPOSITS
         ])
         .unwrap();
         assert!(matches!(
@@ -123,12 +123,12 @@ fn progressive_block_body_errors_propagate() {
         assert!(matches!(
             body.set_deposits_from_iter(vec![
                 test_arbitrary_instance();
-                <E as EthSpec>::MaxDeposits::to_usize() + 1
+                Spec::MAX_DEPOSITS + 1
             ]),
             Err(BeaconStateError::SszTypesError(_))
         ));
 
-        for _ in 0..<E as EthSpec>::MaxProposerSlashings::to_usize() {
+        for _ in 0..Spec::MAX_PROPOSER_SLASHINGS {
             body.proposer_slashings_push(test_arbitrary_instance())
                 .unwrap();
         }
@@ -137,7 +137,7 @@ fn progressive_block_body_errors_propagate() {
             Err(BeaconStateError::SszTypesError(_))
         ));
 
-        for _ in 0..<E as EthSpec>::MaxVoluntaryExits::to_usize() {
+        for _ in 0..Spec::MAX_VOLUNTARY_EXITS {
             body.voluntary_exits_push(test_arbitrary_instance())
                 .unwrap();
         }
@@ -147,7 +147,7 @@ fn progressive_block_body_errors_propagate() {
         ));
         assert_eq!(
             block.body().deposits().len(),
-            <E as EthSpec>::MaxDeposits::to_usize()
+            Spec::MAX_DEPOSITS
         );
     }
 }

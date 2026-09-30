@@ -156,5 +156,5 @@ pub fn block(slot: u64, proposer_index: u64, block_root: u64) -> SignedBeaconBlo
 }
 
 pub fn chain_spec() -> Arc<ChainSpec> {
-    Arc::new(E::default_spec())
+    Arc::new(Spec::default_spec())
 }

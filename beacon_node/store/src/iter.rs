@@ -353,7 +353,7 @@ fn next_historical_root_backtrack_state<E: EthSpec, Hot: ItemStore, Cold: ItemSt
 
 /// Compute the slot of the last guaranteed restore point in the freezer database.
 fn slot_of_prev_restore_point<E: EthSpec>(current_slot: Slot) -> Slot {
-    let slots_per_historical_root = E::SlotsPerHistoricalRoot::to_u64();
+    let slots_per_historical_root = Spec::slots_per_historical_root();
     (current_slot - 1) / slots_per_historical_root * slots_per_historical_root
 }
 
@@ -378,7 +378,7 @@ mod test {
 
     fn get_store<E: EthSpec>() -> HotColdDB<E, MemoryStore, MemoryStore> {
         let store =
-            HotColdDB::open_ephemeral(Config::default(), Arc::new(E::default_spec())).unwrap();
+            HotColdDB::open_ephemeral(Config::default(), Arc::new(Spec::default_spec())).unwrap();
         // Init achor info so anchor slot is set. Use a random block as it is only used for the
         // parent_root
         let _ = store
@@ -401,7 +401,7 @@ mod test {
     fn block_root_iter() {
         let store = get_store::<MainnetEthSpec>();
 
-        let slots_per_historical_root = MainnetEthSpec::slots_per_historical_root();
+        let slots_per_historical_root = Spec::SLOTS_PER_HISTORICAL_ROOT;
 
         let mut state_a: BeaconState<MainnetEthSpec> = get_state();
         let mut state_b: BeaconState<MainnetEthSpec> = get_state();
@@ -435,7 +435,7 @@ mod test {
         let mut collected: Vec<(Hash256, Slot)> = iter.collect::<Result<Vec<_>, _>>().unwrap();
         collected.reverse();
 
-        let expected_len = 2 * MainnetEthSpec::slots_per_historical_root();
+        let expected_len = 2 * Spec::SLOTS_PER_HISTORICAL_ROOT;
 
         assert_eq!(collected.len(), expected_len);
 
@@ -448,7 +448,7 @@ mod test {
     fn state_root_iter() {
         let store = get_store::<MainnetEthSpec>();
 
-        let slots_per_historical_root = MainnetEthSpec::slots_per_historical_root();
+        let slots_per_historical_root = Spec::SLOTS_PER_HISTORICAL_ROOT;
 
         let mut state_a: BeaconState<MainnetEthSpec> = get_state();
         let mut state_b: BeaconState<MainnetEthSpec> = get_state();
@@ -489,7 +489,7 @@ mod test {
         let mut collected: Vec<(Hash256, Slot)> = iter.collect::<Result<Vec<_>, _>>().unwrap();
         collected.reverse();
 
-        let expected_len = MainnetEthSpec::slots_per_historical_root() * 2;
+        let expected_len = Spec::SLOTS_PER_HISTORICAL_ROOT * 2;
 
         assert_eq!(collected.len(), expected_len, "collection length incorrect");
 

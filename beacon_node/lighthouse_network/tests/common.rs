@@ -19,7 +19,7 @@ use tempfile::Builder as TempBuilder;
 
 /// Returns a chain spec with all forks enabled.
 pub fn spec_with_all_forks_enabled() -> ChainSpec {
-    let mut chain_spec = E::default_spec();
+    let mut chain_spec = Spec::default_spec();
     chain_spec.altair_fork_epoch = Some(Epoch::new(1));
     chain_spec.bellatrix_fork_epoch = Some(Epoch::new(2));
     chain_spec.capella_fork_epoch = Some(Epoch::new(3));
@@ -39,7 +39,7 @@ pub fn fork_context(fork_name: ForkName, spec: &ChainSpec) -> ForkContext {
     let current_epoch = spec.fork_epoch(fork_name);
     let current_slot = current_epoch
         .unwrap_or_else(|| panic!("expect fork {fork_name} to be scheduled"))
-        .start_slot(E::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     ForkContext::new::<E>(current_slot, Hash256::zero(), spec)
 }
 

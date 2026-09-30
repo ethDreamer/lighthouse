@@ -29,7 +29,7 @@ impl<E: EthSpec> Case for GetCustodyGroups<E> {
     }
 
     fn result(&self, _case_index: usize, _fork_name: ForkName) -> Result<(), Error> {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let node_id = U256::from_str_radix(&self.node_id, 10)
             .map_err(|e| Error::FailedToParseTest(format!("{e:?}")))?;
         let raw_node_id = node_id.to_be_bytes::<32>();

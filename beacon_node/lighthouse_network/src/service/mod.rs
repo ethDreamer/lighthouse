@@ -249,7 +249,7 @@ impl<E: EthSpec> Network<E> {
             ctx.fork_context.clone(),
             gossipsub_config_params,
             ctx.chain_spec.get_slot_duration(),
-            E::slots_per_epoch(),
+            Spec::slots_per_epoch(),
             config.idontwant_message_size_threshold,
         );
 
@@ -257,7 +257,7 @@ impl<E: EthSpec> Network<E> {
 
         let gossip_cache = {
             let half_epoch = std::time::Duration::from_millis(
-                (ctx.chain_spec.get_slot_duration().as_millis() as u64) * E::slots_per_epoch() / 2,
+                (ctx.chain_spec.get_slot_duration().as_millis() as u64) * Spec::slots_per_epoch() / 2,
             );
 
             GossipCache::builder()
@@ -282,7 +282,7 @@ impl<E: EthSpec> Network<E> {
             let params = {
                 // Construct a set of gossipsub peer scoring parameters
                 // We don't know the number of active validators and the current slot yet
-                let active_validators = E::minimum_validator_count();
+                let active_validators = Spec::minimum_validator_count();
                 let current_slot = Slot::new(0);
                 score_settings.get_peer_score_params(
                     active_validators,

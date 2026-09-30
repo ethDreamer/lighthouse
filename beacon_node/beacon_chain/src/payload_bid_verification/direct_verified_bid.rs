@@ -67,7 +67,7 @@ pub fn verify_direct_bid<E: EthSpec>(
     }
 
     // `prev_randao` must be the RANDAO mix from the production state.
-    let expected_prev_randao = *state.get_randao_mix(proposal_slot.epoch(E::slots_per_epoch()))?;
+    let expected_prev_randao = *state.get_randao_mix(proposal_slot.epoch(Spec::slots_per_epoch()))?;
     if bid.prev_randao != expected_prev_randao {
         return Err(PayloadBidError::InvalidPrevRandao { slot: bid.slot });
     }
@@ -128,7 +128,7 @@ mod tests {
     const EXECUTED_ANCESTOR_GAS_LIMIT: u64 = 30_000_000;
 
     fn state_and_spec() -> (BeaconState<E>, ChainSpec) {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let state = BeaconState::new(0, <_>::default(), &spec);
         (state, spec)
     }

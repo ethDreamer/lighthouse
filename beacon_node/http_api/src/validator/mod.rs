@@ -719,7 +719,7 @@ pub fn post_validator_register_validator<T: BeaconChainTypes>(
                             .now_or_genesis()
                             .ok_or(BeaconChainError::UnableToReadSlot)
                             .map_err(warp_utils::reject::unhandled_error)?;
-                        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+                        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
 
                         debug!(
                             count = register_val_data.len(),
@@ -1026,7 +1026,7 @@ pub fn post_validator_prepare_beacon_proposer<T: BeaconChainTypes>(
                         .now_or_genesis()
                         .ok_or(BeaconChainError::UnableToReadSlot)
                         .map_err(warp_utils::reject::unhandled_error)?;
-                    let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+                    let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
 
                     debug!(
                         count = preparation_data.len(),
@@ -1086,7 +1086,7 @@ pub fn post_validator_prepare_beacon_proposer<T: BeaconChainTypes>(
                             chain.update_data_column_custody_info(Some(
                                 cgc_change
                                     .effective_epoch
-                                    .start_slot(T::EthSpec::slots_per_epoch()),
+                                    .start_slot(Spec::slots_per_epoch()),
                             ));
 
                             network_tx.send(NetworkMessage::CustodyCountChanged {

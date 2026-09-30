@@ -89,7 +89,7 @@ impl SubnetId {
         committee_count_at_slot: u64,
         spec: &ChainSpec,
     ) -> Result<SubnetId, ArithError> {
-        let slots_since_epoch_start: u64 = slot.as_u64().safe_rem(E::slots_per_epoch())?;
+        let slots_since_epoch_start: u64 = slot.as_u64().safe_rem(Spec::slots_per_epoch())?;
 
         let committees_since_epoch_start =
             committee_count_at_slot.safe_mul(slots_since_epoch_start)?;
@@ -196,7 +196,7 @@ mod tests {
         ];
 
         // Test mainnet
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
 
         for x in 0..node_ids.len() {
             println!("Test: {}", x);

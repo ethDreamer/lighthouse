@@ -114,7 +114,7 @@ impl<E: EthSpec> ObservedSlashable<E> {
 
     /// Returns `Ok(())` if the given `header` is sane.
     fn sanitize_header(&self, slot: Slot, proposer_index: u64) -> Result<(), Error> {
-        if proposer_index >= E::ValidatorRegistryLimit::to_u64() {
+        if proposer_index >= Spec::validator_registry_limit() {
             return Err(Error::ValidatorIndexTooHigh(proposer_index));
         }
 
@@ -152,7 +152,7 @@ mod tests {
 
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock<E> {
-        let mut block = BeaconBlock::empty(&E::default_spec());
+        let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot.into();
         *block.proposer_index_mut() = proposer;
         block
@@ -216,10 +216,10 @@ mod tests {
         /*
          * Check that a prune empties the cache
          */
-        cache.prune(E::slots_per_epoch().into());
+        cache.prune(Spec::slots_per_epoch().into());
         assert_eq!(
             cache.finalized_slot,
-            Slot::from(E::slots_per_epoch()),
+            Slot::from(Spec::slots_per_epoch()),
             "finalized slot is updated"
         );
         assert_eq!(cache.items.len(), 0, "no items left");
@@ -228,14 +228,14 @@ mod tests {
          * Check that we can't insert a finalized block
          */
         // First slot of finalized epoch, proposer 0
-        let block_b = get_block(E::slots_per_epoch(), 0);
+        let block_b = get_block(Spec::slots_per_epoch(), 0);
         let block_root_b = block_b.canonical_root();
 
         assert_eq!(
             cache.observe_slashable(block_b.slot(), block_b.proposer_index(), block_root_b),
             Err(Error::FinalizedBlock {
-                slot: E::slots_per_epoch().into(),
-                finalized_slot: E::slots_per_epoch().into(),
+                slot: Spec::slots_per_epoch().into(),
+                finalized_slot: Spec::slots_per_epoch().into(),
             }),
             "cant insert finalized block"
         );
@@ -245,7 +245,7 @@ mod tests {
         /*
          * Check that we _can_ insert a non-finalized block
          */
-        let three_epochs = E::slots_per_epoch() * 3;
+        let three_epochs = Spec::slots_per_epoch() * 3;
 
         // First slot of finalized epoch, proposer 0
         let block_b = get_block(three_epochs, 0);
@@ -273,7 +273,7 @@ mod tests {
         /*
          * Check that a prune doesnt wipe later blocks
          */
-        let two_epochs = E::slots_per_epoch() * 2;
+        let two_epochs = Spec::slots_per_epoch() * 2;
         cache.prune(two_epochs.into());
 
         assert_eq!(

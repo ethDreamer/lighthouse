@@ -219,11 +219,11 @@ impl<E: EthSpec> PubsubMessage<E> {
                                 // SSZ bytes but different hash tree roots, so the variant must be
                                 // chosen by fork.
                                 if fork_name.gloas_enabled() {
-                                    if data.len() > E::max_signed_aggregate_and_proof_size() {
+                                    if data.len() > Spec::MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE {
                                         return Err(format!(
                                             "SignedAggregateAndProof size {} exceeds MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE {}",
                                             data.len(),
-                                            E::max_signed_aggregate_and_proof_size()
+                                            Spec::MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE
                                         ));
                                     }
                                     SignedAggregateAndProof::Gloas(
@@ -359,11 +359,11 @@ impl<E: EthSpec> PubsubMessage<E> {
                             Some(&fork_name) => {
                                 // [Modified in Gloas:EIP7688] see `BeaconAggregateAndProof` above.
                                 if fork_name.gloas_enabled() {
-                                    if data.len() > E::max_attester_slashing_size() {
+                                    if data.len() > Spec::MAX_ATTESTER_SLASHING_SIZE {
                                         return Err(format!(
                                             "AttesterSlashing size {} exceeds MAX_ATTESTER_SLASHING_SIZE {}",
                                             data.len(),
-                                            E::max_attester_slashing_size()
+                                            Spec::MAX_ATTESTER_SLASHING_SIZE
                                         ));
                                     }
                                     AttesterSlashing::Gloas(
@@ -423,11 +423,11 @@ impl<E: EthSpec> PubsubMessage<E> {
                         )))
                     }
                     GossipKind::ExecutionPayloadBid => {
-                        if data.len() > E::max_signed_execution_payload_bid_size() {
+                        if data.len() > Spec::MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE {
                             return Err(format!(
                                 "SignedExecutionPayloadBid size {} exceeds MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE {}",
                                 data.len(),
-                                E::max_signed_execution_payload_bid_size()
+                                Spec::MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE
                             ));
                         }
                         let execution_payload_bid = SignedExecutionPayloadBid::from_ssz_bytes(data)
@@ -456,11 +456,11 @@ impl<E: EthSpec> PubsubMessage<E> {
                         Ok(PubsubMessage::ExecutionProof(Arc::new(execution_proof)))
                     }
                     GossipKind::InclusionList => {
-                        if data.len() > E::max_signed_inclusion_list_size() {
+                        if data.len() > Spec::MAX_SIGNED_INCLUSION_LIST_SIZE {
                             return Err(format!(
                                 "SignedInclusionList size {} exceeds MAX_SIGNED_INCLUSION_LIST_SIZE {}",
                                 data.len(),
-                                E::max_signed_inclusion_list_size()
+                                Spec::MAX_SIGNED_INCLUSION_LIST_SIZE
                             ));
                         }
                         let inclusion_list = SignedInclusionList::from_ssz_bytes(data)
@@ -723,7 +723,7 @@ mod tests {
 
 
     fn gloas_fork_context() -> ForkContext {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.bellatrix_fork_epoch = Some(Epoch::new(0));
         spec.capella_fork_epoch = Some(Epoch::new(0));
@@ -787,7 +787,7 @@ mod tests {
 
     #[test]
     fn gloas_aggregate_and_proof_size_bound() {
-        let max = E::max_signed_aggregate_and_proof_size();
+        let max = Spec::MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE;
         let err = decode_oversized(GossipKind::BeaconAggregateAndProof, max + 1).unwrap_err();
         assert!(err.contains("MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE"), "{err}");
         let err = decode_oversized(GossipKind::BeaconAggregateAndProof, max).unwrap_err();
@@ -799,7 +799,7 @@ mod tests {
 
     #[test]
     fn gloas_attester_slashing_size_bound() {
-        let max = E::max_attester_slashing_size();
+        let max = Spec::MAX_ATTESTER_SLASHING_SIZE;
         let err = decode_oversized(GossipKind::AttesterSlashing, max + 1).unwrap_err();
         assert!(err.contains("MAX_ATTESTER_SLASHING_SIZE"), "{err}");
         let err = decode_oversized(GossipKind::AttesterSlashing, max).unwrap_err();
@@ -853,7 +853,7 @@ mod tests {
 
     #[test]
     fn gloas_execution_payload_bid_size_bound() {
-        let max = E::max_signed_execution_payload_bid_size();
+        let max = Spec::MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE;
         let err = decode_oversized(GossipKind::ExecutionPayloadBid, max + 1).unwrap_err();
         assert!(
             err.contains("MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE"),
@@ -868,7 +868,7 @@ mod tests {
 
     #[test]
     fn heze_inclusion_list_size_bound() {
-        let max = E::max_signed_inclusion_list_size();
+        let max = Spec::MAX_SIGNED_INCLUSION_LIST_SIZE;
         let err = decode_oversized(GossipKind::InclusionList, max + 1).unwrap_err();
         assert!(err.contains("MAX_SIGNED_INCLUSION_LIST_SIZE"), "{err}");
         let err = decode_oversized(GossipKind::InclusionList, max).unwrap_err();

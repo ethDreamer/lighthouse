@@ -83,7 +83,7 @@ impl Transaction {
                     amount,
                     signature: Signature::empty().into(),
                 };
-                deposit.signature = deposit.create_signature(&keypair.sk, &E::default_spec());
+                deposit.signature = deposit.create_signature(&keypair.sk, &Spec::default_spec());
                 TransactionRequest::default()
                     .from(*sender)
                     .to(*deposit_contract_address)

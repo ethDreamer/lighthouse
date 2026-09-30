@@ -176,7 +176,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
                     BackFillState::Paused,
                     anchor_info
                         .oldest_block_slot
-                        .epoch(T::EthSpec::slots_per_epoch()),
+                        .epoch(Spec::slots_per_epoch()),
                 )
             };
 
@@ -276,10 +276,10 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         Ok(SyncStart::Syncing {
             completed: (self.validated_batches
                 * BACKFILL_EPOCHS_PER_BATCH
-                * T::EthSpec::slots_per_epoch()) as usize,
+                * Spec::slots_per_epoch()) as usize,
             remaining: self
                 .current_start
-                .start_slot(T::EthSpec::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .saturating_sub(self.beacon_chain.genesis_backfill_slot)
                 .as_usize(),
         })
@@ -589,7 +589,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
                 if self.check_completed() {
                     // chain is completed
                     info!(
-                        blocks_processed = self.validated_batches * T::EthSpec::slots_per_epoch(),
+                        blocks_processed = self.validated_batches * Spec::slots_per_epoch(),
                         "Backfill sync completed"
                     );
                     self.set_state(BackFillState::Completed);
@@ -1090,7 +1090,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         } else {
             self.current_start = anchor_info
                 .oldest_block_slot
-                .epoch(T::EthSpec::slots_per_epoch());
+                .epoch(Spec::slots_per_epoch());
             Ok(())
         }
     }
@@ -1116,7 +1116,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
             <= self
                 .beacon_chain
                 .genesis_backfill_slot
-                .epoch(T::EthSpec::slots_per_epoch())
+                .epoch(Spec::slots_per_epoch())
     }
 
     pub fn register_metrics(&self) {
@@ -1169,7 +1169,7 @@ mod tests {
             .build();
 
         let beacon_chain = harness.chain.clone();
-        let slots_per_epoch = MinimalEthSpec::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
 
         let network_globals = Arc::new(NetworkGlobals::new_test_globals(
             vec![],

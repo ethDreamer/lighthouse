@@ -282,7 +282,7 @@ pub fn spawn<T: BeaconChainTypes>(
         beacon_chain
             .spec
             .max_request_blocks(fork_context.current_fork_name()) as u64
-            >= T::EthSpec::slots_per_epoch() * EPOCHS_PER_BATCH,
+            >= Spec::slots_per_epoch() * EPOCHS_PER_BATCH,
         "Max blocks that can be requested in a single batch greater than max allowed blocks in a single request"
     );
 
@@ -782,7 +782,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
 
         // Trigger a sync state update every epoch. This helps check if we need to trigger a custody backfill sync.
         let epoch_duration =
-            self.chain.slot_clock.slot_duration().as_secs() * T::EthSpec::slots_per_epoch();
+            self.chain.slot_clock.slot_duration().as_secs() * Spec::slots_per_epoch();
         let mut epoch_interval = tokio::time::interval(Duration::from_secs(epoch_duration));
 
         // process any inbound messages

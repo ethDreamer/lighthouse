@@ -153,7 +153,7 @@ where
         if !anchor_state
             .slot()
             .as_u64()
-            .is_multiple_of(E::slots_per_epoch())
+            .is_multiple_of(Spec::slots_per_epoch())
         {
             return Err(Error::UnalignedCheckpoint {
                 block_slot: anchor_block_header.slot,
@@ -264,7 +264,7 @@ where
         state: &BeaconState<E>,
     ) -> Result<(), Self::Error> {
         let epoch = state.current_epoch();
-        let epoch_boundary_slot = epoch.start_slot(E::slots_per_epoch());
+        let epoch_boundary_slot = epoch.start_slot(Spec::slots_per_epoch());
 
         if state.slot() == epoch_boundary_slot {
             return self.balances_cache.insert(block_root, state);
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn balances_cache_hit_matches_justified_state() {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);
         for i in 0..4u64 {
             state

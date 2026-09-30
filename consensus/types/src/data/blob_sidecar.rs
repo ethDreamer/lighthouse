@@ -180,7 +180,7 @@ impl<E: EthSpec> BlobSidecar<E> {
         self.signed_block_header
             .message
             .slot
-            .epoch(E::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
     }
 
     pub fn block_root(&self) -> Hash256 {
@@ -211,7 +211,7 @@ impl<E: EthSpec> BlobSidecar<E> {
 
     /// Verifies the kzg commitment inclusion merkle proof.
     pub fn verify_blob_sidecar_inclusion_proof(&self) -> bool {
-        let kzg_commitments_tree_depth = E::kzg_commitments_tree_depth();
+        let kzg_commitments_tree_depth = Spec::kzg_commitments_tree_depth();
 
         // EthSpec asserts that kzg_commitments_tree_depth is less than KzgCommitmentInclusionProofDepth
         let (kzg_commitment_subtree_proof, kzg_commitments_proof) = self
@@ -230,7 +230,7 @@ impl<E: EthSpec> BlobSidecar<E> {
         verify_merkle_proof(
             blob_kzg_commitments_root,
             kzg_commitments_proof,
-            E::block_body_tree_depth(),
+            Spec::block_body_tree_depth(),
             BLOB_KZG_COMMITMENTS_INDEX,
             self.signed_block_header.message.body_root,
         )

@@ -282,7 +282,7 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             current_epoch_participation,
         };
 
-        if current_epoch != E::genesis_epoch() {
+        if current_epoch != Epoch::new(Spec::genesis_epoch()) {
             // `process_inactivity_updates`
             if conf.inactivity_updates {
                 process_single_inactivity_update(
@@ -510,7 +510,7 @@ pub fn process_proposer_lookahead<E: EthSpec>(
     let mut lookahead = state.proposer_lookahead()?.clone().to_vec();
 
     // Shift out proposers in the first epoch
-    lookahead.copy_within((E::slots_per_epoch() as usize).., 0);
+    lookahead.copy_within((Spec::SLOTS_PER_EPOCH).., 0);
 
     let next_epoch = state
         .current_epoch()
@@ -519,7 +519,7 @@ pub fn process_proposer_lookahead<E: EthSpec>(
     let last_epoch_proposers = state.get_beacon_proposer_indices(next_epoch, spec)?;
 
     // Fill in the last epoch with new proposer indices
-    let last_epoch_start = E::proposer_lookahead_slots().safe_sub(E::slots_per_epoch() as usize)?;
+    let last_epoch_start = Spec::PROPOSER_LOOKAHEAD_SLOTS.safe_sub(Spec::SLOTS_PER_EPOCH)?;
     for (i, proposer) in last_epoch_proposers.into_iter().enumerate() {
         let index = last_epoch_start.safe_add(i)?;
         *lookahead
@@ -540,7 +540,7 @@ pub fn process_ptc_window<E: EthSpec>(
     state: &mut BeaconState<E>,
     spec: &ChainSpec,
 ) -> Result<Arc<CommitteeCache>, Error> {
-    let slots_per_epoch = E::slots_per_epoch() as usize;
+    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
 
     // Convert Vector -> List to use tree-efficient pop_front.
     let ptc_window = state.ptc_window()?.clone();
@@ -556,7 +556,7 @@ pub fn process_ptc_window<E: EthSpec>(
         .current_epoch()
         .safe_add(spec.min_seed_lookahead.as_u64())?
         .safe_add(1)?;
-    let start_slot = next_epoch.start_slot(E::slots_per_epoch());
+    let start_slot = next_epoch.start_slot(Spec::slots_per_epoch());
 
     // Build a committee cache for the lookahead epoch (beyond the normal Next bound)
     let committee_cache = state.initialize_committee_cache_for_lookahead(next_epoch, spec)?;
@@ -586,7 +586,7 @@ fn get_builder_payment_quorum_threshold<E: EthSpec>(
 ) -> Result<u64, Error> {
     let per_slot_balance = state_ctxt
         .total_active_balance
-        .safe_div(E::slots_per_epoch())?;
+        .safe_div(Spec::slots_per_epoch())?;
     let quorum = per_slot_balance.safe_mul(spec.builder_payment_threshold_numerator)?;
     quorum
         .safe_div(spec.builder_payment_threshold_denominator)
@@ -606,7 +606,7 @@ fn process_builder_pending_payments<E: EthSpec>(
     let new_pending_builder_withdrawals = state
         .builder_pending_payments()?
         .iter()
-        .take(E::SlotsPerEpoch::to_usize())
+        .take(Spec::SLOTS_PER_EPOCH)
         .filter(|payment| payment.weight >= quorum)
         .map(|payment| payment.withdrawal.clone())
         .collect::<Vec<_>>();
@@ -621,9 +621,9 @@ fn process_builder_pending_payments<E: EthSpec>(
     let updated_payments = state
         .builder_pending_payments()?
         .iter()
-        .skip(E::SlotsPerEpoch::to_usize())
+        .skip(Spec::SLOTS_PER_EPOCH)
         .cloned()
-        .chain((0..E::SlotsPerEpoch::to_usize()).map(|_| BuilderPendingPayment::default()))
+        .chain((0..Spec::SLOTS_PER_EPOCH).map(|_| BuilderPendingPayment::default()))
         .collect::<Vec<_>>();
 
     *state.builder_pending_payments_mut()? = Vector::new(updated_payments)?;
@@ -1034,7 +1034,7 @@ impl SlashingsContext {
 
         let target_withdrawable_epoch = state_ctxt
             .current_epoch
-            .safe_add(E::EpochsPerSlashingsVector::to_u64().safe_div(2)?)?;
+            .safe_add(Spec::epochs_per_slashings_vector().safe_div(2)?)?;
 
         let penalty_per_effective_balance_increment = adjusted_total_slashing_balance.safe_div(
             state_ctxt
@@ -1099,7 +1099,7 @@ impl PendingDepositsContext {
         let finalized_slot = state
             .finalized_checkpoint()
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let pending_deposits = state.pending_deposits()?;
 
@@ -1118,7 +1118,7 @@ impl PendingDepositsContext {
             }
             // Do not process if we have reached the limit for the number of deposits
             // processed in an epoch.
-            if next_deposit_index >= E::max_pending_deposits_per_epoch() {
+            if next_deposit_index >= Spec::MAX_PENDING_DEPOSITS_PER_EPOCH {
                 break;
             }
             // We have to do a bit of indexing into `validators` here, but I can't see any way

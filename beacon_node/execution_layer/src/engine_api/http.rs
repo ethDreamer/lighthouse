@@ -233,7 +233,7 @@ pub mod deposit_log {
                 block_number: 42,
                 data: EXAMPLE_LOG.to_vec(),
             };
-            log.to_deposit_log(&MainnetEthSpec::default_spec())
+            log.to_deposit_log(&Spec::default_spec())
                 .expect("should decode log");
         }
     }
@@ -1889,7 +1889,7 @@ mod test {
          * Check for too many transactions
          */
 
-        let num_max_txs = <MainnetEthSpec as EthSpec>::MaxTransactionsPerPayload::to_usize();
+        let num_max_txs = Spec::MAX_TRANSACTIONS_PER_PAYLOAD;
         let max_txs = (0..num_max_txs).map(|_| "0x00").collect::<Vec<_>>();
         let too_many_txs = (0..=num_max_txs).map(|_| "0x00").collect::<Vec<_>>();
 

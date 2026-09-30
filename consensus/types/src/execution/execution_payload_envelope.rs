@@ -53,17 +53,17 @@ impl<E: EthSpec> ExecutionPayloadEnvelope<E> {
     pub fn max_size() -> usize {
         Self::min_size()
             // ExecutionPayloadGloas variable-length fields:
-            + (E::max_extra_data_bytes() * <u8 as SszEncode>::ssz_fixed_len())
-            + (E::max_transactions_per_payload()
-                * (BYTES_PER_LENGTH_OFFSET + E::max_bytes_per_transaction()))
-            + (E::max_withdrawals_per_payload()
+            + (Spec::MAX_EXTRA_DATA_BYTES * <u8 as SszEncode>::ssz_fixed_len())
+            + (Spec::MAX_TRANSACTIONS_PER_PAYLOAD
+                * (BYTES_PER_LENGTH_OFFSET + Spec::MAX_BYTES_PER_TRANSACTION))
+            + (Spec::MAX_WITHDRAWALS_PER_PAYLOAD
                 * <crate::Withdrawal as SszEncode>::ssz_fixed_len())
             // ExecutionRequests variable-length fields:
-            + (E::max_deposit_requests_per_payload()
+            + (Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD
                 * <crate::DepositRequest as SszEncode>::ssz_fixed_len())
-            + (E::max_withdrawal_requests_per_payload()
+            + (Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD
                 * <crate::WithdrawalRequest as SszEncode>::ssz_fixed_len())
-            + (E::max_consolidation_requests_per_payload()
+            + (Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD
                 * <crate::ConsolidationRequest as SszEncode>::ssz_fixed_len())
     }
 

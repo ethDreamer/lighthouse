@@ -131,7 +131,7 @@ impl<E: EthSpec> StateCache<E> {
         state: BeaconState<E>,
         pre_finalized_slots_to_retain: &[Slot],
     ) -> Result<(), Error> {
-        if state.slot() % E::slots_per_epoch() != 0 {
+        if state.slot() % Spec::slots_per_epoch() != 0 {
             return Err(Error::FinalizedStateUnaligned);
         }
 
@@ -371,7 +371,7 @@ impl<E: EthSpec> StateCache<E> {
         let num_cull_candidates = self.states.len().saturating_sub(cull_exempt);
         for (&state_root, (_, state)) in self.states.iter().take(num_cull_candidates) {
             let is_advanced = state.slot() > state.latest_block_header().slot;
-            let is_boundary = state.slot() % E::slots_per_epoch() == 0;
+            let is_boundary = state.slot() % Spec::slots_per_epoch() == 0;
             let could_finalize =
                 (self.max_epoch - state.current_epoch()) <= EPOCH_FINALIZATION_LIMIT;
 

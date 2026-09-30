@@ -892,7 +892,7 @@ impl ProtoArrayForkChoice {
         let re_org_block_slot = head_slot.saturating_add(1_u64);
 
         // Check finalization distance.
-        let proposal_epoch = re_org_block_slot.epoch(E::slots_per_epoch());
+        let proposal_epoch = re_org_block_slot.epoch(Spec::slots_per_epoch());
         let finalized_epoch = head_node
             .unrealized_finalized_checkpoint()
             .ok_or(DoNotReOrg::MissingHeadFinalizedCheckpoint)?
@@ -1517,7 +1517,7 @@ mod test_compute_deltas {
 
     #[test]
     fn finalized_descendant() {
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
         let genesis_slot = Slot::new(0);
         let genesis_epoch = Epoch::new(0);
 
@@ -1683,7 +1683,7 @@ mod test_compute_deltas {
     /// *checkpoint*, not just the finalized *block*.
     #[test]
     fn finalized_descendant_edge_case() {
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
         let get_block_root = Hash256::from_low_u64_be;
         let genesis_slot = Slot::new(0);
         let junk_state_root = Hash256::zero();
@@ -1755,7 +1755,7 @@ mod test_compute_deltas {
 
         // Produce the 0th epoch of blocks. They should all form a chain from
         // the genesis block.
-        for i in 1..MainnetEthSpec::slots_per_epoch() {
+        for i in 1..Spec::slots_per_epoch() {
             insert_block(
                 &mut fc,
                 TestBlock {
@@ -1766,7 +1766,7 @@ mod test_compute_deltas {
             )
         }
 
-        let last_slot_of_epoch_0 = MainnetEthSpec::slots_per_epoch() - 1;
+        let last_slot_of_epoch_0 = Spec::slots_per_epoch() - 1;
 
         // Produce a block that descends from the last block of epoch -.
         //
@@ -2464,7 +2464,7 @@ mod test_find_head {
 
     #[test]
     fn justified_balances_updates() {
-        let spec = MainnetEthSpec::default_spec();
+        let spec = Spec::default_spec();
         let checkpoint = Checkpoint {
             epoch: Epoch::new(0),
             root: Hash256::from_low_u64_be(1),

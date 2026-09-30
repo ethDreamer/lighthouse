@@ -253,7 +253,7 @@ async fn publish_voluntary_exit<E: EthSpec>(
                     "Exit epoch in approximately {} secs",
                     (exit_epoch - current_epoch)
                         * spec.get_slot_duration().as_secs()
-                        * E::slots_per_epoch()
+                        * Spec::slots_per_epoch()
                 );
                 break;
             }
@@ -354,7 +354,7 @@ fn get_current_epoch<E: EthSpec>(genesis_time: u64, spec: &ChainSpec) -> Option<
         Duration::from_secs(genesis_time),
         spec.get_slot_duration(),
     );
-    slot_clock.now().map(|s| s.epoch(E::slots_per_epoch()))
+    slot_clock.now().map(|s| s.epoch(Spec::slots_per_epoch()))
 }
 
 /// Load the voting keypair by loading and decrypting the keystore.

@@ -277,7 +277,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             block_root,
                             envelope.envelope().clone(),
                             block.message().proposer_index(),
-                            block.slot().epoch(T::EthSpec::slots_per_epoch()),
+                            block.slot().epoch(Spec::slots_per_epoch()),
                         ));
                     }
                     let (signed_envelope, columns) = envelope.deconstruct();

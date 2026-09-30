@@ -56,7 +56,7 @@ fn proposer_duties_internal<T: BeaconChainTypes>(
     let current_epoch = chain
         .slot_clock
         .now_or_genesis()
-        .map(|slot| slot.epoch(T::EthSpec::slots_per_epoch()))
+        .map(|slot| slot.epoch(Spec::slots_per_epoch()))
         .ok_or(BeaconChainError::UnableToReadSlot)
         .map_err(warp_utils::reject::unhandled_error)?;
 
@@ -75,7 +75,7 @@ fn proposer_duties_internal<T: BeaconChainTypes>(
             .ok_or_else(|| {
                 warp_utils::reject::custom_server_error("unable to read slot clock".into())
             })?
-            .epoch(T::EthSpec::slots_per_epoch())
+            .epoch(Spec::slots_per_epoch())
     };
 
     if request_epoch == current_epoch || request_epoch == tolerant_current_epoch {
@@ -140,7 +140,7 @@ fn try_proposer_duties_from_cache<T: BeaconChainTypes>(
     let head = chain.canonical_head.cached_head();
     let head_block = &head.snapshot.beacon_block;
     let head_block_root = head.head_block_root();
-    let head_epoch = head_block.slot().epoch(T::EthSpec::slots_per_epoch());
+    let head_epoch = head_block.slot().epoch(Spec::slots_per_epoch());
 
     // This code path can't handle requests for past epochs.
     if head_epoch > request_epoch {
@@ -268,7 +268,7 @@ fn compute_historic_proposer_duties<T: BeaconChainTypes>(
             (state, execution_optimistic)
         } else {
             let (state, execution_optimistic, _finalized) =
-                StateId::from_slot(epoch.start_slot(T::EthSpec::slots_per_epoch())).state(chain)?;
+                StateId::from_slot(epoch.start_slot(Spec::slots_per_epoch())).state(chain)?;
             (state, execution_optimistic)
         };
 
@@ -322,7 +322,7 @@ fn convert_to_api_response<T: BeaconChainTypes>(
         .filter_map(|(i, &validator_index)| {
             // Offset the index in `indices` to determine the slot for which these
             // duties apply.
-            let slot = epoch.start_slot(T::EthSpec::slots_per_epoch()) + Slot::from(i);
+            let slot = epoch.start_slot(Spec::slots_per_epoch()) + Slot::from(i);
 
             Some(api_types::ProposerData {
                 pubkey: *index_to_pubkey_map.get(&validator_index)?,
@@ -333,7 +333,7 @@ fn convert_to_api_response<T: BeaconChainTypes>(
         .collect::<Vec<_>>();
 
     // Consistency check.
-    let slots_per_epoch = T::EthSpec::slots_per_epoch() as usize;
+    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
     if proposer_data.len() != slots_per_epoch {
         Err(warp_utils::reject::custom_server_error(format!(
             "{} proposers is not enough for {} slots",

@@ -361,7 +361,7 @@ impl ValidatorsAndDeposits {
                 eprintln!("Beacon node is on {} network", config_name)
             }
             let bn_spec = bn_config
-                .apply_to_chain_spec::<E>(&E::default_spec())
+                .apply_to_chain_spec::<E>(&Spec::default_spec())
                 .ok_or("Beacon node appears to be on an incorrect network")?;
             if bn_spec.genesis_fork_version != spec.genesis_fork_version {
                 if let Some(config_name) = bn_spec.config_name {
@@ -637,7 +637,7 @@ pub mod tests {
 
     impl Default for TestBuilder {
         fn default() -> Self {
-            Self::new(E::default_spec())
+            Self::new(Spec::default_spec())
         }
     }
 

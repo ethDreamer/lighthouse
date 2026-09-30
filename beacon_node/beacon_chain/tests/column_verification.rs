@@ -58,7 +58,7 @@ async fn rpc_columns_with_invalid_header_signature() {
 
     let harness = get_harness(VALIDATOR_COUNT, spec, NodeCustodyType::Supernode);
 
-    let num_blocks = E::slots_per_epoch() as usize;
+    let num_blocks = Spec::SLOTS_PER_EPOCH;
 
     // Add some chain depth.
     harness
@@ -127,7 +127,7 @@ async fn gloas_envelope_blobs_produce_valid_columns() {
     harness.execution_block_generator().set_min_blob_count(1);
 
     // Build some chain depth.
-    let num_blocks = E::slots_per_epoch() as usize;
+    let num_blocks = Spec::SLOTS_PER_EPOCH;
     harness
         .extend_chain(
             num_blocks,
@@ -166,7 +166,7 @@ async fn gloas_envelope_blobs_produce_valid_columns() {
         generate_data_column_sidecars_from_block(signed_block, &harness.chain.spec);
     assert_eq!(
         data_column_sidecars.len(),
-        E::number_of_columns(),
+        Spec::NUMBER_OF_COLUMNS,
         "Should produce the correct number of data columns"
     );
 
@@ -214,7 +214,7 @@ async fn verify_header_signature_fork_block_bug() {
     // Add some blocks in epoch 0 (Electra)
     harness
         .extend_chain(
-            E::slots_per_epoch() as usize - 1,
+            Spec::SLOTS_PER_EPOCH - 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -227,7 +227,7 @@ async fn verify_header_signature_fork_block_bug() {
 
     // Now produce a block at the first slot of epoch 1 (Fulu fork).
     // make_block will advance the state which will trigger the Electra->Fulu upgrade.
-    let fork_slot = fulu_fork_epoch.start_slot(E::slots_per_epoch());
+    let fork_slot = fulu_fork_epoch.start_slot(Spec::slots_per_epoch());
     let ((signed_block, opt_blobs), _state_root) =
         harness.make_block(pre_fork_state.clone(), fork_slot).await;
     let (_, blobs) = opt_blobs.expect("Blobs should be present");

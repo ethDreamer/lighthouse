@@ -69,7 +69,7 @@ pub fn core_topics_to_subscribe<E: EthSpec>(
         topics.push(GossipKind::SignedContributionAndProof);
 
         if opts.subscribe_all_subnets {
-            for i in 0..E::SyncCommitteeSubnetCount::to_u64() {
+            for i in 0..Spec::SYNC_COMMITTEE_SUBNET_COUNT as u64 {
                 topics.push(GossipKind::SyncCommitteeMessage(i.into()));
             }
         }
@@ -544,7 +544,7 @@ mod tests {
     }
 
     fn get_spec() -> ChainSpec {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(1));
         spec.bellatrix_fork_epoch = Some(Epoch::new(2));
         spec.capella_fork_epoch = Some(Epoch::new(3));

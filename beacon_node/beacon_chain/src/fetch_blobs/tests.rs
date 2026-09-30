@@ -690,7 +690,7 @@ fn mock_beacon_adapter_with_capabilities(
     supports_get_blobs_v4: bool,
 ) -> MockFetchBlobsBeaconAdapter<T> {
     let test_runtime = TestRuntime::default();
-    let spec = Arc::new(fork_name.make_genesis_spec(E::default_spec()));
+    let spec = Arc::new(fork_name.make_genesis_spec(Spec::default_spec()));
     let kzg = get_kzg(&spec);
     let partial_assembler = PartialDataColumnAssembler::new(32, false);
 

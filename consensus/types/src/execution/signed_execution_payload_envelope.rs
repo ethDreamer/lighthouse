@@ -51,7 +51,7 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
     }
 
     pub fn epoch(&self) -> Epoch {
-        self.slot().epoch(E::slots_per_epoch())
+        self.slot().epoch(Spec::slots_per_epoch())
     }
 
     pub fn beacon_block_root(&self) -> Hash256 {

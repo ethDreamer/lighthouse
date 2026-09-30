@@ -9,7 +9,7 @@ use store::{
 use types::{BeaconState, Epoch, Eth1Data, EthSpec, MainnetEthSpec as E, Validator};
 
 pub fn all_benches(c: &mut Criterion) {
-    let spec = E::default_spec();
+    let spec = Spec::default_spec();
     let genesis_time = 0;
     let eth1_data = Eth1Data::default();
     let mut rng = rand::rng();

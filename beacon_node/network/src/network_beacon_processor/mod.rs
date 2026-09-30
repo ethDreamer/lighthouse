@@ -951,7 +951,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         if self.chain.config.disable_get_blobs {
             return;
         }
-        let epoch = header_or_bid.slot().epoch(T::EthSpec::slots_per_epoch());
+        let epoch = header_or_bid.slot().epoch(Spec::slots_per_epoch());
         let custody_columns = self.chain.custody_context.sampling_columns_for_epoch(epoch);
         let self_cloned = self.clone();
         let publish_fn = move |columns: Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>| {
@@ -1025,7 +1025,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         if !self.chain.config.enable_partial_columns {
             return;
         }
-        let epoch = header_or_bid.slot().epoch(T::EthSpec::slots_per_epoch());
+        let epoch = header_or_bid.slot().epoch(Spec::slots_per_epoch());
         let custody_columns = self.chain.custody_context.sampling_columns_for_epoch(epoch);
 
         let mut present_indices: HashSet<ColumnIndex> = HashSet::new();
@@ -1237,7 +1237,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
                 let blob_publication_batch_interval = chain.config.blob_publication_batch_interval;
                 let blob_publication_batches = chain.config.blob_publication_batches;
-                let number_of_columns = T::EthSpec::number_of_columns();
+                let number_of_columns = Spec::NUMBER_OF_COLUMNS;
                 let batch_size = number_of_columns / blob_publication_batches;
                 let mut publish_count = 0usize;
 

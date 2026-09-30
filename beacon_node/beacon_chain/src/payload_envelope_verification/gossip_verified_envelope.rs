@@ -82,39 +82,39 @@ pub(crate) fn verify_envelope_consistency<E: EthSpec>(
     }
 
     let requests = &envelope.execution_requests;
-    if requests.withdrawals.len() > E::max_withdrawal_requests_per_payload() {
+    if requests.withdrawals.len() > Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD {
         return Err(EnvelopeError::OperationListTooLong {
             kind: "withdrawal_requests",
             length: requests.withdrawals.len(),
-            max: E::max_withdrawal_requests_per_payload(),
+            max: Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD,
         });
     }
-    if requests.consolidations.len() > E::max_consolidation_requests_per_payload() {
+    if requests.consolidations.len() > Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD {
         return Err(EnvelopeError::OperationListTooLong {
             kind: "consolidation_requests",
             length: requests.consolidations.len(),
-            max: E::max_consolidation_requests_per_payload(),
+            max: Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD,
         });
     }
-    if requests.builder_deposits.len() > E::max_builder_deposit_requests_per_payload() {
+    if requests.builder_deposits.len() > Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD {
         return Err(EnvelopeError::OperationListTooLong {
             kind: "builder_deposit_requests",
             length: requests.builder_deposits.len(),
-            max: E::max_builder_deposit_requests_per_payload(),
+            max: Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD,
         });
     }
-    if requests.builder_exits.len() > E::max_builder_exit_requests_per_payload() {
+    if requests.builder_exits.len() > Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD {
         return Err(EnvelopeError::OperationListTooLong {
             kind: "builder_exit_requests",
             length: requests.builder_exits.len(),
-            max: E::max_builder_exit_requests_per_payload(),
+            max: Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD,
         });
     }
-    if envelope.payload.withdrawals.len() > E::max_withdrawals_per_payload() {
+    if envelope.payload.withdrawals.len() > Spec::MAX_WITHDRAWALS_PER_PAYLOAD {
         return Err(EnvelopeError::OperationListTooLong {
             kind: "withdrawals",
             length: envelope.payload.withdrawals.len(),
-            max: E::max_withdrawals_per_payload(),
+            max: Spec::MAX_WITHDRAWALS_PER_PAYLOAD,
         });
     }
 
@@ -190,7 +190,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
             .cached_head()
             .finalized_checkpoint()
             .epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let block = match ctx.store.try_get_full_block(&beacon_block_root)? {
             Some(DatabaseBlock::Full(block)) => Arc::new(block),
@@ -213,7 +213,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         // For self-built envelopes, we can use the proposer cache for the fork and the
         // validator pubkey cache for the proposer's pubkey, avoiding a state load from disk.
         // For external builder envelopes, we must load the state to access the builder registry.
-        let envelope_epoch = block_slot.epoch(T::EthSpec::slots_per_epoch());
+        let envelope_epoch = block_slot.epoch(Spec::slots_per_epoch());
         // Since the payload's block is already guaranteed to be imported, the associated `proto_block.current_epoch_shuffling_id`
         // already carries the correct `shuffling_decision_block`.
         let proposer_shuffling_decision_block = proto_block
@@ -600,7 +600,7 @@ mod tests {
             address: Address::ZERO,
             amount: 0,
         };
-        let max = E::max_withdrawals_per_payload();
+        let max = Spec::MAX_WITHDRAWALS_PER_PAYLOAD;
         envelope.payload.withdrawals =
             ProgressiveVariableList::new(vec![withdrawal.clone(); max]).unwrap();
         assert!(verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok());
@@ -647,7 +647,7 @@ mod tests {
     fn test_execution_requests_over_limit() {
         assert_requests_list_bound(
             "withdrawal_requests",
-            E::max_withdrawal_requests_per_payload(),
+            Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD,
             |requests, len| {
                 let withdrawal_request = WithdrawalRequest {
                     source_address: Address::ZERO,
@@ -661,7 +661,7 @@ mod tests {
 
         assert_requests_list_bound(
             "consolidation_requests",
-            E::max_consolidation_requests_per_payload(),
+            Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD,
             |requests, len| {
                 let consolidation_request = ConsolidationRequest {
                     source_address: Address::ZERO,
@@ -676,7 +676,7 @@ mod tests {
 
         assert_requests_list_bound(
             "builder_deposit_requests",
-            E::max_builder_deposit_requests_per_payload(),
+            Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD,
             |requests, len| {
                 let builder_deposit_request = BuilderDepositRequest {
                     pubkey: PublicKeyBytes::empty(),
@@ -692,7 +692,7 @@ mod tests {
 
         assert_requests_list_bound(
             "builder_exit_requests",
-            E::max_builder_exit_requests_per_payload(),
+            Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD,
             |requests, len| {
                 let builder_exit_request = BuilderExitRequest {
                     source_address: Address::ZERO,

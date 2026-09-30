@@ -1487,7 +1487,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         if self
             .chain
             .custody_context
-            .should_attempt_reconstruction(slot.epoch(T::EthSpec::slots_per_epoch()))
+            .should_attempt_reconstruction(slot.epoch(Spec::slots_per_epoch()))
         {
             // Instead of triggering reconstruction immediately, schedule it to be run. If
             // another column arrives, it either completes availability or pushes

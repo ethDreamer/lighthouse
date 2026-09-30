@@ -178,7 +178,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
         current_slot: Slot,
         published_preferences: &mut PublishedBuilderPreferencesCache,
     ) {
-        let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         // Entries are grouped by the fork of the epoch their proposal slot falls in, and each
         // group is submitted under that fork's `Eth-Consensus-Version`: the header names the fork
         // the preferences belong to (beacon-APIs #630), and builders decode the forwarded
@@ -370,7 +370,7 @@ mod tests {
                 vec![ProposerData {
                     pubkey: harness.pubkeys[0],
                     validator_index: 0,
-                    slot: gloas_epoch.start_slot(<S as ValidatorStore>::E::slots_per_epoch()),
+                    slot: gloas_epoch.start_slot(Spec::slots_per_epoch()),
                 }],
             ),
         );

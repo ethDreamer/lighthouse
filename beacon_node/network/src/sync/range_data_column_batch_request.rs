@@ -127,8 +127,8 @@ impl<T: BeaconChainTypes> RangeDataColumnBatchRequest<T> {
         let forward_blocks_iter = self
             .beacon_chain
             .forwards_iter_block_roots_until(
-                self.epoch.start_slot(T::EthSpec::slots_per_epoch()),
-                self.epoch.end_slot(T::EthSpec::slots_per_epoch()),
+                self.epoch.start_slot(Spec::slots_per_epoch()),
+                self.epoch.end_slot(Spec::slots_per_epoch()),
             )
             .map_err(|_| {
                 CouplingError::InternalError("Failed to fetch block root iterator".to_string())
@@ -318,7 +318,7 @@ mod tests {
 
     #[tokio::test]
     async fn valid_gloas_batch_completes_without_peer_failure() {
-        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(Spec::default_spec()));
         let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
             .spec(spec)
             .deterministic_keypairs(8)

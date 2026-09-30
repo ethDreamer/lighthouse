@@ -49,7 +49,7 @@ pub fn per_slot_processing<E: EthSpec>(
     cache_state(state, state_root)?;
 
     let summary = if state.slot() > spec.genesis_slot
-        && state.slot().safe_add(1)?.safe_rem(E::slots_per_epoch())? == 0
+        && state.slot().safe_add(1)?.safe_rem(Spec::slots_per_epoch())? == 0
     {
         Some(per_epoch_processing(state, spec)?)
     } else {
@@ -62,7 +62,7 @@ pub fn per_slot_processing<E: EthSpec>(
             .slot()
             .as_usize()
             .safe_add(1)?
-            .safe_rem(E::slots_per_historical_root())?;
+            .safe_rem(Spec::SLOTS_PER_HISTORICAL_ROOT)?;
         state
             .execution_payload_availability_mut()?
             .set(next_slot_index, false)?;
@@ -72,7 +72,7 @@ pub fn per_slot_processing<E: EthSpec>(
 
     // Process fork upgrades here. Note that multiple upgrades can potentially run
     // in sequence if they are scheduled in the same Epoch (common in testnets)
-    if state.slot().safe_rem(E::slots_per_epoch())? == 0 {
+    if state.slot().safe_rem(Spec::slots_per_epoch())? == 0 {
         // If the Altair fork epoch is reached, perform an irregular state upgrade.
         if spec.altair_fork_epoch == Some(state.current_epoch()) {
             upgrade_to_altair(state, spec)?;

@@ -163,7 +163,7 @@ impl<E: EthSpec> ObservedBlockProducers<E> {
 
     /// Returns `Ok(())` if the given `block` is sane.
     fn sanitize_block(&self, block: BeaconBlockRef<'_, E>) -> Result<(), Error> {
-        if block.proposer_index() >= E::ValidatorRegistryLimit::to_u64() {
+        if block.proposer_index() >= Spec::validator_registry_limit() {
             return Err(Error::ValidatorIndexTooHigh(block.proposer_index()));
         }
 
@@ -198,7 +198,7 @@ impl<E: EthSpec> ObservedBlockProducers<E> {
     /// This is useful for doppelganger detection.
     pub fn index_seen_at_epoch(&self, validator_index: u64, epoch: Epoch) -> bool {
         self.items.iter().any(|(key, _)| {
-            key.slot.epoch(E::slots_per_epoch()) == epoch && key.proposer == validator_index
+            key.slot.epoch(Spec::slots_per_epoch()) == epoch && key.proposer == validator_index
         })
     }
 }
@@ -210,7 +210,7 @@ mod tests {
 
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock<E> {
-        let mut block = BeaconBlock::empty(&E::default_spec());
+        let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot.into();
         *block.proposer_index_mut() = proposer;
         block
@@ -279,10 +279,10 @@ mod tests {
          * Check that a prune empties the cache
          */
 
-        cache.prune(E::slots_per_epoch().into());
+        cache.prune(Spec::slots_per_epoch().into());
         assert_eq!(
             cache.finalized_slot,
-            Slot::from(E::slots_per_epoch()),
+            Slot::from(Spec::slots_per_epoch()),
             "finalized slot is updated"
         );
         assert_eq!(cache.items.len(), 0, "no items left");
@@ -292,7 +292,7 @@ mod tests {
          */
 
         // First slot of finalized epoch, proposer 0
-        let block_b = get_block(E::slots_per_epoch(), 0);
+        let block_b = get_block(Spec::slots_per_epoch(), 0);
         let block_root_b = block_b.canonical_root();
 
         assert_eq!(
@@ -300,8 +300,8 @@ mod tests {
                 .observe_proposal(block_root_b, block_b.to_ref())
                 .map(SeenBlock::proposer_previously_observed),
             Err(Error::FinalizedBlock {
-                slot: E::slots_per_epoch().into(),
-                finalized_slot: E::slots_per_epoch().into(),
+                slot: Spec::slots_per_epoch().into(),
+                finalized_slot: Spec::slots_per_epoch().into(),
             }),
             "cant insert finalized block"
         );
@@ -312,7 +312,7 @@ mod tests {
          * Check that we _can_ insert a non-finalized block
          */
 
-        let three_epochs = E::slots_per_epoch() * 3;
+        let three_epochs = Spec::slots_per_epoch() * 3;
 
         // First slot of finalized epoch, proposer 0
         let block_b = get_block(three_epochs, 0);
@@ -343,7 +343,7 @@ mod tests {
          * Check that a prune doesnt wipe later blocks
          */
 
-        let two_epochs = E::slots_per_epoch() * 2;
+        let two_epochs = Spec::slots_per_epoch() * 2;
         cache.prune(two_epochs.into());
 
         assert_eq!(

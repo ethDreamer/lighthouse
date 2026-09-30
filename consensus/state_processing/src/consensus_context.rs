@@ -54,7 +54,7 @@ impl From<EpochCacheError> for ContextError {
 
 impl<E: EthSpec> ConsensusContext<E> {
     pub fn new(slot: Slot) -> Self {
-        let current_epoch = slot.epoch(E::slots_per_epoch());
+        let current_epoch = slot.epoch(Spec::slots_per_epoch());
         let previous_epoch = current_epoch.saturating_sub(1u64);
         Self {
             slot,
@@ -148,7 +148,7 @@ impl<E: EthSpec> ConsensusContext<E> {
     }
 
     fn check_epoch(&self, epoch: Epoch) -> Result<(), ContextError> {
-        let expected = self.slot.epoch(E::slots_per_epoch());
+        let expected = self.slot.epoch(Spec::slots_per_epoch());
         if epoch == expected {
             Ok(())
         } else {

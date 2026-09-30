@@ -127,7 +127,7 @@ where
         // convenience variable
         let remote_finalized_slot = remote_info
             .finalized_epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         // NOTE: A peer that has been re-status'd may now exist in multiple finalized chains. This
         // is OK since we since only one finalized chain at a time.
@@ -151,7 +151,7 @@ where
                 // boundary), we need to sync finalized sync to 2 epochs + 1 slot past our peer's
                 // finalized slot in order to finalize the chain locally.
                 let target_head_slot =
-                    remote_finalized_slot + (2 * T::EthSpec::slots_per_epoch()) + 1;
+                    remote_finalized_slot + (2 * Spec::slots_per_epoch()) + 1;
 
                 // Note: We keep current head chains. These can continue syncing whilst we complete
                 // this new finalized chain.
@@ -187,7 +187,7 @@ where
                 // earlier finalized chain from reaching here).
 
                 let start_epoch = std::cmp::min(local_info.head_slot, remote_finalized_slot)
-                    .epoch(T::EthSpec::slots_per_epoch());
+                    .epoch(Spec::slots_per_epoch());
                 self.chains.add_peer_or_create_chain(
                     start_epoch,
                     remote_info.head_root,

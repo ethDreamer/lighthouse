@@ -24,7 +24,7 @@ pub async fn verify_validator_onboarding<E: EthSpec>(
     expected_validator_count: usize,
 ) -> Result<(), String> {
     slot_delay(
-        Slot::new(E::SlotsPerEth1VotingPeriod::to_u64()),
+        Slot::new(Spec::SLOTS_PER_ETH1_VOTING_PERIOD as u64),
         slot_duration,
     )
     .await;
@@ -39,7 +39,7 @@ pub async fn verify_first_finalization<E: EthSpec>(
     network: LocalNetwork<E>,
     slot_duration: Duration,
 ) -> Result<(), String> {
-    epoch_delay(Epoch::new(4), slot_duration, E::slots_per_epoch()).await;
+    epoch_delay(Epoch::new(4), slot_duration, Spec::slots_per_epoch()).await;
     verify_all_finalized_at(network, Epoch::new(2)).await?;
     Ok(())
 }
@@ -158,7 +158,7 @@ pub async fn verify_fork_version<E: EthSpec>(
     slot_duration: Duration,
     fork_version: [u8; 4],
 ) -> Result<(), String> {
-    epoch_delay(fork_epoch, slot_duration, E::slots_per_epoch()).await;
+    epoch_delay(fork_epoch, slot_duration, Spec::slots_per_epoch()).await;
     for remote_node in network.remote_nodes()? {
         let remote_fork_version = remote_node
             .get_beacon_states_fork(StateId::Head)
@@ -215,12 +215,12 @@ pub async fn verify_full_sync_aggregates_up_to<E: EthSpec>(
 
         if sync_aggregate_count == 0 {
             empty_aggregate_slots.push(slot);
-        } else if sync_aggregate_count != E::sync_committee_size() {
+        } else if sync_aggregate_count != Spec::SYNC_COMMITTEE_SIZE {
             return Err(format!(
                 "Sync aggregate at slot {} was partial, got: {}, expected: {}",
                 slot,
                 sync_aggregate_count,
-                E::sync_committee_size()
+                Spec::SYNC_COMMITTEE_SIZE
             ));
         }
     }
@@ -249,7 +249,7 @@ pub async fn verify_transition_block_finalized<E: EthSpec>(
     if !should_verify {
         return Ok(());
     }
-    epoch_delay(transition_epoch + 2, slot_duration, E::slots_per_epoch()).await;
+    epoch_delay(transition_epoch + 2, slot_duration, Spec::slots_per_epoch()).await;
     let mut block_hashes = Vec::new();
     for remote_node in network.remote_nodes()?.iter() {
         let execution_block_hash: ExecutionBlockHash = remote_node
@@ -296,8 +296,8 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
         let previous_slot = slot - 1;
 
         let sync_committee_period = slot
-            .epoch(E::slots_per_epoch())
-            .sync_committee_period(&E::default_spec())
+            .epoch(Spec::slots_per_epoch())
+            .sync_committee_period(&Spec::default_spec())
             .unwrap();
 
         let previous_slot_block = client
@@ -494,7 +494,7 @@ pub async fn check_attestation_correctness<E: EthSpec>(
     node_index: usize,
     acceptable_attestation_performance: f64,
 ) -> Result<(), String> {
-    epoch_delay(Epoch::new(upto_epoch), slot_duration, E::slots_per_epoch()).await;
+    epoch_delay(Epoch::new(upto_epoch), slot_duration, Spec::slots_per_epoch()).await;
 
     let remote_node = &network.remote_nodes()?[node_index];
 

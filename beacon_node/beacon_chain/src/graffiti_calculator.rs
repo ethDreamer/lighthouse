@@ -216,7 +216,7 @@ async fn engine_version_cache_refresh_service<T: BeaconChainTypes>(
     let partial_firing_delay =
         epoch_duration * ENGINE_VERSION_CACHE_REFRESH_EPOCH_MULTIPLE.saturating_sub(1);
     loop {
-        match slot_clock.duration_to_next_epoch(T::EthSpec::slots_per_epoch()) {
+        match slot_clock.duration_to_next_epoch(Spec::slots_per_epoch()) {
             Some(duration_to_next_epoch) => {
                 let firing_delay = partial_firing_delay + duration_to_next_epoch + epoch_delay;
                 tokio::time::sleep(firing_delay).await;

@@ -91,7 +91,7 @@ fn duties_from_state_load<T: BeaconChainTypes>(
         .now_with_future_tolerance(chain.spec.maximum_gossip_clock_disparity())
         .ok_or(BeaconChainError::UnableToReadSlot)
         .map_err(Box::new)?
-        .epoch(T::EthSpec::slots_per_epoch());
+        .epoch(Spec::slots_per_epoch());
 
     let max_sync_committee_period = tolerant_current_epoch
         .sync_committee_period(&chain.spec)
@@ -115,7 +115,7 @@ fn duties_from_state_load<T: BeaconChainTypes>(
             chain.spec.epochs_per_sync_committee_period * sync_committee_period.saturating_sub(1),
             altair_fork_epoch,
         )
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
 
         let state = chain.state_at_slot(load_slot, StateSkipConfig::WithoutStateRoots)?;
 
@@ -150,7 +150,7 @@ fn verify_unknown_validators<T: BeaconChainTypes>(
                     let request_epoch_state = match &mut request_epoch_state {
                         Some(state) => state,
                         None => request_epoch_state.insert(chain.state_at_slot(
-                            request_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                            request_epoch.start_slot(Spec::slots_per_epoch()),
                             StateSkipConfig::WithoutStateRoots,
                         )?),
                     };

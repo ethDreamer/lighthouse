@@ -986,7 +986,7 @@ impl<E: EthSpec> BeaconState<E> {
             fork: Fork {
                 previous_version: spec.genesis_fork_version,
                 current_version: spec.genesis_fork_version,
-                epoch: E::genesis_epoch(),
+                epoch: Epoch::new(Spec::genesis_epoch()),
             },
 
             // History
@@ -1099,7 +1099,7 @@ impl<E: EthSpec> BeaconState<E> {
 
     /// The epoch corresponding to `self.slot()`.
     pub fn current_epoch(&self) -> Epoch {
-        self.slot().epoch(E::slots_per_epoch())
+        self.slot().epoch(Spec::slots_per_epoch())
     }
 
     /// The epoch prior to `self.current_epoch()`.
@@ -1195,7 +1195,7 @@ impl<E: EthSpec> BeaconState<E> {
         slot: Slot,
         index: CommitteeIndex,
     ) -> Result<BeaconCommittee<'_>, BeaconStateError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let relative_epoch = RelativeEpoch::from_epoch(self.current_epoch(), epoch)?;
         let cache = self.committee_cache(relative_epoch)?;
 
@@ -1226,7 +1226,7 @@ impl<E: EthSpec> BeaconState<E> {
     ) -> Result<InclusionListCommittee<E>, BeaconStateError> {
         let cache = self.committee_cache_at_slot(slot)?;
         let committee =
-            cache.get_inclusion_list_committee_at_slot(slot, E::inclusion_list_committee_size())?;
+            cache.get_inclusion_list_committee_at_slot(slot, Spec::INCLUSION_LIST_COMMITTEE_SIZE)?;
         let committee: Vec<u64> = committee.into_iter().map(|index| index as u64).collect();
         Ok(FixedVector::new(committee)?)
     }
@@ -1272,7 +1272,7 @@ impl<E: EthSpec> BeaconState<E> {
         epoch: Epoch,
         head_block_root: Hash256,
     ) -> Result<Hash256, BeaconStateError> {
-        let decision_slot = epoch.saturating_sub(1u64).end_slot(E::slots_per_epoch());
+        let decision_slot = epoch.saturating_sub(1u64).end_slot(Spec::slots_per_epoch());
         if self.slot() <= decision_slot {
             Ok(head_block_root)
         } else {
@@ -1332,7 +1332,7 @@ impl<E: EthSpec> BeaconState<E> {
             RelativeEpoch::Current => self.previous_epoch(),
             RelativeEpoch::Previous => self.previous_epoch().saturating_sub(1_u64),
         }
-        .start_slot(E::slots_per_epoch())
+        .start_slot(Spec::slots_per_epoch())
         .saturating_sub(1_u64)
     }
 
@@ -1440,7 +1440,7 @@ impl<E: EthSpec> BeaconState<E> {
 
         let gloas_enabled = self.fork_name_unchecked().gloas_enabled();
         epoch
-            .slot_iter(E::slots_per_epoch())
+            .slot_iter(Spec::slots_per_epoch())
             .map(|slot| {
                 let mut preimage = seed.to_vec();
                 preimage.append(&mut int_to_bytes8(slot.as_u64()));
@@ -1592,7 +1592,7 @@ impl<E: EthSpec> BeaconState<E> {
     ) -> Result<usize, BeaconStateError> {
         // Proposer indices are only known for the current epoch, due to the dependence on the
         // effective balances of validators, which change at every epoch transition.
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         // TODO(EIP-7917): Explore allowing this function to be called with a slot one epoch in the future.
         if epoch != self.current_epoch() {
             return Err(BeaconStateError::SlotOutOfBounds);
@@ -1600,7 +1600,7 @@ impl<E: EthSpec> BeaconState<E> {
 
         if let Ok(proposer_lookahead) = self.proposer_lookahead() {
             // Post-Fulu
-            let index = slot.as_usize().safe_rem(E::slots_per_epoch() as usize)?;
+            let index = slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?;
             proposer_lookahead
                 .get(index)
                 .ok_or(BeaconStateError::ProposerLookaheadOutOfBounds { i: index })
@@ -1628,7 +1628,7 @@ impl<E: EthSpec> BeaconState<E> {
             && epoch >= self.current_epoch()
             && epoch <= self.next_epoch()?
         {
-            let slots_per_epoch = E::slots_per_epoch() as usize;
+            let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
             let start_offset = if epoch == self.current_epoch() {
                 0
             } else {
@@ -1664,7 +1664,7 @@ impl<E: EthSpec> BeaconState<E> {
         slot: Slot,
         spec: &ChainSpec,
     ) -> Result<Vec<u8>, BeaconStateError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let mut preimage = self
             .get_seed(epoch, Domain::BeaconProposer, spec)?
             .as_slice()
@@ -1726,7 +1726,7 @@ impl<E: EthSpec> BeaconState<E> {
             self.compute_balance_weighted_selection(
                 &active_validator_indices,
                 seed.as_slice(),
-                E::SyncCommitteeSize::to_usize(),
+                Spec::SYNC_COMMITTEE_SIZE,
                 true,
                 spec,
             )
@@ -1741,8 +1741,8 @@ impl<E: EthSpec> BeaconState<E> {
             };
 
             let mut i = 0;
-            let mut sync_committee_indices = Vec::with_capacity(E::SyncCommitteeSize::to_usize());
-            while sync_committee_indices.len() < E::SyncCommitteeSize::to_usize() {
+            let mut sync_committee_indices = Vec::with_capacity(Spec::SYNC_COMMITTEE_SIZE);
+            while sync_committee_indices.len() < Spec::SYNC_COMMITTEE_SIZE {
                 let shuffled_index = compute_shuffled_index(
                     i.safe_rem(active_validator_count)?,
                     active_validator_count,
@@ -1865,7 +1865,7 @@ impl<E: EthSpec> BeaconState<E> {
     ///
     /// Note that the spec calls this `get_block_root`.
     pub fn get_block_root_at_epoch(&self, epoch: Epoch) -> Result<&Hash256, BeaconStateError> {
-        self.get_block_root(epoch.start_slot(E::slots_per_epoch()))
+        self.get_block_root(epoch.start_slot(Spec::slots_per_epoch()))
     }
 
     /// Sets the block root for some given slot.
@@ -1897,7 +1897,7 @@ impl<E: EthSpec> BeaconState<E> {
         allow_next_epoch: AllowNextEpoch,
     ) -> Result<usize, BeaconStateError> {
         let current_epoch = self.current_epoch();
-        let len = E::EpochsPerHistoricalVector::to_u64();
+        let len = Spec::epochs_per_historical_vector();
 
         if current_epoch < epoch.safe_add(len)?
             && epoch <= allow_next_epoch.upper_bound_of(current_epoch)?
@@ -1912,7 +1912,7 @@ impl<E: EthSpec> BeaconState<E> {
     pub fn min_randao_epoch(&self) -> Epoch {
         self.current_epoch()
             .saturating_add(1u64)
-            .saturating_sub(E::EpochsPerHistoricalVector::to_u64())
+            .saturating_sub(Spec::epochs_per_historical_vector())
     }
 
     /// XOR-assigns the existing `epoch` randao mix with the hash of the `signature`.
@@ -1927,7 +1927,7 @@ impl<E: EthSpec> BeaconState<E> {
     ) -> Result<(), BeaconStateError> {
         let i = epoch
             .as_usize()
-            .safe_rem(E::EpochsPerHistoricalVector::to_usize())?;
+            .safe_rem(Spec::EPOCHS_PER_HISTORICAL_VECTOR)?;
 
         let signature_hash = Hash256::from_slice(&hash(&ssz_encode(signature)));
 
@@ -1981,7 +1981,7 @@ impl<E: EthSpec> BeaconState<E> {
 
     /// Gets the state root for the start slot of some epoch.
     pub fn get_state_root_at_epoch_start(&self, epoch: Epoch) -> Result<Hash256, BeaconStateError> {
-        self.get_state_root(epoch.start_slot(E::slots_per_epoch()))
+        self.get_state_root(epoch.start_slot(Spec::slots_per_epoch()))
             .copied()
     }
 
@@ -2020,12 +2020,12 @@ impl<E: EthSpec> BeaconState<E> {
         // We allow the slashings vector to be accessed at any cached epoch at or before
         // the current epoch, or the next epoch if `AllowNextEpoch::True` is passed.
         let current_epoch = self.current_epoch();
-        if current_epoch < epoch.safe_add(E::EpochsPerSlashingsVector::to_u64())?
+        if current_epoch < epoch.safe_add(Spec::epochs_per_slashings_vector())?
             && epoch <= allow_next_epoch.upper_bound_of(current_epoch)?
         {
             Ok(epoch
                 .as_usize()
-                .safe_rem(E::EpochsPerSlashingsVector::to_usize())?)
+                .safe_rem(Spec::EPOCHS_PER_SLASHINGS_VECTOR)?)
         } else {
             Err(BeaconStateError::EpochOutOfBounds)
         }
@@ -2340,7 +2340,7 @@ impl<E: EthSpec> BeaconState<E> {
         // == 0`.
         let mix = {
             let i = epoch
-                .safe_add(E::EpochsPerHistoricalVector::to_u64())?
+                .safe_add(Spec::epochs_per_historical_vector())?
                 .safe_sub(spec.min_seed_lookahead)?
                 .safe_sub(1)?;
             let i_mod = i.as_usize().safe_rem(self.randao_mixes().len())?;
@@ -2455,7 +2455,7 @@ impl<E: EthSpec> BeaconState<E> {
             version,
             withdrawal_credentials,
             amount,
-            slot.epoch(E::slots_per_epoch()),
+            slot.epoch(Spec::slots_per_epoch()),
             spec,
         )?;
         let builders = self.builders_mut()?;
@@ -2867,7 +2867,7 @@ impl<E: EthSpec> BeaconState<E> {
         &self,
         slot: Slot,
     ) -> Result<&Arc<CommitteeCache>, BeaconStateError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let relative_epoch = RelativeEpoch::from_epoch(self.current_epoch(), epoch)?;
         self.committee_cache(relative_epoch)
     }
@@ -3078,7 +3078,7 @@ impl<E: EthSpec> BeaconState<E> {
         let next_slot_epoch = self
             .slot()
             .saturating_add(Slot::new(1))
-            .epoch(E::slots_per_epoch());
+            .epoch(Spec::slots_per_epoch());
 
         let sync_committee = if self.current_epoch().sync_committee_period(spec)
             == next_slot_epoch.sync_committee_period(spec)
@@ -3550,7 +3550,7 @@ impl<E: EthSpec> BeaconState<E> {
     /// Get the payload timeliness committee for the given `slot` from the `ptc_window`.
     pub fn get_ptc(&self, slot: Slot, spec: &ChainSpec) -> Result<PTC<E>, BeaconStateError> {
         let ptc_window = self.ptc_window()?;
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         if spec
             .gloas_fork_epoch
             .is_none_or(|fork_epoch| epoch < fork_epoch)
@@ -3558,7 +3558,7 @@ impl<E: EthSpec> BeaconState<E> {
             return Err(BeaconStateError::SlotOutOfBounds);
         }
         let state_epoch = self.current_epoch();
-        let slots_per_epoch = E::slots_per_epoch() as usize;
+        let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
         let slot_in_epoch = slot.as_usize().safe_rem(slots_per_epoch)?;
 
         let index = if epoch < state_epoch {
@@ -3613,7 +3613,7 @@ impl<E: EthSpec> BeaconState<E> {
         let selected_indices = self.compute_balance_weighted_selection(
             &committee_indices,
             &seed,
-            E::ptc_size(),
+            Spec::PTC_SIZE,
             false,
             spec,
         )?;
@@ -3627,7 +3627,7 @@ impl<E: EthSpec> BeaconState<E> {
         slot: Slot,
         spec: &ChainSpec,
     ) -> Result<Vec<u8>, BeaconStateError> {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let mut preimage = self
             .get_seed(epoch, Domain::PTCAttester, spec)?
             .as_slice()
@@ -3648,7 +3648,7 @@ impl<E: EthSpec> BeaconState<E> {
         epoch: Epoch,
         spec: &ChainSpec,
     ) -> Result<Option<Slot>, BeaconStateError> {
-        for slot in epoch.slot_iter(E::slots_per_epoch()) {
+        for slot in epoch.slot_iter(Spec::slots_per_epoch()) {
             let ptc = self.get_ptc(slot, spec)?;
             if ptc.0.contains(&validator_index) {
                 return Ok(Some(slot));
@@ -4100,7 +4100,7 @@ mod weak_subjectivity_tests {
 
     #[test]
     fn test_compute_weak_subjectivity_period_electra() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.bellatrix_fork_epoch = Some(Epoch::new(0));
         spec.capella_fork_epoch = Some(Epoch::new(0));

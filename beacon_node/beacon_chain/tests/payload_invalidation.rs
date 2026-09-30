@@ -159,7 +159,7 @@ impl InvalidPayloadRig {
     }
 
     async fn move_to_first_justification(&mut self, is_valid: Payload) {
-        let slots_till_justification = E::slots_per_epoch() * 3;
+        let slots_till_justification = Spec::slots_per_epoch() * 3;
         self.build_blocks(slots_till_justification, is_valid).await;
 
         let justified_checkpoint = self.harness.justified_checkpoint();
@@ -607,7 +607,7 @@ async fn pre_finalized_latest_valid_hash() {
     if fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled() || f.gloas_enabled()) {
         return;
     }
-    let num_blocks = E::slots_per_epoch() * 4;
+    let num_blocks = Spec::slots_per_epoch() * 4;
     let finalized_epoch = 2;
 
     let mut rig = InvalidPayloadRig::new().enable_attestations();
@@ -636,7 +636,7 @@ async fn pre_finalized_latest_valid_hash() {
     assert_eq!(rig.harness.shutdown_reasons(), vec![]);
 
     // All blocks should still be unverified.
-    for i in E::slots_per_epoch() * finalized_epoch..num_blocks {
+    for i in Spec::slots_per_epoch() * finalized_epoch..num_blocks {
         let slot = Slot::new(i);
         let root = rig.block_root_at_slot(slot).unwrap();
         if slot == 1 {
@@ -712,7 +712,7 @@ async fn latest_valid_hash_is_junk() {
     if fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled() || f.gloas_enabled()) {
         return;
     }
-    let num_blocks = E::slots_per_epoch() * 5;
+    let num_blocks = Spec::slots_per_epoch() * 5;
     let finalized_epoch = 3;
 
     let mut rig = InvalidPayloadRig::new().enable_attestations();
@@ -738,7 +738,7 @@ async fn latest_valid_hash_is_junk() {
     assert_eq!(rig.harness.shutdown_reasons(), vec![]);
 
     // All blocks should still be unverified.
-    for i in E::slots_per_epoch() * finalized_epoch..num_blocks {
+    for i in Spec::slots_per_epoch() * finalized_epoch..num_blocks {
         let slot = Slot::new(i);
         let root = rig.block_root_at_slot(slot).unwrap();
         if slot == 1 {
@@ -755,9 +755,9 @@ async fn invalidates_all_descendants() {
     if fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled()) {
         return;
     }
-    let num_blocks = E::slots_per_epoch() * 4 + E::slots_per_epoch() / 2;
+    let num_blocks = Spec::slots_per_epoch() * 4 + Spec::slots_per_epoch() / 2;
     let finalized_epoch = 2;
-    let finalized_slot = E::slots_per_epoch() * 2;
+    let finalized_slot = Spec::slots_per_epoch() * 2;
 
     let mut rig = InvalidPayloadRig::new().enable_attestations();
     rig.import_block(Payload::Valid).await; // Import a valid transition block.
@@ -767,7 +767,7 @@ async fn invalidates_all_descendants() {
     assert_eq!(rig.harness.head_block_root(), *blocks.last().unwrap());
 
     // Apply a block which conflicts with the canonical chain.
-    let fork_slot = Slot::new(4 * E::slots_per_epoch() + 3);
+    let fork_slot = Slot::new(4 * Spec::slots_per_epoch() + 3);
     let fork_parent_slot = fork_slot - 1;
     let fork_parent_state = rig
         .harness
@@ -858,9 +858,9 @@ async fn switches_heads() {
     if fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled()) {
         return;
     }
-    let num_blocks = E::slots_per_epoch() * 4 + E::slots_per_epoch() / 2;
+    let num_blocks = Spec::slots_per_epoch() * 4 + Spec::slots_per_epoch() / 2;
     let finalized_epoch = 2;
-    let finalized_slot = E::slots_per_epoch() * 2;
+    let finalized_slot = Spec::slots_per_epoch() * 2;
 
     let mut rig = InvalidPayloadRig::new().enable_attestations();
     rig.import_block(Payload::Valid).await; // Import a valid transition block.
@@ -870,7 +870,7 @@ async fn switches_heads() {
     assert_eq!(rig.harness.head_block_root(), *blocks.last().unwrap());
 
     // Apply a block which conflicts with the canonical chain.
-    let fork_slot = Slot::new(4 * E::slots_per_epoch() + 3);
+    let fork_slot = Slot::new(4 * Spec::slots_per_epoch() + 3);
     let fork_parent_slot = fork_slot - 1;
     let fork_parent_state = rig
         .harness
@@ -1325,7 +1325,7 @@ impl InvalidHeadSetup {
     /// 2. A block (`fork_block`) which will become the head of the chain when
     ///    it is imported.
     async fn new() -> InvalidHeadSetup {
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         let mut rig = InvalidPayloadRig::new().enable_attestations();
         rig.import_block(Payload::Valid).await; // Import a valid transition block.
 
@@ -1567,7 +1567,7 @@ async fn weights_after_resetting_optimistic_status() {
     );
 
     // Import a length of chain to ensure the chain can be built atop.
-    for _ in 0..E::slots_per_epoch() * 4 {
+    for _ in 0..Spec::slots_per_epoch() * 4 {
         rig.import_block(Payload::Valid).await;
     }
 }

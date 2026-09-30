@@ -262,7 +262,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
         // the last slot we processed was included in the previous batch, and corresponds to the
         // first slot of the current target epoch
         self.processing_target
-            .start_slot(T::EthSpec::slots_per_epoch())
+            .start_slot(Spec::slots_per_epoch())
     }
 
     /// A block has been received for a batch on this chain.
@@ -1189,7 +1189,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
         // don't request batches beyond the target head slot
         if self
             .to_be_downloaded
-            .start_slot(T::EthSpec::slots_per_epoch())
+            .start_slot(Spec::slots_per_epoch())
             >= self.target_head_slot
         {
             return None;

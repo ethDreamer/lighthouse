@@ -146,7 +146,7 @@ where
             shutdown_sender: None,
             light_client_server_tx: None,
             validator_pubkey_cache: None,
-            spec: Arc::new(E::default_spec()),
+            spec: Arc::new(Spec::default_spec()),
             chain_config: ChainConfig::default(),
             beacon_graffiti: GraffitiOrigin::default(),
             slasher: None,
@@ -420,7 +420,7 @@ where
             .ok_or("weak_subjectivity_state requires a store")?;
 
         // Ensure the state is advanced to an epoch boundary.
-        let slots_per_epoch = E::slots_per_epoch();
+        let slots_per_epoch = Spec::slots_per_epoch();
         if weak_subj_state.slot() % slots_per_epoch != 0 {
             debug!(
                 state_slot = %weak_subj_state.slot(),
@@ -840,8 +840,8 @@ where
                 head_state.slot()
             ));
         };
-        if current_slot.epoch(E::slots_per_epoch())
-            > head_state.slot().epoch(E::slots_per_epoch()) + ws_period
+        if current_slot.epoch(Spec::slots_per_epoch())
+            > head_state.slot().epoch(Spec::slots_per_epoch()) + ws_period
         {
             if self.chain_config.ignore_ws_check {
                 warn!(
@@ -890,7 +890,7 @@ where
 
         if let Some(slot) = slot_clock.now() {
             validator_monitor.process_valid_state(
-                slot.epoch(E::slots_per_epoch()),
+                slot.epoch(Spec::slots_per_epoch()),
                 &head_snapshot.beacon_state,
                 &self.spec,
             );
@@ -961,9 +961,9 @@ where
             match slot_clock.now() {
                 Some(current_slot) => {
                     let genesis_backfill_epoch = current_slot
-                        .epoch(E::slots_per_epoch())
+                        .epoch(Spec::slots_per_epoch())
                         .saturating_sub(backfill_epoch_range);
-                    genesis_backfill_epoch.start_slot(E::slots_per_epoch())
+                    genesis_backfill_epoch.start_slot(Spec::slots_per_epoch())
                 }
                 None => {
                     // The slot clock cannot derive the current slot. We therefore assume we are
@@ -981,7 +981,7 @@ where
             let head_epoch = canonical_head
                 .cached_head()
                 .head_slot()
-                .epoch(E::slots_per_epoch());
+                .epoch(Spec::slots_per_epoch());
             CustodyContext::new_from_persisted_custody_context(
                 custody,
                 self.node_custody_type,
@@ -1083,7 +1083,7 @@ where
             graffiti_calculator: GraffitiCalculator::new(
                 self.beacon_graffiti,
                 self.execution_layer,
-                slot_clock.slot_duration() * E::slots_per_epoch() as u32,
+                slot_clock.slot_duration() * Spec::SLOTS_PER_EPOCH as u32,
             ),
             slasher: self.slasher.clone(),
             validator_monitor: RwLock::new(validator_monitor),
@@ -1152,7 +1152,7 @@ where
             // Update data column custody info if there's a CGC change from CLI flags.
             // This will trigger column backfill.
             let cgc_change_effective_slot =
-                cgc_changed.effective_epoch.start_slot(E::slots_per_epoch());
+                cgc_changed.effective_epoch.start_slot(Spec::slots_per_epoch());
             beacon_chain.update_data_column_custody_info(Some(cgc_change_effective_slot));
 
             // Persist change to disk.
@@ -1304,8 +1304,8 @@ where
 
         let fork_choice_epoch = finalized_checkpoint
             .map(|checkpoint| checkpoint.epoch)
-            .unwrap_or_else(|| initial_block.slot().epoch(E::slots_per_epoch()));
-        let fork_choice_slot = fork_choice_epoch.start_slot(E::slots_per_epoch());
+            .unwrap_or_else(|| initial_block.slot().epoch(Spec::slots_per_epoch()));
+        let fork_choice_slot = fork_choice_epoch.start_slot(Spec::slots_per_epoch());
 
         // Keep two state views: `initial_state` is the exact post-state from the vector and must
         // remain loadable by `initial_block.state_root()` for child block validation. Fork choice
@@ -1397,7 +1397,7 @@ where
 
         // Write the state and block non-atomically, it doesn't matter if they're forgotten about on
         // a crash restart.
-        if initial_state.slot() % E::slots_per_epoch() == 0 {
+        if initial_state.slot() % Spec::slots_per_epoch() == 0 {
             store
                 .update_finalized_state(
                     initial_state_root,
@@ -1601,10 +1601,10 @@ mod test {
 
         let store: HotColdDB<MinimalEthSpec, MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(
             StoreConfig::default(),
-            MinimalEthSpec::default_spec().into(),
+            Spec::default_spec().into(),
         )
         .unwrap();
-        let spec = MinimalEthSpec::default_spec();
+        let spec = Spec::default_spec();
 
         let genesis_state = interop_genesis_state(
             &generate_deterministic_keypairs(validator_count),
@@ -1676,7 +1676,7 @@ mod test {
     fn interop_state() {
         let validator_count = 16;
         let genesis_time = 42;
-        let spec = &TestEthSpec::default_spec();
+        let spec = &Spec::default_spec();
 
         let keypairs = generate_deterministic_keypairs(validator_count);
 

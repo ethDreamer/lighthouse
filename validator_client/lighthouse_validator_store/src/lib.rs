@@ -122,7 +122,7 @@ impl<T: SlotClock + 'static, E: EthSpec> LighthouseValidatorStore<T, E> {
                 doppelganger_service.register_new_validator(
                     *pubkey,
                     &self.slot_clock,
-                    E::slots_per_epoch(),
+                    Spec::slots_per_epoch(),
                 )?
             }
         }
@@ -202,7 +202,7 @@ impl<T: SlotClock + 'static, E: EthSpec> LighthouseValidatorStore<T, E> {
             doppelganger_service.register_new_validator(
                 validator_pubkey,
                 &self.slot_clock,
-                E::slots_per_epoch(),
+                Spec::slots_per_epoch(),
             )?;
         }
 
@@ -338,7 +338,7 @@ impl<T: SlotClock + 'static, E: EthSpec> LighthouseValidatorStore<T, E> {
     fn current_epoch(&self) -> Option<Epoch> {
         self.slot_clock
             .now()
-            .map(|slot| slot.epoch(E::slots_per_epoch()))
+            .map(|slot| slot.epoch(Spec::slots_per_epoch()))
     }
 
     fn get_gas_limit_defaulting(&self, gas_limit: Option<u64>, epoch: Option<Epoch>) -> u64 {
@@ -762,7 +762,7 @@ impl<T: SlotClock + 'static, E: EthSpec> LighthouseValidatorStore<T, E> {
         validator_index: u64,
         validator_pubkey: &PublicKeyBytes,
     ) -> Result<SyncCommitteeMessage, Error> {
-        let signing_epoch = slot.epoch(E::slots_per_epoch());
+        let signing_epoch = slot.epoch(Spec::slots_per_epoch());
         let signing_context = self.signing_context(Domain::SyncCommittee, signing_epoch);
 
         // Bypass `with_validator_signing_method`: sync committee messages are not slashable.
@@ -801,7 +801,7 @@ impl<T: SlotClock + 'static, E: EthSpec> LighthouseValidatorStore<T, E> {
         contribution: SyncCommitteeContribution<E>,
         selection_proof: SyncSelectionProof,
     ) -> Result<SignedContributionAndProof<E>, Error> {
-        let signing_epoch = contribution.slot.epoch(E::slots_per_epoch());
+        let signing_epoch = contribution.slot.epoch(Spec::slots_per_epoch());
         let signing_context = self.signing_context(Domain::ContributionAndProof, signing_epoch);
 
         // Bypass `with_validator_signing_method`: sync committee messages are not slashable.
@@ -1129,7 +1129,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         validator_pubkey: PublicKeyBytes,
         slot: Slot,
     ) -> Result<SelectionProof, Error> {
-        let signing_epoch = slot.epoch(E::slots_per_epoch());
+        let signing_epoch = slot.epoch(Spec::slots_per_epoch());
         let signing_context = self.signing_context(Domain::SelectionProof, signing_epoch);
 
         // Bypass the `with_validator_signing_method` function.
@@ -1166,7 +1166,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         slot: Slot,
         subnet_id: SyncSubnetId,
     ) -> Result<SyncSelectionProof, Error> {
-        let signing_epoch = slot.epoch(E::slots_per_epoch());
+        let signing_epoch = slot.epoch(Spec::slots_per_epoch());
         let signing_context =
             self.signing_context(Domain::SyncCommitteeSelectionProof, signing_epoch);
 
@@ -1393,7 +1393,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
             validator_metrics::start_timer(&validator_metrics::SLASHING_PROTECTION_PRUNE_TIMES);
 
         let new_min_target_epoch = current_epoch.saturating_sub(SLASHING_PROTECTION_HISTORY_EPOCHS);
-        let new_min_slot = new_min_target_epoch.start_slot(E::slots_per_epoch());
+        let new_min_slot = new_min_target_epoch.start_slot(Spec::slots_per_epoch());
 
         let all_pubkeys: Vec<_> = self.voting_pubkeys(DoppelgangerStatus::ignored);
 
@@ -1445,7 +1445,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         data: PayloadAttestationData,
     ) -> Result<PayloadAttestationMessage, Error> {
         let signing_context =
-            self.signing_context(Domain::PTCAttester, data.slot.epoch(E::slots_per_epoch()));
+            self.signing_context(Domain::PTCAttester, data.slot.epoch(Spec::slots_per_epoch()));
 
         let validator_index = self
             .validator_index(&validator_pubkey)
@@ -1479,7 +1479,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
     ) -> Result<SignedExecutionPayloadEnvelope<E>, Error> {
         let signing_context = self.signing_context(
             Domain::BeaconBuilder,
-            envelope.slot().epoch(E::slots_per_epoch()),
+            envelope.slot().epoch(Spec::slots_per_epoch()),
         );
 
         // Execution payload envelope signing is not slashable, bypass doppelganger protection.
@@ -1508,7 +1508,7 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
     ) -> Result<SignedProposerPreferences, Error> {
         let signing_context = self.signing_context(
             Domain::ProposerPreferences,
-            preferences.proposal_slot.epoch(E::slots_per_epoch()),
+            preferences.proposal_slot.epoch(Spec::slots_per_epoch()),
         );
 
         let signing_method = self.doppelganger_bypassed_signing_method(validator_pubkey)?;
@@ -1572,7 +1572,7 @@ mod tests {
     const LATER_SCHEDULE_EPOCH: u64 = 6;
 
     fn gloas_spec_with_schedule(schedule: Vec<GasLimitScheduleEntry>) -> ChainSpec {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = Some(Epoch::new(GLOAS_FORK_EPOCH));
         spec.gas_limit_schedule = GasLimitSchedule::new(schedule);
         spec
@@ -1632,7 +1632,7 @@ mod tests {
             Duration::from_secs(0),
             Duration::from_secs(12),
         );
-        clock.set_slot(Epoch::new(epoch).start_slot(E::slots_per_epoch()).as_u64());
+        clock.set_slot(Epoch::new(epoch).start_slot(Spec::slots_per_epoch()).as_u64());
         clock
     }
 
@@ -1649,7 +1649,7 @@ mod tests {
         // At the Gloas fork the first schedule entry becomes the default.
         clock.set_slot(
             Epoch::new(GLOAS_FORK_EPOCH)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .as_u64(),
         );
         assert_eq!(store.get_gas_limit(&pubkey), SCHEDULED_GAS_LIMIT);
@@ -1657,7 +1657,7 @@ mod tests {
         // The default switches at the next entry's epoch without a restart.
         clock.set_slot(
             Epoch::new(LATER_SCHEDULE_EPOCH)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .as_u64(),
         );
         assert_eq!(store.get_gas_limit(&pubkey), LATER_SCHEDULED_GAS_LIMIT);

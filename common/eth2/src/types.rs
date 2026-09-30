@@ -1864,7 +1864,7 @@ mod tests {
 
     #[test]
     fn ssz_signed_block_contents_pre_deneb() {
-        let spec = ForkName::Capella.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Capella.make_genesis_spec(Spec::default_spec());
 
         let block: PublishBlockRequest<E> = Arc::new(SignedBeaconBlock::from_block(
             BeaconBlock::<E>::Capella(BeaconBlockCapella::empty(&spec)),
@@ -1881,7 +1881,7 @@ mod tests {
 
     #[test]
     fn ssz_signed_block_contents_with_blobs() {
-        let spec = ForkName::Deneb.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Deneb.make_genesis_spec(Spec::default_spec());
 
         let block = SignedBeaconBlock::from_block(
             BeaconBlock::<E>::Deneb(BeaconBlockDeneb::empty(&spec)),

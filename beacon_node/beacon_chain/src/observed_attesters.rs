@@ -194,7 +194,7 @@ impl<E: EthSpec> Item<Hash256> for SyncContributorSlotHashSet<E> {
 
     /// Defaults to the `SYNC_SUBCOMMITTEE_SIZE`.
     fn default_capacity() -> usize {
-        E::sync_subcommittee_size()
+        Spec::SYNC_SUBCOMMITTEE_SIZE
     }
 
     fn len(&self) -> usize {
@@ -274,7 +274,7 @@ impl<E: EthSpec> Item<()> for PayloadAttesterSlotHashSet<E> {
 
     /// Defaults to `PTC_SIZE`, the maximum number of payload attesters per slot.
     fn default_capacity() -> usize {
-        E::ptc_size()
+        Spec::PTC_SIZE
     }
 
     fn len(&self) -> usize {
@@ -391,7 +391,7 @@ impl<T: Item<()>, E: EthSpec> AutoPruningEpochContainer<T, E> {
     }
 
     fn sanitize_request(&self, epoch: Epoch, validator_index: usize) -> Result<(), Error> {
-        if validator_index > E::ValidatorRegistryLimit::to_usize() {
+        if validator_index > Spec::VALIDATOR_REGISTRY_LIMIT {
             return Err(Error::ValidatorIndexTooHigh(validator_index));
         }
 
@@ -591,7 +591,7 @@ impl<K: SlotData + Eq + Hash + Copy, S, V: Item<S>, E: EthSpec>
     }
 
     fn sanitize_request(&self, slot: Slot, validator_index: usize) -> Result<(), Error> {
-        if validator_index > E::ValidatorRegistryLimit::to_usize() {
+        if validator_index > Spec::VALIDATOR_REGISTRY_LIMIT {
             return Err(Error::ValidatorIndexTooHigh(validator_index));
         }
 

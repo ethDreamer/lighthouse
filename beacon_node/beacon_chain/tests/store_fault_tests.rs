@@ -57,7 +57,7 @@ async fn wedged_chain() -> WedgedChain {
     harness.advance_slot();
     harness
         .extend_chain(
-            2 * E::slots_per_epoch() as usize,
+            2 * Spec::SLOTS_PER_EPOCH,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )

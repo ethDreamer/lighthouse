@@ -385,15 +385,15 @@ fn compute_cells_with_provided_proofs<E: EthSpec>(
     cell_proofs: Vec<KzgProof>,
     kzg: &Kzg,
 ) -> Result<Vec<CellsAndKzgProofs>, DataColumnSidecarError> {
-    if cell_proofs.len() != blobs.len() * E::number_of_columns() {
+    if cell_proofs.len() != blobs.len() * Spec::NUMBER_OF_COLUMNS {
         return Err(DataColumnSidecarError::InvalidCellProofLength {
-            expected: blobs.len() * E::number_of_columns(),
+            expected: blobs.len() * Spec::NUMBER_OF_COLUMNS,
             actual: cell_proofs.len(),
         });
     }
 
     let proof_chunks = cell_proofs
-        .chunks_exact(E::number_of_columns())
+        .chunks_exact(Spec::NUMBER_OF_COLUMNS)
         .collect::<Vec<_>>();
 
     // NOTE: assumes blobs and proofs are ordered by blob index
@@ -505,9 +505,9 @@ pub(crate) fn build_data_column_sidecars_fulu<E: EthSpec>(
         return Err("Attempting to construct Fulu data columns post-Gloas".to_owned());
     }
 
-    let number_of_columns = E::number_of_columns();
+    let number_of_columns = Spec::NUMBER_OF_COLUMNS;
     let max_blobs_per_block = spec
-        .max_blobs_per_block(signed_block_header.message.slot.epoch(E::slots_per_epoch()))
+        .max_blobs_per_block(signed_block_header.message.slot.epoch(Spec::slots_per_epoch()))
         as usize;
     let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
     let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
@@ -572,8 +572,8 @@ pub(crate) fn build_data_column_sidecars_gloas<E: EthSpec>(
         return Err("Attempting to construct Gloas data columns pre-Gloas".to_owned());
     }
 
-    let number_of_columns = E::number_of_columns();
-    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(E::slots_per_epoch())) as usize;
+    let number_of_columns = Spec::NUMBER_OF_COLUMNS;
+    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
     let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
 
@@ -636,9 +636,9 @@ pub(crate) fn build_partial_data_columns_fulu<E: EthSpec>(
         return Err("Attempting to construct Fulu partial data columns post-Gloas".to_owned());
     }
 
-    let number_of_columns = E::number_of_columns();
+    let number_of_columns = Spec::NUMBER_OF_COLUMNS;
     let max_blobs_per_block =
-        spec.max_blobs_per_block(header.slot().epoch(E::slots_per_epoch())) as usize;
+        spec.max_blobs_per_block(header.slot().epoch(Spec::slots_per_epoch())) as usize;
     let (bitmap, columns, column_kzg_proofs) = build_partial_column_cells::<E>(
         blob_cells_and_proofs_vec,
         number_of_columns,
@@ -679,8 +679,8 @@ pub(crate) fn build_partial_data_columns_gloas<E: EthSpec>(
         return Err("Attempting to construct Gloas partial data columns pre-Gloas".to_owned());
     }
 
-    let number_of_columns = E::number_of_columns();
-    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(E::slots_per_epoch())) as usize;
+    let number_of_columns = Spec::NUMBER_OF_COLUMNS;
+    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let (bitmap, columns, column_kzg_proofs) = build_partial_column_cells::<E>(
         blob_cells_and_proofs_vec,
         number_of_columns,
@@ -719,7 +719,7 @@ fn build_partial_column_cells<E: EthSpec>(
         CellBitmap::<E>::with_capacity(blob_cells_and_proofs_vec.len()).map_err(|_| {
             format!(
                 "Exceeded max committment count: {} (got {})",
-                E::max_blob_commitments_per_block(),
+                Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK,
                 blob_cells_and_proofs_vec.len()
             )
         })?;
@@ -795,8 +795,8 @@ fn reconstruct_blobs_with_indices<E: EthSpec>(
                 cell_ids.push(*data_column.index());
             }
 
-            let num_cells_original_blob = E::number_of_columns() / 2;
-            let blob_bytes = if data_columns.len() < E::number_of_columns() {
+            let num_cells_original_blob = Spec::NUMBER_OF_COLUMNS / 2;
+            let blob_bytes = if data_columns.len() < Spec::NUMBER_OF_COLUMNS {
                 let (recovered_cells, _kzg_proofs) = kzg
                     .recover_cells_and_compute_kzg_proofs(&cell_ids, &cells)
                     .map_err(|e| {
@@ -968,7 +968,7 @@ mod test {
     fn test_build_data_columns_sidecars() {
         let kzg = get_kzg();
 
-        let fulu_spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+        let fulu_spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
         test_build_data_columns_empty(&kzg, &fulu_spec);
         test_build_data_columns_fulu(&kzg, &fulu_spec);
         test_reconstruct_data_columns(&kzg, &fulu_spec);
@@ -979,7 +979,7 @@ mod test {
 
         test_validate_data_columns_with_commitments(&kzg, &fulu_spec);
 
-        let gloas_spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+        let gloas_spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
         test_build_data_columns_gloas(&kzg, &gloas_spec);
         test_build_data_columns_gloas_empty(&kzg, &gloas_spec);
         test_reconstruct_data_columns_gloas(&kzg, &gloas_spec);
@@ -1086,7 +1086,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(column_sidecars.len(), E::number_of_columns());
+        assert_eq!(column_sidecars.len(), Spec::NUMBER_OF_COLUMNS);
         for (idx, col_sidecar) in column_sidecars.iter().enumerate() {
             assert_eq!(*col_sidecar.index(), idx as u64);
             assert_eq!(col_sidecar.column().len(), num_of_blobs);
@@ -1136,7 +1136,7 @@ mod test {
             .kzg_commitments_merkle_proof()
             .unwrap();
 
-        assert_eq!(column_sidecars.len(), E::number_of_columns());
+        assert_eq!(column_sidecars.len(), Spec::NUMBER_OF_COLUMNS);
         for (idx, col_sidecar) in column_sidecars.iter().enumerate() {
             assert_eq!(*col_sidecar.index(), idx as u64);
 
@@ -1185,7 +1185,7 @@ mod test {
         )
         .unwrap();
 
-        for i in 0..E::number_of_columns() {
+        for i in 0..Spec::NUMBER_OF_COLUMNS {
             assert_eq!(reconstructed_columns.get(i), column_sidecars.get(i), "{i}");
         }
     }
@@ -1214,7 +1214,7 @@ mod test {
         let reconstructed_columns =
             reconstruct_data_columns(kzg, subset_columns, &commitments, spec).unwrap();
 
-        for i in 0..E::number_of_columns() {
+        for i in 0..Spec::NUMBER_OF_COLUMNS {
             assert_eq!(reconstructed_columns.get(i), column_sidecars.get(i), "{i}");
         }
     }
@@ -1244,7 +1244,7 @@ mod test {
         let reconstructed_columns =
             reconstruct_data_columns(kzg, subset, &commitments, spec).unwrap();
 
-        for i in 0..E::number_of_columns() {
+        for i in 0..Spec::NUMBER_OF_COLUMNS {
             assert_eq!(reconstructed_columns.get(i), column_sidecars.get(i), "{i}");
         }
     }

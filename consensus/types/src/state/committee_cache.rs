@@ -123,7 +123,7 @@ impl CommitteeCache {
         spec: &ChainSpec,
     ) -> Result<Arc<CommitteeCache>, BeaconStateError> {
         // May cause divide-by-zero errors.
-        if E::slots_per_epoch() == 0 {
+        if Spec::slots_per_epoch() == 0 {
             return Err(BeaconStateError::ZeroSlotsPerEpoch);
         }
 
@@ -139,7 +139,7 @@ impl CommitteeCache {
         }
 
         let committees_per_slot =
-            E::get_committee_count_per_slot(active_validator_indices.len(), spec)
+            Spec::get_committee_count_per_slot(active_validator_indices.len(), spec.max_committees_per_slot, spec.target_committee_size)
                 .map_err(BeaconStateError::ArithError)? as u64;
 
         let seed = state.get_seed(epoch, Domain::BeaconAttester, spec)?;
@@ -165,7 +165,7 @@ impl CommitteeCache {
             shuffling,
             shuffling_positions,
             committees_per_slot,
-            slots_per_epoch: E::slots_per_epoch(),
+            slots_per_epoch: Spec::slots_per_epoch(),
         }))
     }
 

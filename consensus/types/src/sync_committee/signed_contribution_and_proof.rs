@@ -51,7 +51,7 @@ impl<E: EthSpec> SignedContributionAndProof<E> {
             spec,
         );
 
-        let epoch = message.contribution.slot.epoch(E::slots_per_epoch());
+        let epoch = message.contribution.slot.epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             epoch,
             Domain::ContributionAndProof,

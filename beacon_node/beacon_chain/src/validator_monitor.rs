@@ -583,7 +583,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         // Prune missed blocks that are prior to last finalized epochs - MISSED_BLOCK_LOOKBACK_EPOCHS
         let finalized_epoch = state.finalized_checkpoint().epoch;
         self.missed_blocks.retain(|missed_block| {
-            let epoch = missed_block.slot.epoch(E::slots_per_epoch());
+            let epoch = missed_block.slot.epoch(Spec::slots_per_epoch());
             epoch + Epoch::new(MISSED_BLOCK_LOOKBACK_EPOCHS) >= finalized_epoch
         });
     }
@@ -592,10 +592,10 @@ impl<E: EthSpec> ValidatorMonitor<E> {
     fn add_validators_missed_blocks(&mut self, state: &BeaconState<E>, spec: &ChainSpec) {
         // Define range variables
         let current_slot = state.slot();
-        let current_epoch = current_slot.epoch(E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
         // start_slot needs to be coherent with what can be retrieved from the beacon_proposer_cache
-        let start_slot = current_epoch.start_slot(E::slots_per_epoch())
-            - Slot::new(MISSED_BLOCK_LOOKBACK_EPOCHS * E::slots_per_epoch());
+        let start_slot = current_epoch.start_slot(Spec::slots_per_epoch())
+            - Slot::new(MISSED_BLOCK_LOOKBACK_EPOCHS * Spec::slots_per_epoch());
 
         let end_slot = current_slot.saturating_sub(MISSED_BLOCK_LAG_SLOTS).as_u64();
 
@@ -615,7 +615,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
             {
                 // Found missed block
                 if block_root == prev_block_root {
-                    let slot_epoch = slot.epoch(E::slots_per_epoch());
+                    let slot_epoch = slot.epoch(Spec::slots_per_epoch());
 
                     if let Ok(shuffling_decision_block) = state
                         .proposer_shuffling_decision_root_at_epoch(slot_epoch, *block_root, spec)
@@ -636,7 +636,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
                         }
 
                         // Only add missed blocks for the proposer if it's in the list of monitored validators
-                        let slot_in_epoch = slot % E::slots_per_epoch();
+                        let slot_in_epoch = slot % Spec::slots_per_epoch();
                         if let Some(proposer_index) = proposers_per_epoch
                             .as_ref()
                             .and_then(|(proposers, _)| proposers.get(slot_in_epoch.as_usize()))
@@ -716,7 +716,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         for slot in attested_slots {
             if let Some(unaggregated_attestation) = unaggregated_attestations.remove(&slot) {
                 // Don't process this attestation, it's too old to be processed by this state.
-                if slot.epoch(E::slots_per_epoch()) < state.previous_epoch() {
+                if slot.epoch(Spec::slots_per_epoch()) < state.previous_epoch() {
                     continue;
                 }
 
@@ -998,7 +998,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
                             // of the sync committee.
                             info!(
                                 included = summary.sync_signature_block_inclusions,
-                                expected = E::slots_per_epoch(),
+                                expected = Spec::slots_per_epoch(),
                                 epoch = %current_epoch,
                                 validator = id,
                                 "Current epoch sync signatures"
@@ -1152,7 +1152,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         block_root: Hash256,
         slot_clock: &S,
     ) {
-        let epoch = block.slot().epoch(E::slots_per_epoch());
+        let epoch = block.slot().epoch(Spec::slots_per_epoch());
         if let Some(validator) = self.get_validator(block.proposer_index()) {
             let id = &validator.id;
             let delay = get_block_delay_ms(seen_timestamp, block, slot_clock);
@@ -1220,7 +1220,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         slot_clock: &S,
     ) {
         let data = indexed_attestation.data();
-        let epoch = data.slot.epoch(E::slots_per_epoch());
+        let epoch = data.slot.epoch(Spec::slots_per_epoch());
         let delay = get_message_delay_ms(
             seen_timestamp,
             data.slot,
@@ -1312,7 +1312,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         spec: &ChainSpec,
     ) {
         let data = indexed_attestation.data();
-        let epoch = data.slot.epoch(E::slots_per_epoch());
+        let epoch = data.slot.epoch(Spec::slots_per_epoch());
         let delay = get_message_delay_ms(
             seen_timestamp,
             data.slot,
@@ -1434,7 +1434,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         let inclusion_distance = parent_slot.saturating_sub(data.slot) + 1;
 
         let delay = inclusion_distance - spec.min_attestation_inclusion_delay;
-        let epoch = data.slot.epoch(E::slots_per_epoch());
+        let epoch = data.slot.epoch(Spec::slots_per_epoch());
 
         indexed_attestation.attesting_indices_iter().for_each(|i| {
             if let Some(validator) = self.get_validator(*i) {
@@ -1540,7 +1540,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
     ) {
         if let Some(validator) = self.get_validator(sync_committee_message.validator_index) {
             let id = &validator.id;
-            let epoch = sync_committee_message.slot.epoch(E::slots_per_epoch());
+            let epoch = sync_committee_message.slot.epoch(Spec::slots_per_epoch());
             let delay = get_message_delay_ms(
                 seen_timestamp,
                 sync_committee_message.slot,
@@ -1627,7 +1627,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         spec: &ChainSpec,
     ) {
         let slot = sync_contribution.message.contribution.slot;
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let beacon_block_root = sync_contribution.message.contribution.beacon_block_root;
         let delay = get_message_delay_ms(
             seen_timestamp,
@@ -1706,7 +1706,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         beacon_block_root: Hash256,
         participant_pubkeys: Vec<&PublicKeyBytes>,
     ) {
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
 
         for validator_pubkey in participant_pubkeys {
             if let Some(validator) = self.validators.get(validator_pubkey) {
@@ -1791,7 +1791,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
     fn register_proposer_slashing(&self, src: &str, slashing: &ProposerSlashing) {
         let proposer = slashing.signed_header_1.message.proposer_index;
         let slot = slashing.signed_header_1.message.slot;
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let root_1 = slashing.signed_header_1.message.canonical_root();
         let root_2 = slashing.signed_header_2.message.canonical_root();
 
@@ -1850,7 +1850,7 @@ impl<E: EthSpec> ValidatorMonitor<E> {
             .filter_map(|index| self.get_validator(*index))
             .for_each(|validator| {
                 let id = &validator.id;
-                let epoch = data.slot.epoch(E::slots_per_epoch());
+                let epoch = data.slot.epoch(Spec::slots_per_epoch());
 
                 self.aggregatable_metric(id, |label| {
                     metrics::inc_counter_vec(
@@ -1883,8 +1883,8 @@ impl<E: EthSpec> ValidatorMonitor<E> {
         );
 
         if let Some(slot) = slot_clock.now() {
-            let epoch = slot.epoch(E::slots_per_epoch());
-            let slot_in_epoch = slot % E::slots_per_epoch();
+            let epoch = slot.epoch(Spec::slots_per_epoch());
+            let slot_in_epoch = slot % Spec::slots_per_epoch();
 
             // Only start to report on the current epoch once we've progressed past the point where
             // all attestation should be included in a block.
@@ -2177,7 +2177,7 @@ mod tests {
         let keypairs = generate_deterministic_keypairs(33);
 
         for fork in [ForkName::Base, ForkName::Gloas] {
-            let spec = fork.make_genesis_spec(E::default_spec());
+            let spec = fork.make_genesis_spec(Spec::default_spec());
             let mut state = InteropGenesisBuilder::<E>::new()
                 .set_opt_execution_payload_header(generate_genesis_header::<E>(&spec))
                 .build_genesis_state(&keypairs, 0, Hash256::ZERO, &spec)

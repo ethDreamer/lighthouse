@@ -209,7 +209,7 @@ pub async fn publish_execution_payload_envelope<T: BeaconChainTypes>(
                 kzg_proofs,
                 blobs,
             } = *contents;
-            let expected_proofs = blobs.len() * T::EthSpec::number_of_columns();
+            let expected_proofs = blobs.len() * Spec::NUMBER_OF_COLUMNS;
             if kzg_proofs.len() != expected_proofs {
                 return Err(warp_utils::reject::custom_bad_request(format!(
                     "invalid number of kzg proofs: expected {}, got {}",
@@ -434,7 +434,7 @@ async fn publish_and_import_columns<T: BeaconChainTypes>(
         )));
     }
 
-    let epoch = slot.epoch(T::EthSpec::slots_per_epoch());
+    let epoch = slot.epoch(Spec::slots_per_epoch());
     let sampling_column_indices = chain.custody_context.sampling_columns_for_epoch(epoch);
     let sampling_columns = gossip_verified_columns
         .into_iter()

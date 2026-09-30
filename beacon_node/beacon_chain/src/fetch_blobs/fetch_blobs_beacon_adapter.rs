@@ -117,7 +117,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
         slot: Slot,
     ) -> Option<Vec<u64>> {
         self.chain
-            .cached_data_column_indexes(block_root, slot.epoch(T::EthSpec::slots_per_epoch()))
+            .cached_data_column_indexes(block_root, slot.epoch(Spec::slots_per_epoch()))
     }
 
     pub(crate) async fn process_engine_blobs_fulu(

@@ -706,7 +706,7 @@ mod tests {
         let altair_fork_slot = spec
             .altair_fork_epoch
             .unwrap()
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         TestingRig::new(
             network,
@@ -791,7 +791,7 @@ mod tests {
         let bellatrix_fork_slot = spec
             .bellatrix_fork_epoch
             .unwrap()
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         TestingRig::new(
             network,
@@ -828,7 +828,7 @@ mod tests {
         let bellatrix_fork_slot = spec
             .bellatrix_fork_epoch
             .unwrap()
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         // The slashable message should only be signed by the web3signer validator if slashing
         // protection is disabled in Lighthouse.

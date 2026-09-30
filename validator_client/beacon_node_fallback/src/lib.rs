@@ -107,7 +107,7 @@ pub fn start_fallback_updater_service<T: SlotClock + 'static, E: EthSpec>(
     if beacon_nodes_ref.payload_available_send.is_some()
         && let Some(gloas_fork_epoch) = beacon_nodes_ref.spec.gloas_fork_epoch
     {
-        let gloas_fork_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let gloas_fork_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
         let slot_clock = slot_clock.clone();
         let pa_future = async move {
             while slot_clock
@@ -1083,7 +1083,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_all_candidates_should_update_sync_status() {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         let (mut mock_beacon_node_1, beacon_node_1) = new_mock_beacon_node(0, &spec).await;
         let (mut mock_beacon_node_2, beacon_node_2) = new_mock_beacon_node(1, &spec).await;
         let (mut mock_beacon_node_3, beacon_node_3) = new_mock_beacon_node(2, &spec).await;
@@ -1135,7 +1135,7 @@ mod tests {
 
     #[tokio::test]
     async fn broadcast_should_send_to_all_bns() {
-        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(MainnetEthSpec::default_spec()));
+        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(Spec::default_spec()));
         let (mut mock_beacon_node_1, beacon_node_1) = new_mock_beacon_node(0, &spec).await;
         let (mut mock_beacon_node_2, beacon_node_2) = new_mock_beacon_node(1, &spec).await;
 
@@ -1175,7 +1175,7 @@ mod tests {
 
     #[tokio::test]
     async fn first_success_should_try_nodes_in_order() {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         let (mut mock_beacon_node_1, beacon_node_1) = new_mock_beacon_node(0, &spec).await;
         let (mut mock_beacon_node_2, beacon_node_2) = new_mock_beacon_node(1, &spec).await;
         let (mut mock_beacon_node_3, beacon_node_3) = new_mock_beacon_node(2, &spec).await;
@@ -1217,7 +1217,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_on_candidate_index_success() {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         let (mut mock_beacon_node_1, beacon_node_1) = new_mock_beacon_node(0, &spec).await;
         let (mut mock_beacon_node_2, beacon_node_2) = new_mock_beacon_node(1, &spec).await;
         let (mut mock_beacon_node_3, beacon_node_3) = new_mock_beacon_node(2, &spec).await;
@@ -1247,7 +1247,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_on_candidate_index_error() {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         let (mut mock_beacon_node_1, beacon_node_1) = new_mock_beacon_node(0, &spec).await;
         let (mut mock_beacon_node_2, beacon_node_2) = new_mock_beacon_node(1, &spec).await;
         let (mut mock_beacon_node_3, beacon_node_3) = new_mock_beacon_node(2, &spec).await;

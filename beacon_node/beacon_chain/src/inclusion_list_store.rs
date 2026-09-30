@@ -69,7 +69,7 @@ impl<E: EthSpec> InclusionListStore<E> {
         let first_heze_slot = spec
             .heze_fork_epoch
             .filter(|_| spec.is_heze_scheduled())
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()))
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()))
             .unwrap_or_else(|| Slot::new(0));
         Self {
             slots: HashMap::new(),
@@ -291,7 +291,7 @@ mod tests {
 
 
     fn new_store() -> InclusionListStore<E> {
-        InclusionListStore::new(&E::default_spec())
+        InclusionListStore::new(&Spec::default_spec())
     }
 
     fn root(byte: u8) -> Hash256 {
@@ -496,7 +496,7 @@ mod tests {
     /// A devnet may raise `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS`, which must widen the window.
     #[test]
     fn retention_window_follows_the_spec_value() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.min_slots_for_inclusion_lists_requests = 4;
         let mut store = InclusionListStore::<E>::new(&spec);
         let dr = root(1);
@@ -519,10 +519,10 @@ mod tests {
 
     #[test]
     fn floor_starts_at_the_first_heze_slot() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(Epoch::new(4));
         let mut store = InclusionListStore::<E>::new(&spec);
-        let first_heze_slot = Epoch::new(4).start_slot(E::slots_per_epoch());
+        let first_heze_slot = Epoch::new(4).start_slot(Spec::slots_per_epoch());
         let dr = root(1);
 
         assert_eq!(
@@ -541,7 +541,7 @@ mod tests {
     /// The far future sentinel must not become the floor.
     #[test]
     fn unscheduled_heze_leaves_the_floor_at_zero() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(spec.far_future_epoch);
         let mut store = InclusionListStore::<E>::new(&spec);
 

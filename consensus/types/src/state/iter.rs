@@ -72,7 +72,7 @@ mod test {
 
     #[test]
     fn block_roots_iter() {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
 
         let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);
 
@@ -119,7 +119,7 @@ mod test {
 
     #[test]
     fn block_roots_iter_non_zero_genesis() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.genesis_slot = Slot::new(4);
 
         let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);

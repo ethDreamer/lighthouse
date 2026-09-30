@@ -222,7 +222,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         // Remove any outdated finalized/head chains
         self.purge_outdated_chains(local, awaiting_head_peers);
 
-        let local_head_epoch = local.head_slot.epoch(T::EthSpec::slots_per_epoch());
+        let local_head_epoch = local.head_slot.epoch(Spec::slots_per_epoch());
         // Choose the best finalized chain if one needs to be selected.
         self.update_finalized_chains(network, local.finalized_epoch, local_head_epoch);
 
@@ -246,7 +246,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
                     .ok_or("Finalized syncing chain not found")?;
                 Ok(Some((
                     RangeSyncType::Finalized,
-                    chain.start_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                    chain.start_epoch.start_slot(Spec::slots_per_epoch()),
                     chain.target_head_slot,
                 )))
             }
@@ -257,7 +257,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
                         .head_chains
                         .get(id)
                         .ok_or("Head syncing chain not found")?;
-                    let start = chain.start_epoch.start_slot(T::EthSpec::slots_per_epoch());
+                    let start = chain.start_epoch.start_slot(Spec::slots_per_epoch());
                     let target = chain.target_head_slot;
 
                     range = range
@@ -425,7 +425,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
     ) {
         let local_finalized_slot = local_info
             .finalized_epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let beacon_chain = &self.beacon_chain;
 

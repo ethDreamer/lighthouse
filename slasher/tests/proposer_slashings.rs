@@ -18,7 +18,7 @@ fn empty_pruning() {
 
 #[test]
 fn block_pruning() {
-    let slots_per_epoch = E::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
 
     let tempdir = tempdir().unwrap();
     let mut config = Config::new(tempdir.path().into());

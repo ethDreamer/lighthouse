@@ -294,9 +294,9 @@ impl<E: EthSpec> ExecutionPayload<E> {
         // Fixed part
         ExecutionPayloadBellatrix::<E>::default().as_ssz_bytes().len()
             // Max size of variable length `extra_data` field
-            + (E::max_extra_data_bytes() * <u8 as Encode>::ssz_fixed_len())
+            + (Spec::MAX_EXTRA_DATA_BYTES * <u8 as Encode>::ssz_fixed_len())
             // Max size of variable length `transactions` field
-            + (E::max_transactions_per_payload() * (ssz::BYTES_PER_LENGTH_OFFSET + E::max_bytes_per_transaction()))
+            + (Spec::MAX_TRANSACTIONS_PER_PAYLOAD * (ssz::BYTES_PER_LENGTH_OFFSET + Spec::MAX_BYTES_PER_TRANSACTION))
     }
 }
 

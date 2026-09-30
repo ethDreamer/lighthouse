@@ -423,7 +423,7 @@ impl<T: BeaconChainTypes> SingleBlockLookup<T> {
                                 req_id,
                             }),
                             &[self.block_root],
-                            slot.epoch(<T as BeaconChainTypes>::EthSpec::slots_per_epoch()),
+                            slot.epoch(Spec::slots_per_epoch()),
                             // single lookups consult the DA cache to skip gossip-imported columns
                             false,
                             peers.clone(),

@@ -1220,7 +1220,7 @@ pub fn validate_data_column_sidecar_for_gossip_gloas<
 
     let column_slot = data_column.slot();
 
-    if *data_column.index() >= T::EthSpec::number_of_columns() as u64 {
+    if *data_column.index() >= Spec::number_of_columns() {
         return Err(GossipDataColumnError::InvalidColumnIndex(
             *data_column.index(),
         ));
@@ -1510,7 +1510,7 @@ fn verify_data_column_sidecar_with_commitments_len<E: EthSpec>(
     commitments_len: usize,
     spec: &ChainSpec,
 ) -> Result<(), GossipDataColumnError> {
-    if *data_column.index() >= E::number_of_columns() as u64 {
+    if *data_column.index() >= Spec::number_of_columns() {
         return Err(GossipDataColumnError::InvalidColumnIndex(
             *data_column.index(),
         ));
@@ -1719,7 +1719,7 @@ fn verify_proposer_and_signature<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
 ) -> Result<(), GossipDataColumnError> {
     let column_slot = signed_block_header.message.slot;
-    let slots_per_epoch = T::EthSpec::slots_per_epoch();
+    let slots_per_epoch = Spec::slots_per_epoch();
     let column_epoch = column_slot.epoch(slots_per_epoch);
     let block_root = signed_block_header.message.tree_hash_root();
     let block_parent_root = signed_block_header.message.parent_root;
@@ -1808,7 +1808,7 @@ fn verify_slot_greater_than_latest_finalized_slot<T: BeaconChainTypes>(
         .head()
         .finalized_checkpoint()
         .epoch
-        .start_slot(T::EthSpec::slots_per_epoch());
+        .start_slot(Spec::slots_per_epoch());
     if column_slot <= latest_finalized_slot {
         return Err(GossipDataColumnError::PastFinalizedSlot {
             column_slot,
@@ -1904,7 +1904,7 @@ mod test {
     #[tokio::test]
     async fn test_validate_data_column_sidecar_for_gossip_fulu() {
         // Setting up harness is slow, we initialise once and use it for all gossip validation tests.
-        let spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
         let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
@@ -1929,7 +1929,7 @@ mod test {
     #[tokio::test]
     async fn test_new_for_block_publishing_fulu() {
         // Setting up harness is slow, we initialise once and use it for all gossip validation tests.
-        let spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
         let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
@@ -1950,7 +1950,7 @@ mod test {
 
     #[tokio::test]
     async fn test_load_gloas_payload_bid_disk_fallback() {
-        let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
+        let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
         let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
@@ -2051,7 +2051,7 @@ mod test {
         verify_fn: &impl Fn(DataColumnSidecar<E>) -> Result<D, GossipDataColumnError>,
     ) {
         let slot = harness.get_current_slot();
-        let epoch = slot.epoch(E::slots_per_epoch());
+        let epoch = slot.epoch(Spec::slots_per_epoch());
         let state = harness.get_current_state();
         let max_blobs_per_block = harness.spec.max_blobs_per_block(epoch) as usize;
         let fork = harness.spec.fork_name_at_epoch(epoch);
@@ -2090,7 +2090,7 @@ mod test {
         let spec = if fork_name_from_env().is_some() {
             Arc::new(test_spec::<E>())
         } else {
-            Arc::new(ForkName::Fulu.make_genesis_spec(E::default_spec()))
+            Arc::new(ForkName::Fulu.make_genesis_spec(Spec::default_spec()))
         };
 
         // Only run these tests if columns are enabled.
@@ -2130,7 +2130,7 @@ mod test {
         // Generate a block with 1 blob so we have valid data columns.
         let fork = harness
             .spec
-            .fork_name_at_epoch(harness.get_current_slot().epoch(E::slots_per_epoch()));
+            .fork_name_at_epoch(harness.get_current_slot().epoch(Spec::slots_per_epoch()));
         let BlobsBundle::<E> {
             commitments,
             proofs: _,
@@ -2360,7 +2360,7 @@ mod test {
     /// pre-KZG branches: unknown bid, slot mismatch against the bid, and the empty-message guard.
     #[tokio::test]
     async fn test_partial_message_verification_gloas() {
-        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Gloas.make_genesis_spec(Spec::default_spec()));
         let harness = BeaconChainHarness::builder()
             .spec(spec)
             .deterministic_keypairs(64)

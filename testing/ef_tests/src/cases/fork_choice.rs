@@ -992,7 +992,7 @@ impl<E: EthSpec> Tester<E> {
             .data()
             .target
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         complete_state_advance(
             &mut target_state,
             Some(target_block.state_root),
@@ -1445,10 +1445,10 @@ impl<E: EthSpec> Tester<E> {
         // Determine proposer.
         let cached_head = self.harness.chain.canonical_head.cached_head();
         let next_slot = cached_head.snapshot.beacon_block.slot() + 1;
-        let next_slot_epoch = next_slot.epoch(E::slots_per_epoch());
+        let next_slot_epoch = next_slot.epoch(Spec::slots_per_epoch());
         let (proposer_indices, decision_root, _, _, fork) =
             compute_proposer_duties_from_head(next_slot_epoch, &self.harness.chain).unwrap();
-        let proposer_index = proposer_indices[next_slot.as_usize() % E::slots_per_epoch() as usize];
+        let proposer_index = proposer_indices[next_slot.as_usize() % Spec::SLOTS_PER_EPOCH];
 
         // Ensure the proposer index cache is primed.
         self.harness

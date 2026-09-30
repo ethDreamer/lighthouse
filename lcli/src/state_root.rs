@@ -27,7 +27,7 @@ pub fn run<E: EthSpec>(
     info!(
         "Using {} network ({} spec)",
         spec.config_name.as_deref().unwrap_or("unknown"),
-        E::spec_name()
+        Spec::SPEC_ID
     );
     info!("Doing {} runs", runs);
 

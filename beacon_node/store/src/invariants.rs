@@ -342,7 +342,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
     ) -> InvariantCheckResult {
         let mut result = InvariantCheckResult::new();
         if let Some(finalized_checkpoint) = ctx.persisted_fork_choice_finalized_checkpoint
-            && finalized_checkpoint.epoch.start_slot(E::slots_per_epoch()) < ctx.split.slot
+            && finalized_checkpoint.epoch.start_slot(Spec::slots_per_epoch()) < ctx.split.slot
         {
             result.add_violation(
                 InvariantViolation::ForkChoiceFinalizedCheckpointBehindSplit {
@@ -393,19 +393,19 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         let bellatrix_fork_slot = self
             .spec
             .bellatrix_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let deneb_fork_slot = self
             .spec
             .deneb_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let fulu_fork_slot = self
             .spec
             .fulu_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let gloas_fork_slot = self
             .spec
             .gloas_fork_epoch
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()));
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
         let oldest_blob_slot = self.get_blob_info().oldest_blob_slot;
         let oldest_data_column_slot = self.get_data_column_info().oldest_data_column_slot;
 
@@ -875,7 +875,7 @@ mod tests {
     fn payload_body_summary_consistency_checks_keys_only() {
         let store = HotColdDB::<MinimalEthSpec, MemoryStore, MemoryStore>::open_ephemeral(
             StoreConfig::default(),
-            MinimalEthSpec::default_spec().into(),
+            Spec::default_spec().into(),
         )
         .unwrap();
         let block_root = Hash256::repeat_byte(0x42);

@@ -128,7 +128,7 @@ fn get_epoch_boundary_root<E: EthSpec>(state: &BeaconState<E>) -> Result<Hash256
     }
     let slot = state
         .current_epoch()
-        .start_slot(E::slots_per_epoch())
+        .start_slot(Spec::slots_per_epoch())
         .safe_sub(1)?;
     Ok(*state
         .get_block_root(slot)

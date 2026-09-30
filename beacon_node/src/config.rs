@@ -113,13 +113,13 @@ pub fn get_config<E: EthSpec>(
     if enable_partial_columns {
         // Partial messages assume that each subnet maps to exactly one column.
         // Check this here to avoid weird issues on networks where this is not the case.
-        if spec.data_column_sidecar_subnet_count == E::number_of_columns() as u64 {
+        if spec.data_column_sidecar_subnet_count == Spec::number_of_columns() {
             client_config.network.enable_partial_columns = true;
             client_config.chain.enable_partial_columns = true;
         } else {
             warn!(
                 subnets = spec.data_column_sidecar_subnet_count,
-                columns = E::number_of_columns(),
+                columns = Spec::NUMBER_OF_COLUMNS,
                 "Not enabling partial columns on networks with multiple columns per subnet"
             )
         }

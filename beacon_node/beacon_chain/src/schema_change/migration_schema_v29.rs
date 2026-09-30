@@ -20,7 +20,7 @@ pub fn upgrade_to_v29<T: BeaconChainTypes>(
     let gloas_fork_slot = db
         .spec
         .gloas_fork_epoch
-        .map(|epoch| epoch.start_slot(T::EthSpec::slots_per_epoch()));
+        .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()));
 
     // Load the persisted fork choice (v28 format).
     let Some(fc_bytes) = db

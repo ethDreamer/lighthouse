@@ -96,22 +96,22 @@ pub fn verify_operation_list_lengths<E: EthSpec, Payload: AbstractExecPayload<E>
         (
             "proposer_slashings",
             block_body.proposer_slashings().len(),
-            E::MaxProposerSlashings::to_usize(),
+            Spec::MAX_PROPOSER_SLASHINGS,
         ),
         (
             "attester_slashings",
             block_body.attester_slashings_len(),
-            E::MaxAttesterSlashingsElectra::to_usize(),
+            Spec::MAX_ATTESTER_SLASHINGS_ELECTRA,
         ),
         (
             "attestations",
             block_body.attestations_len(),
-            E::MaxAttestationsElectra::to_usize(),
+            Spec::MAX_ATTESTATIONS_ELECTRA,
         ),
         (
             "voluntary_exits",
             block_body.voluntary_exits().len(),
-            E::MaxVoluntaryExits::to_usize(),
+            Spec::MAX_VOLUNTARY_EXITS,
         ),
         (
             "bls_to_execution_changes",
@@ -119,7 +119,7 @@ pub fn verify_operation_list_lengths<E: EthSpec, Payload: AbstractExecPayload<E>
                 .bls_to_execution_changes()
                 .map(|changes| changes.len())
                 .unwrap_or(0),
-            E::MaxBlsToExecutionChanges::to_usize(),
+            Spec::MAX_BLS_TO_EXECUTION_CHANGES,
         ),
         (
             "payload_attestations",
@@ -127,7 +127,7 @@ pub fn verify_operation_list_lengths<E: EthSpec, Payload: AbstractExecPayload<E>
                 .payload_attestations()
                 .map(|atts| atts.len())
                 .unwrap_or(0),
-            E::MaxPayloadAttestations::to_usize(),
+            Spec::MAX_PAYLOAD_ATTESTATIONS,
         ),
     ];
 
@@ -367,9 +367,9 @@ pub mod gloas {
         let slot_mod = data
             .slot
             .as_usize()
-            .safe_rem(E::slots_per_epoch() as usize)?;
+            .safe_rem(Spec::SLOTS_PER_EPOCH)?;
         let payment_index = if current_epoch_target {
-            (E::slots_per_epoch() as usize).safe_add(slot_mod)?
+            (Spec::SLOTS_PER_EPOCH).safe_add(slot_mod)?
         } else {
             slot_mod
         };
@@ -493,11 +493,11 @@ pub fn process_proposer_slashings<E: EthSpec>(
             // equivocation could grief an honest proposer's payment.
             if state.fork_name_unchecked().gloas_enabled() {
                 let slot = proposer_slashing.signed_header_1.message.slot;
-                let proposal_epoch = slot.epoch(E::slots_per_epoch());
-                let slot_in_epoch = slot.as_usize().safe_rem(E::SlotsPerEpoch::to_usize())?;
+                let proposal_epoch = slot.epoch(Spec::slots_per_epoch());
+                let slot_in_epoch = slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?;
 
                 let payment_index = if proposal_epoch == state.current_epoch() {
-                    Some(E::SlotsPerEpoch::to_usize().safe_add(slot_in_epoch)?)
+                    Some(Spec::SLOTS_PER_EPOCH.safe_add(slot_in_epoch)?)
                 } else if proposal_epoch == state.previous_epoch() {
                     Some(slot_in_epoch)
                 } else {
@@ -696,7 +696,7 @@ pub fn process_deposits<E: EthSpec>(
 
     if state.eth1_deposit_index() < eth1_deposit_index_limit {
         let expected_deposit_len = std::cmp::min(
-            E::MaxDeposits::to_u64(),
+            Spec::MAX_DEPOSITS as u64,
             eth1_deposit_index_limit.safe_sub(state.eth1_deposit_index())?,
         );
         block_verify!(
@@ -827,7 +827,7 @@ pub fn process_withdrawal_requests<E: EthSpec>(
         let is_full_exit_request = amount == spec.full_exit_request_amount;
 
         // If partial withdrawal queue is full, only full exits are processed
-        if state.pending_partial_withdrawals()?.len() == E::pending_partial_withdrawals_limit()
+        if state.pending_partial_withdrawals()?.len() == Spec::PENDING_PARTIAL_WITHDRAWALS_LIMIT
             && !is_full_exit_request
         {
             continue;
@@ -1138,7 +1138,7 @@ pub fn process_consolidation_request<E: EthSpec>(
     }
 
     // If the pending consolidations queue is full, consolidation requests are ignored
-    if state.pending_consolidations()?.len() == E::PendingConsolidationsLimit::to_usize() {
+    if state.pending_consolidations()?.len() == Spec::PENDING_CONSOLIDATIONS_LIMIT {
         return Ok(());
     }
     // If there is too little available consolidation churn limit, consolidation requests are ignored

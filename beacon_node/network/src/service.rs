@@ -403,13 +403,13 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         let fork_context = &self.fork_context;
         let spec = &self.beacon_chain.spec;
         let current_slot = self.beacon_chain.slot().unwrap_or(spec.genesis_slot);
-        let current_epoch = current_slot.epoch(T::EthSpec::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
 
         let mut result = vec![fork_context.context_bytes(current_epoch)];
 
         if let Some(next_digest_epoch) = spec.next_digest_epoch(current_epoch)
             && current_slot.saturating_add(Slot::new(SUBSCRIBE_DELAY_SLOTS))
-                >= next_digest_epoch.start_slot(T::EthSpec::slots_per_epoch())
+                >= next_digest_epoch.start_slot(Spec::slots_per_epoch())
         {
             let next_digest = fork_context.context_bytes(next_digest_epoch);
             result.push(next_digest);
@@ -742,12 +742,12 @@ impl<T: BeaconChainTypes> NetworkService<T> {
 
                 // If we are to subscribe to all subnets we do it here
                 if self.network_globals.config.subscribe_all_subnets {
-                    for subnet_id in 0..<<T as BeaconChainTypes>::EthSpec as EthSpec>::SubnetBitfieldLength::to_u64() {
+                    for subnet_id in 0..Spec::SUBNET_BITFIELD_LENGTH as u64 {
                         let subnet = Subnet::Attestation(SubnetId::new(subnet_id));
                         // Update the ENR bitfield
                         self.libp2p.update_enr_subnet(subnet, true);
                     }
-                    let subnet_max = <<T as BeaconChainTypes>::EthSpec as EthSpec>::SyncCommitteeSubnetCount::to_u64();
+                    let subnet_max = Spec::SYNC_COMMITTEE_SUBNET_COUNT as u64;
                     for subnet_id in 0..subnet_max {
                         let subnet = Subnet::SyncCommittee(SyncSubnetId::new(subnet_id));
                         // Update the ENR bitfield
@@ -870,7 +870,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
             self.beacon_chain
                 .spec
                 .genesis_slot
-                .epoch(T::EthSpec::slots_per_epoch()),
+                .epoch(Spec::slots_per_epoch()),
         );
         let new_fork_digest = new_enr_fork_id.fork_digest;
 
@@ -903,7 +903,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
             let unsubscribe_delay = Duration::from_secs(
                 UNSUBSCRIBE_DELAY_EPOCHS
                     * self.beacon_chain.spec.get_slot_duration().as_secs()
-                    * T::EthSpec::slots_per_epoch(),
+                    * Spec::slots_per_epoch(),
             );
 
             // Update the `next_topic_subscriptions` timer if the next change in the fork digest is known.

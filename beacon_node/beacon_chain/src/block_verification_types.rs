@@ -558,7 +558,7 @@ mod tests {
     /// is rejected, because gloas blocks need to use `RangeSyncBlock::new_gloas``.
     #[test]
     fn range_sync_block_new_rejects_gloas_block() {
-        let spec = Arc::new(MainnetEthSpec::default_spec());
+        let spec = Arc::new(Spec::default_spec());
         let block = Arc::new(SignedBeaconBlock::from_block(
             BeaconBlockGloas::empty(&spec).into(),
             Signature::empty(),

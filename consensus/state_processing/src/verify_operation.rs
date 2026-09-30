@@ -269,7 +269,7 @@ impl<E: EthSpec> VerifyOperation<E> for ProposerSlashing {
             self.signed_header_1
                 .message
                 .slot
-                .epoch(E::slots_per_epoch())
+                .epoch(Spec::slots_per_epoch())
         ]
     }
 }
