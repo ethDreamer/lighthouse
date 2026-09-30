@@ -35,7 +35,7 @@ impl Case for KZGVerifyBlobKZGProofBatch {
             let blobs = input
                 .blobs
                 .iter()
-                .map(parse_blob)
+                .map(|s| parse_blob(s))
                 .collect::<Result<Vec<_>, _>>()?;
             let commitments = input
                 .commitments

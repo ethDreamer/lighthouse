@@ -85,6 +85,7 @@ pub trait Handler {
 
     fn run_for_fork(&self, fork_name: ForkName) {
         let fork_name_str = fork_name.to_string();
+        let handler_name = self.handler_name();
         let handler_path = self.handler_path(&fork_name_str);
 
         // Iterate through test suites
@@ -94,8 +95,27 @@ pub trait Handler {
                 .filter(|e| e.file_type().map(|ty| ty.is_dir()).unwrap())
         };
 
-        let test_cases = fs::read_dir(&handler_path)
-            .unwrap_or_else(|e| panic!("handler dir {} exists: {:?}", handler_path.display(), e))
+        let read_dir = match fs::read_dir(&handler_path) {
+            Ok(dir) => dir,
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::NotFound
+                    && is_known_missing_vector_dir(
+                        Self::config_name(),
+                        fork_name,
+                        Self::runner_name(),
+                        &handler_name,
+                    ) =>
+            {
+                return;
+            }
+            Err(e) => panic!(
+                "error reading handler dir {}: {:?}",
+                handler_path.display(),
+                e
+            ),
+        };
+
+        let test_cases = read_dir
             .filter_map(as_directory)
             .flat_map(|suite| fs::read_dir(suite.path()).expect("suite dir exists"))
             .filter_map(as_directory)
@@ -151,6 +171,59 @@ pub trait Handler {
         );
         crate::results::assert_tests_pass(&name, &handler_path, &results);
     }
+}
+
+// Some spec tests only exist for the minimal preset. An exclusion has to be added here to ensure
+// mainnet spec tests don't fail trying to read the directory.
+fn is_known_missing_vector_dir(
+    config_name: &str,
+    fork_name: ForkName,
+    runner_name: &str,
+    handler_name: &str,
+) -> bool {
+    let vector_dir = format!("{config_name}/{fork_name}/{runner_name}/{handler_name}");
+
+    // Fast confirmation vectors are only released for the minimal preset (all forks, all
+    // handlers), so skip the whole runner on mainnet rather than listing every combination.
+    if config_name == "mainnet" && runner_name == "fast_confirmation" {
+        return true;
+    }
+
+    matches!(
+        vector_dir.as_str(),
+        "mainnet/phase0/genesis/initialization"
+            | "mainnet/phase0/genesis/validity"
+            | "mainnet/altair/epoch_processing/sync_committee_updates"
+            | "mainnet/bellatrix/epoch_processing/sync_committee_updates"
+            | "mainnet/capella/epoch_processing/sync_committee_updates"
+            | "mainnet/deneb/epoch_processing/sync_committee_updates"
+            | "mainnet/electra/epoch_processing/sync_committee_updates"
+            | "mainnet/fulu/epoch_processing/sync_committee_updates"
+            | "mainnet/gloas/epoch_processing/sync_committee_updates"
+            | "mainnet/altair/fork_choice/reorg"
+            | "mainnet/altair/fork_choice/withholding"
+            | "mainnet/bellatrix/fork_choice/reorg"
+            | "mainnet/bellatrix/fork_choice/withholding"
+            | "mainnet/capella/fork_choice/reorg"
+            | "mainnet/capella/fork_choice/withholding"
+            | "mainnet/deneb/fork_choice/reorg"
+            | "mainnet/deneb/fork_choice/withholding"
+            | "mainnet/electra/fork_choice/deposit_with_reorg"
+            | "mainnet/electra/fork_choice/reorg"
+            | "mainnet/electra/fork_choice/withholding"
+            | "mainnet/fulu/fork_choice/deposit_with_reorg"
+            | "mainnet/fulu/fork_choice/reorg"
+            | "mainnet/fulu/fork_choice/withholding"
+            | "mainnet/gloas/fork_choice/deposit_with_reorg"
+            | "mainnet/gloas/fork_choice/reorg"
+            | "mainnet/gloas/fork_choice/withholding"
+            | "mainnet/altair/light_client/update_ranking"
+            | "mainnet/bellatrix/light_client/update_ranking"
+            | "mainnet/capella/light_client/update_ranking"
+            | "mainnet/deneb/light_client/update_ranking"
+            | "mainnet/electra/light_client/update_ranking"
+            | "mainnet/fulu/light_client/update_ranking"
+    )
 }
 
 macro_rules! bls_eth_handler {

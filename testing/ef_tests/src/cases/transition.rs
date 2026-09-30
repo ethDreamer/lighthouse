@@ -7,8 +7,7 @@ use state_processing::{
     state_advance::complete_state_advance,
 };
 use std::str::FromStr;
-use types::Spec;
-use types::{BeaconState, Epoch, SignedBeaconBlock};
+use types::{BeaconState, Epoch, SignedBeaconBlock, Spec};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Metadata {

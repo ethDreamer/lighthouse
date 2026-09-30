@@ -1,9 +1,7 @@
 use super::*;
 use crate::decode::{ssz_decode_file, ssz_decode_state, yaml_decode_file};
 use serde::Deserialize;
-use ssz_types::FixedVector;
-use tree_hash::Hash256;
-use typenum::Unsigned;
+use types::Hash256;
 use types::{
     BeaconBlockBody, BeaconBlockBodyCapella, BeaconBlockBodyDeneb, BeaconBlockBodyElectra,
     BeaconBlockBodyFulu, BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconState, FullPayload,
@@ -212,10 +210,7 @@ impl LoadCase for KzgInclusionMerkleProofValidity {
 }
 
 impl KzgInclusionMerkleProofValidity {
-    fn verify_kzg_inclusion_proof<N: Unsigned>(
-        &self,
-        proof: FixedVector<Hash256, N>,
-    ) -> Result<(), Error> {
+    fn verify_kzg_inclusion_proof(&self, proof: &[Hash256]) -> Result<(), Error> {
         let proof_len = proof.len();
         let branch_len = self.merkle_proof.branch.len();
         if proof_len != branch_len {
@@ -250,7 +245,7 @@ impl Case for KzgInclusionMerkleProofValidity {
                     .map_err(|e| {
                         Error::FailedToParseTest(format!("Could not retrieve merkle proof: {e:?}"))
                     })?;
-                self.verify_kzg_inclusion_proof(proof)
+                self.verify_kzg_inclusion_proof(&proof)
             }
             KzgInclusionProofType::List => {
                 let proof = self
@@ -260,7 +255,7 @@ impl Case for KzgInclusionMerkleProofValidity {
                     .map_err(|e| {
                         Error::FailedToParseTest(format!("Could not retrieve merkle proof: {e:?}"))
                     })?;
-                self.verify_kzg_inclusion_proof(proof)
+                self.verify_kzg_inclusion_proof(&proof)
             }
         }
     }

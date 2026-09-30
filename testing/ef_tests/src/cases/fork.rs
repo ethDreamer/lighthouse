@@ -7,8 +7,7 @@ use state_processing::upgrade::{
     upgrade_to_altair, upgrade_to_bellatrix, upgrade_to_capella, upgrade_to_deneb,
     upgrade_to_electra, upgrade_to_fulu, upgrade_to_gloas, upgrade_to_heze,
 };
-use types::BeaconState;
-use types::Spec;
+use types::{BeaconState, Spec};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Metadata {

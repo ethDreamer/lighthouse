@@ -1,8 +1,7 @@
 use super::*;
 use decode::ssz_decode_light_client_update;
 use serde::Deserialize;
-use types::Spec;
-use types::{LightClientUpdate, Slot};
+use types::{LightClientUpdate, Slot, Spec};
 
 #[derive(Debug, Clone)]
 pub struct LightClientVerifyIsBetterUpdate {
