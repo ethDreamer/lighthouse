@@ -1,0 +1,15 @@
+[package]
+name = "ethspec_remover"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone: do not join the Lighthouse workspace.
+[workspace]
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+proc-macro2 = { version = "1.0.80", features = ["span-locations"] }
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "visit", "extra-traits", "parsing", "printing"] }
+walkdir = "2.5"
