@@ -22,12 +22,12 @@ use tree_hash_derive::TreeHash;
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
-pub struct SignedExecutionPayloadEnvelope<E: EthSpec> {
-    pub message: ExecutionPayloadEnvelope<E>,
+pub struct SignedExecutionPayloadEnvelope {
+    pub message: ExecutionPayloadEnvelope,
     pub signature: Signature,
 }
 
-impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
+impl SignedExecutionPayloadEnvelope {
     /// Returns the minimum SSZ-encoded size (all variable-length fields empty).
     pub fn min_size() -> usize {
         Self {
@@ -42,8 +42,8 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
     #[allow(clippy::arithmetic_side_effects)]
     pub fn max_size() -> usize {
         // Signature is fixed-size, so the variable-length delta is entirely from the envelope.
-        Self::min_size() + ExecutionPayloadEnvelope::<E>::max_size()
-            - ExecutionPayloadEnvelope::<E>::min_size()
+        Self::min_size() + ExecutionPayloadEnvelope::max_size()
+            - ExecutionPayloadEnvelope::min_size()
     }
 
     pub fn slot(&self) -> Slot {
@@ -87,7 +87,7 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
     /// Verify `self.signature` using keys drawn from the beacon state.
     pub fn verify_signature_with_state(
         &self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
     ) -> Result<bool, BeaconStateError> {
         let builder_index = self.message.builder_index;
@@ -127,7 +127,7 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelope<E> {
 /// to reconstruct an `ExecutionPayloadGloas` without an additional execution-layer request.
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 #[serde(bound = "E: EthSpec")]
-pub struct ExecutionPayloadHeaderGloas<E: EthSpec> {
+pub struct ExecutionPayloadHeaderGloas {
     pub parent_hash: ExecutionBlockHash,
     #[serde(with = "serde_utils::address_hex")]
     pub fee_recipient: Address,
@@ -160,14 +160,14 @@ pub struct ExecutionPayloadHeaderGloas<E: EthSpec> {
 ///
 /// The remaining payload fields are retained in [`ExecutionPayloadHeaderGloas`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct ExecutionPayloadBody<E: EthSpec> {
+pub struct ExecutionPayloadBody {
     pub transactions: ProgressiveTransactions,
-    pub withdrawals: ProgressiveWithdrawals<E>,
+    pub withdrawals: ProgressiveWithdrawals,
     pub block_access_list: BlockAccessList,
 }
 
-impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadBody<E> {
-    fn from(payload: &ExecutionPayloadGloas<E>) -> Self {
+impl From<&ExecutionPayloadGloas> for ExecutionPayloadBody {
+    fn from(payload: &ExecutionPayloadGloas) -> Self {
         Self {
             transactions: payload.transactions.clone(),
             withdrawals: payload.withdrawals.clone(),
@@ -176,8 +176,8 @@ impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadBody<E> {
     }
 }
 
-impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadHeaderGloas<E> {
-    fn from(payload: &ExecutionPayloadGloas<E>) -> Self {
+impl From<&ExecutionPayloadGloas> for ExecutionPayloadHeaderGloas {
+    fn from(payload: &ExecutionPayloadGloas) -> Self {
         Self {
             parent_hash: payload.parent_hash,
             fee_recipient: payload.fee_recipient,
@@ -199,13 +199,13 @@ impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadHeaderGloas
     }
 }
 
-impl<E: EthSpec> ExecutionPayloadHeaderGloas<E> {
+impl ExecutionPayloadHeaderGloas {
     pub fn into_payload(
         self,
         transactions: ProgressiveTransactions,
-        withdrawals: ProgressiveWithdrawals<E>,
+        withdrawals: ProgressiveWithdrawals,
         block_access_list: BlockAccessList,
-    ) -> ExecutionPayloadGloas<E> {
+    ) -> ExecutionPayloadGloas {
         ExecutionPayloadGloas {
             parent_hash: self.parent_hash,
             fee_recipient: self.fee_recipient,
@@ -235,19 +235,19 @@ impl<E: EthSpec> ExecutionPayloadHeaderGloas<E> {
 /// The execution payload body is stored separately and can be pruned after finalization. The
 /// summary retains enough information to reconstruct the envelope from a body returned by the EL.
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-pub struct SignedExecutionPayloadEnvelopeSummary<E: EthSpec> {
-    pub payload_header: ExecutionPayloadHeaderGloas<E>,
-    pub execution_requests: ExecutionRequestsGloas<E>,
+pub struct SignedExecutionPayloadEnvelopeSummary {
+    pub payload_header: ExecutionPayloadHeaderGloas,
+    pub execution_requests: ExecutionRequestsGloas,
     pub builder_index: u64,
     pub beacon_block_root: Hash256,
     pub parent_beacon_block_root: Hash256,
     pub signature: Signature,
 }
 
-impl<E: EthSpec> From<&SignedExecutionPayloadEnvelope<E>>
-    for SignedExecutionPayloadEnvelopeSummary<E>
+impl From<&SignedExecutionPayloadEnvelope>
+    for SignedExecutionPayloadEnvelopeSummary
 {
-    fn from(envelope: &SignedExecutionPayloadEnvelope<E>) -> Self {
+    fn from(envelope: &SignedExecutionPayloadEnvelope) -> Self {
         Self {
             payload_header: (&envelope.message.payload).into(),
             execution_requests: envelope.message.execution_requests.clone(),
@@ -259,7 +259,7 @@ impl<E: EthSpec> From<&SignedExecutionPayloadEnvelope<E>>
     }
 }
 
-impl<E: EthSpec> SignedExecutionPayloadEnvelopeSummary<E> {
+impl SignedExecutionPayloadEnvelopeSummary {
     pub fn block_hash(&self) -> ExecutionBlockHash {
         self.payload_header.block_hash
     }
@@ -270,8 +270,8 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelopeSummary<E> {
 
     pub fn into_envelope(
         self,
-        payload_body: ExecutionPayloadBody<E>,
-    ) -> SignedExecutionPayloadEnvelope<E> {
+        payload_body: ExecutionPayloadBody,
+    ) -> SignedExecutionPayloadEnvelope {
         let payload = self.payload_header.into_payload(
             payload_body.transactions,
             payload_body.withdrawals,
@@ -292,9 +292,9 @@ impl<E: EthSpec> SignedExecutionPayloadEnvelopeSummary<E> {
     pub fn into_envelope_from_payload_body(
         self,
         transactions: ProgressiveTransactions,
-        withdrawals: ProgressiveWithdrawals<E>,
+        withdrawals: ProgressiveWithdrawals,
         block_access_list: BlockAccessList,
-    ) -> SignedExecutionPayloadEnvelope<E> {
+    ) -> SignedExecutionPayloadEnvelope {
         self.into_envelope(ExecutionPayloadBody {
             transactions,
             withdrawals,
@@ -307,5 +307,5 @@ mod tests {
     use super::*;
     use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(SignedExecutionPayloadEnvelope<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(SignedExecutionPayloadEnvelope);
 }

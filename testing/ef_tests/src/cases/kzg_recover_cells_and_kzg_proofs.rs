@@ -13,20 +13,20 @@ pub struct KZGRecoverCellsAndKzgProofsInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct KZGRecoverCellsAndKZGProofs<E: EthSpec> {
+pub struct KZGRecoverCellsAndKZGProofs {
     pub input: KZGRecoverCellsAndKzgProofsInput,
     pub output: Option<(Vec<String>, Vec<String>)>,
     #[serde(skip)]
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for KZGRecoverCellsAndKZGProofs<E> {
+impl LoadCase for KZGRecoverCellsAndKZGProofs {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         decode::yaml_decode_file(path.join("data.yaml").as_path())
     }
 }
 
-impl<E: EthSpec> Case for KZGRecoverCellsAndKZGProofs<E> {
+impl Case for KZGRecoverCellsAndKZGProofs {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         fork_name.fulu_enabled()
     }

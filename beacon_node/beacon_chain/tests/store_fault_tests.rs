@@ -33,13 +33,13 @@ fn incompatible_fork() -> bool {
 }
 
 struct WedgedChain {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: BeaconChainHarness<EphemeralHarnessType>,
     /// Root of the block that is in fork choice but not in the store, i.e. the phantom block.
     phantom_root: Hash256,
     phantom_slot: Slot,
-    phantom_contents: SignedBlockContentsTuple<E>,
+    phantom_contents: SignedBlockContentsTuple,
     /// Post-state of the phantom block, for building a child block.
-    post_state: BeaconState<E>,
+    post_state: BeaconState,
 }
 
 /// Build a chain, then import a block while every store operation fails.

@@ -8,8 +8,8 @@ use typenum::Unsigned;
 use types::{BeaconState, ChainSpec, EthSpec};
 
 /// Process slashings.
-pub fn process_slashings<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_slashings(
+    state: &mut BeaconState,
     total_balance: u64,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
@@ -48,8 +48,8 @@ pub fn process_slashings<E: EthSpec>(
     Ok(())
 }
 
-pub fn process_slashings_slow<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_slashings_slow(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     process_epoch_single_pass(

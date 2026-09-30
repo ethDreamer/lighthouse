@@ -21,17 +21,17 @@ use tree_hash_derive::TreeHash;
     struct_behaviour = "progressive_container",
     active_fields(1, 1, 1, 1, 1)
 )]
-pub struct ExecutionPayloadEnvelope<E: EthSpec> {
-    pub payload: ExecutionPayloadGloas<E>,
+pub struct ExecutionPayloadEnvelope {
+    pub payload: ExecutionPayloadGloas,
     // [Modified in Gloas:EIP7688]
-    pub execution_requests: ExecutionRequestsGloas<E>,
+    pub execution_requests: ExecutionRequestsGloas,
     #[serde(with = "serde_utils::quoted_u64")]
     pub builder_index: u64,
     pub beacon_block_root: Hash256,
     pub parent_beacon_block_root: Hash256,
 }
 
-impl<E: EthSpec> ExecutionPayloadEnvelope<E> {
+impl ExecutionPayloadEnvelope {
     /// Returns an empty envelope with all fields zeroed. Used for SSZ size calculations.
     pub fn empty() -> Self {
         Self {
@@ -72,12 +72,12 @@ impl<E: EthSpec> ExecutionPayloadEnvelope<E> {
     }
 }
 
-impl<E: EthSpec> SignedRoot for ExecutionPayloadEnvelope<E> {}
+impl SignedRoot for ExecutionPayloadEnvelope {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(ExecutionPayloadEnvelope<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(ExecutionPayloadEnvelope);
 }

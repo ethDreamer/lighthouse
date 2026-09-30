@@ -5,8 +5,8 @@ use typenum::Unsigned;
 use types::core::EthSpec;
 use types::state::BeaconState;
 
-pub fn process_historical_roots_update<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_historical_roots_update(
+    state: &mut BeaconState,
 ) -> Result<(), EpochProcessingError> {
     let next_epoch = state.next_epoch()?;
     if next_epoch

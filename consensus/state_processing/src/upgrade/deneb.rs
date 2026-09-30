@@ -4,8 +4,8 @@ use types::{
 };
 
 /// Transform a `Capella` state into an `Deneb` state.
-pub fn upgrade_to_deneb<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_to_deneb(
+    pre_state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();

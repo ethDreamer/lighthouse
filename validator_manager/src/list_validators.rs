@@ -103,7 +103,7 @@ impl ListConfig {
     }
 }
 
-pub async fn cli_run<E: EthSpec>(
+pub async fn cli_run(
     matches: &ArgMatches,
     dump_config: DumpConfig,
 ) -> Result<(), String> {
@@ -111,12 +111,12 @@ pub async fn cli_run<E: EthSpec>(
     if dump_config.should_exit_early(&config)? {
         Ok(())
     } else {
-        run::<E>(config).await?;
+        run(config).await?;
         Ok(())
     }
 }
 
-async fn run<E: EthSpec>(config: ListConfig) -> Result<Vec<SingleKeystoreResponse>, String> {
+async fn run(config: ListConfig) -> Result<Vec<SingleKeystoreResponse>, String> {
     let ListConfig {
         vc_url,
         vc_token_path,
@@ -165,10 +165,10 @@ async fn run<E: EthSpec>(config: ListConfig) -> Result<Vec<SingleKeystoreRespons
                         .map_err(|e| format!("Failed to get config spec: {}", e))?
                         .data;
 
-                    let spec = ChainSpec::from_config::<E>(config_and_preset.config())
+                    let spec = ChainSpec::from_config(config_and_preset.config())
                         .ok_or("Failed to create chain spec")?;
 
-                    let current_epoch = get_current_epoch::<E>(genesis_data.genesis_time, &spec)
+                    let current_epoch = get_current_epoch(genesis_data.genesis_time, &spec)
                         .ok_or("Failed to get current epoch. Please check your system time")?;
 
                     eprintln!(
@@ -293,7 +293,7 @@ mod test {
                 .write_all(self.vc_token.clone().unwrap().as_bytes())
                 .unwrap();
 
-            let result = run::<E>(self.list_config.clone().unwrap()).await;
+            let result = run(self.list_config.clone().unwrap()).await;
 
             if let Ok(result_ref) = &result {
                 for local_validator in &self.validators {

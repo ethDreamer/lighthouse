@@ -52,17 +52,17 @@ use types::{
 /// only. It is a CL-internal dispatch wrapper (not a spec/wire type — it has no SSZ or tree-hash
 /// representation), so it lives in `beacon_chain` rather than `consensus/types`.
 #[derive(Debug, Clone)]
-pub enum PartialHeaderOrBid<E: EthSpec> {
-    PartialHeader(Arc<PartialDataColumnHeader<E>>),
-    Bid(Arc<SignedExecutionPayloadBid<E>>),
+pub enum PartialHeaderOrBid {
+    PartialHeader(Arc<PartialDataColumnHeader>),
+    Bid(Arc<SignedExecutionPayloadBid>),
 }
 
-impl<E: EthSpec> PartialHeaderOrBid<E> {
+impl PartialHeaderOrBid {
     /// Extract the commitments source from a block: the execution payload bid if the block is
     /// post-Gloas, otherwise the partial data column header. Returns `None` for blocks that carry
     /// neither (e.g. the header cannot be built, or the block predates blob commitments).
-    pub fn try_from_block<P: AbstractExecPayload<E>>(
-        block: &SignedBeaconBlock<E, P>,
+    pub fn try_from_block<P: AbstractExecPayload>(
+        block: &SignedBeaconBlock<P>,
     ) -> Option<Self> {
         if let Ok(bid) = block.message().body().signed_execution_payload_bid() {
             Some(PartialHeaderOrBid::Bid(Arc::new(bid.clone())))
@@ -109,9 +109,9 @@ pub enum FetchEngineBlobError {
 pub async fn fetch_and_process_engine_blobs<T: BeaconChainTypes>(
     chain: Arc<BeaconChain<T>>,
     block_root: Hash256,
-    header_or_bid: PartialHeaderOrBid<T::EthSpec>,
+    header_or_bid: PartialHeaderOrBid,
     custody_columns: &[ColumnIndex],
-    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>) + Send + 'static,
+    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
 ) -> Result<Option<AvailabilityProcessingStatus>, FetchEngineBlobError> {
     fetch_and_process_engine_blobs_inner(
         FetchBlobsBeaconAdapter::new(chain),
@@ -128,9 +128,9 @@ pub async fn fetch_and_process_engine_blobs<T: BeaconChainTypes>(
 async fn fetch_and_process_engine_blobs_inner<T: BeaconChainTypes>(
     chain_adapter: FetchBlobsBeaconAdapter<T>,
     block_root: Hash256,
-    header_or_bid: PartialHeaderOrBid<T::EthSpec>,
+    header_or_bid: PartialHeaderOrBid,
     custody_columns: &[ColumnIndex],
-    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>) + Send + 'static,
+    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
 ) -> Result<Option<AvailabilityProcessingStatus>, FetchEngineBlobError> {
     let versioned_hashes = header_or_bid
         .kzg_commitments()
@@ -186,10 +186,10 @@ async fn fetch_and_process_engine_blobs_inner<T: BeaconChainTypes>(
 async fn fetch_and_process_blobs_v2_or_v3<T: BeaconChainTypes>(
     chain_adapter: FetchBlobsBeaconAdapter<T>,
     block_root: Hash256,
-    header_or_bid: PartialHeaderOrBid<T::EthSpec>,
+    header_or_bid: PartialHeaderOrBid,
     versioned_hashes: Vec<VersionedHash>,
     custody_columns_indices: &[ColumnIndex],
-    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>) + Send + 'static,
+    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
 ) -> Result<Option<AvailabilityProcessingStatus>, FetchEngineBlobError> {
     let num_expected_blobs = versioned_hashes.len();
 
@@ -313,9 +313,9 @@ async fn fetch_and_process_blobs_v2_or_v3<T: BeaconChainTypes>(
 async fn import_custody_partial_columns<T: BeaconChainTypes>(
     chain_adapter: &Arc<FetchBlobsBeaconAdapter<T>>,
     block_root: Hash256,
-    header_or_bid: &PartialHeaderOrBid<T::EthSpec>,
-    custody_columns_to_import: Vec<KzgVerifiedPartialDataColumn<T::EthSpec>>,
-    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>) + Send + 'static,
+    header_or_bid: &PartialHeaderOrBid,
+    custody_columns_to_import: Vec<KzgVerifiedPartialDataColumn>,
+    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
 ) -> Result<AvailabilityProcessingStatus, FetchEngineBlobError> {
     let slot = header_or_bid.slot();
     match header_or_bid {
@@ -401,10 +401,10 @@ async fn import_custody_partial_columns<T: BeaconChainTypes>(
 async fn fetch_and_process_blobs_v4<T: BeaconChainTypes>(
     chain_adapter: FetchBlobsBeaconAdapter<T>,
     block_root: Hash256,
-    header_or_bid: PartialHeaderOrBid<T::EthSpec>,
+    header_or_bid: PartialHeaderOrBid,
     versioned_hashes: Vec<VersionedHash>,
     custody_columns_indices: &[ColumnIndex],
-    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>) + Send + 'static,
+    publish_fn: impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
 ) -> Result<Option<AvailabilityProcessingStatus>, FetchEngineBlobError> {
     let num_expected_blobs = versioned_hashes.len();
 
@@ -527,20 +527,20 @@ async fn fetch_and_process_blobs_v4<T: BeaconChainTypes>(
 async fn build_partial_columns_from_v4_response<T: BeaconChainTypes>(
     chain_adapter: &Arc<FetchBlobsBeaconAdapter<T>>,
     block_root: Hash256,
-    header_or_bid: &PartialHeaderOrBid<T::EthSpec>,
-    response: Vec<Option<BlobCellsAndProofsV1<T::EthSpec>>>,
+    header_or_bid: &PartialHeaderOrBid,
+    response: Vec<Option<BlobCellsAndProofsV1>>,
     custody_columns_indices: &[ColumnIndex],
-) -> Result<Vec<KzgVerifiedPartialDataColumn<T::EthSpec>>, FetchEngineBlobError> {
+) -> Result<Vec<KzgVerifiedPartialDataColumn>, FetchEngineBlobError> {
     let num_blobs = response.len();
     let num_columns = custody_columns_indices.len();
     let slot = header_or_bid.slot();
     let mut sorted_column_indices = custody_columns_indices.to_vec();
     sorted_column_indices.sort_unstable();
 
-    let mut custody_columns: Vec<KzgVerifiedPartialDataColumn<T::EthSpec>> =
+    let mut custody_columns: Vec<KzgVerifiedPartialDataColumn> =
         Vec::with_capacity(num_columns);
     for (col_pos, &column_index) in sorted_column_indices.iter().enumerate() {
-        let mut bitmap = CellBitmap::<T::EthSpec>::with_capacity(num_blobs).map_err(|_| {
+        let mut bitmap = CellBitmap::with_capacity(num_blobs).map_err(|_| {
             FetchEngineBlobError::InternalError("failed to allocate cell bitmap".to_string())
         })?;
         let mut cells = Vec::with_capacity(num_blobs);
@@ -592,7 +592,7 @@ async fn build_partial_columns_from_v4_response<T: BeaconChainTypes>(
                 PartialDataColumn::Fulu(PartialDataColumnFulu {
                     block_root,
                     index: column_index,
-                    sidecar: PartialDataColumnSidecarFulu::<T::EthSpec> {
+                    sidecar: PartialDataColumnSidecarFulu {
                         cells_present_bitmap: bitmap,
                         column,
                         kzg_proofs,
@@ -612,7 +612,7 @@ async fn build_partial_columns_from_v4_response<T: BeaconChainTypes>(
                     block_root,
                     slot,
                     index: column_index,
-                    sidecar: PartialDataColumnSidecarGloas::<T::EthSpec> {
+                    sidecar: PartialDataColumnSidecarGloas {
                         cells_present_bitmap: bitmap,
                         column,
                         kzg_proofs,
@@ -653,10 +653,10 @@ async fn build_partial_columns_from_v4_response<T: BeaconChainTypes>(
 async fn compute_custody_columns_to_import<T: BeaconChainTypes>(
     chain_adapter: &Arc<FetchBlobsBeaconAdapter<T>>,
     block_root: Hash256,
-    header_or_bid: &PartialHeaderOrBid<T::EthSpec>,
-    blobs_and_proofs: Vec<BlobAndProofV3<T::EthSpec>>,
+    header_or_bid: &PartialHeaderOrBid,
+    blobs_and_proofs: Vec<BlobAndProofV3>,
     custody_columns_indices: &[ColumnIndex],
-) -> Result<Vec<KzgVerifiedPartialDataColumn<T::EthSpec>>, FetchEngineBlobError> {
+) -> Result<Vec<KzgVerifiedPartialDataColumn>, FetchEngineBlobError> {
     let kzg = chain_adapter.kzg().clone();
     let spec = chain_adapter.spec().clone();
     let chain_adapter_cloned = chain_adapter.clone();

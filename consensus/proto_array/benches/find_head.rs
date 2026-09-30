@@ -30,7 +30,7 @@ fn build_chain(num_blocks: u64, gloas: bool) -> (ProtoArrayForkChoice, types::Ch
     };
     let junk_shuffling_id = AttestationShufflingId::from_components(Epoch::new(0), Hash256::zero());
 
-    let mut fork_choice = ProtoArrayForkChoice::new::<MainnetEthSpec>(
+    let mut fork_choice = ProtoArrayForkChoice::new(
         Slot::new(0),
         Slot::new(0),
         Hash256::zero(),
@@ -72,7 +72,7 @@ fn build_chain(num_blocks: u64, gloas: bool) -> (ProtoArrayForkChoice, types::Ch
         };
 
         fork_choice
-            .process_block::<MainnetEthSpec>(block, Slot::new(i), &spec, Duration::ZERO)
+            .process_block(block, Slot::new(i), &spec, Duration::ZERO)
             .expect("should process block");
     }
 
@@ -97,7 +97,7 @@ fn bench_find_head(c: &mut Criterion) {
             group.bench_function(BenchmarkId::new(label, num_blocks), |b| {
                 b.iter(|| {
                     fork_choice
-                        .find_head::<MainnetEthSpec>(
+                        .find_head(
                             finalized_checkpoint,
                             finalized_checkpoint,
                             &balances,

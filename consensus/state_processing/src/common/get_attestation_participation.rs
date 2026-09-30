@@ -18,8 +18,8 @@ use types::{
 /// state's relevant justified checkpoint.
 ///
 /// This function has been abstracted to work for all forks from Altair to Heze.
-pub fn get_attestation_participation_flag_indices<E: EthSpec>(
-    state: &BeaconState<E>,
+pub fn get_attestation_participation_flag_indices(
+    state: &BeaconState,
     data: &AttestationData,
     parent_slot: Option<Slot>,
     inclusion_delay: u64,

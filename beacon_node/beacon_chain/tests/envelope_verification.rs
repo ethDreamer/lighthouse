@@ -22,7 +22,7 @@ async fn pre_gloas_block_import_records_payload_gas_limit() {
         return;
     }
 
-    let mut spec = test_spec::<E>();
+    let mut spec = test_spec();
     spec.gloas_fork_epoch = Some(Epoch::new(1));
     let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
@@ -110,7 +110,7 @@ async fn lookup_imports_gloas_payload_after_restart() {
         return;
     }
 
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(64)
@@ -609,7 +609,7 @@ async fn gossip_seen_envelope_can_be_reverified_via_non_gossip() {
 }
 
 /// Helper: build a Gloas harness with a mock execution layer.
-fn gloas_harness() -> BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType<E>> {
+fn gloas_harness() -> BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType> {
     BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
@@ -620,7 +620,7 @@ fn gloas_harness() -> BeaconChainHarness<beacon_chain::test_utils::EphemeralHarn
 
 /// Helper: produce the block and envelope for `slot`, import both, and return the block root.
 async fn import_block_and_envelope(
-    harness: &BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType>,
     slot: Slot,
 ) -> Hash256 {
     let state = harness.get_current_state();
@@ -673,7 +673,7 @@ async fn import_block_and_envelope(
 
 /// Helper: the execution status that fork choice holds for the payload of a block.
 fn execution_status(
-    harness: &BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType>,
     block_root: Hash256,
 ) -> ExecutionStatus {
     harness

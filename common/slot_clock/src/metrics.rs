@@ -19,7 +19,7 @@ pub static SECONDS_PER_SLOT: LazyLock<Result<IntGauge>> = LazyLock::new(|| {
 });
 
 /// Update the global metrics `DEFAULT_REGISTRY` with info from the slot clock.
-pub fn scrape_for_metrics<E: EthSpec, U: SlotClock>(clock: &U) {
+pub fn scrape_for_metrics<U: SlotClock>(clock: &U) {
     let present_slot = match clock.now() {
         Some(slot) => slot,
         _ => Slot::new(0),

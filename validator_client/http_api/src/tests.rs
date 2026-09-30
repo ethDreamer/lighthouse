@@ -46,7 +46,7 @@ pub const TEST_DEFAULT_FEE_RECIPIENT: Address = Address::repeat_byte(42);
 struct ApiTester {
     client: ValidatorClientHttpClient,
     initialized_validators: Arc<RwLock<InitializedValidators>>,
-    validator_store: Arc<LighthouseValidatorStore<TestingSlotClock, E>>,
+    validator_store: Arc<LighthouseValidatorStore<TestingSlotClock>>,
     configured_builders: BuilderStore,
     url: SensitiveUrl,
     slot_clock: TestingSlotClock,
@@ -98,7 +98,7 @@ impl ApiTester {
 
         let test_runtime = TestRuntime::default();
 
-        let validator_store = Arc::new(LighthouseValidatorStore::<_, E>::new(
+        let validator_store = Arc::new(LighthouseValidatorStore::new(
             initialized_validators,
             slashing_protection,
             Hash256::repeat_byte(42),
@@ -141,7 +141,7 @@ impl ApiTester {
         });
         let ctx = context.clone();
         let (listening_socket, server) =
-            super::serve::<_, E>(ctx, test_runtime.task_executor.exit())
+            super::serve(ctx, test_runtime.task_executor.exit())
                 .await
                 .unwrap();
 
@@ -240,7 +240,7 @@ impl ApiTester {
                 .map(|res| ConfigAndPreset::Electra(res.data))
         }
         .unwrap();
-        let expected = ConfigAndPreset::from_chain_spec::<E>(&self.spec);
+        let expected = ConfigAndPreset::from_chain_spec(&self.spec);
 
         assert_eq!(result, expected);
 

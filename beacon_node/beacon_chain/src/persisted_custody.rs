@@ -9,8 +9,8 @@ pub const CUSTODY_DB_KEY: Hash256 = Hash256::ZERO;
 
 pub struct PersistedCustody(pub CustodyContextSsz);
 
-pub fn load_custody_context<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+pub fn load_custody_context<Hot: ItemStore, Cold: ItemStore>(
+    store: Arc<HotColdDB<Hot, Cold>>,
 ) -> Option<CustodyContextSsz> {
     let res: Result<Option<PersistedCustody>, _> =
         store.get_item::<PersistedCustody>(&CUSTODY_DB_KEY);
@@ -22,8 +22,8 @@ pub fn load_custody_context<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
 }
 
 /// Attempt to persist the custody context object to `self.store`.
-pub fn persist_custody_context<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+pub fn persist_custody_context<Hot: ItemStore, Cold: ItemStore>(
+    store: Arc<HotColdDB<Hot, Cold>>,
     custody_context: CustodyContextSsz,
 ) -> Result<(), store::Error> {
     store.put_item(&CUSTODY_DB_KEY, &PersistedCustody(custody_context))

@@ -46,7 +46,7 @@ impl ForkContext {
     /// fork digest.
     ///
     /// A fork is disabled in the `ChainSpec` if the activation slot corresponding to that fork is `None`.
-    pub fn new<E: EthSpec>(
+    pub fn new(
         current_slot: Slot,
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
@@ -194,7 +194,7 @@ mod tests {
         let genesis_root = Hash256::ZERO;
         let current_slot = Slot::new(7);
 
-        let context = ForkContext::new::<E>(current_slot, genesis_root, &spec);
+        let context = ForkContext::new(current_slot, genesis_root, &spec);
 
         assert!(context.fork_exists(ForkName::Electra));
         assert!(context.fork_exists(ForkName::Fulu));
@@ -208,7 +208,7 @@ mod tests {
         let electra_slot = electra_epoch.end_slot(Spec::slots_per_epoch());
         let genesis_root = Hash256::ZERO;
 
-        let context = ForkContext::new::<E>(electra_slot, genesis_root, &spec);
+        let context = ForkContext::new(electra_slot, genesis_root, &spec);
 
         assert_eq!(context.current_fork_name(), ForkName::Electra);
         assert_eq!(context.current_fork_epoch(), electra_epoch);
@@ -221,7 +221,7 @@ mod tests {
         let electra_slot = electra_epoch.end_slot(Spec::slots_per_epoch());
         let genesis_root = Hash256::ZERO;
 
-        let context = ForkContext::new::<E>(electra_slot, genesis_root, &spec);
+        let context = ForkContext::new(electra_slot, genesis_root, &spec);
 
         let next_digest = context.next_fork_digest();
         let expected_digest = spec.compute_fork_digest(genesis_root, spec.fulu_fork_epoch.unwrap());
@@ -235,7 +235,7 @@ mod tests {
         // Epoch 100 is the last BPO fork in make_chain_spec
         let last_bpo_slot = Epoch::new(100).end_slot(Spec::slots_per_epoch());
 
-        let context = ForkContext::new::<E>(last_bpo_slot, genesis_root, &spec);
+        let context = ForkContext::new(last_bpo_slot, genesis_root, &spec);
 
         // No next fork after the last BPO epoch — must return zero bytes per spec
         assert_eq!(context.next_fork_digest(), [0u8; 4]);
@@ -249,7 +249,7 @@ mod tests {
         let gloas_epoch = spec.gloas_fork_epoch.unwrap();
         let gloas_slot = gloas_epoch.end_slot(Spec::slots_per_epoch());
 
-        let context = ForkContext::new::<E>(gloas_slot, genesis_root, &spec);
+        let context = ForkContext::new(gloas_slot, genesis_root, &spec);
 
         // Before: next fork exists (BPO at epoch 50)
         let bpo_50_digest = spec.compute_fork_digest(genesis_root, Epoch::new(50));
@@ -269,7 +269,7 @@ mod tests {
         let genesis_root = Hash256::ZERO;
         let current_slot = Slot::new(0);
 
-        let context = ForkContext::new::<E>(current_slot, genesis_root, &spec);
+        let context = ForkContext::new(current_slot, genesis_root, &spec);
 
         let electra_digest = spec.compute_fork_digest(genesis_root, Epoch::new(5));
         assert_eq!(
@@ -291,7 +291,7 @@ mod tests {
         let genesis_root = Hash256::ZERO;
         let current_slot = Slot::new(0);
 
-        let context = ForkContext::new::<E>(current_slot, genesis_root, &spec);
+        let context = ForkContext::new(current_slot, genesis_root, &spec);
 
         assert_eq!(
             context.context_bytes(Epoch::new(0)),
@@ -310,7 +310,7 @@ mod tests {
         let genesis_root = Hash256::ZERO;
         let current_slot = Slot::new(20);
 
-        let context = ForkContext::new::<MainnetEthSpec>(current_slot, genesis_root, &spec);
+        let context = ForkContext::new(current_slot, genesis_root, &spec);
 
         // Get all enabled fork digests
         let fork_digests = context.all_fork_digests();

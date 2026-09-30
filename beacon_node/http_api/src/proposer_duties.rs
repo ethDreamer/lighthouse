@@ -171,7 +171,7 @@ fn try_proposer_duties_from_cache<T: BeaconChainTypes>(
     chain
         .beacon_proposer_cache
         .lock()
-        .get_epoch::<T::EthSpec>(head_decision_root, request_epoch)
+        .get_epoch(head_decision_root, request_epoch)
         .cloned()
         .map(|indices| {
             convert_to_api_response(

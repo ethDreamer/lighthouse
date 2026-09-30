@@ -8,9 +8,9 @@ use typenum::Unsigned;
 use types::consts::altair::{PROPOSER_WEIGHT, SYNC_REWARD_WEIGHT, WEIGHT_DENOMINATOR};
 use types::{BeaconState, BeaconStateError, ChainSpec, EthSpec, SyncAggregate};
 
-pub fn process_sync_aggregate<E: EthSpec>(
-    state: &mut BeaconState<E>,
-    aggregate: &SyncAggregate<E>,
+pub fn process_sync_aggregate(
+    state: &mut BeaconState,
+    aggregate: &SyncAggregate,
     proposer_index: u64,
     verify_signatures: VerifySignatures,
     spec: &ChainSpec,
@@ -83,8 +83,8 @@ pub fn process_sync_aggregate<E: EthSpec>(
 /// Compute the `(participant_reward, proposer_reward)` for a sync aggregate.
 ///
 /// The `state` should be the pre-state from the same slot as the block containing the aggregate.
-pub fn compute_sync_aggregate_rewards<E: EthSpec>(
-    state: &BeaconState<E>,
+pub fn compute_sync_aggregate_rewards(
+    state: &BeaconState,
     spec: &ChainSpec,
 ) -> Result<(u64, u64), BlockProcessingError> {
     let total_active_balance = state.get_total_active_balance()?;

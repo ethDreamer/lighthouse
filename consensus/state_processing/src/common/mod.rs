@@ -25,8 +25,8 @@ use safe_arith::SafeArith;
 use types::{BeaconState, BeaconStateError, EthSpec};
 
 /// Increase the balance of a validator, erroring upon overflow, as per the spec.
-pub fn increase_balance<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn increase_balance(
+    state: &mut BeaconState,
     index: usize,
     delta: u64,
 ) -> Result<(), BeaconStateError> {
@@ -34,8 +34,8 @@ pub fn increase_balance<E: EthSpec>(
 }
 
 /// Decrease the balance of a validator, saturating upon overflow, as per the spec.
-pub fn decrease_balance<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn decrease_balance(
+    state: &mut BeaconState,
     index: usize,
     delta: u64,
 ) -> Result<(), BeaconStateError> {

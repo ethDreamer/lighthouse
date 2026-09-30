@@ -23,7 +23,7 @@ pub struct Withdrawal {
     pub amount: u64,
 }
 
-pub type Withdrawals<E> = VariableList<Withdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
+pub type Withdrawals = VariableList<Withdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
 
 #[cfg(test)]
 mod tests {

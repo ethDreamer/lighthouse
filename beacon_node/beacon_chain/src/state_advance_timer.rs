@@ -371,7 +371,7 @@ fn advance_head<T: BeaconChainTypes>(beacon_chain: &Arc<BeaconChain<T>>) -> Resu
         let next_epoch = state.next_epoch()?;
         let next_epoch_decision_slot = beacon_chain
             .spec
-            .proposer_shuffling_decision_slot::<T::EthSpec>(next_epoch);
+            .proposer_shuffling_decision_slot(next_epoch);
 
         if state.slot() > next_epoch_decision_slot {
             let next_epoch_decision_root = state.proposer_shuffling_decision_root_at_epoch(

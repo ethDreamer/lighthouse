@@ -17,12 +17,12 @@ use tree_hash_derive::TreeHash;
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 // https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/beacon-chain.md#signedexecutionpayloadbid
-pub struct SignedExecutionPayloadBid<E: EthSpec> {
-    pub message: ExecutionPayloadBid<E>,
+pub struct SignedExecutionPayloadBid {
+    pub message: ExecutionPayloadBid,
     pub signature: Signature,
 }
 
-impl<E: EthSpec> SignedExecutionPayloadBid<E> {
+impl SignedExecutionPayloadBid {
     pub fn epoch(&self) -> crate::Epoch {
         self.message.slot.epoch(Spec::slots_per_epoch())
     }
@@ -48,5 +48,5 @@ mod tests {
     use super::*;
     use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(SignedExecutionPayloadBid<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(SignedExecutionPayloadBid);
 }

@@ -32,20 +32,20 @@ pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub store: &'a BeaconStore<T>,
     pub spec: &'a ChainSpec,
     pub beacon_proposer_cache: &'a Mutex<BeaconProposerCache>,
-    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache<T>>,
+    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache>,
     pub builder_onboarding_cache: Option<&'a OnboardBuildersCache>,
     pub observed_payload_envelopes: &'a ObservedPayloadEnvelopes,
     pub genesis_validators_root: Hash256,
-    pub event_handler: &'a Option<ServerSentEventHandler<T::EthSpec>>,
+    pub event_handler: &'a Option<ServerSentEventHandler>,
     pub observed_execution_payloads: &'a ObservedExecutionPayloads,
 }
 
 /// Verify that an execution payload envelope is consistent with its beacon block
 /// and execution bid.
-pub(crate) fn verify_envelope_consistency<E: EthSpec>(
-    envelope: &ExecutionPayloadEnvelope<E>,
-    block: &SignedBeaconBlock<E>,
-    execution_bid: &ExecutionPayloadBid<E>,
+pub(crate) fn verify_envelope_consistency(
+    envelope: &ExecutionPayloadEnvelope,
+    block: &SignedBeaconBlock,
+    execution_bid: &ExecutionPayloadBid,
     latest_finalized_slot: Slot,
 ) -> Result<(), EnvelopeError> {
     // Check that the envelope's slot isn't from a slot prior
@@ -135,15 +135,15 @@ pub(crate) fn verify_envelope_consistency<E: EthSpec>(
 /// the p2p network.
 #[derive(Educe)]
 #[educe(Debug(bound = "T: BeaconChainTypes"))]
-pub struct GossipVerifiedEnvelope<T: BeaconChainTypes> {
-    pub signed_envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
-    pub block: Arc<SignedBeaconBlock<T::EthSpec>>,
-    pub snapshot: Option<Box<EnvelopeProcessingSnapshot<T::EthSpec>>>,
+pub struct GossipVerifiedEnvelope {
+    pub signed_envelope: Arc<SignedExecutionPayloadEnvelope>,
+    pub block: Arc<SignedBeaconBlock>,
+    pub snapshot: Option<Box<EnvelopeProcessingSnapshot>>,
 }
 
-impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
-    pub fn new(
-        signed_envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+impl GossipVerifiedEnvelope {
+    pub fn new<T: BeaconChainTypes>(
+        signed_envelope: Arc<SignedExecutionPayloadEnvelope>,
         ctx: &GossipVerificationContext<'_, T>,
     ) -> Result<Self, EnvelopeError> {
         let envelope = &signed_envelope.message;
@@ -227,7 +227,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
                 ctx.beacon_proposer_cache,
                 proposer_shuffling_decision_block,
                 envelope_epoch,
-                |proposers| proposers.get_slot::<T::EthSpec>(block_slot),
+                |proposers| proposers.get_slot(block_slot),
                 || {
                     debug!(
                         %beacon_block_root,
@@ -328,7 +328,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         Ok(gossip_verified_envelope)
     }
 
-    pub fn envelope_cloned(&self) -> Arc<SignedExecutionPayloadEnvelope<T::EthSpec>> {
+    pub fn envelope_cloned(&self) -> Arc<SignedExecutionPayloadEnvelope> {
         self.signed_envelope.clone()
     }
 }
@@ -370,9 +370,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// Returns an `Err` if the given envelope was invalid, or an error was encountered during verification.
     pub async fn verify_envelope_for_gossip(
         self: &Arc<Self>,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<SignedExecutionPayloadEnvelope>,
         source: EnvelopeSource,
-    ) -> Result<GossipVerifiedEnvelope<T>, EnvelopeError> {
+    ) -> Result<GossipVerifiedEnvelope, EnvelopeError> {
         let chain = self.clone();
         self.task_executor
             .clone()
@@ -435,7 +435,7 @@ mod tests {
         slot: Slot,
         builder_index: u64,
         block_hash: ExecutionBlockHash,
-    ) -> ExecutionPayloadEnvelope<E> {
+    ) -> ExecutionPayloadEnvelope {
         ExecutionPayloadEnvelope {
             payload: ExecutionPayloadGloas {
                 block_hash,
@@ -449,7 +449,7 @@ mod tests {
         }
     }
 
-    fn make_block(slot: Slot) -> SignedBeaconBlock<E> {
+    fn make_block(slot: Slot) -> SignedBeaconBlock {
         let block = BeaconBlock::Gloas(BeaconBlockGloas {
             slot,
             proposer_index: 0,
@@ -479,12 +479,12 @@ mod tests {
         SignedBeaconBlock::from_block(block, Signature::empty())
     }
 
-    fn make_bid(builder_index: u64, block_hash: ExecutionBlockHash) -> ExecutionPayloadBid<E> {
+    fn make_bid(builder_index: u64, block_hash: ExecutionBlockHash) -> ExecutionPayloadBid {
         ExecutionPayloadBid {
             builder_index,
             block_hash,
             // Commit to the (default) execution requests carried by `make_envelope`.
-            execution_requests_root: ExecutionRequestsGloas::<E>::default().tree_hash_root(),
+            execution_requests_root: ExecutionRequestsGloas::default().tree_hash_root(),
             ..ExecutionPayloadBid::default()
         }
     }
@@ -499,7 +499,7 @@ mod tests {
         let block = make_block(slot);
         let bid = make_bid(builder_index, block_hash);
 
-        assert!(verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok());
+        assert!(verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0)).is_ok());
     }
 
     #[test]
@@ -514,7 +514,7 @@ mod tests {
         let latest_finalized_slot = Slot::new(10);
 
         let result =
-            verify_envelope_consistency::<E>(&envelope, &block, &bid, latest_finalized_slot);
+            verify_envelope_consistency(&envelope, &block, &bid, latest_finalized_slot);
         assert!(matches!(
             result,
             Err(EnvelopeError::PriorToFinalization { .. })
@@ -530,7 +530,7 @@ mod tests {
         let block = make_block(Slot::new(20));
         let bid = make_bid(builder_index, block_hash);
 
-        let result = verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0));
+        let result = verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0));
         assert!(matches!(result, Err(EnvelopeError::SlotMismatch { .. })));
     }
 
@@ -543,7 +543,7 @@ mod tests {
         let block = make_block(slot);
         let bid = make_bid(2, block_hash);
 
-        let result = verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0));
+        let result = verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0));
         assert!(matches!(
             result,
             Err(EnvelopeError::BuilderIndexMismatch { .. })
@@ -565,7 +565,7 @@ mod tests {
 
         // Not a gossip condition; the sync-only rejection is inlined in
         // `RangeSyncBlock` construction.
-        assert!(verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok());
+        assert!(verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0)).is_ok());
     }
 
     #[test]
@@ -577,7 +577,7 @@ mod tests {
         let block = make_block(slot);
         let bid = make_bid(builder_index, ExecutionBlockHash::repeat_byte(0xff));
 
-        let result = verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0));
+        let result = verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0));
         assert!(matches!(
             result,
             Err(EnvelopeError::BlockHashMismatch { .. })
@@ -603,7 +603,7 @@ mod tests {
         let max = Spec::MAX_WITHDRAWALS_PER_PAYLOAD;
         envelope.payload.withdrawals =
             ProgressiveVariableList::new(vec![withdrawal.clone(); max]).unwrap();
-        assert!(verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok());
+        assert!(verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0)).is_ok());
 
         assert!(
             ProgressiveVariableList::<Withdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>::new(
@@ -616,7 +616,7 @@ mod tests {
     fn assert_requests_list_bound(
         kind: &'static str,
         max: usize,
-        set_len: impl Fn(&mut ExecutionRequestsGloas<E>, usize) -> Result<(), ssz_types::Error>,
+        set_len: impl Fn(&mut ExecutionRequestsGloas, usize) -> Result<(), ssz_types::Error>,
     ) {
         let slot = Slot::new(10);
         let builder_index = 1;
@@ -633,7 +633,7 @@ mod tests {
             ..ExecutionPayloadBid::default()
         };
         assert!(
-            verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok(),
+            verify_envelope_consistency(&envelope, &block, &bid, Slot::new(0)).is_ok(),
             "{kind} at max should be accepted"
         );
 

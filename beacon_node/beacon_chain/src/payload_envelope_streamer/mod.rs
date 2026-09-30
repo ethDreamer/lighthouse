@@ -22,8 +22,8 @@ use types::{
 use crate::BeaconChain;
 use crate::{BeaconChainError, BeaconChainTypes};
 
-type PayloadEnvelopeResult<E> =
-    Result<Option<Arc<SignedExecutionPayloadEnvelope<E>>>, BeaconChainError>;
+type PayloadEnvelopeResult =
+    Result<Option<Arc<SignedExecutionPayloadEnvelope>>, BeaconChainError>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -51,12 +51,12 @@ pub enum EnvelopeRequestSource {
     ByRange,
 }
 
-enum LoadedEnvelope<E: EthSpec> {
-    Complete(PayloadEnvelopeResult<E>),
-    NeedsPayload(Box<SignedExecutionPayloadEnvelopeSummary<E>>),
+enum LoadedEnvelope {
+    Complete(PayloadEnvelopeResult),
+    NeedsPayload(Box<SignedExecutionPayloadEnvelopeSummary>),
 }
 
-impl<E: EthSpec> LoadedEnvelope<E> {
+impl LoadedEnvelope {
     fn slot(&self) -> Option<Slot> {
         match self {
             Self::Complete(Ok(Some(envelope))) => Some(envelope.slot()),
@@ -86,7 +86,7 @@ impl<T: BeaconChainTypes> PayloadEnvelopeStreamer<T> {
     ///
     /// A summary whose payload has been pruned is returned as `NeedsPayload` for reconstruction
     /// from the execution layer.
-    fn load_envelope(&self, beacon_block_root: &Hash256) -> LoadedEnvelope<T::EthSpec> {
+    fn load_envelope(&self, beacon_block_root: &Hash256) -> LoadedEnvelope {
         let summary = match self.adapter.get_payload_envelope_summary(beacon_block_root) {
             Ok(Some(summary)) => summary,
             Ok(None) => return LoadedEnvelope::Complete(Ok(None)),
@@ -115,7 +115,7 @@ impl<T: BeaconChainTypes> PayloadEnvelopeStreamer<T> {
     async fn load_envelopes(
         self: &Arc<Self>,
         block_roots: &[Hash256],
-    ) -> Result<Vec<(Hash256, Arc<PayloadEnvelopeResult<T::EthSpec>>)>, BeaconChainError> {
+    ) -> Result<Vec<(Hash256, Arc<PayloadEnvelopeResult>)>, BeaconChainError> {
         let streamer = self.clone();
         let block_roots = block_roots.to_vec();
         let (split_slot, split_block_root) = streamer.adapter.get_split();
@@ -203,7 +203,7 @@ impl<T: BeaconChainTypes> PayloadEnvelopeStreamer<T> {
     async fn fetch_payload_bodies(
         &self,
         block_hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV2<T::EthSpec>>>, BeaconChainError> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV2>>, BeaconChainError> {
         let mut payload_bodies = Vec::with_capacity(block_hashes.len());
         for chunk in block_hashes.chunks(MAX_PAYLOAD_BODIES_PER_REQUEST) {
             let chunk_payload_bodies = self
@@ -225,7 +225,7 @@ impl<T: BeaconChainTypes> PayloadEnvelopeStreamer<T> {
     async fn stream_payload_envelopes(
         self: Arc<Self>,
         beacon_block_roots: Vec<Hash256>,
-        sender: UnboundedSender<(Hash256, Arc<PayloadEnvelopeResult<T::EthSpec>>)>,
+        sender: UnboundedSender<(Hash256, Arc<PayloadEnvelopeResult>)>,
     ) {
         let results = match self.load_envelopes(&beacon_block_roots).await {
             Ok(results) => results,
@@ -246,7 +246,7 @@ impl<T: BeaconChainTypes> PayloadEnvelopeStreamer<T> {
     pub fn launch_stream(
         self: Arc<Self>,
         block_roots: Vec<Hash256>,
-    ) -> impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult<T::EthSpec>>)> {
+    ) -> impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult>)> {
         let (envelope_tx, envelope_rx) = mpsc::unbounded_channel();
         debug!(
             envelopes = block_roots.len(),
@@ -267,7 +267,7 @@ pub fn launch_payload_envelope_stream<T: BeaconChainTypes>(
     chain: Arc<BeaconChain<T>>,
     block_roots: Vec<Hash256>,
     request_source: EnvelopeRequestSource,
-) -> impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult<T::EthSpec>>)> {
+) -> impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult>)> {
     let adapter = beacon_chain_adapter::EnvelopeStreamerBeaconAdapter::new(chain);
     PayloadEnvelopeStreamer::new(adapter, request_source).launch_stream(block_roots)
 }
@@ -275,10 +275,10 @@ pub fn launch_payload_envelope_stream<T: BeaconChainTypes>(
 /// The Engine API only guarantees support for 32 hashes per payload-body request.
 const MAX_PAYLOAD_BODIES_PER_REQUEST: usize = 32;
 
-fn reconstruct_envelope_from_body<E: EthSpec>(
-    summary: SignedExecutionPayloadEnvelopeSummary<E>,
-    payload_body: ExecutionPayloadBodyV2<E>,
-) -> PayloadEnvelopeResult<E> {
+fn reconstruct_envelope_from_body(
+    summary: SignedExecutionPayloadEnvelopeSummary,
+    payload_body: ExecutionPayloadBodyV2,
+) -> PayloadEnvelopeResult {
     let expected_payload_hash = summary.block_hash();
     let withdrawals = payload_body
         .withdrawals
@@ -318,9 +318,9 @@ impl From<Error> for BeaconChainError {
     }
 }
 
-async fn send_errors<E: EthSpec>(
+async fn send_errors(
     block_roots: &[Hash256],
-    sender: UnboundedSender<(Hash256, Arc<PayloadEnvelopeResult<E>>)>,
+    sender: UnboundedSender<(Hash256, Arc<PayloadEnvelopeResult>)>,
     beacon_chain_error: BeaconChainError,
 ) {
     let result = Arc::new(Err(beacon_chain_error));

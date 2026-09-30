@@ -19,9 +19,9 @@ use tracing::{debug, warn};
 /// this crate applies no bid math (the `min_bid` floor and the boost are proposer policy resolved on
 /// the beacon-chain side).
 #[derive(Clone)]
-pub struct DirectBid<E: EthSpec> {
+pub struct DirectBid {
     /// The signed bid returned by the builder.
-    pub signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+    pub signed_bid: Arc<SignedExecutionPayloadBid>,
     /// URL of the builder that returned this bid, so a winning block can be forwarded to it via
     /// `submitSignedBeaconBlock` (echoed to the beacon node as `Eth-Builder-Url`).
     pub builder_url: SensitiveUrl,
@@ -78,10 +78,10 @@ impl Builders {
     ///
     /// Submitted as JSON: the builder's SSZ preference from bid time isn't carried across the
     /// `Eth-Builder-Url` header round-trip, and builders must accept JSON.
-    pub async fn forward_signed_block<E: EthSpec>(
+    pub async fn forward_signed_block(
         &self,
         builder_url: &SensitiveUrl,
-        block: &SignedBeaconBlock<E>,
+        block: &SignedBeaconBlock,
     ) -> Result<(), BuilderClientError> {
         self.client
             .submit_signed_beacon_block(builder_url, block, false)
@@ -111,14 +111,14 @@ impl Builders {
     ///
     /// Returns every bid that passed validation; the block producer turns each into a selection
     /// candidate and ranks them.
-    pub async fn request_and_validate_bids<E: EthSpec, F, Fut, Err>(
+    pub async fn request_and_validate_bids<F, Fut, Err>(
         &self,
         ctx: &BidRequestContext,
         entries: &[BuilderEntry],
         validate: F,
-    ) -> Vec<DirectBid<E>>
+    ) -> Vec<DirectBid>
     where
-        F: Fn(Arc<SignedExecutionPayloadBid<E>>, BuilderPubkeys) -> Fut,
+        F: Fn(Arc<SignedExecutionPayloadBid>, BuilderPubkeys) -> Fut,
         Fut: Future<Output = Result<(), Err>>,
         Err: Display,
     {
@@ -148,7 +148,7 @@ impl Builders {
         let validate = &validate;
         let pipelines = targets.iter().map(|(url, entry)| async move {
             let response = client
-                .get_execution_payload_bid::<E>(
+                .get_execution_payload_bid(
                     url,
                     ctx.slot,
                     ctx.executed_ancestor_hash,
@@ -280,7 +280,7 @@ mod tests {
         let body = ForkVersionedResponse {
             version: ForkName::Gloas,
             metadata: EmptyMetadata {},
-            data: SignedExecutionPayloadBid::<E> {
+            data: SignedExecutionPayloadBid {
                 message: ExecutionPayloadBid {
                     slot: Slot::new(1),
                     parent_block_hash: ExecutionBlockHash::zero(),
@@ -328,7 +328,7 @@ mod tests {
         let builders = builders();
         let entries = vec![entry(&server_a.url(), 1000), entry(&server_b.url(), 1000)];
 
-        let bids: Vec<DirectBid<E>> = builders
+        let bids: Vec<DirectBid> = builders
             .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
@@ -344,7 +344,7 @@ mod tests {
         // #630 requires a url; an empty one is invalid and can't be requested, so it is skipped.
         let entries = vec![entry("", 1000)];
 
-        let bids: Vec<DirectBid<E>> = builders
+        let bids: Vec<DirectBid> = builders
             .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
@@ -364,7 +364,7 @@ mod tests {
         entry_b.auth.message.slot = Slot::new(2);
         let entries = vec![entry_a, entry_b];
 
-        let bids: Vec<DirectBid<E>> = builders
+        let bids: Vec<DirectBid> = builders
             .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
@@ -385,7 +385,7 @@ mod tests {
         entry.min_bid = 500;
         let entries = vec![entry];
 
-        let bids: Vec<DirectBid<E>> = builders
+        let bids: Vec<DirectBid> = builders
             .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Ok::<(), String>(())
             })
@@ -402,7 +402,7 @@ mod tests {
         let builders = builders();
         let entries = vec![entry(&server.url(), 1000)];
         // The producer callback rejects the bid (e.g. a failed signature or ineligible builder).
-        let bids: Vec<DirectBid<E>> = builders
+        let bids: Vec<DirectBid> = builders
             .request_and_validate_bids(&context(), &entries, |_bid, _expected| async {
                 Err::<(), String>("rejected by producer".to_string())
             })

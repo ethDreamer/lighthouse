@@ -43,7 +43,7 @@ pub enum MutationDelay {
 
 /// A helper struct to make testing fork choice more ergonomic and less repetitive.
 struct ForkChoiceTest {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: BeaconChainHarness<EphemeralHarnessType>,
 }
 
 /// Allows us to use `unwrap` in some cases.
@@ -82,7 +82,7 @@ impl ForkChoiceTest {
     /// Get a value from the `ForkChoice` instantiation.
     fn get<T, U>(&self, func: T) -> U
     where
-        T: Fn(&BeaconForkChoiceStore<E, MemoryStore, MemoryStore>) -> U,
+        T: Fn(&BeaconForkChoiceStore<MemoryStore, MemoryStore>) -> U,
     {
         func(
             self.harness
@@ -187,7 +187,7 @@ impl ForkChoiceTest {
     #[allow(clippy::result_large_err)]
     pub async fn apply_blocks_while<F>(self, mut predicate: F) -> Result<Self, Self>
     where
-        F: FnMut(BeaconBlockRef<'_, E>, &BeaconState<E>) -> bool,
+        F: FnMut(BeaconBlockRef<'_>, &BeaconState) -> bool,
     {
         self.harness.advance_slot();
         let mut state = self.harness.get_current_state();
@@ -301,7 +301,7 @@ impl ForkChoiceTest {
     /// Asserts the block was applied successfully.
     pub async fn apply_block_directly_to_fork_choice<F>(self, mut func: F) -> Self
     where
-        F: FnMut(&mut SignedBeaconBlock<E>, &mut BeaconState<E>),
+        F: FnMut(&mut SignedBeaconBlock, &mut BeaconState),
     {
         let state = self
             .harness
@@ -342,7 +342,7 @@ impl ForkChoiceTest {
         mut comparison_func: G,
     ) -> Self
     where
-        F: FnMut(&mut SignedBeaconBlock<E>, &mut BeaconState<E>),
+        F: FnMut(&mut SignedBeaconBlock, &mut BeaconState),
         G: FnMut(ForkChoiceError),
     {
         let state = self
@@ -444,7 +444,7 @@ impl ForkChoiceTest {
         comparison_func: G,
     ) -> Self
     where
-        F: FnMut(&mut IndexedAttestation<E>, &BeaconChain<EphemeralHarnessType<E>>),
+        F: FnMut(&mut IndexedAttestation, &BeaconChain<EphemeralHarnessType>),
         G: FnMut(Result<(), BeaconChainError>),
     {
         self.apply_nth_attestation_to_chain(0, delay, mutation_func, comparison_func)
@@ -462,7 +462,7 @@ impl ForkChoiceTest {
         mut comparison_func: G,
     ) -> Self
     where
-        F: FnMut(&mut IndexedAttestation<E>, &BeaconChain<EphemeralHarnessType<E>>),
+        F: FnMut(&mut IndexedAttestation, &BeaconChain<EphemeralHarnessType>),
         G: FnMut(Result<(), BeaconChainError>),
     {
         let head = self.harness.chain.head_snapshot();
@@ -491,7 +491,7 @@ impl ForkChoiceTest {
             .get_committee_count_at_slot(current_slot)
             .expect("should not error while getting committee count");
 
-        let subnet_id = SubnetId::compute_subnet::<E>(
+        let subnet_id = SubnetId::compute_subnet(
             current_slot,
             committee_index,
             committee_count,
@@ -1038,7 +1038,7 @@ async fn non_block_payload_attestation_for_previous_slot_is_rejected() {
     let block_a_root = block_a.canonical_root();
     let s_plus_1 = block_a.slot().saturating_add(1_u64);
 
-    let payload_attestation = IndexedPayloadAttestation::<E> {
+    let payload_attestation = IndexedPayloadAttestation {
         attesting_indices: vec![0_u64].try_into().expect("valid attesting indices"),
         data: PayloadAttestationData {
             beacon_block_root: block_a_root,

@@ -34,12 +34,12 @@ impl From<ArithError> for Error {
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
-pub struct SyncAggregate<E: EthSpec> {
+pub struct SyncAggregate {
     pub sync_committee_bits: BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,
     pub sync_committee_signature: AggregateSignature,
 }
 
-impl<E: EthSpec> SyncAggregate<E> {
+impl SyncAggregate {
     /// New aggregate to be used as the seed for aggregating other signatures.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -53,8 +53,8 @@ impl<E: EthSpec> SyncAggregate<E> {
     ///
     /// Equivalent to `process_sync_committee_contributions` from the spec.
     pub fn from_contributions(
-        contributions: &[SyncCommitteeContribution<E>],
-    ) -> Result<SyncAggregate<E>, Error> {
+        contributions: &[SyncCommitteeContribution],
+    ) -> Result<SyncAggregate, Error> {
         let mut sync_aggregate = Self::new();
         let sync_subcommittee_size =
             Spec::SYNC_COMMITTEE_SIZE.safe_div(SYNC_COMMITTEE_SUBNET_COUNT as usize)?;

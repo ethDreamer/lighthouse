@@ -22,24 +22,24 @@ pub enum Transaction {
 }
 
 /// Get a list of transactions to publish to the execution layer.
-pub fn transactions<E: EthSpec>(account1: Address, account2: Address) -> Vec<TransactionRequest> {
+pub fn transactions(account1: Address, account2: Address) -> Vec<TransactionRequest> {
     vec![
-        Transaction::Transfer(account1, account2).transaction::<E>(),
-        Transaction::TransferLegacy(account1, account2).transaction::<E>(),
-        Transaction::TransferAccessList(account1, account2).transaction::<E>(),
-        Transaction::DeployDepositContract(account1).transaction::<E>(),
+        Transaction::Transfer(account1, account2).transaction(),
+        Transaction::TransferLegacy(account1, account2).transaction(),
+        Transaction::TransferAccessList(account1, account2).transaction(),
+        Transaction::DeployDepositContract(account1).transaction(),
         Transaction::DepositDepositContract {
             sender: account1,
             deposit_contract_address: Address::from_slice(
                 &hex::decode(DEPOSIT_CONTRACT_ADDRESS).unwrap(),
             ),
         }
-        .transaction::<E>(),
+        .transaction(),
     ]
 }
 
 impl Transaction {
-    pub fn transaction<E: EthSpec>(&self) -> TransactionRequest {
+    pub fn transaction(&self) -> TransactionRequest {
         match &self {
             Self::TransferLegacy(from, to) => TransactionRequest::default()
                 .from(*from)

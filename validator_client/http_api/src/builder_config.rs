@@ -8,19 +8,19 @@ use slot_clock::SlotClock;
 use std::sync::Arc;
 use types::EthSpec;
 
-pub fn get<T: 'static + SlotClock + Clone, E: EthSpec>(
+pub fn get<T: 'static + SlotClock + Clone>(
     validator_pubkey: PublicKey,
-    validator_store: Arc<LighthouseValidatorStore<T, E>>,
+    validator_store: Arc<LighthouseValidatorStore<T>>,
     configured_builders: BuilderStore,
 ) -> Result<api_types::BuilderConfig, warp::Rejection> {
     let validator_pubkey = require_validator(&validator_pubkey, &validator_store)?;
     into_api_builder_config(configured_builders.get_validator_config(&validator_pubkey))
 }
 
-pub fn set<T: 'static + SlotClock + Clone, E: EthSpec>(
+pub fn set<T: 'static + SlotClock + Clone>(
     validator_pubkey: PublicKey,
     request: api_types::BuilderConfig,
-    validator_store: Arc<LighthouseValidatorStore<T, E>>,
+    validator_store: Arc<LighthouseValidatorStore<T>>,
     configured_builders: BuilderStore,
 ) -> Result<(), warp::Rejection> {
     let validator_pubkey = require_validator(&validator_pubkey, &validator_store)?;
@@ -29,9 +29,9 @@ pub fn set<T: 'static + SlotClock + Clone, E: EthSpec>(
         .map_err(builder_store_rejection)
 }
 
-pub fn delete<T: 'static + SlotClock + Clone, E: EthSpec>(
+pub fn delete<T: 'static + SlotClock + Clone>(
     validator_pubkey: PublicKey,
-    validator_store: Arc<LighthouseValidatorStore<T, E>>,
+    validator_store: Arc<LighthouseValidatorStore<T>>,
     configured_builders: BuilderStore,
 ) -> Result<(), warp::Rejection> {
     let validator_pubkey = require_validator(&validator_pubkey, &validator_store)?;
@@ -40,9 +40,9 @@ pub fn delete<T: 'static + SlotClock + Clone, E: EthSpec>(
         .map_err(builder_store_delete_rejection)
 }
 
-fn require_validator<T: 'static + SlotClock + Clone, E: EthSpec>(
+fn require_validator<T: 'static + SlotClock + Clone>(
     validator_pubkey: &PublicKey,
-    validator_store: &LighthouseValidatorStore<T, E>,
+    validator_store: &LighthouseValidatorStore<T>,
 ) -> Result<PublicKeyBytes, warp::Rejection> {
     if validator_store
         .initialized_validators()

@@ -15,15 +15,15 @@ use tree_hash::{BYTES_PER_CHUNK, TreeHash};
 // introduce a new type for Fulu. This is to avoid messy conversions and having to add extra types
 // with no gains - as `N` does not impact serialisation at all, and only affects merkleization,
 // which we don't current do on `KzgProofs` anyway.
-pub type KzgProofs<E> = VariableList<KzgProof, U<{ Spec::MAX_CELLS_PER_BLOCK }>>;
+pub type KzgProofs = VariableList<KzgProof, U<{ Spec::MAX_CELLS_PER_BLOCK }>>;
 
-pub type KzgCommitments<E> =
+pub type KzgCommitments =
     VariableList<KzgCommitment, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 /// Progressive (EIP-7688) variant of `KzgCommitments`, used from Gloas onwards.
 ///
 /// The `MaxBlobCommitmentsPerBlock` limit is enforced during deserialization.
-pub type ProgressiveKzgCommitments<E> =
+pub type ProgressiveKzgCommitments =
     ProgressiveVariableList<KzgCommitment, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 /// Util method helpful for logging.
@@ -34,8 +34,8 @@ pub fn format_kzg_commitments(commitments: &[KzgCommitment]) -> String {
     surrounded_commitments
 }
 
-pub fn complete_kzg_commitment_merkle_proof<E: EthSpec>(
-    kzg_commitments: &KzgCommitments<E>,
+pub fn complete_kzg_commitment_merkle_proof(
+    kzg_commitments: &KzgCommitments,
     index: usize,
     kzg_commitments_proof: &[Hash256],
 ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {

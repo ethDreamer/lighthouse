@@ -39,13 +39,13 @@ impl ProposalKey {
 /// blocks reduces the theoretical maximum size of this cache to `slots_since_finality *
 /// active_validator_count`, however in reality that is more like `slots_since_finality *
 /// known_distinct_shufflings` which is much smaller.
-pub struct ObservedBlockProducers<E: EthSpec> {
+pub struct ObservedBlockProducers {
     finalized_slot: Slot,
     items: HashMap<ProposalKey, HashSet<Hash256>>,
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> Default for ObservedBlockProducers<E> {
+impl Default for ObservedBlockProducers {
     /// Instantiates `Self` with `finalized_slot == 0`.
     fn default() -> Self {
         Self {
@@ -74,7 +74,7 @@ impl SeenBlock {
     }
 }
 
-impl<E: EthSpec> ObservedBlockProducers<E> {
+impl ObservedBlockProducers {
     /// Observe that the `block` was produced by `block.proposer_index` at `block.slot`. This will
     /// update `self` so future calls to it indicate that this block is known.
     ///
@@ -87,7 +87,7 @@ impl<E: EthSpec> ObservedBlockProducers<E> {
     pub fn observe_proposal(
         &mut self,
         block_root: Hash256,
-        block: BeaconBlockRef<'_, E>,
+        block: BeaconBlockRef<'_>,
     ) -> Result<SeenBlock, Error> {
         self.sanitize_block(block)?;
 
@@ -134,7 +134,7 @@ impl<E: EthSpec> ObservedBlockProducers<E> {
     /// - `block.slot` is equal to or less than the latest pruned `finalized_slot`.
     pub fn proposer_has_been_observed(
         &self,
-        block: BeaconBlockRef<'_, E>,
+        block: BeaconBlockRef<'_>,
         block_root: Hash256,
     ) -> Result<SeenBlock, Error> {
         self.sanitize_block(block)?;
@@ -162,7 +162,7 @@ impl<E: EthSpec> ObservedBlockProducers<E> {
     }
 
     /// Returns `Ok(())` if the given `block` is sane.
-    fn sanitize_block(&self, block: BeaconBlockRef<'_, E>) -> Result<(), Error> {
+    fn sanitize_block(&self, block: BeaconBlockRef<'_>) -> Result<(), Error> {
         if block.proposer_index() >= Spec::validator_registry_limit() {
             return Err(Error::ValidatorIndexTooHigh(block.proposer_index()));
         }
@@ -209,7 +209,7 @@ mod tests {
     use types::{BeaconBlock, MainnetEthSpec};
 
 
-    fn get_block(slot: u64, proposer: u64) -> BeaconBlock<E> {
+    fn get_block(slot: u64, proposer: u64) -> BeaconBlock {
         let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot.into();
         *block.proposer_index_mut() = proposer;

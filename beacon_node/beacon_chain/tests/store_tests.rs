@@ -74,7 +74,7 @@ pub const CACHE_STATE_IN_TESTS: bool = true;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(HIGH_VALIDATOR_COUNT));
 
-type TestHarness = BeaconChainHarness<DiskHarnessType<E>>;
+type TestHarness = BeaconChainHarness<DiskHarnessType>;
 
 /// Retrieve or reconstruct blobs for a given block root. This uses the block's epoch to determine
 /// whether to retrieve blobs directly or reconstruct them from columns.
@@ -83,7 +83,7 @@ type TestHarness = BeaconChainHarness<DiskHarnessType<E>>;
 fn get_or_reconstruct_blobs<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
     block_root: &Hash256,
-) -> Result<Option<BlobSidecarList<T::EthSpec>>, BeaconChainError> {
+) -> Result<Option<BlobSidecarList>, BeaconChainError> {
     let Some(block) = chain.store.get_blinded_block(block_root)? else {
         return Ok(None);
     };
@@ -113,19 +113,19 @@ fn get_or_reconstruct_blobs<T: BeaconChainTypes>(
     }
 }
 
-fn get_store(db_path: &TempDir) -> Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>> {
+fn get_store(db_path: &TempDir) -> Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>> {
     let store_config = StoreConfig {
         prune_payloads: false,
         ..StoreConfig::default()
     };
-    get_store_generic(db_path, store_config, test_spec::<E>())
+    get_store_generic(db_path, store_config, test_spec())
 }
 
 fn get_store_generic(
     db_path: &TempDir,
     config: StoreConfig,
     spec: ChainSpec,
-) -> Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>> {
+) -> Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>> {
     create_test_tracing_subscriber();
     let hot_path = db_path.path().join("chain_db");
     let cold_path = db_path.path().join("freezer_db");
@@ -143,7 +143,7 @@ fn get_store_generic(
 }
 
 fn get_harness(
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
     validator_count: usize,
 ) -> TestHarness {
     // Most tests expect to retain historic states, so we use this as the default.
@@ -160,7 +160,7 @@ fn get_harness(
 }
 
 fn get_harness_import_all_data_columns(
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
     validator_count: usize,
 ) -> TestHarness {
     // Most tests expect to retain historic states, so we use this as the default.
@@ -178,7 +178,7 @@ fn get_harness_import_all_data_columns(
 }
 
 fn get_harness_generic(
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
     validator_count: usize,
     chain_config: ChainConfig,
     node_custody_type: NodeCustodyType,
@@ -212,7 +212,7 @@ fn check_db_invariants(harness: &TestHarness) {
 }
 
 fn get_states_descendant_of_block(
-    store: &HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>,
+    store: &HotColdDB<BeaconNodeBackend, BeaconNodeBackend>,
     block_root: Hash256,
 ) -> Vec<(Hash256, Slot)> {
     let summaries = store.load_hot_state_summaries().unwrap();
@@ -226,34 +226,34 @@ fn get_states_descendant_of_block(
 /// Builds a `LightClientUpdate` for the given fork,
 /// sets `signature_slot` to the provided `marker_slot` so tests can identify which update was returned.
 /// Uses `test_arbitrary_instance` for all other fields.
-fn make_light_client_update<E: EthSpec>(
+fn make_light_client_update(
     fork_name: ForkName,
     marker_slot: Slot,
-) -> LightClientUpdate<E> {
+) -> LightClientUpdate {
     match fork_name {
         ForkName::Base => panic!("light client updates don't exist pre-Altair"),
         ForkName::Altair | ForkName::Bellatrix => {
-            let mut update = test_arbitrary_instance::<LightClientUpdateAltair<E>>();
+            let mut update = test_arbitrary_instance::<LightClientUpdateAltair>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Altair(update)
         }
         ForkName::Capella => {
-            let mut update = test_arbitrary_instance::<LightClientUpdateCapella<E>>();
+            let mut update = test_arbitrary_instance::<LightClientUpdateCapella>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Capella(update)
         }
         ForkName::Deneb => {
-            let mut update = test_arbitrary_instance::<LightClientUpdateDeneb<E>>();
+            let mut update = test_arbitrary_instance::<LightClientUpdateDeneb>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Deneb(update)
         }
         ForkName::Electra => {
-            let mut update = test_arbitrary_instance::<LightClientUpdateElectra<E>>();
+            let mut update = test_arbitrary_instance::<LightClientUpdateElectra>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Electra(update)
         }
         ForkName::Fulu | ForkName::Gloas | ForkName::Heze => {
-            let mut update = test_arbitrary_instance::<LightClientUpdateFulu<E>>();
+            let mut update = test_arbitrary_instance::<LightClientUpdateFulu>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Fulu(update)
         }
@@ -263,7 +263,7 @@ fn make_light_client_update<E: EthSpec>(
 // TODO(EIP-7732) Extend to support gloas
 #[tokio::test]
 async fn light_client_bootstrap_test() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     let Some(_) = spec.altair_fork_epoch else {
         // No-op prior to Altair.
         return;
@@ -321,7 +321,7 @@ async fn light_client_bootstrap_test() {
 
 #[tokio::test]
 async fn light_client_updates_test() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     let Some(_) = spec.altair_fork_epoch else {
         // No-op prior to Altair.
         return;
@@ -333,7 +333,7 @@ async fn light_client_updates_test() {
 
     let num_final_blocks = Spec::slots_per_epoch() * 2;
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec::<E>());
+    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec());
     let harness = get_harness(store.clone(), LOW_VALIDATOR_COUNT);
     let all_validators = (0..LOW_VALIDATOR_COUNT).collect::<Vec<_>>();
     let num_initial_slots = Spec::slots_per_epoch() * 10;
@@ -397,7 +397,7 @@ async fn light_client_updates_test() {
 /// switching to big-endian keys.
 #[tokio::test]
 async fn get_light_client_updates_crosses_256_period_boundary() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     if spec.altair_fork_epoch.is_none() {
         // No-op prior to Altair.
         return;
@@ -423,7 +423,7 @@ async fn get_light_client_updates_crosses_256_period_boundary() {
             .safe_mul(spec.epochs_per_sync_committee_period.into())
             .unwrap();
         let fork_name = spec.fork_name_at_epoch(epoch.into());
-        let update = make_light_client_update::<E>(fork_name, Slot::new(period));
+        let update = make_light_client_update(fork_name, Slot::new(period));
         store.store_light_client_update(period, &update).unwrap();
     }
 
@@ -986,7 +986,7 @@ async fn block_replayer_hooks() {
     let mut pre_block_slots = vec![];
     let mut post_block_slots = vec![];
 
-    let mut replay_state = BlockReplayer::<MinimalEthSpec>::new(state, &chain.spec)
+    let mut replay_state = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(state, &chain.spec)
         .pre_slot_hook(Box::new(|_, state| {
             pre_slots.push(state.slot());
             Ok(())
@@ -1267,7 +1267,7 @@ async fn multiple_attestations_per_block() {
 
     for snapshot in harness.chain.chain_dump().unwrap() {
         let slot = snapshot.beacon_block.slot();
-        let fork_name = harness.chain.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.chain.spec.fork_name_at_slot(slot);
 
         if fork_name.electra_enabled() {
             assert_eq!(
@@ -1389,7 +1389,7 @@ async fn shuffling_compatible_short_fork() {
     drop(db_path);
 }
 
-fn get_state_for_block(harness: &TestHarness, block_root: Hash256) -> BeaconState<E> {
+fn get_state_for_block(harness: &TestHarness, block_root: Hash256) -> BeaconState {
     let head_block = harness
         .chain
         .store
@@ -1410,7 +1410,7 @@ fn get_state_for_block(harness: &TestHarness, block_root: Hash256) -> BeaconStat
 /// Check the invariants that apply to `shuffling_is_compatible`.
 fn check_shuffling_compatible(
     harness: &TestHarness,
-    head_state: &BeaconState<E>,
+    head_state: &BeaconState,
     head_block_root: Hash256,
 ) {
     for maybe_tuple in harness
@@ -1585,7 +1585,7 @@ async fn proposer_shuffling_root_consistency_test(
 
 #[tokio::test]
 async fn proposer_shuffling_root_consistency_same_epoch() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     proposer_shuffling_root_consistency_test(
         spec,
         4 * Spec::slots_per_epoch(),
@@ -1596,7 +1596,7 @@ async fn proposer_shuffling_root_consistency_same_epoch() {
 
 #[tokio::test]
 async fn proposer_shuffling_root_consistency_next_epoch() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     proposer_shuffling_root_consistency_test(
         spec,
         4 * Spec::slots_per_epoch(),
@@ -1607,7 +1607,7 @@ async fn proposer_shuffling_root_consistency_next_epoch() {
 
 #[tokio::test]
 async fn proposer_shuffling_root_consistency_two_epochs() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     proposer_shuffling_root_consistency_test(
         spec,
         4 * Spec::slots_per_epoch(),
@@ -1710,7 +1710,7 @@ async fn proposer_shuffling_changing_with_lookahead() {
         target_pubkey: validator_to_topup.pubkey,
     };
 
-    let execution_requests = ExecutionRequestsElectra::<E> {
+    let execution_requests = ExecutionRequestsElectra {
         deposits: VariableList::new(vec![deposit_request]).unwrap(),
         withdrawals: vec![].try_into().unwrap(),
         consolidations: VariableList::new(vec![consolidation_request]).unwrap(),
@@ -1803,7 +1803,7 @@ async fn proposer_shuffling_changing_with_lookahead() {
 
     // If we bypass the safety checks in `get_proposer_indices`, we should see that the shuffling
     // differs due to the effective balance change.
-    let unsafe_get_proposer_indices = |state: &BeaconState<E>, epoch| -> Vec<usize> {
+    let unsafe_get_proposer_indices = |state: &BeaconState, epoch| -> Vec<usize> {
         let indices = state.get_active_validator_indices(epoch, spec).unwrap();
         let preimage = state.get_seed(epoch, Domain::BeaconProposer, spec).unwrap();
         epoch
@@ -1951,7 +1951,7 @@ async fn build_across_gloas_boundary(
     gloas_fork_epoch: Epoch,
     end_epoch: Epoch,
     to_slash: &[u64],
-) -> BeaconState<E> {
+) -> BeaconState {
     let db_path = tempdir().unwrap();
     let harness = get_gloas_harness(&db_path, gloas_fork_epoch);
     let all_validators = harness.get_all_validators();
@@ -2231,8 +2231,8 @@ async fn prunes_envelopes_finalized_as_empty_without_payload_pruning() {
 }
 
 async fn check_prunes_envelopes_finalized_as_empty(prune_payloads: bool) {
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -2383,8 +2383,8 @@ async fn check_prunes_envelopes_finalized_as_empty(prune_payloads: bool) {
 /// fail on the same block.
 #[tokio::test]
 async fn payload_pruning_tolerates_missing_finalized_block() {
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -2444,8 +2444,8 @@ async fn payload_pruning_tolerates_missing_finalized_block() {
 /// available from the summary after the parent's payload body has been pruned.
 #[tokio::test]
 async fn payload_attribute_withdrawals_use_summary_after_body_pruning() {
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -2490,8 +2490,8 @@ async fn payload_attribute_withdrawals_use_summary_after_body_pruning() {
 
 #[tokio::test]
 async fn payload_attribute_withdrawals_use_head_summary_after_restart() {
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -2751,8 +2751,8 @@ async fn prunes_payload_envelopes_from_multiple_pre_finalization_forks() {
     const FORK_VALIDATOR_COUNT: usize = 16;
     const VALIDATOR_COUNT: usize = CANONICAL_VALIDATOR_COUNT + 2 * FORK_VALIDATOR_COUNT;
 
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -3900,8 +3900,8 @@ async fn weak_subjectivity_sync_without_blobs() {
 
 #[tokio::test]
 async fn weak_subjectivity_sync_prunes_backfilled_payload_bodies() {
-    let spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(1)).gloas_enabled() {
+    let spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(1)).gloas_enabled() {
         return;
     }
 
@@ -3918,7 +3918,7 @@ async fn weak_subjectivity_sync_prunes_backfilled_payload_bodies() {
 // anchor block because it was considered "pruned", causing the node to fail startup.
 #[tokio::test]
 async fn reproduction_unaligned_checkpoint_sync_pruned_payload() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     // Requires Execution Payloads.
     let Some(_) = spec.deneb_fork_epoch else {
@@ -4014,7 +4014,7 @@ async fn reproduction_unaligned_checkpoint_sync_pruned_payload() {
 
     // Attempt to build the BeaconChain.
     // If the bug is present, this will panic with `MissingFullBlockExecutionPayloadPruned`.
-    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(trusted_setup)
+    let beacon_chain = BeaconChainBuilder::<DiskHarnessType>::new(trusted_setup)
         .chain_config(chain_config)
         .store(store.clone())
         .custom_spec(spec.clone().into())
@@ -4075,7 +4075,7 @@ async fn reproduction_unaligned_checkpoint_sync_pruned_payload() {
 fn push_anchor_range_sync_block(
     harness: &TestHarness,
     anchor_block_root: Hash256,
-    batch: &mut Vec<RangeSyncBlock<E>>,
+    batch: &mut Vec<RangeSyncBlock>,
 ) {
     let anchor_full_block = harness
         .chain
@@ -4091,7 +4091,7 @@ fn push_anchor_range_sync_block(
 
 /// Delete the anchor block's data columns. Returns `true` if any were deleted.
 fn delete_anchor_columns(
-    beacon_chain: &Arc<BeaconChain<DiskHarnessType<E>>>,
+    beacon_chain: &Arc<BeaconChain<DiskHarnessType>>,
     anchor_block_root: Hash256,
 ) -> bool {
     let column_indices = beacon_chain
@@ -4118,7 +4118,7 @@ fn delete_anchor_columns(
 
 /// Assert that the anchor block's envelope and data columns are present in the store.
 fn assert_anchor_data_restored(
-    beacon_chain: &Arc<BeaconChain<DiskHarnessType<E>>>,
+    beacon_chain: &Arc<BeaconChain<DiskHarnessType>>,
     anchor_block_root: Hash256,
 ) {
     assert!(
@@ -4216,9 +4216,9 @@ async fn weak_subjectivity_sync_test(
             prune_payloads,
             ..StoreConfig::default()
         },
-        test_spec::<E>(),
+        test_spec(),
     );
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     let kzg = get_kzg(&spec);
 
@@ -4246,10 +4246,10 @@ async fn weak_subjectivity_sync_test(
         ..ChainConfig::default()
     };
 
-    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(kzg)
+    let beacon_chain = BeaconChainBuilder::<DiskHarnessType>::new(kzg)
         .chain_config(chain_config)
         .store(store.clone())
-        .custom_spec(test_spec::<E>().into())
+        .custom_spec(test_spec().into())
         .task_executor(harness.chain.task_executor.clone())
         .weak_subjectivity_state(
             wss_state,
@@ -4267,7 +4267,7 @@ async fn weak_subjectivity_sync_test(
         .shutdown_sender(shutdown_tx)
         .event_handler(Some(ServerSentEventHandler::new_with_capacity(1)))
         .execution_layer(Some(mock.el))
-        .ordered_custody_column_indices(generate_data_column_indices_rand_order::<E>())
+        .ordered_custody_column_indices(generate_data_column_indices_rand_order())
         .rng(Box::new(StdRng::seed_from_u64(42)))
         .build()
         .expect("should build");
@@ -4787,7 +4787,7 @@ async fn test_import_historical_data_columns_batch() {
     // Get all data columns for epoch 0
     for block_root_and_slot in block_root_and_slot {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -4825,7 +4825,7 @@ async fn test_import_historical_data_columns_batch() {
     // Assert that data columns no longer exist for epoch 0
     for block_root_and_slot in block_root_and_slot_iter {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -4857,7 +4857,7 @@ async fn test_import_historical_data_columns_batch() {
             .unwrap()
             .is_empty()
         {
-            let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+            let fork_name = harness.spec.fork_name_at_slot(slot);
             let data_columns = harness
                 .chain
                 .store
@@ -4901,7 +4901,7 @@ async fn test_import_historical_data_columns_batch_mismatched_block_root() {
     // and mutate the data columns with an invalid block root
     for block_root_and_slot in block_root_and_slot_iter {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -4948,7 +4948,7 @@ async fn test_import_historical_data_columns_batch_mismatched_block_root() {
     // Assert there are no columns between start_slot and end_slot
     for block_root_and_slot in block_root_and_slot_iter {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -4985,7 +4985,7 @@ async fn test_import_historical_data_columns_batch_no_block_found() {
         return;
     }
 
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     let db_path = tempdir().unwrap();
     let store = get_store_generic(&db_path, StoreConfig::default(), spec);
     let start_slot = Slot::new(1);
@@ -5012,7 +5012,7 @@ async fn test_import_historical_data_columns_batch_no_block_found() {
 
     for block_root_and_slot in block_root_and_slot_iter {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -5055,7 +5055,7 @@ async fn test_import_historical_data_columns_batch_no_block_found() {
 
     for block_root_and_slot in block_root_and_slot_iter {
         let (block_root, slot) = block_root_and_slot.unwrap();
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         let data_columns = harness
             .chain
             .store
@@ -5264,7 +5264,7 @@ async fn finalizes_after_resuming_from_db() {
 
     let original_chain = harness.chain;
 
-    let resumed_harness = BeaconChainHarness::<DiskHarnessType<E>>::builder()
+    let resumed_harness = BeaconChainHarness::<DiskHarnessType>::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .resumed_disk_store(store)
@@ -5320,9 +5320,9 @@ async fn finalizes_after_resuming_from_db() {
 async fn schema_downgrade_to_min_version(store_config: StoreConfig, archive: bool) {
     let num_blocks_produced = Spec::slots_per_epoch() * 4;
     let db_path = tempdir().unwrap();
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     let has_reached_gloas = spec
-        .fork_name_at_slot::<E>(Slot::new(num_blocks_produced))
+        .fork_name_at_slot(Slot::new(num_blocks_produced))
         .gloas_enabled();
 
     let chain_config = ChainConfig {
@@ -5360,7 +5360,7 @@ async fn schema_downgrade_to_min_version(store_config: StoreConfig, archive: boo
 
     // Downgrade. This is unsupported once the chain has reached Gloas.
     let downgrade_result =
-        migrate_schema::<DiskHarnessType<E>>(store.clone(), CURRENT_SCHEMA_VERSION, min_version);
+        migrate_schema::<DiskHarnessType>(store.clone(), CURRENT_SCHEMA_VERSION, min_version);
     if has_reached_gloas {
         downgrade_result.expect_err("schema downgrade after Gloas should fail");
         return;
@@ -5368,7 +5368,7 @@ async fn schema_downgrade_to_min_version(store_config: StoreConfig, archive: boo
     downgrade_result.expect("schema downgrade to minimum version should work");
 
     // Upgrade back.
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), min_version, CURRENT_SCHEMA_VERSION)
+    migrate_schema::<DiskHarnessType>(store.clone(), min_version, CURRENT_SCHEMA_VERSION)
         .expect("schema upgrade from minimum version should work");
 
     // Recreate the harness.
@@ -5399,7 +5399,7 @@ async fn schema_downgrade_to_min_version(store_config: StoreConfig, archive: boo
 
     // Check that downgrading beyond the minimum version fails (bound is *tight*).
     let min_version_sub_1 = SchemaVersion(min_version.as_u64().checked_sub(1).unwrap());
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), CURRENT_SCHEMA_VERSION, min_version_sub_1)
+    migrate_schema::<DiskHarnessType>(store.clone(), CURRENT_SCHEMA_VERSION, min_version_sub_1)
         .expect_err("should not downgrade below minimum version");
 }
 
@@ -5465,7 +5465,7 @@ async fn schema_downgrade_to_min_version_full_node_dense_diffs() {
 
 #[tokio::test]
 async fn light_client_update_schema_v30_migration() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     if spec.altair_fork_epoch.is_none() {
         // No-op prior to Altair.
         return;
@@ -5486,7 +5486,7 @@ async fn light_client_update_schema_v30_migration() {
             .safe_mul(spec.epochs_per_sync_committee_period.into())
             .unwrap();
         let fork_name = spec.fork_name_at_epoch(epoch.into());
-        let update = make_light_client_update::<E>(fork_name, Slot::new(period));
+        let update = make_light_client_update(fork_name, Slot::new(period));
         store
             .hot_db
             .put_bytes(
@@ -5501,7 +5501,7 @@ async fn light_client_update_schema_v30_migration() {
     assert!(store.get_light_client_update(254).unwrap().is_none());
 
     // Upgrade v29 -> v30.
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), SchemaVersion(29), SchemaVersion(30))
+    migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(29), SchemaVersion(30))
         .expect("schema upgrade to v30 should succeed");
 
     for &period in &periods {
@@ -5529,7 +5529,7 @@ async fn light_client_update_schema_v30_migration() {
     assert_eq!(fetched_periods, vec![254, 255, 256, 257, 258]);
 
     // Downgrade v30 -> v29, keys should revert to LE.
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), SchemaVersion(30), SchemaVersion(29))
+    migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(30), SchemaVersion(29))
         .expect("schema downgrade to v29 should succeed");
 
     for &period in &periods {
@@ -5555,7 +5555,7 @@ async fn light_client_update_schema_v30_migration() {
 #[tokio::test]
 async fn payload_envelope_storage_body_encoding() {
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec::<E>());
+    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec());
     let block_root = Hash256::repeat_byte(0x11);
 
     for payload in [
@@ -5566,7 +5566,7 @@ async fn payload_envelope_storage_body_encoding() {
                 ProgressiveVariableList::new(vec![0x03]).unwrap(),
             ])
             .unwrap(),
-            withdrawals: ProgressiveWithdrawals::<E>::new(vec![Withdrawal {
+            withdrawals: ProgressiveWithdrawals::new(vec![Withdrawal {
                 index: 1,
                 validator_index: 2,
                 address: Address::repeat_byte(0x44),
@@ -5605,7 +5605,7 @@ async fn payload_envelope_storage_body_encoding() {
 #[tokio::test]
 async fn payload_envelope_schema_v31_migration() {
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec::<E>());
+    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec());
     let block_root = Hash256::repeat_byte(0x11);
     let envelope = SignedExecutionPayloadEnvelope {
         message: ExecutionPayloadEnvelope {
@@ -5631,7 +5631,7 @@ async fn payload_envelope_schema_v31_migration() {
         )
         .unwrap();
 
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), SchemaVersion(30), SchemaVersion(31))
+    migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(30), SchemaVersion(31))
         .expect("schema upgrade to v31 should succeed");
     assert!(
         store
@@ -5644,7 +5644,7 @@ async fn payload_envelope_schema_v31_migration() {
         Some(envelope.clone())
     );
 
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), SchemaVersion(31), SchemaVersion(30))
+    migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(31), SchemaVersion(30))
         .expect_err("schema downgrade after Gloas should fail");
     assert!(
         store
@@ -5755,7 +5755,7 @@ async fn payload_envelope_schema_v31_migration_discards_finalized_empty_envelope
                 )
                 .unwrap();
 
-            migrate_schema::<DiskHarnessType<E>>(
+            migrate_schema::<DiskHarnessType>(
                 store.clone(),
                 SchemaVersion(30),
                 SchemaVersion(31),
@@ -5784,7 +5784,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
             prune_payloads,
             ..StoreConfig::default()
         },
-        test_spec::<E>(),
+        test_spec(),
     );
     let split_slot = Slot::new(8);
     store.set_split(split_slot, Hash256::zero(), Hash256::zero());
@@ -5799,7 +5799,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
                     ProgressiveVariableList::new(vec![0x03]).unwrap(),
                 ])
                 .unwrap(),
-                withdrawals: ProgressiveWithdrawals::<E>::new(vec![Withdrawal {
+                withdrawals: ProgressiveWithdrawals::new(vec![Withdrawal {
                     index: 1,
                     validator_index: 2,
                     address: Address::repeat_byte(0x44),
@@ -5828,7 +5828,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
             .unwrap();
     }
 
-    migrate_schema::<DiskHarnessType<E>>(store.clone(), SchemaVersion(30), SchemaVersion(31))
+    migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(30), SchemaVersion(31))
         .expect("schema upgrade to v31 should succeed");
 
     for envelope in envelopes {
@@ -5869,9 +5869,9 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
 #[tokio::test]
 async fn payload_envelope_schema_v31_downgrade_before_gloas() {
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec::<E>());
+    let store = get_store_generic(&db_path, StoreConfig::default(), test_spec());
 
-    migrate_schema::<DiskHarnessType<E>>(store, SchemaVersion(31), SchemaVersion(30))
+    migrate_schema::<DiskHarnessType>(store, SchemaVersion(31), SchemaVersion(30))
         .expect("schema downgrade before Gloas should succeed");
 }
 
@@ -6207,7 +6207,7 @@ async fn deneb_prune_blobs_margin_test(margin: u64) {
         ..StoreConfig::default()
     };
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, config, test_spec::<E>());
+    let store = get_store_generic(&db_path, config, test_spec());
 
     if store.get_chain_spec().is_peer_das_scheduled() {
         // Blob pruning no longer needed since Fulu / PeerDAS
@@ -6612,7 +6612,7 @@ async fn fulu_prune_data_columns_margin_test(margin: u64) {
         ..StoreConfig::default()
     };
     let db_path = tempdir().unwrap();
-    let store = get_store_generic(&db_path, config, test_spec::<E>());
+    let store = get_store_generic(&db_path, config, test_spec());
 
     if !store.get_chain_spec().is_peer_das_scheduled() {
         // No-op if PeerDAS not scheduled.
@@ -6687,7 +6687,7 @@ fn check_data_column_existence(
         .unwrap()
         .map(Result::unwrap)
     {
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         if let Some(columns) = harness
             .chain
             .store
@@ -6781,7 +6781,7 @@ async fn prune_historic_states() {
 async fn ancestor_state_root_prior_to_split() {
     let db_path = tempdir().unwrap();
 
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     let store_config = StoreConfig {
         prune_payloads: false,
@@ -6874,7 +6874,7 @@ async fn ancestor_state_root_prior_to_split() {
 async fn replay_from_split_state() {
     let db_path = tempdir().unwrap();
 
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     let store_config = StoreConfig {
         prune_payloads: false,
@@ -6936,11 +6936,11 @@ async fn replay_from_split_state() {
 #[tokio::test]
 async fn test_custody_column_filtering_regular_node() {
     // Skip test if PeerDAS is not scheduled
-    if !test_spec::<E>().is_peer_das_scheduled() {
+    if !test_spec().is_peer_das_scheduled() {
         return;
     }
     // TODO(Gloas): blocks don't have blob_kzg_commitments (blobs are in the execution payload envelope).
-    if test_spec::<E>().is_gloas_scheduled() {
+    if test_spec().is_gloas_scheduled() {
         return;
     }
 
@@ -6985,11 +6985,11 @@ async fn test_custody_column_filtering_regular_node() {
 #[tokio::test]
 async fn test_custody_column_filtering_supernode() {
     // Skip test if PeerDAS is not scheduled
-    if !test_spec::<E>().is_peer_das_scheduled() {
+    if !test_spec().is_peer_das_scheduled() {
         return;
     }
     // TODO(Gloas): blocks don't have blob_kzg_commitments (blobs are in the execution payload envelope).
-    if test_spec::<E>().is_gloas_scheduled() {
+    if test_spec().is_gloas_scheduled() {
         return;
     }
 
@@ -7025,7 +7025,7 @@ async fn test_custody_column_filtering_supernode() {
 
 #[tokio::test]
 async fn test_missing_columns_after_cgc_change() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     let num_validators = 8;
 
@@ -7096,7 +7096,7 @@ async fn test_missing_columns_after_cgc_change() {
 
 #[tokio::test]
 async fn test_safely_backfill_data_column_custody_info() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     let num_validators = 8;
 
@@ -7300,7 +7300,7 @@ async fn test_gloas_block_and_envelope_storage_generic(
     } else {
         StoreConfig::default()
     };
-    let spec = test_spec::<E>();
+    let spec = test_spec();
     let store = get_store_generic(&db_path, store_config, spec);
     let harness = get_harness(store.clone(), LOW_VALIDATOR_COUNT);
     let spec = &harness.chain.spec;
@@ -7437,7 +7437,7 @@ async fn test_gloas_block_replay_with_envelopes() {
     assert!(!blocks.is_empty(), "should have blocks for replay");
 
     // Replay blocks and verify against the expected state.
-    let mut replayed = BlockReplayer::<MinimalEthSpec>::new(genesis_state, store.get_chain_spec())
+    let mut replayed = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(genesis_state, store.get_chain_spec())
         .no_signature_verification()
         .minimal_block_root_verification()
         .apply_blocks(blocks, None)
@@ -7542,7 +7542,7 @@ async fn test_gloas_hot_state_hierarchy() {
 /// Check that the HotColdDB's split_slot is equal to the start slot of the last finalized epoch.
 fn check_split_slot(
     harness: &TestHarness,
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
 ) {
     let split_slot = store.get_split_slot();
     assert_eq!(
@@ -7894,7 +7894,7 @@ async fn bellatrix_produce_and_store_payloads() {
 }
 
 fn get_finalized_epoch_boundary_blocks(
-    dump: &[BeaconSnapshot<MinimalEthSpec, BlindedPayload<MinimalEthSpec>>],
+    dump: &[BeaconSnapshot<BlindedPayload>],
 ) -> HashSet<SignedBeaconBlockHash> {
     dump.iter()
         .map(|checkpoint| checkpoint.beacon_state.finalized_checkpoint().root.into())
@@ -7902,7 +7902,7 @@ fn get_finalized_epoch_boundary_blocks(
 }
 
 fn get_blocks(
-    dump: &[BeaconSnapshot<MinimalEthSpec, BlindedPayload<MinimalEthSpec>>],
+    dump: &[BeaconSnapshot<BlindedPayload>],
 ) -> HashSet<SignedBeaconBlockHash> {
     dump.iter()
         .map(|checkpoint| checkpoint.beacon_block_root.into())

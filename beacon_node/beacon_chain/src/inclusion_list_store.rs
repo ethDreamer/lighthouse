@@ -54,7 +54,7 @@ struct SlotEntry {
     validator_counts: HashMap<u64, usize>,
 }
 
-pub struct InclusionListStore<E: EthSpec> {
+pub struct InclusionListStore {
     slots: HashMap<Slot, SlotEntry>,
     lowest_permissible_slot: Slot,
     /// One more than `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS` requires. A slot `S` payload
@@ -63,7 +63,7 @@ pub struct InclusionListStore<E: EthSpec> {
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> InclusionListStore<E> {
+impl InclusionListStore {
     pub fn new(spec: &ChainSpec) -> Self {
         // `heze_fork_epoch` holds the far future sentinel when Heze is unscheduled.
         let first_heze_slot = spec
@@ -209,7 +209,7 @@ impl<E: EthSpec> InclusionListStore<E> {
         &self,
         slot: Slot,
         dependent_root: DependentRoot,
-        il_committee: &InclusionListCommittee<E>,
+        il_committee: &InclusionListCommittee,
         only_timely: bool,
     ) -> Result<BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>, Error> {
         let submitted = self.submitted_validators(slot, dependent_root, only_timely);
@@ -229,7 +229,7 @@ impl<E: EthSpec> InclusionListStore<E> {
         &self,
         slot: Slot,
         dependent_root: DependentRoot,
-        il_committee: &InclusionListCommittee<E>,
+        il_committee: &InclusionListCommittee,
         bits: &BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>,
         only_timely: bool,
     ) -> Result<bool, Error> {
@@ -290,7 +290,7 @@ mod tests {
     };
 
 
-    fn new_store() -> InclusionListStore<E> {
+    fn new_store() -> InclusionListStore {
         InclusionListStore::new(&Spec::default_spec())
     }
 
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn bits_reflect_submitters_and_inclusivity() {
         let mut store = new_store();
-        let il_committee: InclusionListCommittee<E> =
+        let il_committee: InclusionListCommittee =
             FixedVector::new((100..116).collect()).unwrap();
         let dr = root(1);
 
@@ -498,7 +498,7 @@ mod tests {
     fn retention_window_follows_the_spec_value() {
         let mut spec = Spec::default_spec();
         spec.min_slots_for_inclusion_lists_requests = 4;
-        let mut store = InclusionListStore::<E>::new(&spec);
+        let mut store = InclusionListStore::new(&spec);
         let dr = root(1);
         store.process_inclusion_list(signed_il(10, 1, dr, &[0xaa]), true);
 
@@ -521,7 +521,7 @@ mod tests {
     fn floor_starts_at_the_first_heze_slot() {
         let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(Epoch::new(4));
-        let mut store = InclusionListStore::<E>::new(&spec);
+        let mut store = InclusionListStore::new(&spec);
         let first_heze_slot = Epoch::new(4).start_slot(Spec::slots_per_epoch());
         let dr = root(1);
 
@@ -543,7 +543,7 @@ mod tests {
     fn unscheduled_heze_leaves_the_floor_at_zero() {
         let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(spec.far_future_epoch);
-        let mut store = InclusionListStore::<E>::new(&spec);
+        let mut store = InclusionListStore::new(&spec);
 
         assert_eq!(
             store.process_inclusion_list(signed_il(10, 1, root(1), &[0xaa]), true),

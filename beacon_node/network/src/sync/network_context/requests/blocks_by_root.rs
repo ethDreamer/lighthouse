@@ -15,12 +15,12 @@ impl BlocksByRootSingleRequest {
     }
 }
 
-pub struct BlocksByRootRequestItems<E: EthSpec> {
+pub struct BlocksByRootRequestItems {
     request: BlocksByRootSingleRequest,
-    items: Vec<Arc<SignedBeaconBlock<E>>>,
+    items: Vec<Arc<SignedBeaconBlock>>,
 }
 
-impl<E: EthSpec> BlocksByRootRequestItems<E> {
+impl BlocksByRootRequestItems {
     pub fn new(request: BlocksByRootSingleRequest) -> Self {
         Self {
             request,
@@ -29,8 +29,8 @@ impl<E: EthSpec> BlocksByRootRequestItems<E> {
     }
 }
 
-impl<E: EthSpec> ActiveRequestItems for BlocksByRootRequestItems<E> {
-    type Item = Arc<SignedBeaconBlock<E>>;
+impl ActiveRequestItems for BlocksByRootRequestItems {
+    type Item = Arc<SignedBeaconBlock>;
 
     /// Append a response to the single chunk request. If the chunk is valid, the request is
     /// resolved immediately.

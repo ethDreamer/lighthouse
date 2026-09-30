@@ -146,8 +146,8 @@ fn compute_ptc_duties_from_state<T: BeaconChainTypes>(
     convert_to_api_response(duties, dependent_root, execution_optimistic)
 }
 
-fn ensure_state_knows_ptc_duties_for_epoch<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn ensure_state_knows_ptc_duties_for_epoch(
+    state: &mut BeaconState,
     state_root: Hash256,
     target_epoch: Epoch,
     builder_onboarding_cache: Option<&OnboardBuildersCache>,

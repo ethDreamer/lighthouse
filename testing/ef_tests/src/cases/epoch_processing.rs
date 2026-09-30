@@ -34,20 +34,20 @@ pub struct Metadata {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec")]
-pub struct EpochProcessing<E: EthSpec, T: EpochTransition<E>> {
+pub struct EpochProcessing<T: EpochTransition> {
     pub path: PathBuf,
     pub metadata: Metadata,
     pub config: Option<types::Config>,
-    pub pre: BeaconState<E>,
-    pub post: Option<BeaconState<E>>,
-    pub pre_epoch: Option<BeaconState<E>>,
-    pub post_epoch: Option<BeaconState<E>>,
+    pub pre: BeaconState,
+    pub post: Option<BeaconState>,
+    pub pre_epoch: Option<BeaconState>,
+    pub post_epoch: Option<BeaconState>,
     #[serde(skip_deserializing)]
     _phantom: PhantomData<T>,
 }
 
-pub trait EpochTransition<E: EthSpec>: TypeName + Debug + Sync {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError>;
+pub trait EpochTransition: TypeName + Debug + Sync {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError>;
 }
 
 #[derive(Debug)]
@@ -115,8 +115,8 @@ type_name!(ProposerLookahead, "proposer_lookahead");
 type_name!(PtcWindow, "ptc_window");
 type_name!(BuilderPendingPayments, "builder_pending_payments");
 
-impl<E: EthSpec> EpochTransition<E> for JustificationAndFinalization {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for JustificationAndFinalization {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             initialize_progressive_balances_cache(state, spec)?;
             let justification_and_finalization_state =
@@ -138,8 +138,8 @@ impl<E: EthSpec> EpochTransition<E> for JustificationAndFinalization {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for RewardsAndPenalties {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for RewardsAndPenalties {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             altair::process_rewards_and_penalties_slow(state, spec)
         } else {
@@ -150,8 +150,8 @@ impl<E: EthSpec> EpochTransition<E> for RewardsAndPenalties {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for RegistryUpdates {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for RegistryUpdates {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         initialize_epoch_cache(state, spec)?;
 
         if let BeaconState::Base(_) = state {
@@ -162,8 +162,8 @@ impl<E: EthSpec> EpochTransition<E> for RegistryUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for Slashings {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for Slashings {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             process_slashings_slow(state, spec)?;
         } else {
@@ -179,14 +179,14 @@ impl<E: EthSpec> EpochTransition<E> for Slashings {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for Eth1DataReset {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for Eth1DataReset {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_eth1_data_reset(state)
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for PendingBalanceDeposits {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for PendingBalanceDeposits {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_epoch_single_pass(
             state,
             spec,
@@ -199,8 +199,8 @@ impl<E: EthSpec> EpochTransition<E> for PendingBalanceDeposits {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for PendingDepositsChurn {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for PendingDepositsChurn {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_epoch_single_pass(
             state,
             spec,
@@ -213,8 +213,8 @@ impl<E: EthSpec> EpochTransition<E> for PendingDepositsChurn {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for PendingConsolidations {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for PendingConsolidations {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         initialize_epoch_cache(state, spec)?;
         process_epoch_single_pass(
             state,
@@ -228,8 +228,8 @@ impl<E: EthSpec> EpochTransition<E> for PendingConsolidations {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for EffectiveBalanceUpdates {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for EffectiveBalanceUpdates {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if let BeaconState::Base(_) = state {
             process_effective_balance_updates(state, spec)
         } else {
@@ -238,20 +238,20 @@ impl<E: EthSpec> EpochTransition<E> for EffectiveBalanceUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for SlashingsReset {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for SlashingsReset {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_slashings_reset(state)
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for RandaoMixesReset {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for RandaoMixesReset {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_randao_mixes_reset(state)
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for HistoricalRootsUpdate {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for HistoricalRootsUpdate {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         match state {
             BeaconState::Base(_) | BeaconState::Altair(_) | BeaconState::Bellatrix(_) => {
                 process_historical_roots_update(state)
@@ -261,8 +261,8 @@ impl<E: EthSpec> EpochTransition<E> for HistoricalRootsUpdate {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for HistoricalSummariesUpdate {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for HistoricalSummariesUpdate {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().capella_enabled() {
             process_historical_summaries_update(state)
         } else {
@@ -271,8 +271,8 @@ impl<E: EthSpec> EpochTransition<E> for HistoricalSummariesUpdate {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for ParticipationRecordUpdates {
-    fn run(state: &mut BeaconState<E>, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for ParticipationRecordUpdates {
+    fn run(state: &mut BeaconState, _spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if let BeaconState::Base(_) = state {
             base::process_participation_record_updates(state)
         } else {
@@ -281,8 +281,8 @@ impl<E: EthSpec> EpochTransition<E> for ParticipationRecordUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for SyncCommitteeUpdates {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for SyncCommitteeUpdates {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             altair::process_sync_committee_updates(state, spec)
         } else {
@@ -291,8 +291,8 @@ impl<E: EthSpec> EpochTransition<E> for SyncCommitteeUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for InactivityUpdates {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for InactivityUpdates {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             altair::process_inactivity_updates_slow(state, spec)
         } else {
@@ -301,8 +301,8 @@ impl<E: EthSpec> EpochTransition<E> for InactivityUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for ParticipationFlagUpdates {
-    fn run(state: &mut BeaconState<E>, _: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for ParticipationFlagUpdates {
+    fn run(state: &mut BeaconState, _: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().altair_enabled() {
             altair::process_participation_flag_updates(state)
         } else {
@@ -311,8 +311,8 @@ impl<E: EthSpec> EpochTransition<E> for ParticipationFlagUpdates {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for ProposerLookahead {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for ProposerLookahead {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().fulu_enabled() {
             process_proposer_lookahead(state, spec)
         } else {
@@ -321,8 +321,8 @@ impl<E: EthSpec> EpochTransition<E> for ProposerLookahead {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for PtcWindow {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for PtcWindow {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         if state.fork_name_unchecked().gloas_enabled() {
             process_ptc_window(state, spec).map(|_| ())
         } else {
@@ -331,8 +331,8 @@ impl<E: EthSpec> EpochTransition<E> for PtcWindow {
     }
 }
 
-impl<E: EthSpec> EpochTransition<E> for BuilderPendingPayments {
-    fn run(state: &mut BeaconState<E>, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
+impl EpochTransition for BuilderPendingPayments {
+    fn run(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), EpochProcessingError> {
         process_epoch_single_pass(
             state,
             spec,
@@ -345,10 +345,10 @@ impl<E: EthSpec> EpochTransition<E> for BuilderPendingPayments {
     }
 }
 
-impl<E: EthSpec, T: EpochTransition<E>> LoadCase for EpochProcessing<E, T> {
+impl<T: EpochTransition> LoadCase for EpochProcessing<T> {
     fn load_from_dir(path: &Path, fork_name: ForkName) -> Result<Self, Error> {
         let config = load_config(path)?;
-        let spec = &testing_spec_with_config::<E>(fork_name, config.as_ref())?;
+        let spec = &testing_spec_with_config(fork_name, config.as_ref())?;
         let metadata_path = path.join("meta.yaml");
         let metadata: Metadata = if metadata_path.is_file() {
             yaml_decode_file(&metadata_path)?
@@ -389,7 +389,7 @@ impl<E: EthSpec, T: EpochTransition<E>> LoadCase for EpochProcessing<E, T> {
     }
 }
 
-impl<E: EthSpec, T: EpochTransition<E>> Case for EpochProcessing<E, T> {
+impl<T: EpochTransition> Case for EpochProcessing<T> {
     fn description(&self) -> String {
         self.metadata.description.clone().unwrap_or_default()
     }
@@ -439,7 +439,7 @@ impl<E: EthSpec, T: EpochTransition<E>> Case for EpochProcessing<E, T> {
     fn result(&self, _case_index: usize, fork_name: ForkName) -> Result<(), Error> {
         self.metadata.bls_setting.unwrap_or_default().check()?;
 
-        let spec = &testing_spec_with_config::<E>(fork_name, self.config.as_ref())?;
+        let spec = &testing_spec_with_config(fork_name, self.config.as_ref())?;
         let mut pre_state = self.pre.clone();
 
         // Processing requires the committee caches.

@@ -5,7 +5,7 @@ use eth2_network_config::{DEFAULT_HARDCODED_NETWORK, Eth2NetworkConfig};
 use std::path::PathBuf;
 use types::{Config, MainnetEthSpec};
 
-fn builder() -> EnvironmentBuilder<MainnetEthSpec> {
+fn builder() -> EnvironmentBuilder {
     EnvironmentBuilder::mainnet()
         .multi_threaded_tokio_runtime()
         .expect("should set runtime")

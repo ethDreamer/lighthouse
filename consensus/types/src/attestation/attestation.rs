@@ -78,7 +78,7 @@ impl From<ssz_types::Error> for Error {
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct Attestation<E: EthSpec> {
+pub struct Attestation {
     #[superstruct(only(Base), partial_getter(rename = "aggregation_bits_base"))]
     pub aggregation_bits: BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     #[superstruct(only(Electra), partial_getter(rename = "aggregation_bits_electra"))]
@@ -92,7 +92,7 @@ pub struct Attestation<E: EthSpec> {
     pub committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>,
 }
 
-impl<E: EthSpec> Hash for Attestation<E> {
+impl Hash for Attestation {
     fn hash<H>(&self, state: &mut H)
     where
         H: Hasher,
@@ -105,7 +105,7 @@ impl<E: EthSpec> Hash for Attestation<E> {
     }
 }
 
-impl<E: EthSpec> Attestation<E> {
+impl Attestation {
     /// Produces an attestation with empty signature.
     #[allow(clippy::too_many_arguments)]
     pub fn empty_for_signing(
@@ -118,7 +118,7 @@ impl<E: EthSpec> Attestation<E> {
         payload_present: bool,
         spec: &ChainSpec,
     ) -> Result<Self, Error> {
-        if spec.fork_name_at_slot::<E>(slot).gloas_enabled() {
+        if spec.fork_name_at_slot(slot).gloas_enabled() {
             let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
@@ -138,7 +138,7 @@ impl<E: EthSpec> Attestation<E> {
                 committee_bits,
                 signature: AggregateSignature::infinity(),
             }))
-        } else if spec.fork_name_at_slot::<E>(slot).electra_enabled() {
+        } else if spec.fork_name_at_slot(slot).electra_enabled() {
             let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
@@ -175,7 +175,7 @@ impl<E: EthSpec> Attestation<E> {
     /// Aggregate another Attestation into this one.
     ///
     /// The aggregation bitfields must be disjoint, and the data must be the same.
-    pub fn aggregate(&mut self, other: AttestationRef<E>) {
+    pub fn aggregate(&mut self, other: AttestationRef) {
         match self {
             Attestation::Base(att) => match other {
                 AttestationRef::Base(oth) => {
@@ -325,7 +325,7 @@ impl<E: EthSpec> Attestation<E> {
     }
 }
 
-impl<'a, E: EthSpec> AttestationRefMut<'a, E> {
+impl<'a> AttestationRefMut<'a> {
     /// Consuming variant of `data_mut` that ties the returned reference to the underlying
     /// attestation rather than to `self`, making it usable from closures.
     pub fn into_data_mut(self) -> &'a mut AttestationData {
@@ -346,8 +346,8 @@ impl<'a, E: EthSpec> AttestationRefMut<'a, E> {
     }
 }
 
-impl<E: EthSpec> AttestationRef<'_, E> {
-    pub fn clone_as_attestation(self) -> Attestation<E> {
+impl AttestationRef<'_> {
+    pub fn clone_as_attestation(self) -> Attestation {
         match self {
             Self::Base(att) => Attestation::Base(att.clone()),
             Self::Electra(att) => Attestation::Electra(att.clone()),
@@ -406,7 +406,7 @@ impl<E: EthSpec> AttestationRef<'_, E> {
     }
 }
 
-impl<E: EthSpec> AttestationElectra<E> {
+impl AttestationElectra {
     pub fn committee_index(&self) -> Option<u64> {
         self.committee_bits
             .iter()
@@ -504,7 +504,7 @@ impl<E: EthSpec> AttestationElectra<E> {
     }
 }
 
-impl<E: EthSpec> AttestationGloas<E> {
+impl AttestationGloas {
     pub fn committee_index(&self) -> Option<u64> {
         self.committee_bits
             .iter()
@@ -603,7 +603,7 @@ impl<E: EthSpec> AttestationGloas<E> {
     }
 }
 
-impl<E: EthSpec> AttestationBase<E> {
+impl AttestationBase {
     /// Aggregate another Attestation into this one.
     ///
     /// The aggregation bitfields must be disjoint, and the data must be the same.
@@ -687,13 +687,13 @@ impl<E: EthSpec> AttestationBase<E> {
     }
 }
 
-impl<E: EthSpec> SlotData for Attestation<E> {
+impl SlotData for Attestation {
     fn get_slot(&self) -> Slot {
         self.data().slot
     }
 }
 
-impl<E: EthSpec> SlotData for AttestationRef<'_, E> {
+impl SlotData for AttestationRef<'_> {
     fn get_slot(&self) -> Slot {
         self.data().slot
     }
@@ -701,14 +701,14 @@ impl<E: EthSpec> SlotData for AttestationRef<'_, E> {
 
 #[derive(Debug, Clone, Encode, Decode, PartialEq)]
 #[ssz(enum_behaviour = "union")]
-pub enum AttestationOnDisk<E: EthSpec> {
-    Base(AttestationBase<E>),
-    Electra(AttestationElectra<E>),
-    Gloas(AttestationGloas<E>),
+pub enum AttestationOnDisk {
+    Base(AttestationBase),
+    Electra(AttestationElectra),
+    Gloas(AttestationGloas),
 }
 
-impl<E: EthSpec> AttestationOnDisk<E> {
-    pub fn to_ref(&self) -> AttestationRefOnDisk<'_, E> {
+impl AttestationOnDisk {
+    pub fn to_ref(&self) -> AttestationRefOnDisk<'_> {
         match self {
             AttestationOnDisk::Base(att) => AttestationRefOnDisk::Base(att),
             AttestationOnDisk::Electra(att) => AttestationRefOnDisk::Electra(att),
@@ -719,14 +719,14 @@ impl<E: EthSpec> AttestationOnDisk<E> {
 
 #[derive(Debug, Clone, Encode)]
 #[ssz(enum_behaviour = "union")]
-pub enum AttestationRefOnDisk<'a, E: EthSpec> {
-    Base(&'a AttestationBase<E>),
-    Electra(&'a AttestationElectra<E>),
-    Gloas(&'a AttestationGloas<E>),
+pub enum AttestationRefOnDisk<'a> {
+    Base(&'a AttestationBase),
+    Electra(&'a AttestationElectra),
+    Gloas(&'a AttestationGloas),
 }
 
-impl<E: EthSpec> From<Attestation<E>> for AttestationOnDisk<E> {
-    fn from(attestation: Attestation<E>) -> Self {
+impl From<Attestation> for AttestationOnDisk {
+    fn from(attestation: Attestation) -> Self {
         match attestation {
             Attestation::Base(attestation) => Self::Base(attestation),
             Attestation::Electra(attestation) => Self::Electra(attestation),
@@ -735,8 +735,8 @@ impl<E: EthSpec> From<Attestation<E>> for AttestationOnDisk<E> {
     }
 }
 
-impl<E: EthSpec> From<AttestationOnDisk<E>> for Attestation<E> {
-    fn from(attestation: AttestationOnDisk<E>) -> Self {
+impl From<AttestationOnDisk> for Attestation {
+    fn from(attestation: AttestationOnDisk) -> Self {
         match attestation {
             AttestationOnDisk::Base(attestation) => Self::Base(attestation),
             AttestationOnDisk::Electra(attestation) => Self::Electra(attestation),
@@ -745,8 +745,8 @@ impl<E: EthSpec> From<AttestationOnDisk<E>> for Attestation<E> {
     }
 }
 
-impl<'a, E: EthSpec> From<AttestationRef<'a, E>> for AttestationRefOnDisk<'a, E> {
-    fn from(attestation: AttestationRef<'a, E>) -> Self {
+impl<'a> From<AttestationRef<'a>> for AttestationRefOnDisk<'a> {
+    fn from(attestation: AttestationRef<'a>) -> Self {
         match attestation {
             AttestationRef::Base(attestation) => Self::Base(attestation),
             AttestationRef::Electra(attestation) => Self::Electra(attestation),
@@ -755,8 +755,8 @@ impl<'a, E: EthSpec> From<AttestationRef<'a, E>> for AttestationRefOnDisk<'a, E>
     }
 }
 
-impl<'a, E: EthSpec> From<AttestationRefOnDisk<'a, E>> for AttestationRef<'a, E> {
-    fn from(attestation: AttestationRefOnDisk<'a, E>) -> Self {
+impl<'a> From<AttestationRefOnDisk<'a>> for AttestationRef<'a> {
+    fn from(attestation: AttestationRefOnDisk<'a>) -> Self {
         match attestation {
             AttestationRefOnDisk::Base(attestation) => Self::Base(attestation),
             AttestationRefOnDisk::Electra(attestation) => Self::Electra(attestation),
@@ -765,21 +765,21 @@ impl<'a, E: EthSpec> From<AttestationRefOnDisk<'a, E>> for AttestationRef<'a, E>
     }
 }
 
-impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for Attestation<E> {
+impl<'de> ContextDeserialize<'de, ForkName> for Attestation {
     fn context_deserialize<D>(deserializer: D, context: ForkName) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         if context.gloas_enabled() {
-            AttestationGloas::<E>::deserialize(deserializer)
+            AttestationGloas::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(Attestation::Gloas)
         } else if context.electra_enabled() {
-            AttestationElectra::<E>::deserialize(deserializer)
+            AttestationElectra::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(Attestation::Electra)
         } else {
-            AttestationBase::<E>::deserialize(deserializer)
+            AttestationBase::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(Attestation::Base)
         }
@@ -821,10 +821,10 @@ pub struct SingleAttestation {
 }
 
 impl SingleAttestation {
-    pub fn to_indexed<E: EthSpec>(
+    pub fn to_indexed(
         &self,
         fork_name: ForkName,
-    ) -> Result<IndexedAttestation<E>, ssz_types::Error> {
+    ) -> Result<IndexedAttestation, ssz_types::Error> {
         if fork_name.gloas_enabled() {
             Ok(IndexedAttestation::Gloas(IndexedAttestationGloas {
                 attesting_indices: vec![self.attester_index].try_into()?,
@@ -873,7 +873,7 @@ mod tests {
         let attestation_expected = aggregation_bits + attestation_data + signature;
         assert_eq!(attestation_expected, 576);
         assert_eq!(
-            size_of::<AttestationBase<MainnetEthSpec>>(),
+            size_of::<AttestationBase>(),
             attestation_expected
         );
     }
@@ -897,17 +897,17 @@ mod tests {
         let attestation_expected = aggregation_bits + committee_bits + attestation_data + signature;
         assert_eq!(attestation_expected, 720);
         assert_eq!(
-            size_of::<AttestationElectra<MainnetEthSpec>>(),
+            size_of::<AttestationElectra>(),
             attestation_expected
         );
     }
 
     mod base {
         use super::*;
-        ssz_and_tree_hash_tests!(AttestationBase<MainnetEthSpec>);
+        ssz_and_tree_hash_tests!(AttestationBase);
     }
     mod electra {
         use super::*;
-        ssz_and_tree_hash_tests!(AttestationElectra<MainnetEthSpec>);
+        ssz_and_tree_hash_tests!(AttestationElectra);
     }
 }

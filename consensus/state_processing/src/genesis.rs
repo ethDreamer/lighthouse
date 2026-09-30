@@ -15,13 +15,13 @@ use tree_hash::TreeHash;
 use types::*;
 
 /// Initialize a `BeaconState` from genesis data.
-pub fn initialize_beacon_state_from_eth1<E: EthSpec>(
+pub fn initialize_beacon_state_from_eth1(
     eth1_block_hash: Hash256,
     eth1_timestamp: u64,
     deposits: Vec<Deposit>,
-    execution_payload_header: Option<ExecutionPayloadHeader<E>>,
+    execution_payload_header: Option<ExecutionPayloadHeader>,
     spec: &ChainSpec,
-) -> Result<BeaconState<E>, BlockProcessingError> {
+) -> Result<BeaconState, BlockProcessingError> {
     let genesis_time = eth2_genesis_time(eth1_timestamp, spec)?;
     let eth1_data = Eth1Data {
         // Temporary deposit root
@@ -212,10 +212,10 @@ pub fn initialize_beacon_state_from_eth1<E: EthSpec>(
 ///
 /// `state.latest_block_header.body_root` is set from this same block's body, so the
 /// two must stay in sync.
-pub fn genesis_block<E: EthSpec>(
-    state: &BeaconState<E>,
+pub fn genesis_block(
+    state: &BeaconState,
     spec: &ChainSpec,
-) -> Result<BeaconBlock<E>, BeaconStateError> {
+) -> Result<BeaconBlock, BeaconStateError> {
     let mut block = BeaconBlock::empty(spec);
     if let Ok(signed_bid) = block.body_mut().signed_execution_payload_bid_mut() {
         signed_bid.message = state.latest_execution_payload_bid()?.clone();
@@ -224,7 +224,7 @@ pub fn genesis_block<E: EthSpec>(
 }
 
 /// Determine whether a candidate genesis state is suitable for starting the chain.
-pub fn is_valid_genesis_state<E: EthSpec>(state: &BeaconState<E>, spec: &ChainSpec) -> bool {
+pub fn is_valid_genesis_state(state: &BeaconState, spec: &ChainSpec) -> bool {
     state
         .get_active_validator_indices(Epoch::new(Spec::genesis_epoch()), spec)
         .is_ok_and(|active_validators| {
@@ -234,8 +234,8 @@ pub fn is_valid_genesis_state<E: EthSpec>(state: &BeaconState<E>, spec: &ChainSp
 }
 
 /// Activate genesis validators, if their balance is acceptable.
-pub fn process_activations<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_activations(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), BeaconStateError> {
     let (mut validators, balances, _) =

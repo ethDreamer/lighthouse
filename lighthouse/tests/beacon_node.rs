@@ -2348,7 +2348,7 @@ fn ensure_panic_on_failed_launch() {
 fn enable_proposer_re_orgs_default() {
     CommandLineTest::new()
         .run_with_zero_port()
-        .with_config_and_spec::<MainnetEthSpec, _>(|config, spec| {
+        .with_config_and_spec(|config, spec| {
             assert!(!config.chain.disable_proposer_reorg);
             assert_eq!(spec.reorg_head_weight_threshold, 20);
             assert_eq!(spec.reorg_parent_weight_threshold, 160);

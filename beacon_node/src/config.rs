@@ -39,9 +39,9 @@ const PURGE_DB_CONFIRMATION: &str = "confirm";
 /// The output of this function depends primarily upon the given `cli_args`, however it's behaviour
 /// may be influenced by other external services like the contents of the file system or the
 /// response of some remote server.
-pub fn get_config<E: EthSpec>(
+pub fn get_config(
     cli_args: &ArgMatches,
-    context: &RuntimeContext<E>,
+    context: &RuntimeContext,
 ) -> Result<ClientConfig, String> {
     let spec = &context.eth2_config.spec;
 

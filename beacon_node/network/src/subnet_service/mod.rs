@@ -231,7 +231,7 @@ impl<T: BeaconChainTypes> SubnetService<T> {
                     metrics::inc_counter(&metrics::SUBNET_SUBSCRIPTION_REQUESTS);
 
                     // Compute the subnet that is associated with this subscription
-                    let subnet = match SubnetId::compute_subnet::<T::EthSpec>(
+                    let subnet = match SubnetId::compute_subnet(
                         subscription.slot,
                         subscription.attestation_committee_index,
                         subscription.committee_count_at_slot,
@@ -279,7 +279,7 @@ impl<T: BeaconChainTypes> SubnetService<T> {
 
                     // Registers the validator with the subnet service.
                     let subnet_ids =
-                        match SyncSubnetId::compute_subnets_for_sync_committee::<T::EthSpec>(
+                        match SyncSubnetId::compute_subnets_for_sync_committee(
                             &subscription.sync_committee_indices,
                         ) {
                             Ok(subnet_ids) => subnet_ids,

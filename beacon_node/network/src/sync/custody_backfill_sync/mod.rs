@@ -39,16 +39,16 @@ const BACKFILL_BATCH_BUFFER_SIZE: u8 = 5;
 /// bandwidth to do so.
 pub const CUSTODY_BACKFILL_EPOCHS_PER_BATCH: u64 = 1;
 
-type CustodyBackFillBatchInfo<E> =
-    BatchInfo<E, CustodyBackFillBatchConfig<E>, DataColumnSidecarList<E>>;
-type CustodyBackFillBatches<E> = BTreeMap<BatchId, CustodyBackFillBatchInfo<E>>;
+type CustodyBackFillBatchInfo =
+    BatchInfo<CustodyBackFillBatchConfig, DataColumnSidecarList>;
+type CustodyBackFillBatches = BTreeMap<BatchId, CustodyBackFillBatchInfo>;
 
 #[derive(Debug)]
-pub struct CustodyBackFillBatchConfig<E: EthSpec> {
+pub struct CustodyBackFillBatchConfig {
     marker: PhantomData<E>,
 }
 
-impl<E: EthSpec> BatchConfig for CustodyBackFillBatchConfig<E> {
+impl BatchConfig for CustodyBackFillBatchConfig {
     fn max_batch_download_attempts() -> u8 {
         5
     }
@@ -103,7 +103,7 @@ pub struct CustodyBackFillSync<T: BeaconChainTypes> {
     last_batch_downloaded: bool,
 
     /// Sorted map of batches undergoing some kind of processing.
-    batches: CustodyBackFillBatches<T::EthSpec>,
+    batches: CustodyBackFillBatches,
 
     /// The current processing batch, if any.
     current_processing_batch: Option<BatchId>,
@@ -123,13 +123,13 @@ pub struct CustodyBackFillSync<T: BeaconChainTypes> {
 
     /// Reference to the network globals in order to obtain valid peers to backfill columns from
     /// (i.e synced peers).
-    network_globals: Arc<NetworkGlobals<T::EthSpec>>,
+    network_globals: Arc<NetworkGlobals>,
 }
 
 impl<T: BeaconChainTypes> CustodyBackFillSync<T> {
     pub fn new(
         beacon_chain: Arc<BeaconChain<T>>,
-        network_globals: Arc<NetworkGlobals<T::EthSpec>>,
+        network_globals: Arc<NetworkGlobals>,
     ) -> Self {
         Self {
             current_start: Epoch::new(0),
@@ -420,7 +420,7 @@ impl<T: BeaconChainTypes> CustodyBackFillSync<T> {
         // Only request batches up to the buffer size limit
         // NOTE: we don't count batches in the AwaitingValidation state, to prevent stalling sync
         // if the current processing window is contained in a long range of skip slots.
-        let in_buffer = |batch: &CustodyBackFillBatchInfo<T::EthSpec>| {
+        let in_buffer = |batch: &CustodyBackFillBatchInfo| {
             matches!(
                 batch.state(),
                 BatchState::Downloading(..) | BatchState::AwaitingProcessing(..)
@@ -547,7 +547,7 @@ impl<T: BeaconChainTypes> CustodyBackFillSync<T> {
         network: &mut SyncNetworkContext<T>,
         req_id: CustodyBackFillBatchRequestId,
         peer_id: &PeerId,
-        resp: Result<DataColumnSidecarList<T::EthSpec>, RpcResponseError>,
+        resp: Result<DataColumnSidecarList, RpcResponseError>,
     ) -> Result<ProcessResult, CustodyBackfillError> {
         if req_id.batch_id.run_id != self.run_id {
             debug!(%req_id, "Ignoring custody backfill download response from different run_id");

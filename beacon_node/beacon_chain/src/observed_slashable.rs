@@ -25,13 +25,13 @@ pub struct ProposalKey {
 /// blocks reduces the theoretical maximum size of this cache to `slots_since_finality *
 /// active_validator_count`, however in reality that is more like `slots_since_finality *
 /// known_distinct_shufflings` which is much smaller.
-pub struct ObservedSlashable<E: EthSpec> {
+pub struct ObservedSlashable {
     finalized_slot: Slot,
     items: HashMap<ProposalKey, HashSet<Hash256>>,
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> Default for ObservedSlashable<E> {
+impl Default for ObservedSlashable {
     /// Instantiates `Self` with `finalized_slot == 0`.
     fn default() -> Self {
         Self {
@@ -42,7 +42,7 @@ impl<E: EthSpec> Default for ObservedSlashable<E> {
     }
 }
 
-impl<E: EthSpec> ObservedSlashable<E> {
+impl ObservedSlashable {
     /// Observe that the `header` was produced by `header.proposer_index` at `header.slot`. This will
     /// update `self` so future calls to it indicate that this block is known.
     ///
@@ -151,7 +151,7 @@ mod tests {
     use types::{BeaconBlock, Graffiti, MainnetEthSpec};
 
 
-    fn get_block(slot: u64, proposer: u64) -> BeaconBlock<E> {
+    fn get_block(slot: u64, proposer: u64) -> BeaconBlock {
         let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot.into();
         *block.proposer_index_mut() = proposer;
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn pruning() {
-        let mut cache = ObservedSlashable::<E>::default();
+        let mut cache = ObservedSlashable::default();
 
         assert_eq!(cache.finalized_slot, 0, "finalized slot is zero");
         assert_eq!(cache.items.len(), 0, "no slots should be present");
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn simple_observations() {
-        let mut cache = ObservedSlashable::<E>::default();
+        let mut cache = ObservedSlashable::default();
 
         // Slot 0, proposer 0
         let block_a = get_block(0, 0);

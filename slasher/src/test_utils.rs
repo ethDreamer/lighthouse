@@ -15,7 +15,7 @@ pub fn indexed_att_electra(
     source_epoch: u64,
     target_epoch: u64,
     target_root: u64,
-) -> IndexedAttestation<E> {
+) -> IndexedAttestation {
     IndexedAttestation::Electra(IndexedAttestationElectra {
         attesting_indices: attesting_indices.as_ref().to_vec().try_into().unwrap(),
         data: AttestationData {
@@ -40,7 +40,7 @@ pub fn indexed_att(
     source_epoch: u64,
     target_epoch: u64,
     target_root: u64,
-) -> IndexedAttestation<E> {
+) -> IndexedAttestation {
     IndexedAttestation::Base(IndexedAttestationBase {
         attesting_indices: attesting_indices.as_ref().to_vec().try_into().unwrap(),
         data: AttestationData {
@@ -61,9 +61,9 @@ pub fn indexed_att(
 }
 
 pub fn att_slashing(
-    attestation_1: &IndexedAttestation<E>,
-    attestation_2: &IndexedAttestation<E>,
-) -> AttesterSlashing<E> {
+    attestation_1: &IndexedAttestation,
+    attestation_2: &IndexedAttestation,
+) -> AttesterSlashing {
     match (attestation_1, attestation_2) {
         (IndexedAttestation::Base(att1), IndexedAttestation::Base(att2)) => {
             AttesterSlashing::Base(AttesterSlashingBase {
@@ -100,7 +100,7 @@ pub fn hashset_intersection(
             .collect::<HashSet<u64>>()
 }
 
-pub fn slashed_validators_from_slashings(slashings: &HashSet<AttesterSlashing<E>>) -> HashSet<u64> {
+pub fn slashed_validators_from_slashings(slashings: &HashSet<AttesterSlashing>) -> HashSet<u64> {
     slashings
         .iter()
         .flat_map(|slashing| {
@@ -119,7 +119,7 @@ pub fn slashed_validators_from_slashings(slashings: &HashSet<AttesterSlashing<E>
 }
 
 pub fn slashed_validators_from_attestations(
-    attestations: &[IndexedAttestation<E>],
+    attestations: &[IndexedAttestation],
 ) -> HashSet<u64> {
     let mut slashed_validators = HashSet::new();
     // O(n^2) code, watch out.

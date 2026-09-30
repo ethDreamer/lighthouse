@@ -30,8 +30,8 @@ use types::{
 
 
 /// Bellatrix block with length < max_rpc_size.
-fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock<E> {
-    let mut block = BeaconBlockBellatrix::<E>::empty(spec);
+fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock {
+    let mut block = BeaconBlockBellatrix::<FullPayload>::empty(spec);
     let tx = VariableList::try_from(vec![0; 1024]).unwrap();
     let txs = VariableList::try_from(std::iter::repeat_n(tx, 5000).collect::<Vec<_>>()).unwrap();
 
@@ -45,8 +45,8 @@ fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock<E> {
 /// Bellatrix block with length > MAX_RPC_SIZE.
 /// The max limit for a bellatrix block is in the order of ~16GiB which wouldn't fit in memory.
 /// Hence, we generate a bellatrix block just greater than `MAX_RPC_SIZE` to test rejection on the rpc layer.
-fn bellatrix_block_large(spec: &ChainSpec) -> BeaconBlock<E> {
-    let mut block = BeaconBlockBellatrix::<E>::empty(spec);
+fn bellatrix_block_large(spec: &ChainSpec) -> BeaconBlock {
+    let mut block = BeaconBlockBellatrix::<FullPayload>::empty(spec);
     // 11,000 × 1KB ≈ 11MB, just above the 10MB max_payload_size.
     // Previously used 100,000 txs (~100MB) which caused hangs and timeouts.
     let tx = VariableList::try_from(vec![0; 1024]).unwrap();
@@ -197,11 +197,11 @@ fn test_tcp_blocks_by_range_chunked_rpc() {
             }));
 
         // BlocksByRange Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<E>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_base = Response::BlocksByRange(Some(Arc::new(signed_full_block)));
 
-        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<E>::full(&spec));
+        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<FullPayload>::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_altair = Response::BlocksByRange(Some(Arc::new(signed_full_block)));
 
@@ -469,7 +469,7 @@ fn test_blobs_by_range_chunked_rpc() {
         });
 
         // BlobsByRange Response
-        let mut blob = BlobSidecar::<E>::empty();
+        let mut blob = BlobSidecar::empty();
         blob.signed_block_header.message.slot = deneb_slot;
 
         let rpc_response = Response::BlobsByRange(Some(Arc::new(blob)));
@@ -963,11 +963,11 @@ fn test_tcp_blocks_by_root_chunked_rpc() {
             }));
 
         // BlocksByRoot Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<E>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_base = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 
-        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<E>::full(&spec));
+        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<FullPayload>::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_altair = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 
@@ -1112,7 +1112,7 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
         .unwrap();
         let req_bytes = req.data_column_ids.as_ssz_bytes();
         let req_decoded = DataColumnsByRootRequest {
-            data_column_ids: <RuntimeVariableList<DataColumnsByRootIdentifier<E>>>::from_ssz_bytes(
+            data_column_ids: <RuntimeVariableList<DataColumnsByRootIdentifier>>::from_ssz_bytes(
                 &req_bytes,
                 spec.max_request_blocks(fork_name),
             )
@@ -1465,7 +1465,7 @@ fn test_tcp_blocks_by_root_chunked_rpc_terminates_correctly() {
             }));
 
         // BlocksByRoot Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<E>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 
@@ -1974,7 +1974,7 @@ fn test_request_too_large_data_columns_by_range() {
     );
 }
 
-fn test_request_too_large(app_request_id: AppRequestId, request: RequestType<E>) {
+fn test_request_too_large(app_request_id: AppRequestId, request: RequestType) {
     // Set up the logging.
     let log_level = "debug";
     let enable_logging = true;

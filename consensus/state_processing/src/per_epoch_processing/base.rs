@@ -16,10 +16,10 @@ pub mod participation_record_updates;
 pub mod rewards_and_penalties;
 pub mod validator_statuses;
 
-pub fn process_epoch<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_epoch(
+    state: &mut BeaconState,
     spec: &ChainSpec,
-) -> Result<EpochProcessingSummary<E>, Error> {
+) -> Result<EpochProcessingSummary, Error> {
     // Ensure the committee caches are built.
     state.build_committee_cache(RelativeEpoch::Previous, spec)?;
     state.build_committee_cache(RelativeEpoch::Current, spec)?;

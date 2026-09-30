@@ -141,11 +141,11 @@ pub struct Ping {
     variant_attributes(derive(Clone, Debug, PartialEq, Serialize),)
 )]
 #[derive(Clone, Debug, PartialEq)]
-pub struct MetadataRequest<E: EthSpec> {
+pub struct MetadataRequest {
     _phantom_data: PhantomData<E>,
 }
 
-impl<E: EthSpec> MetadataRequest<E> {
+impl MetadataRequest {
     pub fn new_v1() -> Self {
         Self::V1(MetadataRequestV1 {
             _phantom_data: PhantomData,
@@ -175,19 +175,19 @@ impl<E: EthSpec> MetadataRequest<E> {
 )]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(bound = "E: EthSpec")]
-pub struct MetaData<E: EthSpec> {
+pub struct MetaData {
     /// A sequential counter indicating when data gets modified.
     pub seq_number: u64,
     /// The persistent attestation subnet bitfield.
-    pub attnets: EnrAttestationBitfield<E>,
+    pub attnets: EnrAttestationBitfield,
     /// The persistent sync committee bitfield.
     #[superstruct(only(V2, V3))]
-    pub syncnets: EnrSyncCommitteeBitfield<E>,
+    pub syncnets: EnrSyncCommitteeBitfield,
     #[superstruct(only(V3))]
     pub custody_group_count: u64,
 }
 
-impl<E: EthSpec> MetaData<E> {
+impl MetaData {
     /// Returns a V1 MetaData response from self.
     pub fn metadata_v1(&self) -> Self {
         match self {
@@ -402,7 +402,7 @@ pub struct DataColumnsByRangeRequest {
 }
 
 impl DataColumnsByRangeRequest {
-    pub fn max_requested<E: EthSpec>(&self) -> u64 {
+    pub fn max_requested(&self) -> u64 {
         self.count.saturating_mul(self.columns.len() as u64)
     }
 
@@ -416,7 +416,7 @@ impl DataColumnsByRangeRequest {
         .len()
     }
 
-    pub fn ssz_max_len<E: EthSpec>() -> usize {
+    pub fn ssz_max_len() -> usize {
         DataColumnsByRangeRequest {
             start_slot: 0,
             count: 0,
@@ -571,14 +571,14 @@ impl BlobsByRootRequest {
 
 /// Request a number of data columns from a peer.
 #[derive(Clone, Debug, PartialEq)]
-pub struct DataColumnsByRootRequest<E: EthSpec> {
+pub struct DataColumnsByRootRequest {
     /// The list of beacon block roots and column indices being requested.
-    pub data_column_ids: RuntimeVariableList<DataColumnsByRootIdentifier<E>>,
+    pub data_column_ids: RuntimeVariableList<DataColumnsByRootIdentifier>,
 }
 
-impl<E: EthSpec> DataColumnsByRootRequest<E> {
+impl DataColumnsByRootRequest {
     pub fn new(
-        data_column_ids: Vec<DataColumnsByRootIdentifier<E>>,
+        data_column_ids: Vec<DataColumnsByRootIdentifier>,
         max_request_blocks: usize,
     ) -> Result<Self, &'static str> {
         let data_column_ids = RuntimeVariableList::new(data_column_ids, max_request_blocks)
@@ -623,56 +623,56 @@ impl LightClientUpdatesByRangeRequest {
 // Collection of enums and structs used by the Codecs to encode/decode RPC messages
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum RpcSuccessResponse<E: EthSpec> {
+pub enum RpcSuccessResponse {
     /// A HELLO message.
     Status(StatusMessage),
 
     /// A response to a get BLOCKS_BY_RANGE request. A None response signifies the end of the
     /// batch.
-    BlocksByRange(Arc<SignedBeaconBlock<E>>),
+    BlocksByRange(Arc<SignedBeaconBlock>),
 
     /// A response to a get BLOCKS_BY_ROOT request.
-    BlocksByRoot(Arc<SignedBeaconBlock<E>>),
+    BlocksByRoot(Arc<SignedBeaconBlock>),
 
     /// A response to a get BEACON_BLOCKS_BY_HEAD request.
-    BlocksByHead(Arc<SignedBeaconBlock<E>>),
+    BlocksByHead(Arc<SignedBeaconBlock>),
 
     /// A response to a get EXECUTION_PAYLOAD_ENVELOPES_BY_RANGE request. A None response signifies
     /// the end of the batch.
-    PayloadEnvelopesByRange(Arc<SignedExecutionPayloadEnvelope<E>>),
+    PayloadEnvelopesByRange(Arc<SignedExecutionPayloadEnvelope>),
 
     /// A response to a get EXECUTION_PAYLOAD_ENVELOPES_BY_ROOT request.
-    PayloadEnvelopesByRoot(Arc<SignedExecutionPayloadEnvelope<E>>),
+    PayloadEnvelopesByRoot(Arc<SignedExecutionPayloadEnvelope>),
 
     /// A response to a get BLOBS_BY_RANGE request
-    BlobsByRange(Arc<BlobSidecar<E>>),
+    BlobsByRange(Arc<BlobSidecar>),
 
     /// A response to a get LIGHT_CLIENT_BOOTSTRAP request.
-    LightClientBootstrap(Arc<LightClientBootstrap<E>>),
+    LightClientBootstrap(Arc<LightClientBootstrap>),
 
     /// A response to a get LIGHT_CLIENT_OPTIMISTIC_UPDATE request.
-    LightClientOptimisticUpdate(Arc<LightClientOptimisticUpdate<E>>),
+    LightClientOptimisticUpdate(Arc<LightClientOptimisticUpdate>),
 
     /// A response to a get LIGHT_CLIENT_FINALITY_UPDATE request.
-    LightClientFinalityUpdate(Arc<LightClientFinalityUpdate<E>>),
+    LightClientFinalityUpdate(Arc<LightClientFinalityUpdate>),
 
     /// A response to a get LIGHT_CLIENT_UPDATES_BY_RANGE request.
-    LightClientUpdatesByRange(Arc<LightClientUpdate<E>>),
+    LightClientUpdatesByRange(Arc<LightClientUpdate>),
 
     /// A response to a get BLOBS_BY_ROOT request.
-    BlobsByRoot(Arc<BlobSidecar<E>>),
+    BlobsByRoot(Arc<BlobSidecar>),
 
     /// A response to a get DATA_COLUMN_SIDECARS_BY_ROOT request.
-    DataColumnsByRoot(Arc<DataColumnSidecar<E>>),
+    DataColumnsByRoot(Arc<DataColumnSidecar>),
 
     /// A response to a get DATA_COLUMN_SIDECARS_BY_RANGE request.
-    DataColumnsByRange(Arc<DataColumnSidecar<E>>),
+    DataColumnsByRange(Arc<DataColumnSidecar>),
 
     /// A PONG response to a PING request.
     Pong(Ping),
 
     /// A response to a META_DATA request.
-    MetaData(Arc<MetaData<E>>),
+    MetaData(Arc<MetaData>),
 }
 
 /// Indicates which response is being terminated by a stream termination response.
@@ -729,9 +729,9 @@ impl ResponseTermination {
 /// The structured response containing a result/code indicating success or failure
 /// and the contents of the response
 #[derive(Debug, Clone)]
-pub enum RpcResponse<E: EthSpec> {
+pub enum RpcResponse {
     /// The response is a successful.
-    Success(RpcSuccessResponse<E>),
+    Success(RpcSuccessResponse),
 
     Error(RpcErrorResponse, ErrorType),
 
@@ -758,7 +758,7 @@ pub enum RpcErrorResponse {
     Unknown,
 }
 
-impl<E: EthSpec> RpcResponse<E> {
+impl RpcResponse {
     /// Used to encode the response in the codec.
     pub fn as_u8(&self) -> Option<u8> {
         match self {
@@ -806,7 +806,7 @@ impl RpcErrorResponse {
 }
 
 use super::Protocol;
-impl<E: EthSpec> RpcSuccessResponse<E> {
+impl RpcSuccessResponse {
     pub fn protocol(&self) -> Protocol {
         match self {
             RpcSuccessResponse::Status(_) => Protocol::Status,
@@ -876,7 +876,7 @@ impl std::fmt::Display for StatusMessage {
     }
 }
 
-impl<E: EthSpec> std::fmt::Display for RpcSuccessResponse<E> {
+impl std::fmt::Display for RpcSuccessResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RpcSuccessResponse::Status(status) => write!(f, "{}", status),
@@ -951,7 +951,7 @@ impl<E: EthSpec> std::fmt::Display for RpcSuccessResponse<E> {
     }
 }
 
-impl<E: EthSpec> std::fmt::Display for RpcResponse<E> {
+impl std::fmt::Display for RpcResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RpcResponse::Success(res) => write!(f, "{}", res),
@@ -1030,7 +1030,7 @@ impl std::fmt::Display for BlobsByRangeRequest {
     }
 }
 
-impl<E: EthSpec> std::fmt::Display for DataColumnsByRootRequest<E> {
+impl std::fmt::Display for DataColumnsByRootRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

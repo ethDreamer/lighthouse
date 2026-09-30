@@ -15,20 +15,20 @@ pub struct KZGVerifyBlobKZGProofBatchInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct KZGVerifyBlobKZGProofBatch<E: EthSpec> {
+pub struct KZGVerifyBlobKZGProofBatch {
     pub input: KZGVerifyBlobKZGProofBatchInput,
     pub output: Option<bool>,
     #[serde(skip)]
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for KZGVerifyBlobKZGProofBatch<E> {
+impl LoadCase for KZGVerifyBlobKZGProofBatch {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         decode::yaml_decode_file(path.join("data.yaml").as_path())
     }
 }
 
-impl<E: EthSpec> Case for KZGVerifyBlobKZGProofBatch<E> {
+impl Case for KZGVerifyBlobKZGProofBatch {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         fork_name == ForkName::Deneb
     }
@@ -38,7 +38,7 @@ impl<E: EthSpec> Case for KZGVerifyBlobKZGProofBatch<E> {
             let blobs = input
                 .blobs
                 .iter()
-                .map(|s| parse_blob::<E>(s))
+                .map(|s| parse_blob(s))
                 .collect::<Result<Vec<_>, _>>()?;
             let commitments = input
                 .commitments
@@ -56,7 +56,7 @@ impl<E: EthSpec> Case for KZGVerifyBlobKZGProofBatch<E> {
         let kzg = get_kzg();
         let result =
             parse_input(&self.input).and_then(
-                |(commitments, blobs, proofs)| match validate_blobs::<E>(
+                |(commitments, blobs, proofs)| match validate_blobs(
                     &kzg,
                     &commitments,
                     blobs.iter().collect(),

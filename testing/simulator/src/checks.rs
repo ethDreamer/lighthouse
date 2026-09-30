@@ -6,8 +6,8 @@ use types::{Epoch, EthSpec, ExecPayload, ExecutionBlockHash, Slot};
 
 /// Checks that all of the validators have on-boarded by the start of the second eth1 voting
 /// period.
-pub async fn verify_initial_validator_count<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_initial_validator_count(
+    network: LocalNetwork,
     slot_duration: Duration,
     initial_validator_count: usize,
 ) -> Result<(), String> {
@@ -18,8 +18,8 @@ pub async fn verify_initial_validator_count<E: EthSpec>(
 
 /// Checks that all of the validators have on-boarded by the start of the second eth1 voting
 /// period.
-pub async fn verify_validator_onboarding<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_validator_onboarding(
+    network: LocalNetwork,
     slot_duration: Duration,
     expected_validator_count: usize,
 ) -> Result<(), String> {
@@ -35,8 +35,8 @@ pub async fn verify_validator_onboarding<E: EthSpec>(
 /// Checks that the chain has made the first possible finalization.
 ///
 /// Intended to be run as soon as chain starts.
-pub async fn verify_first_finalization<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_first_finalization(
+    network: LocalNetwork,
     slot_duration: Duration,
 ) -> Result<(), String> {
     epoch_delay(Epoch::new(4), slot_duration, Spec::slots_per_epoch()).await;
@@ -58,8 +58,8 @@ async fn slot_delay(slots: Slot, slot_duration: Duration) {
 
 /// Verifies that all beacon nodes in the given network have a head state that has a finalized
 /// epoch of `epoch`.
-pub async fn verify_all_finalized_at<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_all_finalized_at(
+    network: LocalNetwork,
     epoch: Epoch,
 ) -> Result<(), String> {
     let epochs = {
@@ -88,15 +88,15 @@ pub async fn verify_all_finalized_at<E: EthSpec>(
 
 /// Verifies that all beacon nodes in the given `network` have a head state that contains
 /// `expected_count` validators.
-async fn verify_validator_count<E: EthSpec>(
-    network: LocalNetwork<E>,
+async fn verify_validator_count(
+    network: LocalNetwork,
     expected_count: usize,
 ) -> Result<(), String> {
     let validator_counts = {
         let mut validator_counts = Vec::new();
         for remote_node in network.remote_nodes()? {
             let vc = remote_node
-                .get_debug_beacon_states::<E>(StateId::Head)
+                .get_debug_beacon_states(StateId::Head)
                 .await
                 .map(|body| body.unwrap().into_data())
                 .map_err(|e| format!("Get state root via http failed: {:?}", e))?
@@ -121,8 +121,8 @@ async fn verify_validator_count<E: EthSpec>(
 }
 
 /// Verifies that there's been a block produced at every slot up to and including `slot`.
-pub async fn verify_full_block_production_up_to<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_full_block_production_up_to(
+    network: LocalNetwork,
     slot: Slot,
     slot_duration: Duration,
 ) -> Result<(), String> {
@@ -152,8 +152,8 @@ pub async fn verify_full_block_production_up_to<E: EthSpec>(
 }
 
 /// Verify that all nodes have the correct fork version after the `fork_epoch`.
-pub async fn verify_fork_version<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_fork_version(
+    network: LocalNetwork,
     fork_epoch: Epoch,
     slot_duration: Duration,
     fork_version: [u8; 4],
@@ -182,8 +182,8 @@ const MAX_EMPTY_SYNC_AGGREGATES: usize = 3;
 
 /// Verify that the sync aggregates from `sync_committee_start_slot` until `upto_slot` are full,
 /// allowing up to `MAX_EMPTY_SYNC_AGGREGATES` empty ones caused by late blocks.
-pub async fn verify_full_sync_aggregates_up_to<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_full_sync_aggregates_up_to(
+    network: LocalNetwork,
     sync_committee_start_slot: Slot,
     upto_slot: Slot,
     slot_duration: Duration,
@@ -195,7 +195,7 @@ pub async fn verify_full_sync_aggregates_up_to<E: EthSpec>(
 
     for slot in sync_committee_start_slot.as_u64()..=upto_slot.as_u64() {
         let sync_aggregate_count = remote_node
-            .get_beacon_blocks::<E>(BlockId::Slot(Slot::new(slot)))
+            .get_beacon_blocks(BlockId::Slot(Slot::new(slot)))
             .await
             .map(|resp| {
                 resp.unwrap_or_else(|| {
@@ -240,8 +240,8 @@ pub async fn verify_full_sync_aggregates_up_to<E: EthSpec>(
 // TODO(EIP-7732): Add verify_ptc_duties_executed function to verify that PTC duties are being fetched and executed correctly when Gloas fork is enabled
 
 /// Verify that the first merged PoS block got finalized.
-pub async fn verify_transition_block_finalized<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_transition_block_finalized(
+    network: LocalNetwork,
     transition_epoch: Epoch,
     slot_duration: Duration,
     should_verify: bool,
@@ -253,7 +253,7 @@ pub async fn verify_transition_block_finalized<E: EthSpec>(
     let mut block_hashes = Vec::new();
     for remote_node in network.remote_nodes()?.iter() {
         let execution_block_hash: ExecutionBlockHash = remote_node
-            .get_beacon_blocks::<E>(BlockId::Finalized)
+            .get_beacon_blocks(BlockId::Finalized)
             .await
             .map(|body| body.unwrap().into_data())
             .map_err(|e| format!("Get state root via http failed: {:?}", e))?
@@ -275,8 +275,8 @@ pub async fn verify_transition_block_finalized<E: EthSpec>(
     }
 }
 
-pub(crate) async fn verify_light_client_updates<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub(crate) async fn verify_light_client_updates(
+    network: LocalNetwork,
     start_slot: Slot,
     end_slot: Slot,
     slot_duration: Duration,
@@ -301,7 +301,7 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
             .unwrap();
 
         let previous_slot_block = client
-            .get_beacon_blocks::<E>(BlockId::Slot(previous_slot))
+            .get_beacon_blocks(BlockId::Slot(previous_slot))
             .await
             .map_err(|e| {
                 format!("Unable to get beacon block for previous slot {previous_slot:?}: {e:?}")
@@ -324,7 +324,7 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
 
         // Verify light client optimistic update. `signature_slot_distance` should be 1 in the ideal scenario.
         let signature_slot = client
-            .get_beacon_light_client_optimistic_update::<E>()
+            .get_beacon_light_client_optimistic_update()
             .await
             .map_err(|e| format!("Error while getting light client updates: {:?}", e))?
             .ok_or(format!("Light client optimistic update not found {slot:?}"))?
@@ -355,7 +355,7 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
             continue;
         }
         let signature_slot = client
-            .get_beacon_light_client_finality_update::<E>()
+            .get_beacon_light_client_finality_update()
             .await
             .map_err(|e| format!("Error while getting light client updates: {:?}", e))?
             .ok_or(format!("Light client finality update not found {slot:?}"))?
@@ -369,7 +369,7 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
         }
 
         let light_client_updates = client
-            .get_beacon_light_client_updates::<E>(sync_committee_period, 1)
+            .get_beacon_light_client_updates(sync_committee_period, 1)
             .await
             .map_err(|e| format!("Error while getting light client update: {:?}", e))?
             .ok_or(format!("Light client update not found {slot:?}"))?;
@@ -388,8 +388,8 @@ pub(crate) async fn verify_light_client_updates<E: EthSpec>(
 
 /// Checks that a node is synced with the network.
 /// Useful for ensuring that a node which started after genesis is able to sync to the head.
-pub async fn ensure_node_synced_up_to_slot<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn ensure_node_synced_up_to_slot(
+    network: LocalNetwork,
     node_index: usize,
     upto_slot: Slot,
     slot_duration: Duration,
@@ -402,7 +402,7 @@ pub async fn ensure_node_synced_up_to_slot<E: EthSpec>(
         .clone();
 
     let head = node
-        .get_beacon_blocks::<E>(BlockId::Head)
+        .get_beacon_blocks(BlockId::Head)
         .await
         .ok()
         .flatten()
@@ -422,8 +422,8 @@ pub async fn ensure_node_synced_up_to_slot<E: EthSpec>(
 
 /// Verifies that there's been blobs produced at every slot with a block from `blob_start_slot` up
 /// to and including `upto_slot`.
-pub async fn verify_full_blob_production_up_to<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn verify_full_blob_production_up_to(
+    network: LocalNetwork,
     blob_start_slot: Slot,
     upto_slot: Slot,
     slot_duration: Duration,
@@ -435,7 +435,7 @@ pub async fn verify_full_blob_production_up_to<E: EthSpec>(
     for slot in blob_start_slot.as_u64()..=upto_slot.as_u64() {
         // Ensure block exists.
         let block = remote_node
-            .get_beacon_blocks::<E>(BlockId::Slot(Slot::new(slot)))
+            .get_beacon_blocks(BlockId::Slot(Slot::new(slot)))
             .await
             .ok()
             .flatten();
@@ -444,7 +444,7 @@ pub async fn verify_full_blob_production_up_to<E: EthSpec>(
         // the `verify_full_block_production_up_to` function.
         if block.is_some() {
             remote_node
-                .get_blobs::<E>(BlockId::Slot(Slot::new(slot)), None)
+                .get_blobs(BlockId::Slot(Slot::new(slot)), None)
                 .await
                 .map_err(|e| format!("Failed to get blobs at slot {slot:?}: {e:?}"))?
                 .ok_or_else(|| format!("No blobs available at slot {slot:?}"))?;
@@ -455,8 +455,8 @@ pub async fn verify_full_blob_production_up_to<E: EthSpec>(
 }
 
 // Causes the beacon node at `node_index` to disconnect from the execution layer.
-pub async fn disconnect_from_execution_layer<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn disconnect_from_execution_layer(
+    network: LocalNetwork,
     node_index: usize,
 ) -> Result<(), String> {
     eprintln!("Disabling Execution Node {node_index}");
@@ -469,8 +469,8 @@ pub async fn disconnect_from_execution_layer<E: EthSpec>(
 }
 
 // Causes the beacon node at `node_index` to reconnect from the execution layer.
-pub async fn reconnect_to_execution_layer<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn reconnect_to_execution_layer(
+    network: LocalNetwork,
     node_index: usize,
 ) -> Result<(), String> {
     network.execution_nodes.read()[node_index]
@@ -485,8 +485,8 @@ pub async fn reconnect_to_execution_layer<E: EthSpec>(
 ///
 /// Checks attestation rewards for head, target, and source.
 /// A positive reward indicates a correct vote.
-pub async fn check_attestation_correctness<E: EthSpec>(
-    network: LocalNetwork<E>,
+pub async fn check_attestation_correctness(
+    network: LocalNetwork,
     start_epoch: u64,
     upto_epoch: u64,
     slot_duration: Duration,

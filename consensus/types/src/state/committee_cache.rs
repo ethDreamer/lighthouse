@@ -66,8 +66,8 @@ impl CommitteeCache {
     /// available randao data, up to `current_epoch + 1` (the "next" epoch).
     ///
     /// Spec v0.12.1
-    pub fn initialized<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub fn initialized(
+        state: &BeaconState,
         epoch: Epoch,
         spec: &ChainSpec,
     ) -> Result<Arc<CommitteeCache>, BeaconStateError> {
@@ -100,8 +100,8 @@ impl CommitteeCache {
     ///
     /// This is used by PTC window computation, which needs committee shufflings for
     /// `current_epoch + 1 + MIN_SEED_LOOKAHEAD`.
-    pub fn initialized_for_lookahead<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub fn initialized_for_lookahead(
+        state: &BeaconState,
         epoch: Epoch,
         spec: &ChainSpec,
     ) -> Result<Arc<CommitteeCache>, BeaconStateError> {
@@ -117,8 +117,8 @@ impl CommitteeCache {
     }
 
     /// Core committee cache construction. Callers are responsible for bounds-checking `epoch`.
-    fn initialized_unchecked<E: EthSpec>(
-        state: &BeaconState<E>,
+    fn initialized_unchecked(
+        state: &BeaconState,
         epoch: Epoch,
         spec: &ChainSpec,
     ) -> Result<Arc<CommitteeCache>, BeaconStateError> {

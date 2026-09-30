@@ -411,7 +411,7 @@ pub async fn proposer_boost_re_org_test(
 ) {
     assert!(head_slot > 0);
 
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     if !spec.is_gloas_scheduled() {
         return;
@@ -449,7 +449,7 @@ pub async fn proposer_boost_re_org_test(
         ..Default::default()
     };
 
-    let tester = InteractiveTester::<E>::new_with_initializer_and_mutator(
+    let tester = InteractiveTester::new_with_initializer_and_mutator(
         Some(spec),
         validator_count,
         None,
@@ -726,7 +726,7 @@ pub async fn proposer_boost_re_org_test(
     let (block_c, block_c_blobs) = {
         let (response, _) = tester
             .client
-            .post_validator_blocks_v4::<E>(
+            .post_validator_blocks_v4(
                 slot_c,
                 &randao_reveal,
                 None,
@@ -745,7 +745,7 @@ pub async fn proposer_boost_re_org_test(
 
     // Post-Gloas the execution payload is decoupled from the beacon block: the payload hash
     // lives in the execution payload bid, and the payload timestamp is derived from the slot.
-    let exec_block_hash = |block: BeaconBlockRef<E>| -> ExecutionBlockHash {
+    let exec_block_hash = |block: BeaconBlockRef| -> ExecutionBlockHash {
         block
             .body()
             .signed_execution_payload_bid()
@@ -753,7 +753,7 @@ pub async fn proposer_boost_re_org_test(
             .message
             .block_hash
     };
-    let exec_parent_hash = |block: BeaconBlockRef<E>| -> ExecutionBlockHash {
+    let exec_parent_hash = |block: BeaconBlockRef| -> ExecutionBlockHash {
         block
             .body()
             .signed_execution_payload_bid()

@@ -178,7 +178,7 @@ pub fn run_basic_sim(matches: &ArgMatches) -> Result<(), String> {
     let mut slot_duration_ms = spec.get_slot_duration().as_millis() as u64;
     slot_duration_ms /= speed_up_factor;
     slot_duration_ms = max(1_000, slot_duration_ms);
-    spec = spec.set_slot_duration_ms::<MinimalEthSpec>(slot_duration_ms);
+    spec = spec.set_slot_duration_ms(slot_duration_ms);
 
     spec.genesis_delay = genesis_delay;
     spec.min_genesis_time = 0;

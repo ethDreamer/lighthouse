@@ -18,12 +18,12 @@ use types::EthSpec;
 /// - An `Option<Layer>` which emits logs to an SSE stream
 /// - An `Option<Layer>` which logs relevant dependencies to their
 ///   own log files. (Currently only `libp2p` and `discv5`)
-pub fn construct_logger<E: EthSpec>(
+pub fn construct_logger(
     logger_config: LoggerConfig,
     matches: &ArgMatches,
-    environment_builder: EnvironmentBuilder<E>,
+    environment_builder: EnvironmentBuilder,
 ) -> (
-    EnvironmentBuilder<E>,
+    EnvironmentBuilder,
     LoggerConfig,
     LoggingLayer,
     Option<LoggingLayer>,

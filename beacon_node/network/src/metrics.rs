@@ -770,9 +770,9 @@ pub(crate) fn register_process_result_metrics(
     }
 }
 
-pub fn update_gossip_metrics<E: EthSpec>(
+pub fn update_gossip_metrics(
     gossipsub: &Gossipsub,
-    network_globals: &Arc<NetworkGlobals<E>>,
+    network_globals: &Arc<NetworkGlobals>,
 ) {
     // Mesh peers per client
     // Reset the gauges
@@ -831,7 +831,7 @@ pub fn update_gossip_metrics<E: EthSpec>(
     }
 }
 
-pub fn update_sync_metrics<E: EthSpec>(network_globals: &Arc<NetworkGlobals<E>>) {
+pub fn update_sync_metrics(network_globals: &Arc<NetworkGlobals>) {
     // reset the counts
     if PEERS_PER_SYNC_TYPE
         .as_ref()

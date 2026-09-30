@@ -140,7 +140,7 @@ pub fn parse_ssz_optional<T: Decode>(
 }
 
 /// Writes configs to file if `dump-config` or `dump-chain-config` flags are set
-pub fn check_dump_configs<S, E>(
+pub fn check_dump_configs<S>(
     matches: &ArgMatches,
     config: S,
     spec: &ChainSpec,
@@ -155,7 +155,7 @@ where
             .map_err(|e| format!("Error serializing config: {:?}", e))?;
     }
     if let Some(dump_path) = parse_optional::<PathBuf>(matches, "dump-chain-config")? {
-        let chain_config = Config::from_chain_spec::<E>(spec);
+        let chain_config = Config::from_chain_spec(spec);
         let mut file = std::fs::File::create(dump_path)
             .map_err(|e| format!("Failed to open file for writing chain config: {:?}", e))?;
         yaml_serde::to_writer(&mut file, &chain_config)

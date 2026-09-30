@@ -95,10 +95,10 @@ pub enum ProvenancedPayload<P> {
     Builder(P),
 }
 
-impl<E: EthSpec> TryFrom<BuilderBid<E>> for ProvenancedPayload<BlockProposalContentsType<E>> {
+impl TryFrom<BuilderBid> for ProvenancedPayload<BlockProposalContentsType> {
     type Error = Error;
 
-    fn try_from(value: BuilderBid<E>) -> Result<Self, Error> {
+    fn try_from(value: BuilderBid) -> Result<Self, Error> {
         let block_proposal_contents = match value {
             BuilderBid::Bellatrix(builder_bid) => BlockProposalContents::Payload {
                 payload: ExecutionPayloadHeader::Bellatrix(builder_bid.header).into(),
@@ -201,30 +201,30 @@ impl From<EngineError> for Error {
     }
 }
 
-pub enum BlockProposalContentsType<E: EthSpec> {
-    Full(BlockProposalContents<E, FullPayload<E>>),
-    Blinded(BlockProposalContents<E, BlindedPayload<E>>),
+pub enum BlockProposalContentsType {
+    Full(BlockProposalContents<FullPayload>),
+    Blinded(BlockProposalContents<BlindedPayload>),
 }
 
-pub struct BlockProposalContentsGloas<E: EthSpec> {
-    pub payload: ExecutionPayloadGloas<E>,
+pub struct BlockProposalContentsGloas {
+    pub payload: ExecutionPayloadGloas,
     pub payload_value: Uint256,
-    pub blob_kzg_commitments: ProgressiveKzgCommitments<E>,
-    pub blobs_and_proofs: (BlobsList<E>, KzgProofs<E>),
-    pub execution_requests: ExecutionRequestsGloas<E>,
+    pub blob_kzg_commitments: ProgressiveKzgCommitments,
+    pub blobs_and_proofs: (BlobsList, KzgProofs),
+    pub execution_requests: ExecutionRequestsGloas,
     pub should_override_builder: bool,
 }
 
-impl<E: EthSpec> TryFrom<GetPayloadResponseGloas<E>> for BlockProposalContentsGloas<E> {
+impl TryFrom<GetPayloadResponseGloas> for BlockProposalContentsGloas {
     type Error = ssz_types::Error;
 
-    fn try_from(response: GetPayloadResponseGloas<E>) -> Result<Self, Self::Error> {
+    fn try_from(response: GetPayloadResponseGloas) -> Result<Self, Self::Error> {
         Ok(Self {
             payload: response.execution_payload,
             payload_value: response.block_value,
             // Convert the EL blob commitments to the progressive list type used from Gloas
             // onwards (EIP-7688).
-            blob_kzg_commitments: ProgressiveKzgCommitments::<E>::new(
+            blob_kzg_commitments: ProgressiveKzgCommitments::new(
                 response.blobs_bundle.commitments.into(),
             )?,
             blobs_and_proofs: (response.blobs_bundle.blobs, response.blobs_bundle.proofs),
@@ -234,7 +234,7 @@ impl<E: EthSpec> TryFrom<GetPayloadResponseGloas<E>> for BlockProposalContentsGl
     }
 }
 
-pub enum BlockProposalContents<E: EthSpec, Payload: AbstractExecPayload<E>> {
+pub enum BlockProposalContents<Payload: AbstractExecPayload> {
     Payload {
         payload: Payload,
         block_value: Uint256,
@@ -242,19 +242,19 @@ pub enum BlockProposalContents<E: EthSpec, Payload: AbstractExecPayload<E>> {
     PayloadAndBlobs {
         payload: Payload,
         block_value: Uint256,
-        kzg_commitments: KzgCommitments<E>,
+        kzg_commitments: KzgCommitments,
         /// `None` for blinded `PayloadAndBlobs`.
-        blobs_and_proofs: Option<(BlobsList<E>, KzgProofs<E>)>,
+        blobs_and_proofs: Option<(BlobsList, KzgProofs)>,
         // TODO(electra): this should probably be a separate variant/superstruct
         // See: https://github.com/sigp/lighthouse/issues/6981
-        requests: Option<ExecutionRequestsElectra<E>>,
+        requests: Option<ExecutionRequestsElectra>,
     },
 }
 
-impl<E: EthSpec> From<BlockProposalContents<E, FullPayload<E>>>
-    for BlockProposalContents<E, BlindedPayload<E>>
+impl From<BlockProposalContents<FullPayload>>
+    for BlockProposalContents<BlindedPayload>
 {
-    fn from(item: BlockProposalContents<E, FullPayload<E>>) -> Self {
+    fn from(item: BlockProposalContents<FullPayload>) -> Self {
         match item {
             BlockProposalContents::Payload {
                 payload,
@@ -280,12 +280,12 @@ impl<E: EthSpec> From<BlockProposalContents<E, FullPayload<E>>>
     }
 }
 
-impl<E: EthSpec, Payload: AbstractExecPayload<E>> TryFrom<GetPayloadResponse<E>>
-    for BlockProposalContents<E, Payload>
+impl<Payload: AbstractExecPayload> TryFrom<GetPayloadResponse>
+    for BlockProposalContents<Payload>
 {
     type Error = Error;
 
-    fn try_from(response: GetPayloadResponse<E>) -> Result<Self, Error> {
+    fn try_from(response: GetPayloadResponse) -> Result<Self, Error> {
         let (execution_payload, block_value, maybe_bundle, maybe_requests) = response.into();
         match maybe_bundle {
             Some(bundle) => Ok(Self::PayloadAndBlobs {
@@ -310,10 +310,10 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> TryFrom<GetPayloadResponse<E>>
     }
 }
 
-impl<E: EthSpec> TryFrom<GetPayloadResponseType<E>> for BlockProposalContentsType<E> {
+impl TryFrom<GetPayloadResponseType> for BlockProposalContentsType {
     type Error = Error;
 
-    fn try_from(response_type: GetPayloadResponseType<E>) -> Result<Self, Error> {
+    fn try_from(response_type: GetPayloadResponseType) -> Result<Self, Error> {
         match response_type {
             GetPayloadResponseType::Full(response) => Ok(Self::Full(response.try_into()?)),
             GetPayloadResponseType::Blinded(response) => Ok(Self::Blinded(response.try_into()?)),
@@ -322,14 +322,14 @@ impl<E: EthSpec> TryFrom<GetPayloadResponseType<E>> for BlockProposalContentsTyp
 }
 
 #[allow(clippy::type_complexity)]
-impl<E: EthSpec, Payload: AbstractExecPayload<E>> BlockProposalContents<E, Payload> {
+impl<Payload: AbstractExecPayload> BlockProposalContents<Payload> {
     pub fn deconstruct(
         self,
     ) -> (
         Payload,
-        Option<KzgCommitments<E>>,
-        Option<(BlobsList<E>, KzgProofs<E>)>,
-        Option<ExecutionRequestsElectra<E>>,
+        Option<KzgCommitments>,
+        Option<(BlobsList, KzgProofs)>,
+        Option<ExecutionRequestsElectra>,
         Uint256,
     ) {
         match self {
@@ -463,14 +463,14 @@ pub enum FailedCondition {
     EpochsSinceFinalization,
 }
 
-pub enum SubmitBlindedBlockResponse<E: EthSpec> {
-    V1(Box<FullPayloadContents<E>>),
+pub enum SubmitBlindedBlockResponse {
+    V1(Box<FullPayloadContents>),
     V2,
 }
 
-type PayloadContentsRefTuple<'a, E> = (ExecutionPayloadRef<'a, E>, Option<&'a BlobsBundle<E>>);
+type PayloadContentsRefTuple<'a> = (ExecutionPayloadRef<'a>, Option<&'a BlobsBundle>);
 
-struct Inner<E: EthSpec> {
+struct Inner {
     engine: Arc<Engine>,
     builder: ArcSwapOption<PreGloasBuilderHttpClient>,
     execution_engine_forkchoice_lock: Mutex<()>,
@@ -478,7 +478,7 @@ struct Inner<E: EthSpec> {
     proposer_preparation_data: Mutex<HashMap<u64, ProposerPreparationDataEntry>>,
     proposers: RwLock<HashMap<ProposerKey, Proposer>>,
     executor: TaskExecutor,
-    payload_cache: PayloadCache<E>,
+    payload_cache: PayloadCache,
     /// Track whether the last `newPayload` call errored.
     ///
     /// This is used *only* in the informational sync status endpoint, so that a VC using this
@@ -516,11 +516,11 @@ pub struct Config {
 /// Provides access to one execution engine and provides a neat interface for consumption by the
 /// `BeaconChain`.
 #[derive(Clone)]
-pub struct ExecutionLayer<E: EthSpec> {
-    inner: Arc<Inner<E>>,
+pub struct ExecutionLayer {
+    inner: Arc<Inner>,
 }
 
-impl<E: EthSpec> ExecutionLayer<E> {
+impl ExecutionLayer {
     /// Instantiate `Self` with an Execution engine specified in `Config`, using JSON-RPC via HTTP.
     pub fn from_config(config: Config, executor: TaskExecutor) -> Result<Self, Error> {
         let Config {
@@ -646,8 +646,8 @@ impl<E: EthSpec> ExecutionLayer<E> {
     /// Cache a full payload, keyed on the `tree_hash_root` of the payload
     fn cache_payload(
         &self,
-        payload_and_blobs: PayloadContentsRefTuple<E>,
-    ) -> Option<FullPayloadContents<E>> {
+        payload_and_blobs: PayloadContentsRefTuple,
+    ) -> Option<FullPayloadContents> {
         let (payload_ref, maybe_json_blobs_bundle) = payload_and_blobs;
 
         let payload = payload_ref.clone_from_ref();
@@ -659,7 +659,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     }
 
     /// Attempt to retrieve a full payload from the payload cache by the payload root
-    pub fn get_payload_by_root(&self, root: &Hash256) -> Option<FullPayloadContents<E>> {
+    pub fn get_payload_by_root(&self, root: &Hash256) -> Option<FullPayloadContents> {
         self.inner.payload_cache.get(root)
     }
 
@@ -711,7 +711,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
 
     /// Spawns a routine which attempts to keep the execution engine online.
     pub fn spawn_watchdog_routine<S: SlotClock + 'static>(&self, slot_clock: S) {
-        let watchdog = |el: ExecutionLayer<E>| async move {
+        let watchdog = |el: ExecutionLayer| async move {
             // Run one task immediately.
             el.watchdog_task().await;
 
@@ -735,7 +735,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
 
     /// Spawns a routine which cleans the cached proposer data periodically.
     pub fn spawn_clean_proposer_caches_routine<S: SlotClock + 'static>(&self, slot_clock: S) {
-        let preparation_cleaner = |el: ExecutionLayer<E>| async move {
+        let preparation_cleaner = |el: ExecutionLayer| async move {
             // Start the loop to periodically clean proposer preparation cache.
             loop {
                 if let Some(duration_to_next_epoch) =
@@ -934,7 +934,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn get_payload_gloas(
         &self,
         payload_parameters: PayloadParameters<'_>,
-    ) -> Result<BlockProposalContentsGloas<E>, Error> {
+    ) -> Result<BlockProposalContentsGloas, Error> {
         let payload_response_type = self.get_full_payload_caching(payload_parameters).await?;
         let GetPayloadResponseType::Full(payload_response) = payload_response_type else {
             return Err(Error::Unexpected(
@@ -976,7 +976,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         spec: &ChainSpec,
         builder_boost_factor: Option<u64>,
         block_production_version: BlockProductionVersion,
-    ) -> Result<BlockProposalContentsType<E>, Error> {
+    ) -> Result<BlockProposalContentsType, Error> {
         let payload_result_type = match block_production_version {
             BlockProductionVersion::V3 => match self
                 .determine_and_fetch_payload(
@@ -1055,8 +1055,8 @@ impl<E: EthSpec> ExecutionLayer<E> {
         builder_params: &BuilderParams,
         payload_parameters: PayloadParameters<'_>,
     ) -> (
-        Result<Option<ForkVersionedResponse<SignedBuilderBid<E>>>, eth2::Error>,
-        Result<GetPayloadResponse<E>, Error>,
+        Result<Option<ForkVersionedResponse<SignedBuilderBid>>, eth2::Error>,
+        Result<GetPayloadResponse, Error>,
     ) {
         let slot = builder_params.slot;
         let pubkey = &builder_params.pubkey;
@@ -1073,7 +1073,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         let ((relay_result, relay_duration), (local_result, local_duration)) = tokio::join!(
             timed_future(metrics::GET_BLINDED_PAYLOAD_BUILDER, async {
                 builder
-                    .get_builder_header::<E>(slot, parent_hash, pubkey)
+                    .get_builder_header(slot, parent_hash, pubkey)
                     .instrument(debug_span!("get_builder_header"))
                     .await
             }),
@@ -1112,7 +1112,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         builder_params: BuilderParams,
         builder_boost_factor: Option<u64>,
         spec: &ChainSpec,
-    ) -> Result<ProvenancedPayload<BlockProposalContentsType<E>>, Error> {
+    ) -> Result<ProvenancedPayload<BlockProposalContentsType>, Error> {
         let Some(builder) = self.builder() else {
             // no builder.. return local payload
             return self
@@ -1311,7 +1311,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     async fn get_full_payload_caching(
         &self,
         payload_parameters: PayloadParameters<'_>,
-    ) -> Result<GetPayloadResponseType<E>, Error> {
+    ) -> Result<GetPayloadResponseType, Error> {
         self.get_full_payload_with(payload_parameters, Self::cache_payload)
             .await
     }
@@ -1321,10 +1321,10 @@ impl<E: EthSpec> ExecutionLayer<E> {
         &self,
         payload_parameters: PayloadParameters<'_>,
         cache_fn: fn(
-            &ExecutionLayer<E>,
-            PayloadContentsRefTuple<E>,
-        ) -> Option<FullPayloadContents<E>>,
-    ) -> Result<GetPayloadResponseType<E>, Error> {
+            &ExecutionLayer,
+            PayloadContentsRefTuple,
+        ) -> Option<FullPayloadContents>,
+    ) -> Result<GetPayloadResponseType, Error> {
         let PayloadParameters {
             parent_hash,
             payload_attributes,
@@ -1396,7 +1396,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
                         &metrics::EXECUTION_LAYER_REQUEST_TIMES,
                         &[metrics::GET_PAYLOAD],
                     );
-                    engine.api.get_payload::<E>(current_fork, payload_id).await
+                    engine.api.get_payload(current_fork, payload_id).await
                 }
                 .await?;
 
@@ -1440,7 +1440,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     /// TODO(EIP-7732) figure out how and why Mark relaxed new_payload_request param's typ to NewPayloadRequest<E>
     pub async fn notify_new_payload(
         &self,
-        new_payload_request: NewPayloadRequest<'_, E>,
+        new_payload_request: NewPayloadRequest<'_>,
     ) -> Result<PayloadStatus, Error> {
         let _timer = metrics::start_timer_vec(
             &metrics::EXECUTION_LAYER_REQUEST_TIMES,
@@ -1674,7 +1674,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn get_payload_bodies_by_hash(
         &self,
         hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV1<E>>>, Error> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV1>>, Error> {
         self.engine()
             .request(|engine: &Engine| async move {
                 engine.api.get_payload_bodies_by_hash_v1(hashes).await
@@ -1688,7 +1688,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn get_payload_bodies_by_hash_v2(
         &self,
         hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV2<E>>>, Error> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV2>>, Error> {
         let capabilities = self.get_engine_capabilities(None).await?;
         if !capabilities.get_payload_bodies_by_hash_v2 {
             return Err(Error::PayloadBodiesByHashV2NotSupported);
@@ -1708,9 +1708,9 @@ impl<E: EthSpec> ExecutionLayer<E> {
     /// Returns `Ok(None)` if the execution engine does not have the body.
     pub async fn get_payload_for_header(
         &self,
-        header: &ExecutionPayloadHeader<E>,
+        header: &ExecutionPayloadHeader,
         fork: ForkName,
-    ) -> Result<Option<ExecutionPayload<E>>, Error> {
+    ) -> Result<Option<ExecutionPayload>, Error> {
         // Handle default payload body.
         if header.block_hash() == ExecutionBlockHash::zero() {
             let payload = match fork {
@@ -1757,7 +1757,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn get_blobs_v2(
         &self,
         query: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV2<E>>>, Error> {
+    ) -> Result<Option<Vec<BlobAndProofV2>>, Error> {
         let capabilities = self.get_engine_capabilities(None).await?;
 
         if capabilities.get_blobs_v2 {
@@ -1774,7 +1774,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn get_blobs_v3(
         &self,
         query: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV3<E>>>, Error> {
+    ) -> Result<Option<Vec<BlobAndProofV3>>, Error> {
         let capabilities = self.get_engine_capabilities(None).await?;
 
         if capabilities.get_blobs_v3 {
@@ -1792,7 +1792,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
         &self,
         query: Vec<Hash256>,
         custody_columns: CustodyColumnsBitArray,
-    ) -> Result<Option<GetBlobsV4List<E>>, Error> {
+    ) -> Result<Option<GetBlobsV4List>, Error> {
         let capabilities = self.get_engine_capabilities(None).await?;
 
         if capabilities.get_blobs_v4 {
@@ -1836,9 +1836,9 @@ impl<E: EthSpec> ExecutionLayer<E> {
     pub async fn propose_blinded_beacon_block(
         &self,
         block_root: Hash256,
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
         spec: &ChainSpec,
-    ) -> Result<SubmitBlindedBlockResponse<E>, Error> {
+    ) -> Result<SubmitBlindedBlockResponse, Error> {
         debug!(?block_root, "Sending block to builder");
         if spec.is_fulu_scheduled() {
             let resp = self
@@ -1864,8 +1864,8 @@ impl<E: EthSpec> ExecutionLayer<E> {
     async fn post_builder_blinded_blocks_v1(
         &self,
         block_root: Hash256,
-        block: &SignedBlindedBeaconBlock<E>,
-    ) -> Result<FullPayloadContents<E>, Error> {
+        block: &SignedBlindedBeaconBlock,
+    ) -> Result<FullPayloadContents, Error> {
         if let Some(builder) = self.builder() {
             let (payload_result, duration) =
                 timed_future(metrics::POST_BLINDED_PAYLOAD_BUILDER, async {
@@ -1935,7 +1935,7 @@ impl<E: EthSpec> ExecutionLayer<E> {
     async fn post_builder_blinded_blocks_v2(
         &self,
         block_root: Hash256,
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<(), Error> {
         if let Some(builder) = self.builder() {
             let (result, duration) = timed_future(metrics::POST_BLINDED_PAYLOAD_BUILDER, async {
@@ -2099,8 +2099,8 @@ pub fn expected_gas_limit(
 }
 
 /// Perform some cursory, non-exhaustive validation of the bid returned from the builder.
-fn verify_builder_bid<E: EthSpec>(
-    bid: &ForkVersionedResponse<SignedBuilderBid<E>>,
+fn verify_builder_bid(
+    bid: &ForkVersionedResponse<SignedBuilderBid>,
     payload_parameters: PayloadParameters<'_>,
     block_number: Option<u64>,
     spec: &ChainSpec,
@@ -2128,7 +2128,7 @@ fn verify_builder_bid<E: EthSpec>(
         .ok()
         .cloned()
         .map(|withdrawals| {
-            Withdrawals::<E>::try_from(withdrawals)
+            Withdrawals::try_from(withdrawals)
                 .map_err(|e| Box::new(InvalidBuilderPayload::SszTypesError(e)))
                 .map(|w| w.tree_hash_root())
         })
@@ -2195,10 +2195,10 @@ async fn timed_future<F: Future<Output = T>, T>(metric: &str, future: F) -> (T, 
     (result, duration)
 }
 
-fn noop<E: EthSpec>(
-    _: &ExecutionLayer<E>,
-    _: PayloadContentsRefTuple<E>,
-) -> Option<FullPayloadContents<E>> {
+fn noop(
+    _: &ExecutionLayer,
+    _: PayloadContentsRefTuple,
+) -> Option<FullPayloadContents> {
     None
 }
 
@@ -2209,7 +2209,7 @@ mod test {
     use task_executor::test_utils::TestRuntime;
     use types::MainnetEthSpec;
 
-    type MockExecutionLayer = GenericMockExecutionLayer<MainnetEthSpec>;
+    type MockExecutionLayer = GenericMockExecutionLayer;
 
     #[tokio::test]
     async fn produce_three_valid_pos_execution_blocks() {
@@ -2237,7 +2237,7 @@ mod test {
                 ssz_types::ProgressiveVariableList::new(vec![0x01, 0x02, 0x03]).unwrap(),
             ])
             .unwrap(),
-            withdrawals: types::ProgressiveWithdrawals::<MainnetEthSpec>::new(vec![Withdrawal {
+            withdrawals: types::ProgressiveWithdrawals::new(vec![Withdrawal {
                 index: 1,
                 validator_index: 2,
                 address: Address::from([0x33; 20]),

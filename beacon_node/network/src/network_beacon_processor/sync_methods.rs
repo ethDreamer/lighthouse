@@ -56,7 +56,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub fn generate_lookup_beacon_block_process_fn(
         self: Arc<Self>,
         block_root: Hash256,
-        block: LookupBlock<T::EthSpec>,
+        block: LookupBlock,
         process_type: BlockProcessType,
     ) -> AsyncFn {
         let process_fn = async move {
@@ -71,7 +71,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub fn generate_lookup_beacon_block_fns(
         self: Arc<Self>,
         block_root: Hash256,
-        block: LookupBlock<T::EthSpec>,
+        block: LookupBlock,
         process_type: BlockProcessType,
     ) -> (AsyncFn, BlockingFn) {
         // An async closure which will import the block.
@@ -110,7 +110,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_lookup_block(
         self: Arc<NetworkBeaconProcessor<T>>,
         block_root: Hash256,
-        block: LookupBlock<T::EthSpec>,
+        block: LookupBlock,
         process_type: BlockProcessType,
         duplicate_cache: DuplicateCache,
     ) {
@@ -243,7 +243,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_rpc_custody_columns(
         self: Arc<NetworkBeaconProcessor<T>>,
         block_root: Hash256,
-        custody_columns: DataColumnSidecarList<T::EthSpec>,
+        custody_columns: DataColumnSidecarList,
         process_type: BlockProcessType,
     ) {
         // custody_columns must always have at least one element
@@ -314,7 +314,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_lookup_envelope(
         self: Arc<NetworkBeaconProcessor<T>>,
         block_root: Hash256,
-        envelope: Arc<types::SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<types::SignedExecutionPayloadEnvelope>,
         process_type: BlockProcessType,
     ) {
         debug!(
@@ -369,7 +369,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub fn process_historic_data_columns(
         &self,
         batch_id: CustodyBackfillBatchId,
-        downloaded_columns: DataColumnSidecarList<T::EthSpec>,
+        downloaded_columns: DataColumnSidecarList,
         expected_cgc: u64,
     ) {
         let _guard = debug_span!(
@@ -477,7 +477,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_chain_segment(
         &self,
         process_id: ChainSegmentProcessId,
-        downloaded_blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        downloaded_blocks: Vec<RangeSyncBlock>,
     ) {
         let ChainSegmentProcessId::RangeBatchId(chain_id, epoch) = process_id else {
             // This is a request from range sync, this should _never_ happen
@@ -558,7 +558,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub fn process_chain_segment_backfill(
         &self,
         process_id: ChainSegmentProcessId,
-        downloaded_blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        downloaded_blocks: Vec<RangeSyncBlock>,
     ) {
         let ChainSegmentProcessId::BackSyncBatchId(epoch) = process_id else {
             // this a request from RangeSync, this should _never_ happen
@@ -629,7 +629,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     #[instrument(skip_all)]
     async fn process_blocks<'a>(
         &self,
-        downloaded_blocks: impl Iterator<Item = &'a RangeSyncBlock<T::EthSpec>>,
+        downloaded_blocks: impl Iterator<Item = &'a RangeSyncBlock>,
         notify_execution_layer: NotifyExecutionLayer,
     ) -> (usize, Result<(), ChainSegmentFailed>) {
         let blocks: Vec<_> = downloaded_blocks.cloned().collect();
@@ -663,7 +663,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     #[instrument(skip_all)]
     fn process_backfill_blocks(
         &self,
-        downloaded_blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        downloaded_blocks: Vec<RangeSyncBlock>,
     ) -> (usize, Result<(), ChainSegmentFailed>) {
         // Verify KZG proofs for blobs and data columns, including columns carried by Gloas
         // payload envelopes.

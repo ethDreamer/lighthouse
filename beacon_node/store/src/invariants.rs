@@ -272,7 +272,7 @@ pub enum InvariantViolation {
     },
 }
 
-impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
+impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     /// Run all database invariant checks.
     ///
     /// The `ctx` parameter provides data from the beacon chain layer (fork choice, state cache,
@@ -411,7 +411,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
 
         for res in self.hot_db.iter_column::<Hash256>(DBColumn::BeaconBlock) {
             let (block_root, block_bytes) = res?;
-            let block = SignedBlindedBeaconBlock::<E>::from_ssz_bytes(&block_bytes, &self.spec)?;
+            let block = SignedBlindedBeaconBlock::from_ssz_bytes(&block_bytes, &self.spec)?;
             let slot = block.slot();
 
             // Invariant 2: block-state consistency.
@@ -873,7 +873,7 @@ mod tests {
 
     #[test]
     fn payload_body_summary_consistency_checks_keys_only() {
-        let store = HotColdDB::<MinimalEthSpec, MemoryStore, MemoryStore>::open_ephemeral(
+        let store = HotColdDB::<MemoryStore, MemoryStore>::open_ephemeral(
             StoreConfig::default(),
             Spec::default_spec().into(),
         )

@@ -22,9 +22,9 @@ impl ObservedPayloadEnvelopes {
     /// Observe the verified payload envelope for its `(slot, block_root, builder_index)` tuple
     ///
     /// Returns `true` if the envelope was newly observed, `false` if it had already been seen
-    pub fn observe_envelope<T: BeaconChainTypes>(
+    pub fn observe_envelope(
         &self,
-        envelope: &GossipVerifiedEnvelope<T>,
+        envelope: &GossipVerifiedEnvelope,
     ) -> bool {
         let message = &envelope.signed_envelope.message;
         self.seen_envelopes
@@ -75,7 +75,7 @@ mod tests {
         slot: Slot,
         block_root: Hash256,
         builder_index: BuilderIndex,
-    ) -> GossipVerifiedEnvelope<EphemeralHarnessType<E>> {
+    ) -> GossipVerifiedEnvelope {
         let signed_envelope = SignedExecutionPayloadEnvelope {
             message: ExecutionPayloadEnvelope {
                 payload: ExecutionPayloadGloas {

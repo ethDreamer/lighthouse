@@ -44,23 +44,23 @@ use crate::{
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct LightClientHeader<E: EthSpec> {
+pub struct LightClientHeader {
     pub beacon: BeaconBlockHeader,
 
     #[superstruct(
         only(Capella),
         partial_getter(rename = "execution_payload_header_capella")
     )]
-    pub execution: ExecutionPayloadHeaderCapella<E>,
+    pub execution: ExecutionPayloadHeaderCapella,
     #[superstruct(only(Deneb), partial_getter(rename = "execution_payload_header_deneb"))]
-    pub execution: ExecutionPayloadHeaderDeneb<E>,
+    pub execution: ExecutionPayloadHeaderDeneb,
     #[superstruct(
         only(Electra),
         partial_getter(rename = "execution_payload_header_electra")
     )]
-    pub execution: ExecutionPayloadHeaderElectra<E>,
+    pub execution: ExecutionPayloadHeaderElectra,
     #[superstruct(only(Fulu), partial_getter(rename = "execution_payload_header_fulu"))]
-    pub execution: ExecutionPayloadHeaderFulu<E>,
+    pub execution: ExecutionPayloadHeaderFulu,
 
     #[superstruct(only(Capella, Deneb, Electra, Fulu))]
     pub execution_branch: FixedVector<Hash256, ExecutionPayloadProofLen>,
@@ -72,9 +72,9 @@ pub struct LightClientHeader<E: EthSpec> {
     pub _phantom_data: PhantomData<E>,
 }
 
-impl<E: EthSpec> LightClientHeader<E> {
+impl LightClientHeader {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
         chain_spec: &ChainSpec,
     ) -> Result<Self, LightClientError> {
         let header = match block
@@ -145,16 +145,16 @@ impl<E: EthSpec> LightClientHeader<E> {
             // TODO(EIP7732): check this
             0
         } else if fork_name.capella_enabled() {
-            ExecutionPayloadHeader::<E>::ssz_max_var_len_for_fork(fork_name)
+            ExecutionPayloadHeader::ssz_max_var_len_for_fork(fork_name)
         } else {
             0
         }
     }
 }
 
-impl<E: EthSpec> LightClientHeaderAltair<E> {
+impl LightClientHeaderAltair {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         Ok(LightClientHeaderAltair {
             beacon: block.message().block_header(),
@@ -163,7 +163,7 @@ impl<E: EthSpec> LightClientHeaderAltair<E> {
     }
 }
 
-impl<E: EthSpec> Default for LightClientHeaderAltair<E> {
+impl Default for LightClientHeaderAltair {
     fn default() -> Self {
         Self {
             beacon: BeaconBlockHeader::empty(),
@@ -172,9 +172,9 @@ impl<E: EthSpec> Default for LightClientHeaderAltair<E> {
     }
 }
 
-impl<E: EthSpec> LightClientHeaderCapella<E> {
+impl LightClientHeaderCapella {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         let payload = block
             .message()
@@ -203,7 +203,7 @@ impl<E: EthSpec> LightClientHeaderCapella<E> {
     }
 }
 
-impl<E: EthSpec> Default for LightClientHeaderCapella<E> {
+impl Default for LightClientHeaderCapella {
     fn default() -> Self {
         Self {
             beacon: BeaconBlockHeader::empty(),
@@ -214,9 +214,9 @@ impl<E: EthSpec> Default for LightClientHeaderCapella<E> {
     }
 }
 
-impl<E: EthSpec> LightClientHeaderDeneb<E> {
+impl LightClientHeaderDeneb {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         let header = block
             .message()
@@ -245,7 +245,7 @@ impl<E: EthSpec> LightClientHeaderDeneb<E> {
     }
 }
 
-impl<E: EthSpec> Default for LightClientHeaderDeneb<E> {
+impl Default for LightClientHeaderDeneb {
     fn default() -> Self {
         Self {
             beacon: BeaconBlockHeader::empty(),
@@ -256,9 +256,9 @@ impl<E: EthSpec> Default for LightClientHeaderDeneb<E> {
     }
 }
 
-impl<E: EthSpec> LightClientHeaderElectra<E> {
+impl LightClientHeaderElectra {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         let payload = block
             .message()
@@ -287,7 +287,7 @@ impl<E: EthSpec> LightClientHeaderElectra<E> {
     }
 }
 
-impl<E: EthSpec> Default for LightClientHeaderElectra<E> {
+impl Default for LightClientHeaderElectra {
     fn default() -> Self {
         Self {
             beacon: BeaconBlockHeader::empty(),
@@ -298,9 +298,9 @@ impl<E: EthSpec> Default for LightClientHeaderElectra<E> {
     }
 }
 
-impl<E: EthSpec> LightClientHeaderFulu<E> {
+impl LightClientHeaderFulu {
     pub fn block_to_light_client_header(
-        block: &SignedBlindedBeaconBlock<E>,
+        block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         let payload = block
             .message()
@@ -329,7 +329,7 @@ impl<E: EthSpec> LightClientHeaderFulu<E> {
     }
 }
 
-impl<E: EthSpec> Default for LightClientHeaderFulu<E> {
+impl Default for LightClientHeaderFulu {
     fn default() -> Self {
         Self {
             beacon: BeaconBlockHeader::empty(),
@@ -340,7 +340,7 @@ impl<E: EthSpec> Default for LightClientHeaderFulu<E> {
     }
 }
 
-impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for LightClientHeader<E> {
+impl<'de> ContextDeserialize<'de, ForkName> for LightClientHeader {
     fn context_deserialize<D>(deserializer: D, context: ForkName) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -384,30 +384,30 @@ mod tests {
     #[cfg(test)]
     mod altair {
         use crate::{LightClientHeaderAltair, MainnetEthSpec};
-        ssz_tests!(LightClientHeaderAltair<MainnetEthSpec>);
+        ssz_tests!(LightClientHeaderAltair);
     }
 
     #[cfg(test)]
     mod capella {
         use crate::{LightClientHeaderCapella, MainnetEthSpec};
-        ssz_tests!(LightClientHeaderCapella<MainnetEthSpec>);
+        ssz_tests!(LightClientHeaderCapella);
     }
 
     #[cfg(test)]
     mod deneb {
         use crate::{LightClientHeaderDeneb, MainnetEthSpec};
-        ssz_tests!(LightClientHeaderDeneb<MainnetEthSpec>);
+        ssz_tests!(LightClientHeaderDeneb);
     }
 
     #[cfg(test)]
     mod electra {
         use crate::{LightClientHeaderElectra, MainnetEthSpec};
-        ssz_tests!(LightClientHeaderElectra<MainnetEthSpec>);
+        ssz_tests!(LightClientHeaderElectra);
     }
 
     #[cfg(test)]
     mod fulu {
         use crate::{LightClientHeaderFulu, MainnetEthSpec};
-        ssz_tests!(LightClientHeaderFulu<MainnetEthSpec>);
+        ssz_tests!(LightClientHeaderFulu);
     }
 }

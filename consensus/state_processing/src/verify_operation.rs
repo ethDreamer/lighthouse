@@ -50,13 +50,13 @@ pub trait TransformPersist {
     feature = "arbitrary",
     arbitrary(bound = "T: TransformPersist + Arbitrary<'arbitrary>")
 )]
-pub struct SigVerifiedOp<T: TransformPersist, E: EthSpec> {
+pub struct SigVerifiedOp<T: TransformPersist> {
     op: T,
     verified_against: VerifiedAgainst,
     _phantom: PhantomData<E>,
 }
 
-impl<T: TransformPersist, E: EthSpec> Encode for SigVerifiedOp<T, E> {
+impl<T: TransformPersist> Encode for SigVerifiedOp<T> {
     fn is_ssz_fixed_len() -> bool {
         <SigVerifiedOpEncode<T::Persistable> as Encode>::is_ssz_fixed_len()
     }
@@ -84,7 +84,7 @@ impl<T: TransformPersist, E: EthSpec> Encode for SigVerifiedOp<T, E> {
     }
 }
 
-impl<T: TransformPersist, E: EthSpec> Decode for SigVerifiedOp<T, E> {
+impl<T: TransformPersist> Decode for SigVerifiedOp<T> {
     fn is_ssz_fixed_len() -> bool {
         <SigVerifiedOpDecode<T::Persistable> as Decode>::is_ssz_fixed_len()
     }
@@ -143,12 +143,12 @@ pub struct VerifiedAgainst {
     fork_versions: SmallVec<[ForkVersion; MAX_FORKS_VERIFIED_AGAINST]>,
 }
 
-impl<T, E> SigVerifiedOp<T, E>
+impl<T> SigVerifiedOp<T>
 where
-    T: VerifyOperation<E>
+    T: VerifyOperation
 {
     /// This function must be private because it assumes that `op` has already been verified.
-    fn new(op: T, state: &BeaconState<E>) -> Self {
+    fn new(op: T, state: &BeaconState) -> Self {
         let verified_against = VerifiedAgainst {
             fork_versions: op
                 .verification_epochs()
@@ -193,14 +193,14 @@ where
 }
 
 /// Trait for operations that can be verified and transformed into a `SigVerifiedOp`.
-pub trait VerifyOperation<E: EthSpec>: TransformPersist + Sized {
+pub trait VerifyOperation: TransformPersist + Sized {
     type Error;
 
     fn validate(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error>;
+    ) -> Result<SigVerifiedOp<Self>, Self::Error>;
 
     /// Return the epochs at which parts of this message were verified.
     ///
@@ -210,14 +210,14 @@ pub trait VerifyOperation<E: EthSpec>: TransformPersist + Sized {
     fn verification_epochs(&self) -> SmallVec<[Epoch; MAX_FORKS_VERIFIED_AGAINST]>;
 }
 
-impl<E: EthSpec> VerifyOperation<E> for SignedVoluntaryExit {
+impl VerifyOperation for SignedVoluntaryExit {
     type Error = ExitValidationError;
 
     fn validate(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error> {
+    ) -> Result<SigVerifiedOp<Self>, Self::Error> {
         verify_exit(state, None, &self, VerifySignatures::True, spec)?;
         Ok(SigVerifiedOp::new(self, state))
     }
@@ -228,14 +228,14 @@ impl<E: EthSpec> VerifyOperation<E> for SignedVoluntaryExit {
     }
 }
 
-impl<E: EthSpec> VerifyOperation<E> for AttesterSlashing<E> {
+impl VerifyOperation for AttesterSlashing {
     type Error = AttesterSlashingValidationError;
 
     fn validate(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error> {
+    ) -> Result<SigVerifiedOp<Self>, Self::Error> {
         verify_attester_slashing(state, self.to_ref(), VerifySignatures::True, spec)?;
         Ok(SigVerifiedOp::new(self, state))
     }
@@ -249,14 +249,14 @@ impl<E: EthSpec> VerifyOperation<E> for AttesterSlashing<E> {
     }
 }
 
-impl<E: EthSpec> VerifyOperation<E> for ProposerSlashing {
+impl VerifyOperation for ProposerSlashing {
     type Error = ProposerSlashingValidationError;
 
     fn validate(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error> {
+    ) -> Result<SigVerifiedOp<Self>, Self::Error> {
         verify_proposer_slashing(&self, state, VerifySignatures::True, spec)?;
         Ok(SigVerifiedOp::new(self, state))
     }
@@ -273,14 +273,14 @@ impl<E: EthSpec> VerifyOperation<E> for ProposerSlashing {
     }
 }
 
-impl<E: EthSpec> VerifyOperation<E> for SignedBlsToExecutionChange {
+impl VerifyOperation for SignedBlsToExecutionChange {
     type Error = BlsExecutionChangeValidationError;
 
     fn validate(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error> {
+    ) -> Result<SigVerifiedOp<Self>, Self::Error> {
         verify_bls_to_execution_change(state, &self, VerifySignatures::True, spec)?;
         Ok(SigVerifiedOp::new(self, state))
     }
@@ -296,22 +296,22 @@ impl<E: EthSpec> VerifyOperation<E> for SignedBlsToExecutionChange {
 ///
 /// The `At` suffix indicates that we can specify a particular epoch at which to
 /// verify the operation.
-pub trait VerifyOperationAt<E: EthSpec>: VerifyOperation<E> + Sized {
+pub trait VerifyOperationAt: VerifyOperation + Sized {
     fn validate_at(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         validate_at_epoch: Epoch,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error>;
+    ) -> Result<SigVerifiedOp<Self>, Self::Error>;
 }
 
-impl<E: EthSpec> VerifyOperationAt<E> for SignedVoluntaryExit {
+impl VerifyOperationAt for SignedVoluntaryExit {
     fn validate_at(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         validate_at_epoch: Epoch,
         spec: &ChainSpec,
-    ) -> Result<SigVerifiedOp<Self, E>, Self::Error> {
+    ) -> Result<SigVerifiedOp<Self>, Self::Error> {
         verify_exit(
             state,
             Some(validate_at_epoch),
@@ -336,9 +336,9 @@ impl TransformPersist for SignedVoluntaryExit {
     }
 }
 
-impl<E: EthSpec> TransformPersist for AttesterSlashing<E> {
-    type Persistable = AttesterSlashingOnDisk<E>;
-    type PersistableRef<'a> = AttesterSlashingRefOnDisk<'a, E>;
+impl TransformPersist for AttesterSlashing {
+    type Persistable = AttesterSlashingOnDisk;
+    type PersistableRef<'a> = AttesterSlashingRefOnDisk<'a>;
 
     fn as_persistable_ref(&self) -> Self::PersistableRef<'_> {
         self.to_ref().into()
@@ -350,7 +350,7 @@ impl<E: EthSpec> TransformPersist for AttesterSlashing<E> {
 }
 
 // TODO: Remove this once we no longer support DB schema version 17
-impl<E: EthSpec> TransformPersist for types::AttesterSlashingBase<E> {
+impl TransformPersist for types::AttesterSlashingBase {
     type Persistable = Self;
     type PersistableRef<'a> = &'a Self;
 
@@ -363,10 +363,10 @@ impl<E: EthSpec> TransformPersist for types::AttesterSlashingBase<E> {
     }
 }
 // TODO: Remove this once we no longer support DB schema version 17
-impl<E: EthSpec> From<SigVerifiedOp<AttesterSlashingBase<E>, E>>
-    for SigVerifiedOp<AttesterSlashing<E>, E>
+impl From<SigVerifiedOp<AttesterSlashingBase>>
+    for SigVerifiedOp<AttesterSlashing>
 {
-    fn from(base: SigVerifiedOp<AttesterSlashingBase<E>, E>) -> Self {
+    fn from(base: SigVerifiedOp<AttesterSlashingBase>) -> Self {
         SigVerifiedOp {
             op: AttesterSlashing::Base(base.op),
             verified_against: base.verified_against,
@@ -375,12 +375,12 @@ impl<E: EthSpec> From<SigVerifiedOp<AttesterSlashingBase<E>, E>>
     }
 }
 // TODO: Remove this once we no longer support DB schema version 17
-impl<E: EthSpec> TryFrom<SigVerifiedOp<AttesterSlashing<E>, E>>
-    for SigVerifiedOp<AttesterSlashingBase<E>, E>
+impl TryFrom<SigVerifiedOp<AttesterSlashing>>
+    for SigVerifiedOp<AttesterSlashingBase>
 {
     type Error = String;
 
-    fn try_from(slashing: SigVerifiedOp<AttesterSlashing<E>, E>) -> Result<Self, Self::Error> {
+    fn try_from(slashing: SigVerifiedOp<AttesterSlashing>) -> Result<Self, Self::Error> {
         match slashing.op {
             AttesterSlashing::Base(base) => Ok(SigVerifiedOp {
                 op: base,
@@ -464,7 +464,7 @@ mod test {
 
     #[test]
     fn attester_slashing_roundtrip() {
-        roundtrip_test::<AttesterSlashing<E>>();
+        roundtrip_test::<AttesterSlashing>();
     }
 
     #[test]

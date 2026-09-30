@@ -22,7 +22,7 @@ use crate::{
 pub struct SyncSelectionProof(Signature);
 
 impl SyncSelectionProof {
-    pub fn new<E: EthSpec>(
+    pub fn new(
         slot: Slot,
         subcommittee_index: u64,
         secret_key: &SecretKey,
@@ -46,7 +46,7 @@ impl SyncSelectionProof {
     }
 
     /// Returns the "modulo" used for determining if a `SyncSelectionProof` elects an aggregator.
-    pub fn modulo<E: EthSpec>() -> Result<u64, ArithError> {
+    pub fn modulo() -> Result<u64, ArithError> {
         Ok(cmp::max(
             1,
             (Spec::sync_committee_size())
@@ -55,8 +55,8 @@ impl SyncSelectionProof {
         ))
     }
 
-    pub fn is_aggregator<E: EthSpec>(&self) -> Result<bool, ArithError> {
-        self.is_aggregator_from_modulo(Self::modulo::<E>()?)
+    pub fn is_aggregator(&self) -> Result<bool, ArithError> {
+        self.is_aggregator_from_modulo(Self::modulo()?)
     }
 
     pub fn is_aggregator_from_modulo(&self, modulo: u64) -> Result<bool, ArithError> {
@@ -72,7 +72,7 @@ impl SyncSelectionProof {
         signature_hash_int.safe_rem(modulo).map(|rem| rem == 0)
     }
 
-    pub fn verify<E: EthSpec>(
+    pub fn verify(
         &self,
         slot: Slot,
         subcommittee_index: u64,
@@ -125,7 +125,7 @@ mod test {
         let genesis_validators_root = Hash256::zero();
         let spec = &Spec::default_spec();
 
-        let proof = SyncSelectionProof::new::<MainnetEthSpec>(
+        let proof = SyncSelectionProof::new(
             slot,
             subcommittee_index,
             &key.sk,
@@ -133,7 +133,7 @@ mod test {
             genesis_validators_root,
             spec,
         );
-        assert!(proof.verify::<MainnetEthSpec>(
+        assert!(proof.verify(
             slot,
             subcommittee_index,
             &key.pk,

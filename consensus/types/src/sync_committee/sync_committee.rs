@@ -34,12 +34,12 @@ impl From<ArithError> for Error {
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
-pub struct SyncCommittee<E: EthSpec> {
+pub struct SyncCommittee {
     pub pubkeys: FixedVector<PublicKeyBytes, typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,
     pub aggregate_pubkey: PublicKeyBytes,
 }
 
-impl<E: EthSpec> SyncCommittee<E> {
+impl SyncCommittee {
     /// Create a temporary sync committee that should *never* be included in a legitimate consensus object.
     pub fn temporary() -> Self {
         Self {

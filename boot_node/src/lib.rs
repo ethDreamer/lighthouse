@@ -29,20 +29,20 @@ pub fn run(
     // Run the main function emitting any errors
     if let Err(e) = match eth_spec_id {
         EthSpecId::Minimal => {
-            main::<types::MinimalEthSpec>(lh_matches, bn_matches, eth2_network_config)
+            main(lh_matches, bn_matches, eth2_network_config)
         }
         EthSpecId::Mainnet => {
-            main::<types::MainnetEthSpec>(lh_matches, bn_matches, eth2_network_config)
+            main(lh_matches, bn_matches, eth2_network_config)
         }
         EthSpecId::Gnosis => {
-            main::<types::GnosisEthSpec>(lh_matches, bn_matches, eth2_network_config)
+            main(lh_matches, bn_matches, eth2_network_config)
         }
     } {
         logging::crit!(?e);
     }
 }
 
-fn main<E: EthSpec>(
+fn main(
     lh_matches: &ArgMatches,
     bn_matches: &ArgMatches,
     eth2_network_config: &Eth2NetworkConfig,
@@ -54,7 +54,7 @@ fn main<E: EthSpec>(
         .map_err(|e| format!("Failed to build runtime: {}", e))?;
 
     // Run the boot node
-    runtime.block_on(server::run::<E>(
+    runtime.block_on(server::run(
         lh_matches,
         bn_matches,
         eth2_network_config,

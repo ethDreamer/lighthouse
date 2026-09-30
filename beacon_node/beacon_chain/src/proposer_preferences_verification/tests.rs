@@ -31,7 +31,7 @@ use crate::{
     validator_pubkey_cache::ValidatorPubkeyCache,
 };
 
-type T = EphemeralHarnessType<E>;
+type T = EphemeralHarnessType;
 
 const NUM_VALIDATORS: usize = 64;
 
@@ -40,16 +40,16 @@ struct TestContext {
     preferences_cache: GossipVerifiedProposerPreferenceCache,
     slot_clock: TestingSlotClock,
     spec: ChainSpec,
-    store: Arc<HotColdDB<E, MemoryStore, MemoryStore>>,
+    store: Arc<HotColdDB<MemoryStore, MemoryStore>>,
     head_block_root: Hash256,
     beacon_proposer_cache: Mutex<BeaconProposerCache>,
-    validator_pubkey_cache: RwLock<ValidatorPubkeyCache<T>>,
+    validator_pubkey_cache: RwLock<ValidatorPubkeyCache>,
     genesis_validators_root: Hash256,
 }
 
 impl TestContext {
     fn new() -> Self {
-        let spec = test_spec::<E>();
+        let spec = test_spec();
         let store = Arc::new(
             HotColdDB::open_ephemeral(StoreConfig::default(), Arc::new(spec.clone()))
                 .expect("should open ephemeral store"),
@@ -58,7 +58,7 @@ impl TestContext {
         let keypairs = generate_deterministic_keypairs(NUM_VALIDATORS);
 
         let mut state =
-            interop_genesis_state::<E>(&keypairs, 0, Hash256::repeat_byte(0x42), None, &spec)
+            interop_genesis_state(&keypairs, 0, Hash256::repeat_byte(0x42), None, &spec)
                 .expect("should build genesis state");
 
         let genesis_state_root = state
@@ -179,7 +179,7 @@ impl TestContext {
         block.slot = slot;
         fork_choice
             .proto_array_mut()
-            .process_block::<E>(block, slot, &self.spec, Duration::ZERO)
+            .process_block(block, slot, &self.spec, Duration::ZERO)
             .expect("should insert block into fork choice");
     }
 }
@@ -577,12 +577,12 @@ fn pre_gloas_proposal_epoch_ignored() {
     if fork_name_from_env() != Some(ForkName::Gloas) {
         return;
     }
-    let mut spec = test_spec::<E>();
+    let mut spec = test_spec();
     spec.gloas_fork_epoch = Some(Epoch::new(2));
 
     let current_slot = Slot::new(Spec::slots_per_epoch());
     let prefs = make_signed_preferences(current_slot + 1, 0, Hash256::ZERO);
-    let result = verify_preferences_consistency::<E>(&prefs.message, current_slot, &spec);
+    let result = verify_preferences_consistency(&prefs.message, current_slot, &spec);
     assert!(
         matches!(
             result,
@@ -597,11 +597,11 @@ fn gloas_proposal_epoch_passes_fork_check() {
     if fork_name_from_env() != Some(ForkName::Gloas) {
         return;
     }
-    let mut spec = test_spec::<E>();
+    let mut spec = test_spec();
     spec.gloas_fork_epoch = Some(Epoch::new(1));
 
     let current_slot = Slot::new(Spec::slots_per_epoch());
     let prefs = make_signed_preferences(current_slot + 1, 0, Hash256::ZERO);
-    let result = verify_preferences_consistency::<E>(&prefs.message, current_slot, &spec);
+    let result = verify_preferences_consistency(&prefs.message, current_slot, &spec);
     assert!(result.is_ok(), "got: {result:?}");
 }

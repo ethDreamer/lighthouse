@@ -21,7 +21,7 @@ pub trait AllCaches {
     fn all_caches_built(&self) -> bool;
 }
 
-impl<E: EthSpec> AllCaches for BeaconState<E> {
+impl AllCaches for BeaconState {
     #[instrument(skip_all)]
     fn build_all_caches(&mut self, spec: &ChainSpec) -> Result<(), EpochCacheError> {
         self.build_caches(spec)?;

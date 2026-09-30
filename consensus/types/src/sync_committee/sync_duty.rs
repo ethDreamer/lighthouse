@@ -42,10 +42,10 @@ impl SyncDuty {
 
     /// Create a new `SyncDuty` from a `SyncCommittee`, which contains the pubkeys but not the
     /// indices.
-    pub fn from_sync_committee<E: EthSpec>(
+    pub fn from_sync_committee(
         validator_index: u64,
         pubkey: PublicKeyBytes,
-        sync_committee: &SyncCommittee<E>,
+        sync_committee: &SyncCommittee,
     ) -> Option<Self> {
         let validator_sync_committee_indices = sync_committee
             .pubkeys
@@ -80,8 +80,8 @@ impl SyncDuty {
     }
 
     /// Get the set of subnet IDs for this duty.
-    pub fn subnet_ids<E: EthSpec>(&self) -> Result<HashSet<SyncSubnetId>, ArithError> {
-        SyncSubnetId::compute_subnets_for_sync_committee::<E>(
+    pub fn subnet_ids(&self) -> Result<HashSet<SyncSubnetId>, ArithError> {
+        SyncSubnetId::compute_subnets_for_sync_committee(
             &self.validator_sync_committee_indices,
         )
     }

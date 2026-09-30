@@ -57,24 +57,24 @@ impl Ord for BlobIdentifier {
 #[context_deserialize(ForkName)]
 #[serde(bound = "E: EthSpec")]
 #[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
-pub struct BlobSidecar<E: EthSpec> {
+pub struct BlobSidecar {
     #[serde(with = "serde_utils::quoted_u64")]
     pub index: u64,
     #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]
-    pub blob: Blob<E>,
+    pub blob: Blob,
     pub kzg_commitment: KzgCommitment,
     pub kzg_proof: KzgProof,
     pub signed_block_header: SignedBeaconBlockHeader,
     pub kzg_commitment_inclusion_proof: FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
 }
 
-impl<E: EthSpec> PartialOrd for BlobSidecar<E> {
+impl PartialOrd for BlobSidecar {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<E: EthSpec> Ord for BlobSidecar<E> {
+impl Ord for BlobSidecar {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.index.cmp(&other.index)
     }
@@ -108,11 +108,11 @@ impl From<ArithError> for BlobSidecarError {
     }
 }
 
-impl<E: EthSpec> BlobSidecar<E> {
+impl BlobSidecar {
     pub fn new(
         index: usize,
-        blob: Blob<E>,
-        signed_block: &SignedBeaconBlock<E>,
+        blob: Blob,
+        signed_block: &SignedBeaconBlock,
         kzg_proof: KzgProof,
     ) -> Result<Self, BlobSidecarError> {
         let expected_kzg_commitments = signed_block
@@ -138,9 +138,9 @@ impl<E: EthSpec> BlobSidecar<E> {
         })
     }
 
-    pub fn new_with_existing_proof<T: TryInto<PartialDataColumnHeader<E>>>(
+    pub fn new_with_existing_proof<T: TryInto<PartialDataColumnHeader>>(
         index: usize,
-        blob: Blob<E>,
+        blob: Blob,
         header: T,
         kzg_proof: KzgProof,
     ) -> Result<Self, BlobSidecarError> {
@@ -149,7 +149,7 @@ impl<E: EthSpec> BlobSidecar<E> {
             .kzg_commitments
             .get(index)
             .ok_or(BlobSidecarError::MissingKzgCommitment)?;
-        let kzg_commitment_inclusion_proof = complete_kzg_commitment_merkle_proof::<E>(
+        let kzg_commitment_inclusion_proof = complete_kzg_commitment_merkle_proof(
             &header.kzg_commitments,
             index,
             &header.kzg_commitments_inclusion_proof,
@@ -198,7 +198,7 @@ impl<E: EthSpec> BlobSidecar<E> {
     pub fn empty() -> Self {
         Self {
             index: 0,
-            blob: Blob::<E>::default(),
+            blob: Blob::default(),
             kzg_commitment: KzgCommitment::empty_for_testing(),
             kzg_proof: KzgProof::empty(),
             signed_block_header: SignedBeaconBlockHeader {
@@ -245,7 +245,7 @@ impl<E: EthSpec> BlobSidecar<E> {
             *byte = 0;
         }
 
-        let blob = Blob::<E>::new(blob_bytes)
+        let blob = Blob::new(blob_bytes)
             .map_err(|e| format!("error constructing random blob: {:?}", e))?;
         let kzg_blob: &[u8; BYTES_PER_BLOB] = blob
             .as_ref()
@@ -275,11 +275,11 @@ impl<E: EthSpec> BlobSidecar<E> {
     }
 
     pub fn build_sidecars(
-        blobs: BlobsList<E>,
-        block: &SignedBeaconBlock<E>,
-        kzg_proofs: KzgProofs<E>,
+        blobs: BlobsList,
+        block: &SignedBeaconBlock,
+        kzg_proofs: KzgProofs,
         spec: &ChainSpec,
-    ) -> Result<BlobSidecarList<E>, BlobSidecarError> {
+    ) -> Result<BlobSidecarList, BlobSidecarError> {
         let mut blob_sidecars = vec![];
         for (i, (kzg_proof, blob)) in kzg_proofs.iter().zip(blobs).enumerate() {
             let blob_sidecar = BlobSidecar::new(i, blob, block, *kzg_proof)?;
@@ -293,10 +293,10 @@ impl<E: EthSpec> BlobSidecar<E> {
     }
 }
 
-pub type BlobSidecarList<E> = RuntimeVariableList<Arc<BlobSidecar<E>>>;
+pub type BlobSidecarList = RuntimeVariableList<Arc<BlobSidecar>>;
 /// Alias for a non length-constrained list of `BlobSidecar`s.
-pub type FixedBlobSidecarList<E> = RuntimeFixedVector<Option<Arc<BlobSidecar<E>>>>;
-pub type BlobsList<E> = VariableList<Blob<E>, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
+pub type FixedBlobSidecarList = RuntimeFixedVector<Option<Arc<BlobSidecar>>>;
+pub type BlobsList = VariableList<Blob, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 #[cfg(test)]
 mod tests {

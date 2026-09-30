@@ -17,7 +17,7 @@ use crate::{
 pub struct SelectionProof(Signature);
 
 impl SelectionProof {
-    pub fn new<E: EthSpec>(
+    pub fn new(
         slot: Slot,
         secret_key: &SecretKey,
         fork: &Fork,
@@ -64,7 +64,7 @@ impl SelectionProof {
         signature_hash_int.safe_rem(modulo).map(|rem| rem == 0)
     }
 
-    pub fn verify<E: EthSpec>(
+    pub fn verify(
         &self,
         slot: Slot,
         pubkey: &PublicKey,

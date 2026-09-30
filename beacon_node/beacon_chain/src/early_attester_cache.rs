@@ -18,7 +18,7 @@ pub struct CommitteeLengths {
 
 impl CommitteeLengths {
     /// Instantiate `Self` using `state.current_epoch()`.
-    pub fn new<E: EthSpec>(state: &BeaconState<E>) -> Result<Self, Error> {
+    pub fn new(state: &BeaconState) -> Result<Self, Error> {
         let active_validator_indices_len = state
             .committee_cache(RelativeEpoch::Current)?
             .active_validator_indices()
@@ -31,7 +31,7 @@ impl CommitteeLengths {
     }
 
     /// Get the count of committees per each slot of `self.epoch`.
-    pub fn get_committee_count_per_slot<E: EthSpec>(
+    pub fn get_committee_count_per_slot(
         &self,
         spec: &ChainSpec,
     ) -> Result<usize, Error> {
@@ -39,7 +39,7 @@ impl CommitteeLengths {
     }
 
     /// Get the length of the committee at the given `slot` and `committee_index`.
-    pub fn get_committee_length<E: EthSpec>(
+    pub fn get_committee_length(
         &self,
         slot: Slot,
         committee_index: CommitteeIndex,
@@ -54,7 +54,7 @@ impl CommitteeLengths {
         }
 
         let slots_per_epoch = slots_per_epoch as usize;
-        let committees_per_slot = self.get_committee_count_per_slot::<E>(spec)?;
+        let committees_per_slot = self.get_committee_count_per_slot(spec)?;
         let index_in_epoch = compute_committee_index_in_epoch(
             slot,
             slots_per_epoch,
@@ -76,7 +76,7 @@ impl CommitteeLengths {
     }
 }
 
-pub struct CacheItem<E: EthSpec> {
+pub struct CacheItem {
     /*
      * Values used to create attestations.
      */
@@ -88,9 +88,9 @@ pub struct CacheItem<E: EthSpec> {
     /*
      * Values used to make the block available.
      */
-    block: Arc<SignedBeaconBlock<E>>,
-    blobs: Option<BlobSidecarList<E>>,
-    data_columns: Option<DataColumnSidecarList<E>>,
+    block: Arc<SignedBeaconBlock>,
+    blobs: Option<BlobSidecarList>,
+    data_columns: Option<DataColumnSidecarList>,
     proto_block: ProtoBlock,
 }
 
@@ -104,11 +104,11 @@ pub struct CacheItem<E: EthSpec> {
 ///   verification.
 /// - Provide a block which can be sent to peers via RPC.
 #[derive(Default)]
-pub struct EarlyAttesterCache<E: EthSpec> {
-    item: RwLock<Option<CacheItem<E>>>,
+pub struct EarlyAttesterCache {
+    item: RwLock<Option<CacheItem>>,
 }
 
-impl<E: EthSpec> EarlyAttesterCache<E> {
+impl EarlyAttesterCache {
     /// Removes the cached item, meaning that all future calls to `Self::try_attest` will return
     /// `None` until a new cache item is added.
     pub fn clear(&self) {
@@ -120,9 +120,9 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
     pub fn add_head_block(
         &self,
         beacon_block_root: Hash256,
-        block: &AvailableBlock<E>,
+        block: &AvailableBlock,
         proto_block: ProtoBlock,
-        state: &BeaconState<E>,
+        state: &BeaconState,
     ) -> Result<(), Error> {
         let epoch = state.current_epoch();
         let committee_lengths = CommitteeLengths::new(state)?;
@@ -177,7 +177,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
         request_slot: Slot,
         request_index: CommitteeIndex,
         spec: &ChainSpec,
-    ) -> Result<Option<Attestation<E>>, Error> {
+    ) -> Result<Option<Attestation>, Error> {
         let lock = self.item.read();
         let Some(item) = lock.as_ref() else {
             return Ok(None);
@@ -194,17 +194,17 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
 
         let committee_count = item
             .committee_lengths
-            .get_committee_count_per_slot::<E>(spec)?;
+            .get_committee_count_per_slot(spec)?;
         if request_index >= committee_count as u64 {
             return Ok(None);
         }
 
         let committee_len =
             item.committee_lengths
-                .get_committee_length::<E>(request_slot, request_index, spec)?;
+                .get_committee_length(request_slot, request_index, spec)?;
 
         let is_same_slot_attestation = request_slot == item.block.slot();
-        if spec.fork_name_at_slot::<E>(request_slot).gloas_enabled() && !is_same_slot_attestation {
+        if spec.fork_name_at_slot(request_slot).gloas_enabled() && !is_same_slot_attestation {
             return Ok(None);
         }
         let payload_present = false;
@@ -235,7 +235,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
     }
 
     /// Returns the block, if `block_root` matches the cached item.
-    pub fn get_block(&self, block_root: Hash256) -> Option<Arc<SignedBeaconBlock<E>>> {
+    pub fn get_block(&self, block_root: Hash256) -> Option<Arc<SignedBeaconBlock>> {
         self.item
             .read()
             .as_ref()
@@ -244,7 +244,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
     }
 
     /// Returns the blobs, if `block_root` matches the cached item.
-    pub fn get_blobs(&self, block_root: Hash256) -> Option<BlobSidecarList<E>> {
+    pub fn get_blobs(&self, block_root: Hash256) -> Option<BlobSidecarList> {
         self.item
             .read()
             .as_ref()
@@ -253,7 +253,7 @@ impl<E: EthSpec> EarlyAttesterCache<E> {
     }
 
     /// Returns the data columns, if `block_root` matches the cached item.
-    pub fn get_data_columns(&self, block_root: Hash256) -> Option<DataColumnSidecarList<E>> {
+    pub fn get_data_columns(&self, block_root: Hash256) -> Option<DataColumnSidecarList> {
         self.item
             .read()
             .as_ref()

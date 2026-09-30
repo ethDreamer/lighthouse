@@ -82,34 +82,34 @@ const MAX_HEAD_EVENT_QUEUE_LEN: usize = 1_024;
 
 const MAX_PAYLOAD_AVAILABLE_EVENT_QUEUE_LEN: usize = 1_024;
 
-type ValidatorStore<E> = LighthouseValidatorStore<SystemTimeSlotClock, E>;
+type ValidatorStore = LighthouseValidatorStore<SystemTimeSlotClock>;
 
 #[derive(Clone)]
-pub struct ProductionValidatorClient<E: EthSpec> {
-    context: RuntimeContext<E>,
-    duties_service: Arc<DutiesService<ValidatorStore<E>, SystemTimeSlotClock>>,
-    block_service: BlockService<ValidatorStore<E>, SystemTimeSlotClock>,
-    attestation_service: AttestationService<ValidatorStore<E>, SystemTimeSlotClock>,
-    sync_committee_service: SyncCommitteeService<ValidatorStore<E>, SystemTimeSlotClock>,
-    payload_attestation_service: PayloadAttestationService<ValidatorStore<E>, SystemTimeSlotClock>,
+pub struct ProductionValidatorClient {
+    context: RuntimeContext,
+    duties_service: Arc<DutiesService<ValidatorStore, SystemTimeSlotClock>>,
+    block_service: BlockService<ValidatorStore, SystemTimeSlotClock>,
+    attestation_service: AttestationService<ValidatorStore, SystemTimeSlotClock>,
+    sync_committee_service: SyncCommitteeService<ValidatorStore, SystemTimeSlotClock>,
+    payload_attestation_service: PayloadAttestationService<ValidatorStore, SystemTimeSlotClock>,
     proposer_preferences_service:
-        ProposerPreferencesService<ValidatorStore<E>, SystemTimeSlotClock>,
+        ProposerPreferencesService<ValidatorStore, SystemTimeSlotClock>,
     doppelganger_service: Option<Arc<DoppelgangerService>>,
-    preparation_service: PreparationService<ValidatorStore<E>, SystemTimeSlotClock>,
-    validator_store: Arc<ValidatorStore<E>>,
+    preparation_service: PreparationService<ValidatorStore, SystemTimeSlotClock>,
+    validator_store: Arc<ValidatorStore>,
     configured_builders: BuilderStore,
-    builder_preferences_service: BuilderPreferencesService<ValidatorStore<E>, SystemTimeSlotClock>,
+    builder_preferences_service: BuilderPreferencesService<ValidatorStore, SystemTimeSlotClock>,
     slot_clock: SystemTimeSlotClock,
     http_api_listen_addr: Option<SocketAddr>,
     config: Config,
     genesis_time: u64,
 }
 
-impl<E: EthSpec> ProductionValidatorClient<E> {
+impl ProductionValidatorClient {
     /// Instantiates the validator client, _without_ starting the timers to trigger block
     /// and attestation production.
     pub async fn new_from_cli(
-        context: RuntimeContext<E>,
+        context: RuntimeContext,
         cli_args: &ArgMatches,
         validator_client_config: &ValidatorClient,
     ) -> Result<Self, String> {
@@ -120,7 +120,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
 
     /// Instantiates the validator client, _without_ starting the timers to trigger block
     /// and attestation production.
-    pub async fn new(context: RuntimeContext<E>, config: Config) -> Result<Self, String> {
+    pub async fn new(context: RuntimeContext, config: Config) -> Result<Self, String> {
         // Attempt to raise soft fd limit. The behavior is OS specific:
         // `linux` - raise soft fd limit to hard
         // `macos` - raise soft fd limit to `min(kernel limit, hard fd limit)`
@@ -152,7 +152,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
                 duties_service: None,
             };
 
-            let ctx: Arc<validator_http_metrics::Context<E>> =
+            let ctx: Arc<validator_http_metrics::Context> =
                 Arc::new(validator_http_metrics::Context {
                     config: config.http_metrics.clone(),
                     shared: RwLock::new(shared),
@@ -388,16 +388,16 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
         let (genesis_time, genesis_validators_root) =
             if let Some(eth2_network_config) = context.eth2_network_config.as_ref() {
                 let time = eth2_network_config
-                    .genesis_time::<E>()?
+                    .genesis_time()?
                     .ok_or("no genesis time")?;
                 let root = eth2_network_config
-                    .genesis_validators_root::<E>()?
+                    .genesis_validators_root()?
                     .ok_or("no genesis validators root")?;
                 (time, root)
             } else {
                 // Perform some potentially long-running initialization tasks.
                 tokio::select! {
-                    tuple = init_from_beacon_node::<E>(&beacon_nodes, &proposer_nodes) => tuple?,
+                    tuple = init_from_beacon_node(&beacon_nodes, &proposer_nodes) => tuple?,
                     () = context.executor.exit() => return Err("Shutting down".to_string()),
                 }
             };
@@ -439,10 +439,10 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
         let attestation_head_monitor_rx = beacon_nodes.subscribe_to_head_events();
         let sync_head_monitor_rx = beacon_nodes.subscribe_to_head_events();
 
-        start_fallback_updater_service::<_, E>(context.executor.clone(), beacon_nodes.clone())?;
+        start_fallback_updater_service(context.executor.clone(), beacon_nodes.clone())?;
 
         let proposer_nodes = Arc::new(proposer_nodes);
-        start_fallback_updater_service::<_, E>(context.executor.clone(), proposer_nodes.clone())?;
+        start_fallback_updater_service(context.executor.clone(), proposer_nodes.clone())?;
 
         let doppelganger_service = if config.enable_doppelganger_protection {
             Some(Arc::new(DoppelgangerService::default()))
@@ -664,7 +664,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
 
             let exit = self.context.executor.exit();
 
-            let (listen_addr, server) = validator_http_api::serve::<_, E>(ctx, exit)
+            let (listen_addr, server) = validator_http_api::serve(ctx, exit)
                 .await
                 .map_err(|e| format!("Unable to start HTTP API server: {:?}", e))?;
 
@@ -754,13 +754,13 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
     }
 }
 
-async fn init_from_beacon_node<E: EthSpec>(
+async fn init_from_beacon_node(
     beacon_nodes: &BeaconNodeFallback<SystemTimeSlotClock>,
     proposer_nodes: &BeaconNodeFallback<SystemTimeSlotClock>,
 ) -> Result<(u64, Hash256), String> {
     loop {
-        beacon_nodes.update_all_candidates::<E>().await;
-        proposer_nodes.update_all_candidates::<E>().await;
+        beacon_nodes.update_all_candidates().await;
+        proposer_nodes.update_all_candidates().await;
 
         let num_available = beacon_nodes.num_available().await;
         let num_total = beacon_nodes.num_total().await;

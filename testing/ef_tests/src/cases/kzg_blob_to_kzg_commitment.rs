@@ -13,28 +13,28 @@ pub struct KZGBlobToKZGCommitmentInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct KZGBlobToKZGCommitment<E: EthSpec> {
+pub struct KZGBlobToKZGCommitment {
     pub input: KZGBlobToKZGCommitmentInput,
     pub output: Option<String>,
     #[serde(skip)]
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for KZGBlobToKZGCommitment<E> {
+impl LoadCase for KZGBlobToKZGCommitment {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         decode::yaml_decode_file(path.join("data.yaml").as_path())
     }
 }
 
-impl<E: EthSpec> Case for KZGBlobToKZGCommitment<E> {
+impl Case for KZGBlobToKZGCommitment {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         fork_name == ForkName::Deneb
     }
 
     fn result(&self, _case_index: usize, _fork_name: ForkName) -> Result<(), Error> {
         let kzg = get_kzg();
-        let commitment = parse_blob::<E>(&self.input.blob).and_then(|blob| {
-            blob_to_kzg_commitment::<E>(&kzg, &blob).map_err(|e| {
+        let commitment = parse_blob(&self.input.blob).and_then(|blob| {
+            blob_to_kzg_commitment(&kzg, &blob).map_err(|e| {
                 Error::InternalError(format!("Failed to compute kzg commitment: {:?}", e))
             })
         });

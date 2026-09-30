@@ -18,10 +18,10 @@ struct ExitTest {
     exit_epoch: Epoch,
     state_epoch: Epoch,
     #[allow(clippy::type_complexity)]
-    state_modifier: Box<dyn FnOnce(&mut BeaconState<E>)>,
+    state_modifier: Box<dyn FnOnce(&mut BeaconState)>,
     #[allow(clippy::type_complexity)]
     block_modifier:
-        Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType<E>>, &mut BeaconBlock<E>)>,
+        Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType>, &mut BeaconBlock)>,
     #[allow(dead_code)]
     expected: Result<(), BlockProcessingError>,
 }
@@ -40,8 +40,8 @@ impl Default for ExitTest {
 }
 
 impl ExitTest {
-    async fn block_and_pre_state(self) -> (SignedBeaconBlock<E>, BeaconState<E>) {
-        let harness = get_harness::<E>(
+    async fn block_and_pre_state(self) -> (SignedBeaconBlock, BeaconState) {
+        let harness = get_harness(
             self.state_epoch.start_slot(Spec::slots_per_epoch()),
             VALIDATOR_COUNT,
         )
@@ -63,8 +63,8 @@ impl ExitTest {
     }
 
     fn process(
-        block: &SignedBeaconBlock<E>,
-        state: &mut BeaconState<E>,
+        block: &SignedBeaconBlock,
+        state: &mut BeaconState,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(block.slot());
         per_block_processing(
@@ -73,13 +73,13 @@ impl ExitTest {
             BlockSignatureStrategy::VerifyIndividual,
             VerifyBlockRoot::True,
             &mut ctxt,
-            &test_spec::<E>(),
+            &test_spec(),
         )
     }
 
     #[cfg(all(test, not(debug_assertions)))]
-    async fn run(self) -> BeaconState<E> {
-        let spec = &test_spec::<E>();
+    async fn run(self) -> BeaconState {
+        let spec = &test_spec();
         let expected = self.expected.clone();
         assert_eq!(*STATE_EPOCH, spec.shard_committee_period);
 
@@ -331,7 +331,7 @@ vectors_and_tests!(
 mod custom_tests {
     use super::*;
 
-    fn assert_exited(state: &BeaconState<E>, validator_index: usize) {
+    fn assert_exited(state: &BeaconState, validator_index: usize) {
         let spec = Spec::default_spec();
 
         let validator = &state.validators().get(validator_index).unwrap();

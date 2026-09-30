@@ -42,21 +42,21 @@ impl From<String> for Error {
     }
 }
 
-type ValidatorStore<E> = LighthouseValidatorStore<SystemTimeSlotClock, E>;
+type ValidatorStore = LighthouseValidatorStore<SystemTimeSlotClock>;
 
 /// Contains objects which have shared access from inside/outside of the metrics server.
-pub struct Shared<E> {
-    pub validator_store: Option<Arc<ValidatorStore<E>>>,
-    pub duties_service: Option<Arc<DutiesService<ValidatorStore<E>, SystemTimeSlotClock>>>,
+pub struct Shared {
+    pub validator_store: Option<Arc<ValidatorStore>>,
+    pub duties_service: Option<Arc<DutiesService<ValidatorStore, SystemTimeSlotClock>>>,
     pub genesis_time: Option<u64>,
 }
 
 /// A wrapper around all the items required to spawn the HTTP server.
 ///
 /// The server will gracefully handle the case where any fields are `None`.
-pub struct Context<E> {
+pub struct Context {
     pub config: Config,
-    pub shared: RwLock<Shared<E>>,
+    pub shared: RwLock<Shared>,
 }
 
 /// Configuration for the HTTP server.
@@ -96,8 +96,8 @@ impl Default for Config {
 ///
 /// Returns an error if the server is unable to bind or there is another error during
 /// configuration.
-pub async fn serve<E: EthSpec>(
-    ctx: Arc<Context<E>>,
+pub async fn serve(
+    ctx: Arc<Context>,
     shutdown: impl Future<Output = ()> + Send + Sync + 'static,
 ) -> Result<(SocketAddr, impl Future<Output = ()>), Error> {
     let config = &ctx.config;
@@ -122,7 +122,7 @@ pub async fn serve<E: EthSpec>(
         .map_err(|e| Error::Other(format!("invalid version header value: {e}")))?;
 
     let router = Router::new()
-        .route("/metrics", get(metrics_handler::<E>))
+        .route("/metrics", get(metrics_handler))
         .with_state(ctx.clone())
         .layer(add_server_header(server_header))
         .layer(cors_layer);
@@ -146,7 +146,7 @@ pub async fn serve<E: EthSpec>(
     Ok((address, server_future))
 }
 
-async fn metrics_handler<E: EthSpec>(State(ctx): State<Arc<Context<E>>>) -> impl IntoResponse {
+async fn metrics_handler(State(ctx): State<Arc<Context>>) -> impl IntoResponse {
     match gather_prometheus_metrics(&ctx) {
         Ok(body) => (StatusCode::OK, [(header::CONTENT_TYPE, "text/plain")], body),
         Err(e) => (
@@ -157,8 +157,8 @@ async fn metrics_handler<E: EthSpec>(State(ctx): State<Arc<Context<E>>>) -> impl
     }
 }
 
-pub fn gather_prometheus_metrics<E: EthSpec>(
-    ctx: &Context<E>,
+pub fn gather_prometheus_metrics(
+    ctx: &Context,
 ) -> std::result::Result<String, String> {
     use validator_metrics::*;
     let mut buffer = vec![];

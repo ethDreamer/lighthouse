@@ -36,8 +36,8 @@ use strum::IntoEnumIterator;
 use types::data::{CustodyIndex, compute_subnets_from_custody_group, get_custody_groups};
 
 /// Unified peer subnet information structure for pruning logic.
-struct PeerSubnetInfo<E: EthSpec> {
-    info: PeerInfo<E>,
+struct PeerSubnetInfo {
+    info: PeerInfo,
     attestation_subnets: HashSet<SubnetId>,
     sync_committees: HashSet<SyncSubnetId>,
     custody_subnets: HashSet<DataColumnSubnetId>,
@@ -77,9 +77,9 @@ pub const PRIORITY_PEER_EXCESS: f32 = 0.2;
 pub const LIBP2P_NAT_OPEN_THRESHOLD: usize = 3;
 
 /// The main struct that handles peer's reputation and connection status.
-pub struct PeerManager<E: EthSpec> {
+pub struct PeerManager {
     /// Storage of network globals to access the `PeerDB`.
-    network_globals: Arc<NetworkGlobals<E>>,
+    network_globals: Arc<NetworkGlobals>,
     /// A queue of events that the `PeerManager` is waiting to produce.
     events: SmallVec<[PeerManagerEvent; 16]>,
     /// A collection of inbound-connected peers awaiting to be Ping'd.
@@ -151,11 +151,11 @@ pub enum PeerManagerEvent {
     DiscoverSubnetPeers(Vec<SubnetDiscovery>),
 }
 
-impl<E: EthSpec> PeerManager<E> {
+impl PeerManager {
     // NOTE: Must be run inside a tokio executor.
     pub fn new(
         cfg: config::Config,
-        network_globals: Arc<NetworkGlobals<E>>,
+        network_globals: Arc<NetworkGlobals>,
     ) -> Result<Self, String> {
         let config::Config {
             discovery_enabled,
@@ -174,7 +174,7 @@ impl<E: EthSpec> PeerManager<E> {
         let subnets_by_custody_group = if network_globals.spec.is_peer_das_scheduled() {
             (0..network_globals.spec.number_of_custody_groups)
                 .map(|custody_index| {
-                    let subnets = compute_subnets_from_custody_group::<E>(
+                    let subnets = compute_subnets_from_custody_group(
                         custody_index,
                         &network_globals.spec,
                     )
@@ -747,7 +747,7 @@ impl<E: EthSpec> PeerManager<E> {
     }
 
     /// Received a metadata response from a peer.
-    pub fn meta_data_response(&mut self, peer_id: &PeerId, meta_data: MetaData<E>) -> bool {
+    pub fn meta_data_response(&mut self, peer_id: &PeerId, meta_data: MetaData) -> bool {
         let mut invalid_meta_data = false;
         let mut updated_cgc = false;
 
@@ -1077,8 +1077,8 @@ impl<E: EthSpec> PeerManager<E> {
     fn build_peer_subnet_info(
         &self,
         peers_to_prune: &HashSet<PeerId>,
-    ) -> HashMap<PeerId, PeerSubnetInfo<E>> {
-        let mut peer_subnet_info: HashMap<PeerId, PeerSubnetInfo<E>> = HashMap::new();
+    ) -> HashMap<PeerId, PeerSubnetInfo> {
+        let mut peer_subnet_info: HashMap<PeerId, PeerSubnetInfo> = HashMap::new();
 
         for (peer_id, info) in self.network_globals.peers.read().connected_peers() {
             // Ignore peers we trust or that we are already pruning
@@ -1116,7 +1116,7 @@ impl<E: EthSpec> PeerManager<E> {
 
     /// Build reverse lookup from custody subnets to peer lists.
     fn build_custody_subnet_lookup(
-        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo<E>>,
+        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo>,
     ) -> HashMap<DataColumnSubnetId, Vec<PeerId>> {
         let mut custody_subnet_to_peers: HashMap<DataColumnSubnetId, Vec<PeerId>> = HashMap::new();
 
@@ -1143,10 +1143,10 @@ impl<E: EthSpec> PeerManager<E> {
     /// Returns true if the peer should be protected (not pruned).
     fn should_protect_peer(
         &self,
-        candidate_info: &PeerSubnetInfo<E>,
+        candidate_info: &PeerSubnetInfo,
         sampling_subnets: &HashSet<DataColumnSubnetId>,
         custody_subnet_to_peers: &HashMap<DataColumnSubnetId, Vec<PeerId>>,
-        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo<E>>,
+        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo>,
         connected_outbound_peer_count: usize,
         outbound_peers_pruned: usize,
     ) -> bool {
@@ -1219,7 +1219,7 @@ impl<E: EthSpec> PeerManager<E> {
         &self,
         column_subnet: DataColumnSubnetId,
         column_subnet_to_peers: &HashMap<DataColumnSubnetId, Vec<PeerId>>,
-        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo<E>>,
+        peer_subnet_info: &HashMap<PeerId, PeerSubnetInfo>,
         sampling_subnets: &HashSet<DataColumnSubnetId>,
         connected_outbound_peer_count: usize,
         outbound_peers_pruned: usize,
@@ -1356,12 +1356,12 @@ impl<E: EthSpec> PeerManager<E> {
         }
 
         // 1. Look through peers that have the worst score (ignoring non-penalized scored peers).
-        prune_peers!(|info: &PeerInfo<E>| { info.score().score() < 0.0 });
+        prune_peers!(|info: &PeerInfo| { info.score().score() < 0.0 });
 
         // 2. Attempt to remove peers that are not subscribed to a subnet, if we still need to
         //    prune more.
         if peers_to_prune.len() < connected_peer_count.saturating_sub(self.target_peers) {
-            prune_peers!(|info: &PeerInfo<E>| { !info.has_long_lived_subnet() });
+            prune_peers!(|info: &PeerInfo| { !info.has_long_lived_subnet() });
         }
 
         // 3. and 4. Remove peers that are too grouped on any given data column subnet. If all subnets are
@@ -1730,14 +1730,14 @@ mod tests {
     use crate::rpc::MetaDataV3;
     use types::{ChainSpec, ForkName, MainnetEthSpec as E};
 
-    async fn build_peer_manager(target_peer_count: usize) -> PeerManager<E> {
+    async fn build_peer_manager(target_peer_count: usize) -> PeerManager {
         build_peer_manager_with_trusted_peers(vec![], target_peer_count).await
     }
 
     async fn build_peer_manager_with_trusted_peers(
         trusted_peers: Vec<PeerId>,
         target_peer_count: usize,
-    ) -> PeerManager<E> {
+    ) -> PeerManager {
         let spec = Arc::new(Spec::default_spec());
         build_peer_manager_with_opts(trusted_peers, target_peer_count, spec).await
     }
@@ -1746,7 +1746,7 @@ mod tests {
         trusted_peers: Vec<PeerId>,
         target_peer_count: usize,
         spec: Arc<ChainSpec>,
-    ) -> PeerManager<E> {
+    ) -> PeerManager {
         let config = config::Config {
             target_peer_count,
             discovery_enabled: false,
@@ -2062,7 +2062,7 @@ mod tests {
         peer_manager.inject_connect_ingoing(&peer4, "/ip4/0.0.0.0".parse().unwrap(), None);
 
         // Have some of the peers be on a long-lived subnet
-        let mut attnets = crate::types::EnrAttestationBitfield::<E>::new();
+        let mut attnets = crate::types::EnrAttestationBitfield::new();
         attnets.set(1, true).unwrap();
         let metadata = MetaDataV3 {
             seq_number: 0,
@@ -2083,7 +2083,7 @@ mod tests {
             false,
         );
 
-        let mut attnets = crate::types::EnrAttestationBitfield::<E>::new();
+        let mut attnets = crate::types::EnrAttestationBitfield::new();
         attnets.set(10, true).unwrap();
         let metadata = MetaDataV3 {
             seq_number: 0,
@@ -2104,7 +2104,7 @@ mod tests {
             false,
         );
 
-        let mut syncnets = crate::types::EnrSyncCommitteeBitfield::<E>::new();
+        let mut syncnets = crate::types::EnrSyncCommitteeBitfield::new();
         syncnets.set(3, true).unwrap();
         let metadata = MetaDataV3 {
             seq_number: 0,
@@ -2397,7 +2397,7 @@ mod tests {
             peer_manager.inject_connect_ingoing(&peer, "/ip4/0.0.0.0".parse().unwrap(), None);
 
             // Have some of the peers be on a long-lived subnet
-            let mut syncnets = crate::types::EnrSyncCommitteeBitfield::<E>::new();
+            let mut syncnets = crate::types::EnrSyncCommitteeBitfield::new();
             let custody_subnets = match x {
                 0 => HashSet::new(),
                 1 => HashSet::from([
@@ -2613,7 +2613,7 @@ mod tests {
             let peer = PeerId::random();
 
             // Have some of the peers be on a long-lived subnet
-            let mut syncnets = crate::types::EnrSyncCommitteeBitfield::<E>::new();
+            let mut syncnets = crate::types::EnrSyncCommitteeBitfield::new();
 
             let custody_subnets = match peer_idx {
                 0 => {
@@ -2766,7 +2766,7 @@ mod tests {
             let peer = PeerId::random();
             peer_manager.inject_connect_ingoing(&peer, "/ip4/0.0.0.0".parse().unwrap(), None);
 
-            let mut attnets = crate::types::EnrAttestationBitfield::<E>::new();
+            let mut attnets = crate::types::EnrAttestationBitfield::new();
             attnets.set(subnet, true).unwrap();
 
             let metadata = MetaDataV3 {
@@ -2963,7 +2963,7 @@ mod tests {
                 peer_info.update_sync_status(empty_synced_status());
 
                 if on_sync_committee {
-                    let mut syncnets = crate::types::EnrSyncCommitteeBitfield::<E>::new();
+                    let mut syncnets = crate::types::EnrSyncCommitteeBitfield::new();
                     syncnets.set(0, true).unwrap();
                     peer_info.set_meta_data(MetaData::V3(MetaDataV3 {
                         seq_number: 0,
@@ -3152,8 +3152,8 @@ mod tests {
 
                     // Create peers based on the randomly generated conditions.
                     for condition in &peer_conditions {
-                        let mut attnets = crate::types::EnrAttestationBitfield::<E>::new();
-                        let mut syncnets = crate::types::EnrSyncCommitteeBitfield::<E>::new();
+                        let mut attnets = crate::types::EnrAttestationBitfield::new();
+                        let mut syncnets = crate::types::EnrSyncCommitteeBitfield::new();
 
                         if condition.outgoing {
                             peer_manager.inject_connect_outgoing(

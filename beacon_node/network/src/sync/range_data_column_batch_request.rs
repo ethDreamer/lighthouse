@@ -11,7 +11,7 @@ use types::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, EthSpe
 pub struct RangeDataColumnBatchRequest<T: BeaconChainTypes> {
     requests: HashMap<
         DataColumnsByRangeRequestId,
-        ByRangeRequest<DataColumnsByRangeRequestId, DataColumnSidecarList<T::EthSpec>>,
+        ByRangeRequest<DataColumnsByRangeRequestId, DataColumnSidecarList>,
     >,
     /// The column indices corresponding to the request
     column_peers: HashMap<DataColumnsByRangeRequestId, Vec<ColumnIndex>>,
@@ -53,7 +53,7 @@ impl<T: BeaconChainTypes> RangeDataColumnBatchRequest<T> {
     pub fn add_custody_columns(
         &mut self,
         req_id: DataColumnsByRangeRequestId,
-        columns: Vec<Arc<DataColumnSidecar<T::EthSpec>>>,
+        columns: Vec<Arc<DataColumnSidecar>>,
     ) -> Result<(), String> {
         let req = self
             .requests
@@ -64,8 +64,8 @@ impl<T: BeaconChainTypes> RangeDataColumnBatchRequest<T> {
 
     pub fn responses(
         &mut self,
-    ) -> Option<Result<DataColumnSidecarList<T::EthSpec>, CouplingError>> {
-        let mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList<T::EthSpec>> =
+    ) -> Option<Result<DataColumnSidecarList, CouplingError>> {
+        let mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList> =
             HashMap::new();
         let mut column_to_peer_id: HashMap<u64, PeerId> = HashMap::new();
 
@@ -117,12 +117,12 @@ impl<T: BeaconChainTypes> RangeDataColumnBatchRequest<T> {
 
     fn responses_with_custody_columns(
         &self,
-        mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList<T::EthSpec>>,
+        mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList>,
         column_to_peer: HashMap<ColumnIndex, PeerId>,
         expected_custody_columns: &HashSet<ColumnIndex>,
-    ) -> Result<DataColumnSidecarList<T::EthSpec>, CouplingError> {
+    ) -> Result<DataColumnSidecarList, CouplingError> {
         let mut naughty_peers = vec![];
-        let mut result: DataColumnSidecarList<T::EthSpec> = vec![];
+        let mut result: DataColumnSidecarList = vec![];
 
         let forward_blocks_iter = self
             .beacon_chain
@@ -319,7 +319,7 @@ mod tests {
     #[tokio::test]
     async fn valid_gloas_batch_completes_without_peer_failure() {
         let spec = Arc::new(ForkName::Gloas.make_genesis_spec(Spec::default_spec()));
-        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
+        let harness = BeaconChainHarness::<EphemeralHarnessType>::builder()
             .spec(spec)
             .deterministic_keypairs(8)
             .fresh_ephemeral_store()

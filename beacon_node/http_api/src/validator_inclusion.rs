@@ -11,7 +11,7 @@ use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec};
 fn end_of_epoch_state<T: BeaconChainTypes>(
     epoch: Epoch,
     chain: &BeaconChain<T>,
-) -> Result<BeaconState<T::EthSpec>, warp::reject::Rejection> {
+) -> Result<BeaconState, warp::reject::Rejection> {
     let target_slot = epoch.end_slot(Spec::slots_per_epoch());
     // The execution status is not returned, any functions which rely upon this method might return
     // optimistic information without explicitly declaring so.
@@ -24,10 +24,10 @@ fn end_of_epoch_state<T: BeaconChainTypes>(
 /// ## Notes
 ///
 /// Will mutate `state`, transitioning it to the next epoch.
-fn get_epoch_processing_summary<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn get_epoch_processing_summary(
+    state: &mut BeaconState,
     spec: &ChainSpec,
-) -> Result<EpochProcessingSummary<E>, warp::reject::Rejection> {
+) -> Result<EpochProcessingSummary, warp::reject::Rejection> {
     process_epoch(state, spec)
         .map_err(|e| warp_utils::reject::custom_server_error(format!("{:?}", e)))
 }

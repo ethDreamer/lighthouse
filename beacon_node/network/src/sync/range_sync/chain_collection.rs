@@ -55,9 +55,9 @@ pub struct ChainCollection<T: BeaconChainTypes> {
     /// The beacon chain for processing.
     beacon_chain: Arc<BeaconChain<T>>,
     /// The set of finalized chains being synced.
-    finalized_chains: FnvHashMap<ChainId, SyncingChain<T>>,
+    finalized_chains: FnvHashMap<ChainId, SyncingChain>,
     /// The set of head chains being synced.
-    head_chains: FnvHashMap<ChainId, SyncingChain<T>>,
+    head_chains: FnvHashMap<ChainId, SyncingChain>,
     /// The current sync state of the process.
     state: RangeSyncState,
     #[cfg(test)]
@@ -139,9 +139,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
     /// Calls `func` on every chain of the collection. If the result is
     /// `ProcessingResult::RemoveChain`, the chain is removed and returned.
     /// NOTE: `func` must not change the syncing state of a chain.
-    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain<T>, RangeSyncType, RemoveChain)>
+    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain, RangeSyncType, RemoveChain)>
     where
-        F: FnMut(&mut SyncingChain<T>) -> ProcessingResult,
+        F: FnMut(&mut SyncingChain) -> ProcessingResult,
     {
         let mut to_remove = Vec::new();
 
@@ -180,9 +180,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         &mut self,
         id: ChainId,
         func: F,
-    ) -> Result<(Option<(SyncingChain<T>, RemoveChain)>, RangeSyncType), ()>
+    ) -> Result<(Option<(SyncingChain, RemoveChain)>, RangeSyncType), ()>
     where
-        F: FnOnce(&mut SyncingChain<T>) -> ProcessingResult,
+        F: FnOnce(&mut SyncingChain) -> ProcessingResult,
     {
         if let Entry::Occupied(mut entry) = self.finalized_chains.entry(id) {
             // Search in our finalized chains first

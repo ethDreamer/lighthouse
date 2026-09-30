@@ -15,7 +15,7 @@ use types::{
 /// 8 validators per slot on minimal, fewer than the committee size, so positions repeat.
 const VALIDATOR_COUNT: usize = 64;
 
-fn get_harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
+fn get_harness() -> BeaconChainHarness<EphemeralHarnessType> {
     BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(VALIDATOR_COUNT)

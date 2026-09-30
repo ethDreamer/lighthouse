@@ -100,7 +100,7 @@ fn default_logfile_debug_level() -> LevelFilter {
 /// Distinct from an `Environment` because a `Context` is not able to give a mutable reference to a
 /// `Runtime`, instead it only has access to a `Runtime`.
 #[derive(Clone)]
-pub struct RuntimeContext<E: EthSpec> {
+pub struct RuntimeContext {
     pub executor: TaskExecutor,
     pub eth_spec_instance: E,
     pub eth2_config: Eth2Config,
@@ -108,7 +108,7 @@ pub struct RuntimeContext<E: EthSpec> {
     pub sse_logging_components: Option<SSELoggingComponents>,
 }
 
-impl<E: EthSpec> RuntimeContext<E> {
+impl RuntimeContext {
     /// Returns the `eth2_config` for this service.
     pub fn eth2_config(&self) -> &Eth2Config {
         &self.eth2_config
@@ -116,7 +116,7 @@ impl<E: EthSpec> RuntimeContext<E> {
 }
 
 /// Builds an `Environment`.
-pub struct EnvironmentBuilder<E: EthSpec> {
+pub struct EnvironmentBuilder {
     runtime: Option<Arc<Runtime>>,
     sse_logging_components: Option<SSELoggingComponents>,
     eth_spec_instance: E,
@@ -124,7 +124,7 @@ pub struct EnvironmentBuilder<E: EthSpec> {
     eth2_network_config: Option<Eth2NetworkConfig>,
 }
 
-impl EnvironmentBuilder<MinimalEthSpec> {
+impl EnvironmentBuilder {
     /// Creates a new builder using the `minimal` eth2 specification.
     pub fn minimal() -> Self {
         Self {
@@ -137,7 +137,7 @@ impl EnvironmentBuilder<MinimalEthSpec> {
     }
 }
 
-impl EnvironmentBuilder<MainnetEthSpec> {
+impl EnvironmentBuilder {
     /// Creates a new builder using the `mainnet` eth2 specification.
     pub fn mainnet() -> Self {
         Self {
@@ -150,7 +150,7 @@ impl EnvironmentBuilder<MainnetEthSpec> {
     }
 }
 
-impl EnvironmentBuilder<GnosisEthSpec> {
+impl EnvironmentBuilder {
     /// Creates a new builder using the `gnosis` eth2 specification.
     pub fn gnosis() -> Self {
         Self {
@@ -163,7 +163,7 @@ impl EnvironmentBuilder<GnosisEthSpec> {
     }
 }
 
-impl<E: EthSpec> EnvironmentBuilder<E> {
+impl EnvironmentBuilder {
     /// Specifies that a multi-threaded tokio runtime should be used. Ideal for production uses.
     ///
     /// The `Runtime` used is just the standard tokio runtime.
@@ -278,14 +278,14 @@ impl<E: EthSpec> EnvironmentBuilder<E> {
         eth2_network_config: Eth2NetworkConfig,
     ) -> Result<Self, String> {
         // Create a new chain spec from the default configuration.
-        self.eth2_config.spec = eth2_network_config.chain_spec::<E>()?.into();
+        self.eth2_config.spec = eth2_network_config.chain_spec()?.into();
         self.eth2_network_config = Some(eth2_network_config);
 
         Ok(self)
     }
 
     /// Consumes the builder, returning an `Environment`.
-    pub fn build(self) -> Result<Environment<E>, String> {
+    pub fn build(self) -> Result<Environment, String> {
         let (signal, exit) = async_channel::bounded(1);
         let (signal_tx, signal_rx) = channel(1);
         Ok(Environment {
@@ -306,7 +306,7 @@ impl<E: EthSpec> EnvironmentBuilder<E> {
 
 /// An environment where Lighthouse services can run. Used to start a production beacon node or
 /// validator client, or to run tests that involve logging and async task execution.
-pub struct Environment<E: EthSpec> {
+pub struct Environment {
     runtime: Arc<Runtime>,
     /// Receiver side of an internal shutdown signal.
     signal_rx: Option<Receiver<ShutdownReason>>,
@@ -320,7 +320,7 @@ pub struct Environment<E: EthSpec> {
     pub eth2_network_config: Option<Arc<Eth2NetworkConfig>>,
 }
 
-impl<E: EthSpec> Environment<E> {
+impl Environment {
     /// Returns a mutable reference to the `tokio` runtime.
     ///
     /// Useful in the rare scenarios where it's necessary to block the current thread until a task
@@ -330,7 +330,7 @@ impl<E: EthSpec> Environment<E> {
     }
 
     /// Returns a `Context` where a "core" service has been added to the logger output.
-    pub fn core_context(&self) -> RuntimeContext<E> {
+    pub fn core_context(&self) -> RuntimeContext {
         RuntimeContext {
             executor: TaskExecutor::new(
                 Arc::downgrade(self.runtime()),

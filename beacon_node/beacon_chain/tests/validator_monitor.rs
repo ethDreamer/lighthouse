@@ -17,7 +17,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
 fn get_harness(
     validator_count: usize,
     validator_indexes_to_monitor: Vec<usize>,
-) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())

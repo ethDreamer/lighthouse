@@ -36,7 +36,7 @@ async fn sync_committee_duties_across_fork() {
     let validator_count = Spec::SYNC_COMMITTEE_SIZE;
     let fork_epoch = Epoch::new(8);
     let spec = altair_spec(fork_epoch);
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
     let client = &tester.client;
 
@@ -117,7 +117,7 @@ async fn attestations_across_fork_with_skip_slots() {
     let validator_count = Spec::SYNC_COMMITTEE_SIZE;
     let fork_epoch = Epoch::new(8);
     let spec = altair_spec(fork_epoch);
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
     let client = &tester.client;
 
@@ -177,9 +177,9 @@ async fn attestations_across_fork_with_skip_slots() {
         .collect::<Vec<_>>();
 
     assert!(!unaggregated_attestations.is_empty());
-    let fork_name = harness.spec.fork_name_at_slot::<E>(fork_slot);
+    let fork_name = harness.spec.fork_name_at_slot(fork_slot);
     client
-        .post_beacon_pool_attestations_v2::<E>(unaggregated_attestations, fork_name)
+        .post_beacon_pool_attestations_v2(unaggregated_attestations, fork_name)
         .await
         .unwrap();
 
@@ -204,7 +204,7 @@ async fn sync_contributions_across_fork_with_skip_slots() {
     let validator_count = Spec::SYNC_COMMITTEE_SIZE;
     let fork_epoch = Epoch::new(8);
     let spec = altair_spec(fork_epoch);
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
     let client = &tester.client;
 
@@ -251,7 +251,7 @@ async fn sync_committee_indices_across_fork() {
     let validator_count = Spec::SYNC_COMMITTEE_SIZE;
     let fork_epoch = Epoch::new(8);
     let spec = altair_spec(fork_epoch);
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
     let client = &tester.client;
 
@@ -404,7 +404,7 @@ async fn bls_to_execution_changes_update_all_around_capella_fork() {
         )
         .unwrap();
 
-    let tester = InteractiveTester::<E>::new_with_initializer_and_mutator(
+    let tester = InteractiveTester::new_with_initializer_and_mutator(
         Some(spec.clone()),
         VALIDATOR_COUNT,
         Some(Box::new(|harness_builder| {

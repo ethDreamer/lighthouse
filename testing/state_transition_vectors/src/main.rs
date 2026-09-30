@@ -37,9 +37,9 @@ async fn main() {
 /// An abstract definition of a test vector that can be run as a test or exported to disk.
 pub struct TestVector {
     pub title: String,
-    pub pre_state: BeaconState<E>,
-    pub block: SignedBeaconBlock<E>,
-    pub post_state: Option<BeaconState<E>>,
+    pub pre_state: BeaconState,
+    pub block: SignedBeaconBlock,
+    pub post_state: Option<BeaconState>,
     pub error: Option<String>,
 }
 
@@ -47,10 +47,10 @@ pub struct TestVector {
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
 
-async fn get_harness<E: EthSpec>(
+async fn get_harness(
     slot: Slot,
     validator_count: usize,
-) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())

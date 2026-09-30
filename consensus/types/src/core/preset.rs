@@ -81,7 +81,7 @@ pub struct BasePreset {
 }
 
 impl BasePreset {
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             max_committees_per_slot: spec.max_committees_per_slot as u64,
             target_committee_size: spec.target_committee_size as u64,
@@ -140,7 +140,7 @@ pub struct AltairPreset {
 }
 
 impl AltairPreset {
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             inactivity_penalty_quotient_altair: spec.inactivity_penalty_quotient_altair,
             min_slashing_penalty_quotient_altair: spec.min_slashing_penalty_quotient_altair,
@@ -177,7 +177,7 @@ pub struct BellatrixPreset {
 }
 
 impl BellatrixPreset {
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             inactivity_penalty_quotient_bellatrix: spec.inactivity_penalty_quotient_bellatrix,
             min_slashing_penalty_quotient_bellatrix: spec.min_slashing_penalty_quotient_bellatrix,
@@ -203,7 +203,7 @@ pub struct CapellaPreset {
 }
 
 impl CapellaPreset {
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             max_bls_to_execution_changes: Spec::MAX_BLS_TO_EXECUTION_CHANGES as u64,
             max_withdrawals_per_payload: Spec::MAX_WITHDRAWALS_PER_PAYLOAD as u64,
@@ -224,7 +224,7 @@ pub struct DenebPreset {
 }
 
 impl DenebPreset {
-    pub fn from_chain_spec<E: EthSpec>(_spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(_spec: &ChainSpec) -> Self {
         Self {
             max_blob_commitments_per_block: Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK as u64,
             kzg_commitment_inclusion_proof_depth: Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH as u64,
@@ -273,7 +273,7 @@ pub struct ElectraPreset {
 }
 
 impl ElectraPreset {
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             min_activation_balance: spec.min_activation_balance,
             max_effective_balance_electra: spec.max_effective_balance_electra,
@@ -316,7 +316,7 @@ pub struct FuluPreset {
 }
 
 impl FuluPreset {
-    pub fn from_chain_spec<E: EthSpec>(_spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(_spec: &ChainSpec) -> Self {
         Self {
             field_elements_per_cell: Spec::FIELD_ELEMENTS_PER_CELL as u64,
             field_elements_per_ext_blob: Spec::FIELD_ELEMENTS_PER_EXT_BLOB as u64,
@@ -349,7 +349,7 @@ pub struct GloasPreset {
 }
 
 impl GloasPreset {
-    pub fn from_chain_spec<E: EthSpec>(_spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(_spec: &ChainSpec) -> Self {
         Self {
             ptc_size: Spec::PTC_SIZE as u64,
             max_payload_attestations: Spec::MAX_PAYLOAD_ATTESTATIONS as u64,
@@ -373,7 +373,7 @@ pub struct HezePreset {
 }
 
 impl HezePreset {
-    pub fn from_chain_spec<E: EthSpec>(_spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(_spec: &ChainSpec) -> Self {
         Self {
             inclusion_list_committee_size: Spec::INCLUSION_LIST_COMMITTEE_SIZE as u64,
             max_signed_inclusion_list_size: Spec::MAX_SIGNED_INCLUSION_LIST_SIZE as u64,
@@ -404,50 +404,50 @@ mod test {
         yaml_serde::from_reader(f).unwrap()
     }
 
-    fn preset_test<E: EthSpec>() {
+    fn preset_test() {
         let preset_name = Spec::SPEC_ID.to_string();
         let spec = Spec::default_spec();
 
         let phase0: BasePreset = preset_from_file(&preset_name, "phase0.yaml");
-        assert_eq!(phase0, BasePreset::from_chain_spec::<E>(&spec));
+        assert_eq!(phase0, BasePreset::from_chain_spec(&spec));
 
         let altair: AltairPreset = preset_from_file(&preset_name, "altair.yaml");
-        assert_eq!(altair, AltairPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(altair, AltairPreset::from_chain_spec(&spec));
 
         let bellatrix: BellatrixPreset = preset_from_file(&preset_name, "bellatrix.yaml");
-        assert_eq!(bellatrix, BellatrixPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(bellatrix, BellatrixPreset::from_chain_spec(&spec));
 
         let capella: CapellaPreset = preset_from_file(&preset_name, "capella.yaml");
-        assert_eq!(capella, CapellaPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(capella, CapellaPreset::from_chain_spec(&spec));
 
         let deneb: DenebPreset = preset_from_file(&preset_name, "deneb.yaml");
-        assert_eq!(deneb, DenebPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(deneb, DenebPreset::from_chain_spec(&spec));
 
         let electra: ElectraPreset = preset_from_file(&preset_name, "electra.yaml");
-        assert_eq!(electra, ElectraPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(electra, ElectraPreset::from_chain_spec(&spec));
 
         let fulu: FuluPreset = preset_from_file(&preset_name, "fulu.yaml");
-        assert_eq!(fulu, FuluPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(fulu, FuluPreset::from_chain_spec(&spec));
 
         let gloas: GloasPreset = preset_from_file(&preset_name, "gloas.yaml");
-        assert_eq!(gloas, GloasPreset::from_chain_spec::<E>(&spec));
+        assert_eq!(gloas, GloasPreset::from_chain_spec(&spec));
 
         let heze: HezePreset = preset_from_file(&preset_name, "heze.yaml");
-        assert_eq!(heze, HezePreset::from_chain_spec::<E>(&spec));
+        assert_eq!(heze, HezePreset::from_chain_spec(&spec));
     }
 
     #[test]
     fn mainnet_presets_consistent() {
-        preset_test::<MainnetEthSpec>();
+        preset_test();
     }
 
     #[test]
     fn gnosis_presets_consistent() {
-        preset_test::<GnosisEthSpec>();
+        preset_test();
     }
 
     #[test]
     fn minimal_presets_consistent() {
-        preset_test::<MinimalEthSpec>();
+        preset_test();
     }
 }

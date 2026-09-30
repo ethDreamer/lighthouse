@@ -10,7 +10,7 @@ use types::{Hash256, SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvel
 /// and prunable execution payload. When payload pruning is enabled, bodies before the split are
 /// removed during migration because regular pruning will not revisit them.
 pub fn upgrade_to_v31<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
 ) -> Result<Vec<KeyValueStoreOp>, StoreError> {
     let mut ops = vec![];
     let split_slot = db.get_split_slot();
@@ -18,7 +18,7 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
 
     for result in db.hot_db.iter_column::<Hash256>(DBColumn::PayloadBody) {
         let (block_root, envelope_bytes) = result?;
-        let envelope = SignedExecutionPayloadEnvelope::<T::EthSpec>::from_ssz_bytes(
+        let envelope = SignedExecutionPayloadEnvelope::from_ssz_bytes(
             &envelope_bytes,
         )
         .map_err(|error| {
@@ -74,9 +74,9 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
 /// The freezer has a root for each slot before the split, including skipped slots. If that
 /// history has not been backfilled yet, retain the envelope rather than guessing its status.
 fn finalized_as_empty<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
     block_root: Hash256,
-    envelope: &SignedExecutionPayloadEnvelope<T::EthSpec>,
+    envelope: &SignedExecutionPayloadEnvelope,
 ) -> Result<bool, StoreError> {
     let split = db.get_split_info();
     if envelope.slot() >= split.slot || block_root == split.block_root {
@@ -100,10 +100,10 @@ fn finalized_as_empty<T: BeaconChainTypes>(
 }
 
 fn child_selects_empty<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
     block_root: Hash256,
     child_root: Hash256,
-    envelope: &SignedExecutionPayloadEnvelope<T::EthSpec>,
+    envelope: &SignedExecutionPayloadEnvelope,
 ) -> Result<bool, StoreError> {
     if child_root == block_root {
         return Ok(false);
@@ -121,7 +121,7 @@ fn child_selects_empty<T: BeaconChainTypes>(
 ///
 /// This downgrade is only possible prior to Gloas, when there are no payload envelope summaries.
 pub fn downgrade_from_v31<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
 ) -> Result<Vec<KeyValueStoreOp>, StoreError> {
     if let Some(result) = db
         .hot_db

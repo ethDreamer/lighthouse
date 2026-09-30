@@ -38,7 +38,7 @@ pub struct HistoricalSummary {
 }
 
 impl HistoricalSummary {
-    pub fn new<E: EthSpec>(state: &BeaconState<E>) -> Self {
+    pub fn new(state: &BeaconState) -> Self {
         Self {
             block_summary_root: state.block_roots().tree_hash_root(),
             state_summary_root: state.state_roots().tree_hash_root(),

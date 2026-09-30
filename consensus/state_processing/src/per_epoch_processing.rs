@@ -32,10 +32,10 @@ pub mod weigh_justification_and_finalization;
 /// Mutates the given `BeaconState`, returning early if an error is encountered. If an error is
 /// returned, a state might be "half-processed" and therefore in an invalid state.
 #[instrument(skip_all)]
-pub fn process_epoch<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_epoch(
+    state: &mut BeaconState,
     spec: &ChainSpec,
-) -> Result<EpochProcessingSummary<E>, Error> {
+) -> Result<EpochProcessingSummary, Error> {
     let _timer = metrics::start_timer(&metrics::PROCESS_EPOCH_TIME);
 
     // Verify that the `BeaconState` instantiation matches the fork at `state.slot()`.

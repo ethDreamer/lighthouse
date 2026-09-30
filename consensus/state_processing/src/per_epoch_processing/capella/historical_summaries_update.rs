@@ -3,8 +3,8 @@ use safe_arith::SafeArith;
 use types::state::HistoricalSummary;
 use types::{BeaconState, EthSpec};
 
-pub fn process_historical_summaries_update<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_historical_summaries_update(
+    state: &mut BeaconState,
 ) -> Result<(), EpochProcessingError> {
     // Set historical block root accumulator.
     let next_epoch = state.next_epoch()?;

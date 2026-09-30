@@ -39,12 +39,12 @@ pub const HIGH_VALIDATOR_COUNT: usize = 64;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(HIGH_VALIDATOR_COUNT));
 
-type TestHarness = BeaconChainHarness<DiskHarnessType<E>>;
+type TestHarness = BeaconChainHarness<DiskHarnessType>;
 
 fn get_store(
     db_path: &TempDir,
     spec: Arc<ChainSpec>,
-) -> Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>> {
+) -> Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>> {
     let store_config = StoreConfig {
         prune_payloads: false,
         ..StoreConfig::default()
@@ -56,7 +56,7 @@ fn get_store_generic(
     db_path: &TempDir,
     config: StoreConfig,
     spec: Arc<ChainSpec>,
-) -> Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>> {
+) -> Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>> {
     create_test_tracing_subscriber();
     let hot_path = db_path.path().join("chain_db");
     let cold_path = db_path.path().join("freezer_db");
@@ -74,7 +74,7 @@ fn get_store_generic(
 }
 
 fn get_harness(
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
     validator_count: usize,
 ) -> TestHarness {
     // Most tests expect to retain historic states, so we use this as the default.
@@ -91,7 +91,7 @@ fn get_harness(
 }
 
 fn get_harness_generic(
-    store: Arc<HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>>,
+    store: Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>,
     validator_count: usize,
     chain_config: ChainConfig,
     node_custody_type: NodeCustodyType,
@@ -114,8 +114,8 @@ fn get_harness_generic(
 #[tokio::test]
 async fn gloas_block_production_parent_root_with_unadvanced_state() {
     // Post-Gloas test.
-    let spec = Arc::new(test_spec::<E>());
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let spec = Arc::new(test_spec());
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -281,8 +281,8 @@ async fn prepare_payload_generic(
     assert!(parent_block_slot > 0);
 
     // Post-Gloas test.
-    let spec = Arc::new(test_spec::<E>());
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let spec = Arc::new(test_spec());
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -309,7 +309,7 @@ async fn prepare_payload_generic(
     // created with eth1 withdrawal credentials in the interop genesis builder.
     let consolidation_request = harness.make_switch_to_compounding_request(1);
 
-    let execution_requests = ExecutionRequests::Gloas(ExecutionRequestsGloas::<E> {
+    let execution_requests = ExecutionRequests::Gloas(ExecutionRequestsGloas {
         deposits: ProgressiveVariableList::empty(),
         withdrawals: ProgressiveVariableList::empty(),
         consolidations: ProgressiveVariableList::new(vec![consolidation_request]).unwrap(),
@@ -386,11 +386,11 @@ async fn prepare_payload_generic(
     )
     .unwrap();
 
-    let withdrawals_unadvanced_empty: Withdrawals<E> =
+    let withdrawals_unadvanced_empty: Withdrawals =
         get_expected_withdrawals(unadvanced_empty_state, &spec)
             .unwrap()
             .into();
-    let withdrawals_advanced_empty: Withdrawals<E> =
+    let withdrawals_advanced_empty: Withdrawals =
         get_expected_withdrawals(&advanced_empty_state, &spec)
             .unwrap()
             .into();
@@ -398,11 +398,11 @@ async fn prepare_payload_generic(
         .payload_expected_withdrawals()
         .unwrap()
         .to_vec();
-    let withdrawals_unadvanced_full: Withdrawals<E> =
+    let withdrawals_unadvanced_full: Withdrawals =
         get_expected_withdrawals(&unadvanced_full_state, &spec)
             .unwrap()
             .into();
-    let withdrawals_advanced_full: Withdrawals<E> =
+    let withdrawals_advanced_full: Withdrawals =
         get_expected_withdrawals(&advanced_full_state, &spec)
             .unwrap()
             .into();
@@ -501,7 +501,7 @@ async fn prepare_payload_generic(
         Some(advanced_empty_state.latest_block_header().canonical_root()),
         Some(prepare_slot.as_u64()),
         Some(target_gas_limit),
-        spec.fork_name_at_slot::<E>(prepare_slot)
+        spec.fork_name_at_slot(prepare_slot)
             .heze_enabled()
             .then(ProgressiveTransactions::default),
     );
@@ -588,8 +588,8 @@ async fn prepare_payload_on_genesis_skip_two_epochs() {
 
 async fn prepare_payload_on_genesis_generic(prepare_slot: Slot) {
     // Post-Gloas test.
-    let spec = Arc::new(test_spec::<E>());
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let spec = Arc::new(test_spec());
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -609,7 +609,7 @@ async fn prepare_payload_on_genesis_generic(prepare_slot: Slot) {
     let mut advanced_state = unadvanced_state.clone();
     complete_state_advance(&mut advanced_state, None, prepare_slot, None, &spec).unwrap();
 
-    let withdrawals_advanced: Withdrawals<E> = get_expected_withdrawals(&advanced_state, &spec)
+    let withdrawals_advanced: Withdrawals = get_expected_withdrawals(&advanced_state, &spec)
         .unwrap()
         .into();
 
@@ -709,8 +709,8 @@ async fn prepare_payload_on_fork_boundary(
     gloas_fork_epoch: Epoch,
 ) {
     // Post-Gloas test.
-    let mut spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let mut spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
     spec.gloas_fork_epoch = Some(gloas_fork_epoch);
@@ -741,10 +741,10 @@ async fn prepare_payload_on_fork_boundary(
     let mut advanced_state = unadvanced_state.clone();
     complete_state_advance(&mut advanced_state, None, prepare_slot, None, &spec).unwrap();
 
-    let withdrawals_unadvanced: Withdrawals<E> = get_expected_withdrawals(unadvanced_state, &spec)
+    let withdrawals_unadvanced: Withdrawals = get_expected_withdrawals(unadvanced_state, &spec)
         .unwrap()
         .into();
-    let withdrawals_advanced: Withdrawals<E> = get_expected_withdrawals(&advanced_state, &spec)
+    let withdrawals_advanced: Withdrawals = get_expected_withdrawals(&advanced_state, &spec)
         .unwrap()
         .into();
 
@@ -835,15 +835,15 @@ async fn prepare_payload_before_heze_boundary() {
 /// fork of `prepare_slot`: `engine_forkchoiceUpdatedV5` with `PayloadAttributesV5` from Heze
 /// onwards, `V4` before
 async fn prepare_payload_around_heze_boundary(prepare_slot: Slot, heze_fork_epoch: Epoch) {
-    let mut spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let mut spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
     spec.gloas_fork_epoch = Some(Epoch::new(0));
     spec.heze_fork_epoch = Some(heze_fork_epoch);
     let spec = Arc::new(spec);
 
-    let prepare_slot_is_heze = spec.fork_name_at_slot::<E>(prepare_slot).heze_enabled();
+    let prepare_slot_is_heze = spec.fork_name_at_slot(prepare_slot).heze_enabled();
 
     // Only produce blocks up to the parent slot, so no Heze block production is required
     let num_blocks_produced = (prepare_slot - 1).as_u64();
@@ -939,8 +939,8 @@ async fn prepare_payload_around_heze_boundary(prepare_slot: Slot, heze_fork_epoc
 
 #[tokio::test]
 async fn gloas_block_production_caches_blobs_for_column_publishing() {
-    let spec = Arc::new(test_spec::<E>());
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let spec = Arc::new(test_spec());
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -1059,8 +1059,8 @@ async fn gloas_block_production_caches_blobs_for_column_publishing() {
 /// A Gloas proposer re-orging must use the parent's `prev_randao`
 #[tokio::test]
 async fn gloas_pre_payload_attributes_reorg_uses_parent_randao() {
-    let spec = Arc::new(test_spec::<E>());
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let spec = Arc::new(test_spec());
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -1177,8 +1177,8 @@ async fn prepare_payload_gas_limit_generic(
     registered_gas_limit: Option<u64>,
     expected_gas_limit: u64,
 ) {
-    let mut spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let mut spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
     if let Some(gas_limit) = scheduled_gas_limit {

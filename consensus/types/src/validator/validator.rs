@@ -112,9 +112,9 @@ impl Validator {
     }
 
     /// Returns `true` if the validator is eligible to be activated.
-    pub fn is_eligible_for_activation<E: EthSpec>(
+    pub fn is_eligible_for_activation(
         &self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
     ) -> bool {
         self.is_eligible_for_activation_with_finalized_checkpoint(

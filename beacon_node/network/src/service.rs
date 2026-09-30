@@ -58,21 +58,21 @@ const VALIDATOR_SUBSCRIPTION_MESSAGE_QUEUE_SIZE: usize = 65_536;
 /// Types of messages that the network service can receive.
 #[derive(Debug, IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
-pub enum NetworkMessage<E: EthSpec> {
+pub enum NetworkMessage {
     /// Subscribes the beacon node to the core gossipsub topics. We do this when we are either
     /// synced or close to the head slot.
     SubscribeCoreTopics,
     /// Send an RPC request to the libp2p service.
     SendRequest {
         peer_id: PeerId,
-        request: RequestType<E>,
+        request: RequestType,
         app_request_id: AppRequestId,
     },
     /// Send a successful Response to the libp2p service.
     SendResponse {
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,
-        response: Response<E>,
+        response: Response,
     },
     /// Sends an error response to an RPC request.
     SendErrorResponse {
@@ -82,10 +82,10 @@ pub enum NetworkMessage<E: EthSpec> {
         reason: String,
     },
     /// Publish a list of messages to the gossipsub protocol.
-    Publish { messages: Vec<PubsubMessage<E>> },
+    Publish { messages: Vec<PubsubMessage> },
     /// Publish partial data column sidecars via the partial gossipsub protocol.
     PublishPartialColumns {
-        messages: Vec<PubsubPartialMessage<E>>,
+        messages: Vec<PubsubPartialMessage>,
     },
     /// Validates a received gossipsub message. This will propagate the message on the network.
     ValidationResult {
@@ -146,19 +146,19 @@ pub enum ValidatorSubscriptionMessage {
 }
 
 #[derive(Clone)]
-pub struct NetworkSenders<E: EthSpec> {
-    network_send: mpsc::UnboundedSender<NetworkMessage<E>>,
+pub struct NetworkSenders {
+    network_send: mpsc::UnboundedSender<NetworkMessage>,
     validator_subscription_send: mpsc::Sender<ValidatorSubscriptionMessage>,
 }
 
-pub struct NetworkReceivers<E: EthSpec> {
-    pub network_recv: mpsc::UnboundedReceiver<NetworkMessage<E>>,
+pub struct NetworkReceivers {
+    pub network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
     pub validator_subscription_recv: mpsc::Receiver<ValidatorSubscriptionMessage>,
 }
 
-impl<E: EthSpec> NetworkSenders<E> {
-    pub fn new() -> (Self, NetworkReceivers<E>) {
-        let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage<E>>();
+impl NetworkSenders {
+    pub fn new() -> (Self, NetworkReceivers) {
+        let (network_send, network_recv) = mpsc::unbounded_channel::<NetworkMessage>();
         let (validator_subscription_send, validator_subscription_recv) =
             mpsc::channel(VALIDATOR_SUBSCRIPTION_MESSAGE_QUEUE_SIZE);
         let senders = Self {
@@ -172,7 +172,7 @@ impl<E: EthSpec> NetworkSenders<E> {
         (senders, receivers)
     }
 
-    pub fn network_send(&self) -> mpsc::UnboundedSender<NetworkMessage<E>> {
+    pub fn network_send(&self) -> mpsc::UnboundedSender<NetworkMessage> {
         self.network_send.clone()
     }
 
@@ -186,20 +186,20 @@ pub struct NetworkService<T: BeaconChainTypes> {
     /// A reference to the underlying beacon chain.
     beacon_chain: Arc<BeaconChain<T>>,
     /// The underlying libp2p service that drives all the network interactions.
-    libp2p: Network<T::EthSpec>,
+    libp2p: Network,
     /// An attestation and sync committee subnet manager service.
     subnet_service: SubnetService<T>,
     /// The receiver channel for lighthouse to communicate with the network service.
-    network_recv: mpsc::UnboundedReceiver<NetworkMessage<T::EthSpec>>,
+    network_recv: mpsc::UnboundedReceiver<NetworkMessage>,
     /// The receiver channel for lighthouse to send validator subscription requests.
     validator_subscription_recv: mpsc::Receiver<ValidatorSubscriptionMessage>,
     /// The sending channel for the network service to send messages to be routed throughout
     /// lighthouse.
-    router_send: mpsc::UnboundedSender<RouterMessage<T::EthSpec>>,
+    router_send: mpsc::UnboundedSender<RouterMessage>,
     /// A reference to lighthouse's database to persist the DHT.
-    store: Arc<HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>>,
+    store: Arc<HotColdDB<T::HotStore, T::ColdStore>>,
     /// A collection of global variables, accessible outside of the network service.
-    network_globals: Arc<NetworkGlobals<T::EthSpec>>,
+    network_globals: Arc<NetworkGlobals>,
     /// A delay that expires when the fork digest changes.
     next_digest_update: Pin<Box<OptionFuture<Sleep>>>,
     /// A delay that expires when we need to subscribe to a new set of topics.
@@ -224,13 +224,13 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         config: Arc<NetworkConfig>,
         executor: task_executor::TaskExecutor,
         libp2p_registry: Option<&'_ mut Registry>,
-        beacon_processor_send: BeaconProcessorSend<T::EthSpec>,
+        beacon_processor_send: BeaconProcessorSend,
         local_keypair: Keypair,
     ) -> Result<
         (
             NetworkService<T>,
-            Arc<NetworkGlobals<T::EthSpec>>,
-            NetworkSenders<T::EthSpec>,
+            Arc<NetworkGlobals>,
+            NetworkSenders,
         ),
         String,
     > {
@@ -275,7 +275,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
             .unwrap_or(beacon_chain.spec.genesis_slot);
 
         // Create a fork context for the given config and genesis validators root
-        let fork_context = Arc::new(ForkContext::new::<T::EthSpec>(
+        let fork_context = Arc::new(ForkContext::new(
             current_slot,
             beacon_chain.genesis_validators_root,
             &beacon_chain.spec,
@@ -301,7 +301,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
 
         // Repopulate the DHT with stored ENR's if discovery is not disabled.
         if !config.disable_discovery {
-            let enrs_to_load = load_dht::<T::EthSpec, T::HotStore, T::ColdStore>(store.clone());
+            let enrs_to_load = load_dht::<T::HotStore, T::ColdStore>(store.clone());
             debug!(
                 peers = enrs_to_load.len(),
                 "Loading peers into the routing table"
@@ -377,9 +377,9 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         config: Arc<NetworkConfig>,
         executor: task_executor::TaskExecutor,
         libp2p_registry: Option<&'_ mut Registry>,
-        beacon_processor_send: BeaconProcessorSend<T::EthSpec>,
+        beacon_processor_send: BeaconProcessorSend,
         local_keypair: Keypair,
-    ) -> Result<(Arc<NetworkGlobals<T::EthSpec>>, NetworkSenders<T::EthSpec>), String> {
+    ) -> Result<(Arc<NetworkGlobals>, NetworkSenders), String> {
         let (network_service, network_globals, network_senders) = Self::build(
             beacon_chain,
             config,
@@ -418,7 +418,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         result
     }
 
-    fn send_to_router(&mut self, msg: RouterMessage<T::EthSpec>) {
+    fn send_to_router(&mut self, msg: RouterMessage) {
         if let Err(mpsc::error::SendError(msg)) = self.router_send.send(msg) {
             debug!(?msg, "Failed to send msg to router");
         }
@@ -433,7 +433,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                 tokio::select! {
                     _ = self.metrics_update.tick(), if self.metrics_enabled => {
                         // update various network metrics
-                        metrics::update_gossip_metrics::<T::EthSpec>(
+                        metrics::update_gossip_metrics(
                             self.libp2p.gossipsub(),
                             &self.network_globals,
                             );
@@ -484,7 +484,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
     /// Handle an event received from the network.
     async fn on_libp2p_event(
         &mut self,
-        ev: NetworkEvent<T::EthSpec>,
+        ev: NetworkEvent,
         shutdown_sender: &mut Sender<ShutdownReason>,
     ) {
         match ev {
@@ -602,7 +602,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
     /// Handle a message sent to the network service.
     async fn on_network_msg(
         &mut self,
-        msg: NetworkMessage<T::EthSpec>,
+        msg: NetworkMessage,
         shutdown_sender: &mut Sender<ShutdownReason>,
     ) {
         metrics::inc_counter_vec(&metrics::NETWORK_RECEIVE_EVENTS, &[(&msg).into()]);
@@ -721,7 +721,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                 }
 
                 let mut subscribed_topics: Vec<GossipTopic> = vec![];
-                for topic_kind in core_topics_to_subscribe::<T::EthSpec>(
+                for topic_kind in core_topics_to_subscribe(
                     self.fork_context.current_fork_name(),
                     &self.network_globals.as_topic_config(),
                     &self.fork_context.spec,
@@ -924,7 +924,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
     }
 
     fn subscribed_core_topics(&self) -> bool {
-        let core_topics = core_topics_to_subscribe::<T::EthSpec>(
+        let core_topics = core_topics_to_subscribe(
             self.fork_context.current_fork_name(),
             &self.network_globals.as_topic_config(),
             &self.fork_context.spec,
@@ -969,11 +969,11 @@ impl<T: BeaconChainTypes> Drop for NetworkService<T> {
         // network thread is terminating
         let enrs = self.libp2p.enr_entries();
         debug!(number_of_peers = enrs.len(), "Persisting DHT to store");
-        if let Err(e) = clear_dht::<T::EthSpec, T::HotStore, T::ColdStore>(self.store.clone()) {
+        if let Err(e) = clear_dht::<T::HotStore, T::ColdStore>(self.store.clone()) {
             error!(error = ?e, "Failed to clear old DHT entries");
         }
         // Still try to update new entries
-        match persist_dht::<T::EthSpec, T::HotStore, T::ColdStore>(self.store.clone(), enrs) {
+        match persist_dht::<T::HotStore, T::ColdStore>(self.store.clone(), enrs) {
             Err(e) => error!(
                 error = ?e,
                 "Failed to persist DHT on drop"

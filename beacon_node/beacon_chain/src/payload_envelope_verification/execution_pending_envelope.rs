@@ -14,18 +14,18 @@ use crate::{
     },
 };
 
-pub struct ExecutionPendingEnvelope<E: EthSpec> {
-    pub signed_envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+pub struct ExecutionPendingEnvelope {
+    pub signed_envelope: Arc<SignedExecutionPayloadEnvelope>,
     pub block_root: Hash256,
     pub payload_verification_handle: PayloadVerificationHandle,
 }
 
-impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
-    pub fn into_execution_pending_envelope(
+impl GossipVerifiedEnvelope {
+    pub fn into_execution_pending_envelope<T: BeaconChainTypes>(
         self,
         chain: &Arc<BeaconChain<T>>,
         notify_execution_layer: NotifyExecutionLayer,
-    ) -> Result<ExecutionPendingEnvelope<T::EthSpec>, EnvelopeError> {
+    ) -> Result<ExecutionPendingEnvelope, EnvelopeError> {
         let signed_envelope = self.signed_envelope;
         let envelope = &signed_envelope.message;
 

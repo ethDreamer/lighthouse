@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use swap_or_not_shuffle::{compute_shuffled_index, shuffle_list};
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Shuffling<E> {
+pub struct Shuffling {
     pub seed: String,
     pub count: usize,
     pub mapping: Vec<usize>,
@@ -14,13 +14,13 @@ pub struct Shuffling<E> {
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for Shuffling<E> {
+impl LoadCase for Shuffling {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         yaml_decode_file(&path.join("mapping.yaml"))
     }
 }
 
-impl<E: EthSpec> Case for Shuffling<E> {
+impl Case for Shuffling {
     fn result(&self, _case_index: usize, _fork_name: ForkName) -> Result<(), Error> {
         if self.count == 0 {
             compare_result::<_, Error>(&Ok(vec![]), &Some(self.mapping.clone()))?;

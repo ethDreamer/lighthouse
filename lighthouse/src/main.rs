@@ -493,8 +493,8 @@ fn main() {
     }
 }
 
-fn run<E: EthSpec>(
-    environment_builder: EnvironmentBuilder<E>,
+fn run(
+    environment_builder: EnvironmentBuilder,
     matches: &ArgMatches,
     eth2_network_config: Eth2NetworkConfig,
 ) -> Result<(), String> {
@@ -783,7 +783,7 @@ fn run<E: EthSpec>(
         eprintln!("Running validator manager for {} network", network_name);
 
         // Pass the entire `environment` to the account manager so it can run blocking operations.
-        validator_manager::run::<E>(sub_matches, environment)?;
+        validator_manager::run(sub_matches, environment)?;
 
         // Exit as soon as account manager returns control.
         return Ok(());
@@ -801,7 +801,7 @@ fn run<E: EthSpec>(
             let config = validator_client::Config::from_cli(matches, &validator_client_config)
                 .map_err(|e| format!("Unable to initialize validator config: {}", e))?;
             // Dump configs if `dump-config` or `dump-chain-config` flags are set
-            clap_utils::check_dump_configs::<_, E>(matches, &config, &context.eth2_config.spec)?;
+            clap_utils::check_dump_configs(matches, &config, &context.eth2_config.spec)?;
 
             let shutdown_flag = matches.get_flag("immediate-shutdown");
             if shutdown_flag {
@@ -836,10 +836,10 @@ fn run<E: EthSpec>(
         Some(("beacon_node", matches)) => {
             let context = environment.core_context();
             let executor = context.executor.clone();
-            let mut config = beacon_node::get_config::<E>(matches, &context)?;
+            let mut config = beacon_node::get_config(matches, &context)?;
             config.logger_config = logger_config;
             // Dump configs if `dump-config` or `dump-chain-config` flags are set
-            clap_utils::check_dump_configs::<_, E>(matches, &config, &context.eth2_config.spec)?;
+            clap_utils::check_dump_configs(matches, &config, &context.eth2_config.spec)?;
 
             let shutdown_flag = matches.get_flag("immediate-shutdown");
             if shutdown_flag {

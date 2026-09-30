@@ -52,8 +52,8 @@ impl<'a> GloasVerificationContext<'a> {
 }
 
 /// Transform a `Fulu` state into a `Gloas` state.
-pub fn upgrade_to_gloas<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_to_gloas(
+    pre_state: &mut BeaconState,
     context: GloasVerificationContext<'_>,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
@@ -64,11 +64,11 @@ pub fn upgrade_to_gloas<E: EthSpec>(
     Ok(())
 }
 
-pub fn upgrade_state_to_gloas<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_state_to_gloas(
+    pre_state: &mut BeaconState,
     context: GloasVerificationContext<'_>,
     spec: &ChainSpec,
-) -> Result<BeaconState<E>, Error> {
+) -> Result<BeaconState, Error> {
     let epoch = pre_state.current_epoch();
     let pre = pre_state.as_fulu_mut()?;
     // Where possible, use something like `mem::take` to move fields from behind the &mut
@@ -131,8 +131,8 @@ pub fn upgrade_state_to_gloas<E: EthSpec>(
             slot: pre.latest_block_header.slot,
             value: 0,
             execution_payment: 0,
-            blob_kzg_commitments: ProgressiveKzgCommitments::<E>::default(),
-            execution_requests_root: ExecutionRequestsGloas::<E>::default().tree_hash_root(),
+            blob_kzg_commitments: ProgressiveKzgCommitments::default(),
+            execution_requests_root: ExecutionRequestsGloas::default().tree_hash_root(),
         },
         // Capella
         next_withdrawal_index: pre.next_withdrawal_index,
@@ -188,8 +188,8 @@ pub fn upgrade_state_to_gloas<E: EthSpec>(
 /// The window contains:
 /// - One epoch of empty entries (previous epoch)
 /// - Computed PTC for the current epoch through `1 + MIN_SEED_LOOKAHEAD` epochs
-fn initialize_ptc_window<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn initialize_ptc_window(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
@@ -232,8 +232,8 @@ fn initialize_ptc_window<E: EthSpec>(
 ///   scanning the registry for a reusable index on every insertion (quadratic overall) and
 ///   paying the tree-update cost per push. It is equivalent because the registry is empty at
 ///   the fork, so every insertion appends.
-fn onboard_builders_from_pending_deposits<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn onboard_builders_from_pending_deposits(
+    state: &mut BeaconState,
     builder_onboarding_cache: Option<&OnboardBuildersCache>,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
@@ -374,7 +374,7 @@ mod tests {
     /// A Fulu pre-state whose pending deposit queue covers every onboarding branch, along with
     /// the expected onboarding outcome.
     struct OnboardingFixture {
-        pre_state: BeaconState<E>,
+        pre_state: BeaconState,
         spec: Arc<ChainSpec>,
         /// The single deposit expected to register a builder.
         builder_deposit: PendingDeposit,
@@ -530,8 +530,8 @@ mod tests {
 
     fn assert_posts_equal_and_check_semantics(
         fixture: &OnboardingFixture,
-        full_post: &BeaconState<E>,
-        cached_post: &BeaconState<E>,
+        full_post: &BeaconState,
+        cached_post: &BeaconState,
     ) {
         // The cached path must be indistinguishable from full verification.
         assert_eq!(

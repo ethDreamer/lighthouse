@@ -5,11 +5,11 @@ use types::data::{CellBitmap, PartialDataColumnGloas, PartialDataColumnSidecarGl
 use types::{Cell, ColumnIndex, DataColumnSidecar, DataColumnSidecarGloas, EthSpec, Hash256, Slot};
 
 #[derive(Clone)]
-pub struct PendingColumn<E: EthSpec> {
-    cells: Vec<Option<(Cell<E>, KzgProof)>>,
+pub struct PendingColumn {
+    cells: Vec<Option<(Cell, KzgProof)>>,
 }
 
-impl<E: EthSpec> PendingColumn<E> {
+impl PendingColumn {
     /// Allocate a `PendingColumn` whose `cells` vec has space for `blob_count` entries, all
     /// initialised to `None`. Required so that `insert(idx, ...)` can write into `cells[idx]`.
     pub fn new_with_capacity(blob_count: usize) -> Self {
@@ -20,7 +20,7 @@ impl<E: EthSpec> PendingColumn<E> {
 
     /// Returns `true` if the cell was newly inserted, `false` if it was already present or the
     /// index is out of bounds.
-    pub fn insert(&mut self, index: usize, cell: &Cell<E>, proof: &KzgProof) -> bool {
+    pub fn insert(&mut self, index: usize, cell: &Cell, proof: &KzgProof) -> bool {
         if let Some(existing_cell) = self.cells.get_mut(index)
             && existing_cell.is_none()
         {
@@ -33,7 +33,7 @@ impl<E: EthSpec> PendingColumn<E> {
 
     /// `None` means this index holds no cell, or the index is out of range. `Some(false)` means a
     /// different cell, which cannot also be valid for the same commitment.
-    pub fn cell_matches(&self, index: usize, cell: &Cell<E>, proof: &KzgProof) -> Option<bool> {
+    pub fn cell_matches(&self, index: usize, cell: &Cell, proof: &KzgProof) -> Option<bool> {
         self.cells
             .get(index)?
             .as_ref()
@@ -52,9 +52,9 @@ impl<E: EthSpec> PendingColumn<E> {
         index: ColumnIndex,
         slot: Slot,
         block_root: Hash256,
-    ) -> Option<PartialDataColumnGloas<E>> {
+    ) -> Option<PartialDataColumnGloas> {
         let total = self.cells.len();
-        let mut bitmap = CellBitmap::<E>::with_capacity(total).ok()?;
+        let mut bitmap = CellBitmap::with_capacity(total).ok()?;
         let mut column = Vec::with_capacity(total);
         let mut kzg_proofs = Vec::with_capacity(total);
 
@@ -89,7 +89,7 @@ impl<E: EthSpec> PendingColumn<E> {
         index: ColumnIndex,
         slot: Slot,
         beacon_block_root: Hash256,
-    ) -> Option<Arc<DataColumnSidecar<E>>> {
+    ) -> Option<Arc<DataColumnSidecar>> {
         let mut column = Vec::with_capacity(self.cells.len());
         let mut kzg_proofs = Vec::with_capacity(self.cells.len());
 

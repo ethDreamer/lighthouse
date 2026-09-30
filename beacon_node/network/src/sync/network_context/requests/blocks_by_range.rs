@@ -5,12 +5,12 @@ use types::{EthSpec, SignedBeaconBlock};
 
 /// Accumulates results of a blocks_by_range request. Only returns items after receiving the
 /// stream termination.
-pub struct BlocksByRangeRequestItems<E: EthSpec> {
+pub struct BlocksByRangeRequestItems {
     request: BlocksByRangeRequest,
-    items: Vec<Arc<SignedBeaconBlock<E>>>,
+    items: Vec<Arc<SignedBeaconBlock>>,
 }
 
-impl<E: EthSpec> BlocksByRangeRequestItems<E> {
+impl BlocksByRangeRequestItems {
     pub fn new(request: BlocksByRangeRequest) -> Self {
         Self {
             request,
@@ -19,8 +19,8 @@ impl<E: EthSpec> BlocksByRangeRequestItems<E> {
     }
 }
 
-impl<E: EthSpec> ActiveRequestItems for BlocksByRangeRequestItems<E> {
-    type Item = Arc<SignedBeaconBlock<E>>;
+impl ActiveRequestItems for BlocksByRangeRequestItems {
+    type Item = Arc<SignedBeaconBlock>;
 
     fn add(&mut self, block: Self::Item) -> Result<bool, LookupVerifyError> {
         if block.slot().as_u64() < *self.request.start_slot()

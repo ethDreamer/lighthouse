@@ -6,11 +6,11 @@ use types::{
     SingleAttestation,
 };
 
-pub fn single_attestation_to_attestation<E: EthSpec>(
+pub fn single_attestation_to_attestation(
     single_attestation: &SingleAttestation,
     committee: &[usize],
     fork_name: ForkName,
-) -> Result<Attestation<E>, Error> {
+) -> Result<Attestation, Error> {
     let attester_index = single_attestation.attester_index;
     let committee_index = single_attestation.committee_index;
     let slot = single_attestation.data.slot;

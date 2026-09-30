@@ -165,9 +165,9 @@ impl Config {
     }
 
     /// Iterate over the attesting indices which belong to the `validator_chunk_index` chunk.
-    pub fn attesting_validators_in_chunk<'a, E: EthSpec>(
+    pub fn attesting_validators_in_chunk<'a>(
         &'a self,
-        attestation: &'a IndexedAttestation<E>,
+        attestation: &'a IndexedAttestation,
         validator_chunk_index: usize,
     ) -> impl Iterator<Item = u64> + 'a {
         attestation

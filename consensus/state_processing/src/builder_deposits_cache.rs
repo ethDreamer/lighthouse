@@ -61,7 +61,7 @@ impl OnboardBuildersCache {
     /// Further block imports that result in additional deposits should be handled by the
     /// [`Self::add_new_pending_deposits`] method.
     #[instrument(skip_all)]
-    pub fn seed_from_state<E: EthSpec>(&self, state: &BeaconState<E>, spec: &ChainSpec) {
+    pub fn seed_from_state(&self, state: &BeaconState, spec: &ChainSpec) {
         let Ok(pending_deposits) = state.pending_deposits() else {
             return;
         };
@@ -81,9 +81,9 @@ impl OnboardBuildersCache {
     /// Gets the new deposits added to the `pending_deposits` queue for `state.slot()`.
     /// Signature verifies and caches them for later use.
     #[instrument(skip_all)]
-    pub fn add_new_pending_deposits<E: EthSpec>(
+    pub fn add_new_pending_deposits(
         &self,
-        current_state: &BeaconState<E>,
+        current_state: &BeaconState,
         spec: &ChainSpec,
     ) {
         let pending_deposits = pending_deposits_to_verify(current_state);
@@ -191,7 +191,7 @@ pub fn is_valid_deposit_signature_cached(
 }
 
 /// Returns a list of `pending_deposits` that were added for the same slot as the passed state.
-fn pending_deposits_to_verify<E: EthSpec>(state: &BeaconState<E>) -> Vec<&PendingDeposit> {
+fn pending_deposits_to_verify(state: &BeaconState) -> Vec<&PendingDeposit> {
     let current_slot = state.slot();
     let Ok(pending_deposits) = state.pending_deposits() else {
         return Vec::new();
@@ -460,7 +460,7 @@ mod tests {
             slot: Slot,
             deposits: Vec<PendingDeposit>,
             spec: &Arc<ChainSpec>,
-        ) -> types::BeaconState<MinimalEthSpec> {
+        ) -> types::BeaconState {
             let harness = BeaconChainHarness::builder()
                 .spec(spec.clone())
                 .deterministic_keypairs(4)

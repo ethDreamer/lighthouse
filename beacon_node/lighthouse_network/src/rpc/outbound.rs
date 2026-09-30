@@ -19,13 +19,13 @@ use types::{EthSpec, ForkContext};
 // `OutboundUpgrade`
 
 #[derive(Debug, Clone)]
-pub struct OutboundRequestContainer<E: EthSpec> {
-    pub req: RequestType<E>,
+pub struct OutboundRequestContainer {
+    pub req: RequestType,
     pub fork_context: Arc<ForkContext>,
     pub max_rpc_size: usize,
 }
 
-impl<E: EthSpec> UpgradeInfo for OutboundRequestContainer<E> {
+impl UpgradeInfo for OutboundRequestContainer {
     type Info = ProtocolId;
     type InfoIter = Vec<Self::Info>;
 
@@ -39,13 +39,13 @@ impl<E: EthSpec> UpgradeInfo for OutboundRequestContainer<E> {
 
 /* Outbound upgrades */
 
-pub type OutboundFramed<TSocket, E> = Framed<Compat<TSocket>, SSZSnappyOutboundCodec<E>>;
+pub type OutboundFramed<TSocket> = Framed<Compat<TSocket>, SSZSnappyOutboundCodec>;
 
-impl<TSocket, E> OutboundUpgrade<TSocket> for OutboundRequestContainer<E>
+impl<TSocket> OutboundUpgrade<TSocket> for OutboundRequestContainer
 where
     TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    type Output = OutboundFramed<TSocket, E>;
+    type Output = OutboundFramed<TSocket>;
     type Error = RPCError;
     type Future = BoxFuture<'static, Result<Self::Output, Self::Error>>;
 

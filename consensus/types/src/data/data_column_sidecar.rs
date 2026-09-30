@@ -33,18 +33,18 @@ use crate::{
 };
 
 pub type ColumnIndex = u64;
-pub type Cell<E> = FixedVector<u8, U<{ Spec::BYTES_PER_CELL }>>;
-pub type DataColumn<E> = VariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
+pub type Cell = FixedVector<u8, U<{ Spec::BYTES_PER_CELL }>>;
+pub type DataColumn = VariableList<Cell, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 /// Identifies a set of data columns associated with a specific beacon block.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, TreeHash, Deserialize)]
 #[context_deserialize(ForkName)]
-pub struct DataColumnsByRootIdentifier<E: EthSpec> {
+pub struct DataColumnsByRootIdentifier {
     pub block_root: Hash256,
     pub columns: VariableList<ColumnIndex, U<{ Spec::NUMBER_OF_COLUMNS }>>,
 }
 
-pub type DataColumnSidecarList<E> = Vec<Arc<DataColumnSidecar<E>>>;
+pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
 
 #[superstruct(
     variants(Fulu, Gloas),
@@ -82,20 +82,20 @@ pub type DataColumnSidecarList<E> = Vec<Arc<DataColumnSidecar<E>>>;
 #[serde(bound = "E: EthSpec", untagged, deny_unknown_fields)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-pub struct DataColumnSidecar<E: EthSpec> {
+pub struct DataColumnSidecar {
     #[serde(with = "serde_utils::quoted_u64")]
     pub index: ColumnIndex,
     #[serde(with = "ssz_types::serde_utils::list_of_hex_fixed_vec")]
     #[superstruct(only(Fulu), partial_getter(rename = "column_fulu"))]
-    pub column: DataColumn<E>,
+    pub column: DataColumn,
     // [Modified in Gloas:EIP7688]
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_fixed_vec")]
     #[superstruct(only(Gloas), partial_getter(rename = "column_gloas"))]
-    pub column: ProgressiveVariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
+    pub column: ProgressiveVariableList<Cell, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     /// All the KZG commitments associated with the block, used for verifying sample cells.
     /// In Gloas, commitments come from `block.body.signed_execution_payload_bid.message.blob_kzg_commitments`.
     #[superstruct(only(Fulu))]
-    pub kzg_commitments: KzgCommitments<E>,
+    pub kzg_commitments: KzgCommitments,
     #[superstruct(only(Fulu), partial_getter(rename = "kzg_proofs_fulu"))]
     pub kzg_proofs: VariableList<KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     // [Modified in Gloas:EIP7688]
@@ -112,9 +112,9 @@ pub struct DataColumnSidecar<E: EthSpec> {
     pub beacon_block_root: Hash256,
 }
 
-impl<E: EthSpec> DataColumnSidecar<E> {
+impl DataColumnSidecar {
     /// Unified view over the `column` field across forks (EIP-7688).
-    pub fn column(&self) -> ListRef<'_, Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
+    pub fn column(&self) -> ListRef<'_, Cell, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             DataColumnSidecar::Fulu(sidecar) => ListRef::Basic(&sidecar.column),
             DataColumnSidecar::Gloas(sidecar) => ListRef::Progressive(&sidecar.column),
@@ -178,13 +178,13 @@ impl<E: EthSpec> DataColumnSidecar<E> {
     pub fn try_filter_to_partial_view<F, Err>(
         &self,
         filter: F,
-    ) -> Result<Option<PartialDataColumnView<'_, E>>, Err>
+    ) -> Result<Option<PartialDataColumnView<'_>>, Err>
     where
-        F: Fn(usize, &Cell<E>, &KzgProof) -> Result<bool, Err>,
+        F: Fn(usize, &Cell, &KzgProof) -> Result<bool, Err>,
         Err: From<PartialDataColumnSidecarError>,
     {
         let len = self.column().len();
-        let mut new_bitmap = CellBitmap::<E>::with_capacity(len)
+        let mut new_bitmap = CellBitmap::with_capacity(len)
             .map_err(|_| PartialDataColumnSidecarError::UnexpectedBounds)?;
         let mut new_column = Vec::with_capacity(len);
         let mut new_proofs = Vec::with_capacity(len);
@@ -225,9 +225,9 @@ impl<E: EthSpec> DataColumnSidecar<E> {
 
     /// Convert this full data column into a verifiable partial data column.
     /// Note: This is not expected to ever fail.
-    pub fn to_partial(&self) -> Result<PartialDataColumn<E>, PartialDataColumnSidecarError> {
+    pub fn to_partial(&self) -> Result<PartialDataColumn, PartialDataColumnSidecarError> {
         let cell_count = self.column().len();
-        let mut bitmap = CellBitmap::<E>::with_capacity(cell_count)
+        let mut bitmap = CellBitmap::with_capacity(cell_count)
             .map_err(|_| PartialDataColumnSidecarError::UnexpectedBounds)?;
         bitmap.not_inplace();
 
@@ -264,7 +264,7 @@ impl<E: EthSpec> DataColumnSidecar<E> {
     }
 }
 
-impl<E: EthSpec> DataColumnSidecarFulu<E> {
+impl DataColumnSidecarFulu {
     pub fn slot(&self) -> Slot {
         self.signed_block_header.message.slot
     }
@@ -298,7 +298,7 @@ impl<E: EthSpec> DataColumnSidecarFulu<E> {
         // min size is one cell
         Self {
             index: 0,
-            column: VariableList::new(vec![Cell::<E>::default()]).unwrap(),
+            column: VariableList::new(vec![Cell::default()]).unwrap(),
             kzg_commitments: VariableList::new(vec![KzgCommitment::empty_for_testing()]).unwrap(),
             kzg_proofs: VariableList::new(vec![KzgProof::empty()]).unwrap(),
             signed_block_header: SignedBeaconBlockHeader {
@@ -314,7 +314,7 @@ impl<E: EthSpec> DataColumnSidecarFulu<E> {
     pub fn max_size(max_blobs_per_block: usize) -> usize {
         Self {
             index: 0,
-            column: VariableList::new(vec![Cell::<E>::default(); max_blobs_per_block]).unwrap(),
+            column: VariableList::new(vec![Cell::default(); max_blobs_per_block]).unwrap(),
             kzg_commitments: VariableList::new(vec![
                 KzgCommitment::empty_for_testing();
                 max_blobs_per_block
@@ -332,7 +332,7 @@ impl<E: EthSpec> DataColumnSidecarFulu<E> {
     }
 }
 
-impl<E: EthSpec> DataColumnSidecarGloas<E> {
+impl DataColumnSidecarGloas {
     pub fn min_size() -> usize {
         // The minimum is one cell and its proof, both with fixed SSZ lengths.
         let fixed_size = Self {
@@ -344,12 +344,12 @@ impl<E: EthSpec> DataColumnSidecarGloas<E> {
         }
         .ssz_bytes_len();
         fixed_size
-            .saturating_add(<Cell<E> as Encode>::ssz_fixed_len())
+            .saturating_add(<Cell as Encode>::ssz_fixed_len())
             .saturating_add(<KzgProof as Encode>::ssz_fixed_len())
     }
 
     pub fn max_size(max_blobs_per_block: usize) -> usize {
-        let cell_with_proof_size = <Cell<E> as Encode>::ssz_fixed_len()
+        let cell_with_proof_size = <Cell as Encode>::ssz_fixed_len()
             .saturating_add(<KzgProof as Encode>::ssz_fixed_len());
         <u64 as Encode>::ssz_fixed_len()
             .saturating_mul(2)
@@ -408,7 +408,7 @@ mod tests {
 
     // This is the "correct" implementation of max_data_columns_by_root_request.
     // This test ensures that the simplified implementation doesn't deviate from it.
-    fn max_data_columns_by_root_request_implementation<E: EthSpec>(
+    fn max_data_columns_by_root_request_implementation(
         max_request_blocks: u64,
     ) -> usize {
         let max_request_blocks = max_request_blocks as usize;
@@ -418,7 +418,7 @@ mod tests {
             columns: VariableList::repeat_full(0),
         };
 
-        RuntimeVariableList::<DataColumnsByRootIdentifier<E>>::new(
+        RuntimeVariableList::<DataColumnsByRootIdentifier>::new(
             vec![empty_data_columns_by_root_id; max_request_blocks],
             max_request_blocks,
         )
@@ -431,8 +431,8 @@ mod tests {
     fn max_data_columns_by_root_request_matches_simplified() {
         for n in [0, 1, 2, 8, 16, 32, 64, 128, 256, 512, 1024] {
             assert_eq!(
-                max_data_columns_by_root_request_common::<MainnetEthSpec>(n),
-                max_data_columns_by_root_request_implementation::<MainnetEthSpec>(n),
+                max_data_columns_by_root_request_common(n),
+                max_data_columns_by_root_request_implementation(n),
                 "Mismatch at n={n}"
             );
         }

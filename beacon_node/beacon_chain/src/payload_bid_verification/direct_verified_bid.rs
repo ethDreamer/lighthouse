@@ -34,15 +34,15 @@ use types::{
 /// baseline under either view — after an empty parent, the state's latest bid is unexecuted and
 /// its gas limit is not the one the bid must adjust from.
 #[allow(clippy::too_many_arguments)]
-pub fn verify_direct_bid<E: EthSpec>(
-    signed_bid: &SignedExecutionPayloadBid<E>,
+pub fn verify_direct_bid(
+    signed_bid: &SignedExecutionPayloadBid,
     proposal_slot: Slot,
     executed_ancestor_hash: ExecutionBlockHash,
     parent_block_root: Hash256,
     executed_ancestor_gas_limit: u64,
     expected_builder_pubkeys: &BuilderPubkeys,
     proposer_preferences: &SignedProposerPreferences,
-    state: &BeaconState<E>,
+    state: &BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
     let bid = &signed_bid.message;
@@ -127,7 +127,7 @@ mod tests {
     /// Gas limit of the executed ancestor's payload; equal to the proposer's target in `preferences()`.
     const EXECUTED_ANCESTOR_GAS_LIMIT: u64 = 30_000_000;
 
-    fn state_and_spec() -> (BeaconState<E>, ChainSpec) {
+    fn state_and_spec() -> (BeaconState, ChainSpec) {
         let spec = Spec::default_spec();
         let state = BeaconState::new(0, <_>::default(), &spec);
         (state, spec)
@@ -149,7 +149,7 @@ mod tests {
         parent_block_hash: ExecutionBlockHash,
         parent_block_root: Hash256,
         prev_randao: Hash256,
-    ) -> SignedExecutionPayloadBid<E> {
+    ) -> SignedExecutionPayloadBid {
         SignedExecutionPayloadBid {
             message: ExecutionPayloadBid {
                 slot,

@@ -39,12 +39,12 @@ use types::{EthSpec, FullPayload, SignedBeaconBlock};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 
-pub fn run<E: EthSpec>(
-    env: Environment<E>,
+pub fn run(
+    env: Environment,
     network_config: Eth2NetworkConfig,
     matches: &ArgMatches,
 ) -> Result<(), String> {
-    let spec = &network_config.chain_spec::<E>()?;
+    let spec = &network_config.chain_spec()?;
     let executor = env.core_context().executor;
 
     /*
@@ -62,7 +62,7 @@ pub fn run<E: EthSpec>(
      * Load the block and pre-state from disk or beaconAPI URL.
      */
 
-    let block: SignedBeaconBlock<E, FullPayload<E>> = match (block_path, beacon_url) {
+    let block: SignedBeaconBlock<FullPayload> = match (block_path, beacon_url) {
         (Some(block_path), None) => {
             info!("Block path: {:?}", block_path);
             load_from_ssz_with(&block_path, spec, SignedBeaconBlock::from_ssz_bytes)?

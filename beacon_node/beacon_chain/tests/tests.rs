@@ -30,7 +30,7 @@ pub const VALIDATOR_COUNT: usize = 48;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(VALIDATOR_COUNT));
 
-fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
+fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType> {
     get_harness_with_config(
         validator_count,
         ChainConfig {
@@ -43,7 +43,7 @@ fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessTyp
 fn get_harness_with_spec(
     validator_count: usize,
     spec: &ChainSpec,
-) -> BeaconChainHarness<EphemeralHarnessType<MainnetEthSpec>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     let chain_config = ChainConfig {
         archive: true,
         ..Default::default()
@@ -64,7 +64,7 @@ fn get_harness_with_spec(
 fn get_harness_with_config(
     validator_count: usize,
     chain_config: ChainConfig,
-) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(chain_config)
@@ -82,7 +82,7 @@ fn get_harness_with_config(
 /// for sampling validation in Fulu.
 fn get_harness_semi_supernode(
     validator_count: usize,
-) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(ChainConfig {
@@ -230,8 +230,8 @@ async fn iterators() {
 }
 
 fn find_reorg_slot(
-    chain: &BeaconChain<EphemeralHarnessType<MinimalEthSpec>>,
-    new_state: &BeaconState<MinimalEthSpec>,
+    chain: &BeaconChain<EphemeralHarnessType>,
+    new_state: &BeaconState,
     new_block_root: Hash256,
 ) -> Slot {
     let (old_state, old_block_root) = {
@@ -656,7 +656,7 @@ async fn roundtrip_operation_pool() {
     let restored_op_pool = harness
         .chain
         .store
-        .get_item::<PersistedOperationPool<MinimalEthSpec>>(&OP_POOL_DB_KEY)
+        .get_item::<PersistedOperationPool>(&OP_POOL_DB_KEY)
         .expect("should read db")
         .expect("should find op pool")
         .into_operation_pool()

@@ -37,7 +37,7 @@ impl BeaconBlockHeader {
     }
 
     /// Signs `self`, producing a `SignedBeaconBlockHeader`.
-    pub fn sign<E: EthSpec>(
+    pub fn sign(
         self,
         secret_key: &SecretKey,
         fork: &Fork,

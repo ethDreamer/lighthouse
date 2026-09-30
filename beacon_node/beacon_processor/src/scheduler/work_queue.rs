@@ -159,8 +159,8 @@ pub struct BeaconProcessorQueueLengths {
 }
 
 impl BeaconProcessorQueueLengths {
-    pub fn from_state<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub fn from_state(
+        state: &BeaconState,
         spec: &ChainSpec,
     ) -> Result<Self, String> {
         let active_validator_count =
@@ -248,61 +248,61 @@ impl BeaconProcessorQueueLengths {
     }
 }
 
-pub struct WorkQueues<E: EthSpec> {
-    pub aggregate_queue: LifoQueue<Work<E>>,
+pub struct WorkQueues {
+    pub aggregate_queue: LifoQueue<Work>,
     pub aggregate_debounce: TimeLatch,
-    pub attestation_queue: LifoQueue<Work<E>>,
+    pub attestation_queue: LifoQueue<Work>,
     pub attestation_debounce: TimeLatch,
-    pub unknown_block_aggregate_queue: LifoQueue<Work<E>>,
-    pub unknown_block_attestation_queue: LifoQueue<Work<E>>,
-    pub unknown_block_payload_attestation_queue: LifoQueue<Work<E>>,
-    pub unknown_block_data_column_queue: FifoQueue<Work<E>>,
-    pub sync_message_queue: LifoQueue<Work<E>>,
-    pub sync_contribution_queue: LifoQueue<Work<E>>,
-    pub gossip_voluntary_exit_queue: FifoQueue<Work<E>>,
-    pub gossip_proposer_slashing_queue: FifoQueue<Work<E>>,
-    pub gossip_attester_slashing_queue: FifoQueue<Work<E>>,
-    pub unknown_light_client_update_queue: FifoQueue<Work<E>>,
-    pub rpc_block_queue: FifoQueue<Work<E>>,
-    pub rpc_blob_queue: FifoQueue<Work<E>>,
-    pub rpc_custody_column_queue: FifoQueue<Work<E>>,
-    pub rpc_envelope_queue: FifoQueue<Work<E>>,
-    pub column_reconstruction_queue: LifoQueue<Work<E>>,
-    pub chain_segment_queue: FifoQueue<Work<E>>,
-    pub backfill_chain_segment: FifoQueue<Work<E>>,
-    pub gossip_block_queue: FifoQueue<Work<E>>,
-    pub gossip_data_column_queue: FifoQueue<Work<E>>,
-    pub gossip_partial_data_column_queue: FifoQueue<Work<E>>,
-    pub delayed_block_queue: FifoQueue<Work<E>>,
-    pub delayed_envelope_queue: FifoQueue<Work<E>>,
-    pub status_queue: FifoQueue<Work<E>>,
-    pub block_brange_queue: FifoQueue<Work<E>>,
-    pub block_broots_queue: FifoQueue<Work<E>>,
-    pub block_bhead_queue: FifoQueue<Work<E>>,
-    pub payload_envelopes_brange_queue: FifoQueue<Work<E>>,
-    pub payload_envelopes_broots_queue: FifoQueue<Work<E>>,
-    pub blob_broots_queue: FifoQueue<Work<E>>,
-    pub blob_brange_queue: FifoQueue<Work<E>>,
-    pub dcbroots_queue: FifoQueue<Work<E>>,
-    pub dcbrange_queue: FifoQueue<Work<E>>,
-    pub gossip_bls_to_execution_change_queue: FifoQueue<Work<E>>,
-    pub gossip_execution_payload_queue: FifoQueue<Work<E>>,
-    pub gossip_execution_proof_queue: FifoQueue<Work<E>>,
-    pub gossip_execution_payload_bid_queue: FifoQueue<Work<E>>,
-    pub gossip_payload_attestation_queue: FifoQueue<Work<E>>,
-    pub gossip_proposer_preferences_queue: FifoQueue<Work<E>>,
-    pub gossip_inclusion_list_queue: FifoQueue<Work<E>>,
-    pub lc_gossip_finality_update_queue: FifoQueue<Work<E>>,
-    pub lc_gossip_optimistic_update_queue: FifoQueue<Work<E>>,
-    pub lc_bootstrap_queue: FifoQueue<Work<E>>,
-    pub lc_rpc_optimistic_update_queue: FifoQueue<Work<E>>,
-    pub lc_rpc_finality_update_queue: FifoQueue<Work<E>>,
-    pub lc_update_range_queue: FifoQueue<Work<E>>,
-    pub api_request_p0_queue: FifoQueue<Work<E>>,
-    pub api_request_p1_queue: FifoQueue<Work<E>>,
+    pub unknown_block_aggregate_queue: LifoQueue<Work>,
+    pub unknown_block_attestation_queue: LifoQueue<Work>,
+    pub unknown_block_payload_attestation_queue: LifoQueue<Work>,
+    pub unknown_block_data_column_queue: FifoQueue<Work>,
+    pub sync_message_queue: LifoQueue<Work>,
+    pub sync_contribution_queue: LifoQueue<Work>,
+    pub gossip_voluntary_exit_queue: FifoQueue<Work>,
+    pub gossip_proposer_slashing_queue: FifoQueue<Work>,
+    pub gossip_attester_slashing_queue: FifoQueue<Work>,
+    pub unknown_light_client_update_queue: FifoQueue<Work>,
+    pub rpc_block_queue: FifoQueue<Work>,
+    pub rpc_blob_queue: FifoQueue<Work>,
+    pub rpc_custody_column_queue: FifoQueue<Work>,
+    pub rpc_envelope_queue: FifoQueue<Work>,
+    pub column_reconstruction_queue: LifoQueue<Work>,
+    pub chain_segment_queue: FifoQueue<Work>,
+    pub backfill_chain_segment: FifoQueue<Work>,
+    pub gossip_block_queue: FifoQueue<Work>,
+    pub gossip_data_column_queue: FifoQueue<Work>,
+    pub gossip_partial_data_column_queue: FifoQueue<Work>,
+    pub delayed_block_queue: FifoQueue<Work>,
+    pub delayed_envelope_queue: FifoQueue<Work>,
+    pub status_queue: FifoQueue<Work>,
+    pub block_brange_queue: FifoQueue<Work>,
+    pub block_broots_queue: FifoQueue<Work>,
+    pub block_bhead_queue: FifoQueue<Work>,
+    pub payload_envelopes_brange_queue: FifoQueue<Work>,
+    pub payload_envelopes_broots_queue: FifoQueue<Work>,
+    pub blob_broots_queue: FifoQueue<Work>,
+    pub blob_brange_queue: FifoQueue<Work>,
+    pub dcbroots_queue: FifoQueue<Work>,
+    pub dcbrange_queue: FifoQueue<Work>,
+    pub gossip_bls_to_execution_change_queue: FifoQueue<Work>,
+    pub gossip_execution_payload_queue: FifoQueue<Work>,
+    pub gossip_execution_proof_queue: FifoQueue<Work>,
+    pub gossip_execution_payload_bid_queue: FifoQueue<Work>,
+    pub gossip_payload_attestation_queue: FifoQueue<Work>,
+    pub gossip_proposer_preferences_queue: FifoQueue<Work>,
+    pub gossip_inclusion_list_queue: FifoQueue<Work>,
+    pub lc_gossip_finality_update_queue: FifoQueue<Work>,
+    pub lc_gossip_optimistic_update_queue: FifoQueue<Work>,
+    pub lc_bootstrap_queue: FifoQueue<Work>,
+    pub lc_rpc_optimistic_update_queue: FifoQueue<Work>,
+    pub lc_rpc_finality_update_queue: FifoQueue<Work>,
+    pub lc_update_range_queue: FifoQueue<Work>,
+    pub api_request_p0_queue: FifoQueue<Work>,
+    pub api_request_p1_queue: FifoQueue<Work>,
 }
 
-impl<E: EthSpec> WorkQueues<E> {
+impl WorkQueues {
     pub fn new(queue_lengths: BeaconProcessorQueueLengths) -> Self {
         // Using LIFO queues for attestations since validator profits rely upon getting fresh
         // attestations into blocks. Additionally, later attestations contain more information than
@@ -389,7 +389,7 @@ impl<E: EthSpec> WorkQueues<E> {
             FifoQueue::new(queue_lengths.lc_rpc_optimistic_update_queue);
         let lc_rpc_finality_update_queue =
             FifoQueue::new(queue_lengths.lc_rpc_finality_update_queue);
-        let lc_update_range_queue: FifoQueue<Work<E>> =
+        let lc_update_range_queue: FifoQueue<Work> =
             FifoQueue::new(queue_lengths.lc_update_range_queue);
 
         let api_request_p0_queue = FifoQueue::new(queue_lengths.api_request_p0_queue);
@@ -461,7 +461,7 @@ mod tests {
         // State with no validators.
         let spec = ForkName::latest().make_genesis_spec(Spec::default_spec());
         let genesis_time = 0;
-        let state = BeaconState::<MainnetEthSpec>::new(genesis_time, Eth1Data::default(), &spec);
+        let state = BeaconState::new(genesis_time, Eth1Data::default(), &spec);
         assert_eq!(state.validators().len(), 0);
         let queue_lengths = BeaconProcessorQueueLengths::from_state(&state, &spec).unwrap();
         assert_eq!(queue_lengths.attestation_queue, MIN_QUEUE_LEN);

@@ -16,13 +16,12 @@ use types::{
     Attestation, AttestationData, AttestationRef, EthSpec, Hash256, Slot, SyncCommitteeContribution,
 };
 
-pub type ObservedSyncContributions<E> = ObservedAggregates<
-    SyncCommitteeContribution<E>,
-    E,
+pub type ObservedSyncContributions = ObservedAggregates<
+    SyncCommitteeContribution,
     BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>,
 >;
-pub type ObservedAggregateAttestations<E> =
-    ObservedAggregates<Attestation<E>, E, BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>;
+pub type ObservedAggregateAttestations =
+    ObservedAggregates<Attestation, BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>;
 
 /// Attestation data augmented with committee index
 ///
@@ -47,7 +46,7 @@ pub trait Consts {
     fn max_per_slot_capacity() -> usize;
 }
 
-impl<E: EthSpec> Consts for Attestation<E> {
+impl Consts for Attestation {
     /// Use 128 as it's the target committee size for the mainnet spec. This is perhaps a little
     /// wasteful for the minimal spec, but considering it's approx. 128 * 32 bytes we're not wasting
     /// much.
@@ -74,7 +73,7 @@ impl<E: EthSpec> Consts for Attestation<E> {
     }
 }
 
-impl<E: EthSpec> Consts for SyncCommitteeContribution<E> {
+impl Consts for SyncCommitteeContribution {
     /// Set to `TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE * SYNC_COMMITTEE_SUBNET_COUNT`. This is the
     /// expected number of aggregators per slot across all subcommittees.
     const DEFAULT_PER_SLOT_CAPACITY: usize =
@@ -116,13 +115,13 @@ pub trait SubsetItem {
 
 /// Convert a progressive aggregation bitfield (Gloas, EIP-7916) to a bounded `BitList` for subset
 /// comparison. Valid Gloas attestations have at most `MaxValidatorsPerSlot` aggregation bits.
-fn progressive_bits_to_bitlist<E: EthSpec>(
+fn progressive_bits_to_bitlist(
     bits: &ProgressiveBitList,
 ) -> Result<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>, ssz::BitfieldError> {
     BitList::from_bytes(bits.clone().into_bytes())
 }
 
-impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
+impl SubsetItem for AttestationRef<'_> {
     type Item = BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>;
     fn is_subset(&self, other: &Self::Item) -> bool {
         match self {
@@ -135,7 +134,7 @@ impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
             Self::Electra(att) => att.aggregation_bits.is_subset(other),
             Self::Gloas(att) => {
                 if let Ok(aggregation_bits) =
-                    progressive_bits_to_bitlist::<E>(&att.aggregation_bits)
+                    progressive_bits_to_bitlist(&att.aggregation_bits)
                 {
                     return aggregation_bits.is_subset(other);
                 }
@@ -155,7 +154,7 @@ impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
             Self::Electra(att) => other.is_subset(&att.aggregation_bits),
             Self::Gloas(att) => {
                 if let Ok(aggregation_bits) =
-                    progressive_bits_to_bitlist::<E>(&att.aggregation_bits)
+                    progressive_bits_to_bitlist(&att.aggregation_bits)
                 {
                     return other.is_subset(&aggregation_bits);
                 }
@@ -171,7 +170,7 @@ impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
                 .extend_aggregation_bits()
                 .map_err(|_| Error::GetItemError),
             Self::Electra(att) => Ok(att.aggregation_bits.clone()),
-            Self::Gloas(att) => progressive_bits_to_bitlist::<E>(&att.aggregation_bits)
+            Self::Gloas(att) => progressive_bits_to_bitlist(&att.aggregation_bits)
                 .map_err(|_| Error::GetItemError),
         }
     }
@@ -186,7 +185,7 @@ impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
     }
 }
 
-impl<E: EthSpec> SubsetItem for &SyncCommitteeContribution<E> {
+impl SubsetItem for &SyncCommitteeContribution {
     type Item = BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>;
     fn is_subset(&self, other: &Self::Item) -> bool {
         self.aggregation_bits.is_subset(other)
@@ -340,15 +339,15 @@ pub trait AsReference {
     fn as_reference(&self) -> Self::Reference<'_>;
 }
 
-impl<E: EthSpec> AsReference for Attestation<E> {
-    type Reference<'a> = AttestationRef<'a, E>;
+impl AsReference for Attestation {
+    type Reference<'a> = AttestationRef<'a>;
 
-    fn as_reference(&self) -> AttestationRef<'_, E> {
+    fn as_reference(&self) -> AttestationRef<'_> {
         self.to_ref()
     }
 }
 
-impl<E: EthSpec> AsReference for SyncCommitteeContribution<E> {
+impl AsReference for SyncCommitteeContribution {
     type Reference<'a> = &'a Self;
 
     fn as_reference(&self) -> &Self {
@@ -358,14 +357,14 @@ impl<E: EthSpec> AsReference for SyncCommitteeContribution<E> {
 
 /// Stores the roots of objects for some number of `Slots`, so we can determine if
 /// these have previously been seen on the network.
-pub struct ObservedAggregates<T: Consts + AsReference, E: EthSpec, I> {
+pub struct ObservedAggregates<T: Consts + AsReference, I> {
     lowest_permissible_slot: Slot,
     sets: Vec<SlotHashSet<I>>,
     _phantom_spec: PhantomData<E>,
     _phantom_tree_hash: PhantomData<T>,
 }
 
-impl<T: Consts + AsReference, E: EthSpec, I> Default for ObservedAggregates<T, E, I> {
+impl<T: Consts + AsReference, I> Default for ObservedAggregates<T, I> {
     fn default() -> Self {
         Self {
             lowest_permissible_slot: Slot::new(0),
@@ -376,7 +375,7 @@ impl<T: Consts + AsReference, E: EthSpec, I> Default for ObservedAggregates<T, E
     }
 }
 
-impl<T, E, I> ObservedAggregates<T, E, I>
+impl<T, I> ObservedAggregates<T, I>
 where
     T: Consts + AsReference,
     for<'a> T::Reference<'a>: SubsetItem<Item = I> + SlotData,
@@ -503,16 +502,16 @@ mod tests {
     use types::{AttestationBase, Hash256, test_utils::test_arbitrary_instance};
 
 
-    fn get_attestation(slot: Slot, beacon_block_root: u64) -> Attestation<E> {
-        let a: AttestationBase<E> = test_arbitrary_instance();
+    fn get_attestation(slot: Slot, beacon_block_root: u64) -> Attestation {
+        let a: AttestationBase = test_arbitrary_instance();
         let mut a = Attestation::Base(a);
         a.data_mut().slot = slot;
         a.data_mut().beacon_block_root = Hash256::from_low_u64_be(beacon_block_root);
         a
     }
 
-    fn get_sync_contribution(slot: Slot, beacon_block_root: u64) -> SyncCommitteeContribution<E> {
-        let mut a: SyncCommitteeContribution<E> = test_arbitrary_instance();
+    fn get_sync_contribution(slot: Slot, beacon_block_root: u64) -> SyncCommitteeContribution {
+        let mut a: SyncCommitteeContribution = test_arbitrary_instance();
         a.slot = slot;
         a.beacon_block_root = Hash256::from_low_u64_be(beacon_block_root);
         a

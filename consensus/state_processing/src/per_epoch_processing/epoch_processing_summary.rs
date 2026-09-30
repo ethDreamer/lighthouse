@@ -10,7 +10,7 @@ use types::{
 
 /// Provides a summary of validator participation during the epoch.
 #[derive(PartialEq, Debug)]
-pub enum EpochProcessingSummary<E: EthSpec> {
+pub enum EpochProcessingSummary {
     Base {
         total_balances: TotalBalances,
         statuses: Vec<ValidatorStatus>,
@@ -18,15 +18,15 @@ pub enum EpochProcessingSummary<E: EthSpec> {
     Altair {
         progressive_balances: ProgressiveBalancesCache,
         current_epoch_total_active_balance: u64,
-        participation: Box<ParticipationEpochSummary<E>>,
-        sync_committee: Arc<SyncCommittee<E>>,
+        participation: Box<ParticipationEpochSummary>,
+        sync_committee: Arc<SyncCommittee>,
     },
 }
 
 #[derive(PartialEq, Debug)]
-pub struct ParticipationEpochSummary<E: EthSpec> {
+pub struct ParticipationEpochSummary {
     /// Copy of the validator registry prior to mutation.
-    validators: ValidatorsOwned<E>,
+    validators: ValidatorsOwned,
     /// Copy of the participation flags for the previous epoch.
     previous_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     /// Copy of the participation flags for the current epoch.
@@ -35,9 +35,9 @@ pub struct ParticipationEpochSummary<E: EthSpec> {
     current_epoch: Epoch,
 }
 
-impl<E: EthSpec> ParticipationEpochSummary<E> {
+impl ParticipationEpochSummary {
     pub fn new(
-        validators: ValidatorsOwned<E>,
+        validators: ValidatorsOwned,
         previous_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         current_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         previous_epoch: Epoch,
@@ -86,7 +86,7 @@ impl<E: EthSpec> ParticipationEpochSummary<E> {
     }
 }
 
-impl<E: EthSpec> EpochProcessingSummary<E> {
+impl EpochProcessingSummary {
     /// Updates some Prometheus metrics with some values in `self`.
     pub fn observe_metrics(&self) -> Result<(), BeaconStateError> {
         metrics::set_gauge(
@@ -110,7 +110,7 @@ impl<E: EthSpec> EpochProcessingSummary<E> {
     }
 
     /// Returns the sync committee indices for the current epoch for altair.
-    pub fn sync_committee(&self) -> Option<&SyncCommittee<E>> {
+    pub fn sync_committee(&self) -> Option<&SyncCommittee> {
         match self {
             EpochProcessingSummary::Altair { sync_committee, .. } => Some(sync_committee),
             EpochProcessingSummary::Base { .. } => None,

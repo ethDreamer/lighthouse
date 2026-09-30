@@ -22,8 +22,8 @@ pub enum BalanceSourceKey {
 
 impl BalanceSourceKey {
     /// Create a key for a specific `block_root` and its state.
-    pub(crate) fn compute<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub(crate) fn compute(
+        state: &BeaconState,
         block_root: Hash256,
     ) -> Result<Self, Error> {
         let epoch = state.current_epoch();
@@ -36,7 +36,7 @@ impl BalanceSourceKey {
             })
         } else {
             Ok(Self::NoSlashings {
-                epoch_boundary_root: get_epoch_boundary_root::<E>(state)?,
+                epoch_boundary_root: get_epoch_boundary_root(state)?,
                 epoch,
             })
         }
@@ -62,8 +62,8 @@ impl BalanceSourceData {
     /// Create a balance source for `state` at its current epoch.
     ///
     /// The state must be pulled up to the desired epoch prior to calling this function.
-    pub(crate) fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub(crate) fn new(
+        state: &BeaconState,
         block_root: Hash256,
     ) -> Result<Self, Error> {
         let current_epoch = state.current_epoch();
@@ -122,7 +122,7 @@ impl BalanceSourceData {
 ///
 /// Used to identify the balance source fields of the `validator` registry in the absence of
 /// slashings.
-fn get_epoch_boundary_root<E: EthSpec>(state: &BeaconState<E>) -> Result<Hash256, Error> {
+fn get_epoch_boundary_root(state: &BeaconState) -> Result<Hash256, Error> {
     if state.current_epoch() == 0 {
         return Ok(Hash256::ZERO);
     }

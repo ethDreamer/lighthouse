@@ -43,7 +43,7 @@ use crate::{
     test_utils::{EphemeralHarnessType, fork_name_from_env, test_spec},
 };
 
-type T = EphemeralHarnessType<E>;
+type T = EphemeralHarnessType;
 
 /// Number of regular validators (must be >= min_genesis_active_validator_count for MinimalEthSpec).
 const NUM_VALIDATORS: usize = 64;
@@ -55,7 +55,7 @@ const BUILDER_BALANCE: u64 = 2_000_000_000;
 struct TestContext {
     canonical_head: CanonicalHead<T>,
     observed_execution_payloads: ObservedExecutionPayloads,
-    bid_cache: GossipVerifiedPayloadBidCache<E>,
+    bid_cache: GossipVerifiedPayloadBidCache,
     preferences_cache: GossipVerifiedProposerPreferenceCache,
     slot_clock: TestingSlotClock,
     keypairs: Vec<Keypair>,
@@ -75,7 +75,7 @@ fn builder_withdrawal_credentials(pubkey: &bls::PublicKey, spec: &ChainSpec) -> 
 
 impl TestContext {
     fn new() -> Self {
-        let spec = test_spec::<E>();
+        let spec = test_spec();
         let store = Arc::new(
             HotColdDB::open_ephemeral(StoreConfig::default(), Arc::new(spec.clone()))
                 .expect("should open ephemeral store"),
@@ -90,7 +90,7 @@ impl TestContext {
             gas_limit: 30_000_000,
             ..Default::default()
         });
-        let mut state = interop_genesis_state::<E>(
+        let mut state = interop_genesis_state(
             &keypairs,
             0,
             Hash256::repeat_byte(0x42),
@@ -198,7 +198,7 @@ impl TestContext {
         }
     }
 
-    fn sign_bid(&self, bid: ExecutionPayloadBid<E>) -> Arc<SignedExecutionPayloadBid<E>> {
+    fn sign_bid(&self, bid: ExecutionPayloadBid) -> Arc<SignedExecutionPayloadBid> {
         let head = self.canonical_head.cached_head();
         let state = &head.snapshot.beacon_state;
         let domain = self.spec.get_domain(
@@ -254,7 +254,7 @@ impl TestContext {
         gas_limit: u64,
         value: u64,
         parent_block_root: Hash256,
-    ) -> Arc<SignedExecutionPayloadBid<E>> {
+    ) -> Arc<SignedExecutionPayloadBid> {
         Arc::new(SignedExecutionPayloadBid {
             message: ExecutionPayloadBid {
                 slot,
@@ -311,7 +311,7 @@ impl TestContext {
         let mut fork_choice = self.canonical_head.fork_choice_write_lock();
         fork_choice
             .proto_array_mut()
-            .process_block::<E>(
+            .process_block(
                 self.slot_1_proto_block(fork_block_root, ExecutionBlockHash::repeat_byte(0xab)),
                 Slot::new(1),
                 &self.spec,
@@ -326,7 +326,7 @@ impl TestContext {
         block_root: Hash256,
         builder_exit: BuilderExitRequest,
     ) {
-        let mut envelope = ExecutionPayloadEnvelope::<E>::empty();
+        let mut envelope = ExecutionPayloadEnvelope::empty();
         envelope
             .execution_requests
             .builder_exits
@@ -642,7 +642,7 @@ fn exit_test_parent_payload_hash() -> ExecutionBlockHash {
     ExecutionBlockHash::repeat_byte(0xab)
 }
 
-fn exit_test_bid(parent_block_hash: ExecutionBlockHash) -> ExecutionPayloadBid<E> {
+fn exit_test_bid(parent_block_hash: ExecutionBlockHash) -> ExecutionPayloadBid {
     ExecutionPayloadBid {
         builder_index: 0,
         parent_block_root: exit_test_parent_root(),

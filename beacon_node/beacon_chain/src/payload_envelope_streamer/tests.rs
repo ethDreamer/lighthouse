@@ -14,12 +14,12 @@ use types::{
     Slot,
 };
 
-type T = EphemeralHarnessType<E>;
+type T = EphemeralHarnessType;
 
 struct SlotEntry {
     block_root: Hash256,
     slot: Slot,
-    envelope: Option<SignedExecutionPayloadEnvelope<E>>,
+    envelope: Option<SignedExecutionPayloadEnvelope>,
     non_canonical_envelope: bool,
 }
 
@@ -117,7 +117,7 @@ fn mock_envelopes_with_pruned_payloads(
     chain: &[SlotEntry],
     pruned_payload_slots: &[u64],
 ) {
-    let summary_map: HashMap<Hash256, Option<SignedExecutionPayloadEnvelopeSummary<E>>> = chain
+    let summary_map: HashMap<Hash256, Option<SignedExecutionPayloadEnvelopeSummary>> = chain
         .iter()
         .map(|entry| {
             let summary = entry
@@ -130,7 +130,7 @@ fn mock_envelopes_with_pruned_payloads(
     mock.expect_get_payload_envelope_summary()
         .returning(move |root| Ok(summary_map.get(root).cloned().flatten()));
 
-    let payload_map: HashMap<Hash256, Option<ExecutionPayloadBody<E>>> = chain
+    let payload_map: HashMap<Hash256, Option<ExecutionPayloadBody>> = chain
         .iter()
         .map(|entry| {
             (
@@ -147,7 +147,7 @@ fn mock_envelopes_with_pruned_payloads(
         .returning(move |root| Ok(payload_map.get(root).cloned().flatten()));
 }
 
-fn payload_body(payload: &ExecutionPayloadGloas<E>) -> ExecutionPayloadBodyV2<E> {
+fn payload_body(payload: &ExecutionPayloadGloas) -> ExecutionPayloadBodyV2 {
     ExecutionPayloadBodyV2 {
         transactions: payload.transactions.clone(),
         withdrawals: Some(payload.withdrawals.clone()),
@@ -167,8 +167,8 @@ fn mock_canonical_head(mock: &mut MockEnvelopeStreamerBeaconAdapter<T>, chain: &
 }
 
 fn unwrap_result(
-    result: &Arc<PayloadEnvelopeResult<E>>,
-) -> &Option<Arc<SignedExecutionPayloadEnvelope<E>>> {
+    result: &Arc<PayloadEnvelopeResult>,
+) -> &Option<Arc<SignedExecutionPayloadEnvelope>> {
     result
         .as_ref()
         .as_ref()
@@ -176,7 +176,7 @@ fn unwrap_result(
 }
 
 async fn assert_stream_matches(
-    stream: &mut (impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult<E>>)> + Unpin),
+    stream: &mut (impl Stream<Item = (Hash256, Arc<PayloadEnvelopeResult>)> + Unpin),
     chain: &[SlotEntry],
     split_slot: Option<Slot>,
 ) {
@@ -329,7 +329,7 @@ async fn stream_reconstructs_pruned_envelopes() {
     mock_envelopes_with_pruned_payloads(&mut mock, &chain, &[2, 4]);
     mock.expect_block_has_canonical_payload().times(0);
 
-    let payload_bodies: HashMap<ExecutionBlockHash, ExecutionPayloadBodyV2<E>> = chain
+    let payload_bodies: HashMap<ExecutionBlockHash, ExecutionPayloadBodyV2> = chain
         .iter()
         .filter(|entry| [2, 4].contains(&entry.slot.as_u64()))
         .map(|entry| {
@@ -363,7 +363,7 @@ async fn stream_batches_pruned_envelope_requests() {
     mock_envelopes_with_pruned_payloads(&mut mock, &chain, &pruned_payload_slots);
     mock.expect_block_has_canonical_payload().times(0);
 
-    let payload_bodies: HashMap<ExecutionBlockHash, ExecutionPayloadBodyV2<E>> = chain
+    let payload_bodies: HashMap<ExecutionBlockHash, ExecutionPayloadBodyV2> = chain
         .iter()
         .map(|entry| {
             let payload = entry.envelope.as_ref().unwrap().message.payload.clone();

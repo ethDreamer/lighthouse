@@ -24,7 +24,7 @@ pub struct SyncCommitteeMessage {
 
 impl SyncCommitteeMessage {
     /// Equivalent to `get_sync_committee_message` from the spec.
-    pub fn new<E: EthSpec>(
+    pub fn new(
         slot: Slot,
         beacon_block_root: Hash256,
         validator_index: u64,

@@ -8,8 +8,8 @@ use types::{
 };
 
 /// Transform a `Deneb` state into an `Electra` state.
-pub fn upgrade_to_electra<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_to_electra(
+    pre_state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();
@@ -92,12 +92,12 @@ pub fn upgrade_to_electra<E: EthSpec>(
     Ok(())
 }
 
-pub fn upgrade_state_to_electra<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_state_to_electra(
+    pre_state: &mut BeaconState,
     earliest_exit_epoch: Epoch,
     earliest_consolidation_epoch: Epoch,
     spec: &ChainSpec,
-) -> Result<BeaconState<E>, Error> {
+) -> Result<BeaconState, Error> {
     let epoch = pre_state.current_epoch();
     let pre = pre_state.as_deneb_mut()?;
     // Where possible, use something like `mem::take` to move fields from behind the &mut

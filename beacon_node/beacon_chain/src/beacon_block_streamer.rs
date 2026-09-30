@@ -33,23 +33,23 @@ const MAX_PAYLOAD_BODIES_PER_REQUEST: usize = 32;
 
 /// A block loaded from the caches or database, which is either complete or requires its
 /// execution payload to be fetched from the execution layer.
-enum LoadedBlock<E: EthSpec> {
-    Complete(BlockResult<E>),
-    NeedsPayload(BlockParts<E>),
+enum LoadedBlock {
+    Complete(BlockResult),
+    NeedsPayload(BlockParts),
 }
 
-type BlockResult<E> = Result<Option<Arc<SignedBeaconBlock<E>>>, BeaconChainError>;
+type BlockResult = Result<Option<Arc<SignedBeaconBlock>>, BeaconChainError>;
 
 // stores the components of a block for future re-construction in a small form
-struct BlockParts<E: EthSpec> {
-    blinded_block: Box<SignedBlindedBeaconBlock<E>>,
-    header: Box<ExecutionPayloadHeader<E>>,
+struct BlockParts {
+    blinded_block: Box<SignedBlindedBeaconBlock>,
+    header: Box<ExecutionPayloadHeader>,
 }
 
-impl<E: EthSpec> BlockParts<E> {
+impl BlockParts {
     pub fn new(
-        blinded: Box<SignedBlindedBeaconBlock<E>>,
-        header: ExecutionPayloadHeader<E>,
+        blinded: Box<SignedBlindedBeaconBlock>,
+        header: ExecutionPayloadHeader,
     ) -> Self {
         Self {
             blinded_block: blinded,
@@ -66,16 +66,16 @@ impl<E: EthSpec> BlockParts<E> {
     }
 }
 
-fn reconstruct_default_header_block<E: EthSpec>(
-    blinded_block: Box<SignedBlindedBeaconBlock<E>>,
-    header_from_block: ExecutionPayloadHeader<E>,
+fn reconstruct_default_header_block(
+    blinded_block: Box<SignedBlindedBeaconBlock>,
+    header_from_block: ExecutionPayloadHeader,
     spec: &ChainSpec,
-) -> BlockResult<E> {
+) -> BlockResult {
     let fork = blinded_block
         .fork_name(spec)
         .map_err(BeaconChainError::InconsistentFork)?;
 
-    let payload: ExecutionPayload<E> = match fork {
+    let payload: ExecutionPayload = match fork {
         ForkName::Bellatrix => ExecutionPayloadBellatrix::default().into(),
         ForkName::Capella => ExecutionPayloadCapella::default().into(),
         ForkName::Deneb => ExecutionPayloadDeneb::default().into(),
@@ -109,10 +109,10 @@ fn reconstruct_default_header_block<E: EthSpec>(
     }
 }
 
-fn reconstruct_block<E: EthSpec>(
-    block_parts: BlockParts<E>,
-    payload_body: Option<ExecutionPayloadBodyV1<E>>,
-) -> BlockResult<E> {
+fn reconstruct_block(
+    block_parts: BlockParts,
+    payload_body: Option<ExecutionPayloadBodyV1>,
+) -> BlockResult {
     let Some(payload_body) = payload_body else {
         return Err(BeaconChainError::BlockHashMissingFromExecutionLayer(
             block_parts.block_hash(),
@@ -145,7 +145,7 @@ fn reconstruct_block<E: EthSpec>(
 }
 
 pub struct BeaconBlockStreamer<T: BeaconChainTypes> {
-    execution_layer: ExecutionLayer<T::EthSpec>,
+    execution_layer: ExecutionLayer,
     check_caches: CheckCaches,
     beacon_chain: Arc<BeaconChain<T>>,
 }
@@ -168,7 +168,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
         }))
     }
 
-    fn check_caches(&self, root: Hash256) -> Option<Arc<SignedBeaconBlock<T::EthSpec>>> {
+    fn check_caches(&self, root: Hash256) -> Option<Arc<SignedBeaconBlock>> {
         if self.check_caches == CheckCaches::Yes {
             match self.beacon_chain.get_block_process_status(&root) {
                 BlockProcessStatus::Unknown => None,
@@ -185,7 +185,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
 
     /// Load a block from the caches or the database. Blinded blocks with a non-default payload
     /// header are returned as `NeedsPayload` for reconstruction via the execution layer.
-    fn load_block(&self, root: Hash256) -> LoadedBlock<T::EthSpec> {
+    fn load_block(&self, root: Hash256) -> LoadedBlock {
         if let Some(cached_block) = self.check_caches(root) {
             return LoadedBlock::Complete(Ok(Some(cached_block)));
         }
@@ -226,7 +226,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
     async fn fetch_payload_bodies(
         &self,
         block_hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV1<T::EthSpec>>>, Error> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV1>>, Error> {
         let mut bodies = Vec::with_capacity(block_hashes.len());
         for chunk in block_hashes.chunks(MAX_PAYLOAD_BODIES_PER_REQUEST) {
             let chunk_bodies = self
@@ -249,7 +249,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
     pub async fn stream(
         self: Arc<Self>,
         block_roots: Vec<Hash256>,
-        sender: UnboundedSender<(Hash256, Arc<BlockResult<T::EthSpec>>)>,
+        sender: UnboundedSender<(Hash256, Arc<BlockResult>)>,
     ) {
         let n_roots = block_roots.len();
 
@@ -291,7 +291,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
         let mut bodies = match self.fetch_payload_bodies(block_hashes).await {
             Ok(bodies) => Ok(bodies.into_iter()),
             Err(e) => {
-                let block_result: Arc<BlockResult<T::EthSpec>> = Arc::new(Err(e.into()));
+                let block_result: Arc<BlockResult> = Arc::new(Err(e.into()));
                 debug!(error = ?block_result, "Payload bodies by hash failure");
                 Err(block_result)
             }
@@ -337,7 +337,7 @@ impl<T: BeaconChainTypes> BeaconBlockStreamer<T> {
     pub fn launch_stream(
         self: Arc<Self>,
         block_roots: Vec<Hash256>,
-    ) -> impl Stream<Item = (Hash256, Arc<BlockResult<T::EthSpec>>)> {
+    ) -> impl Stream<Item = (Hash256, Arc<BlockResult>)> {
         let (block_tx, block_rx) = mpsc::unbounded_channel();
         debug!(
             blocks = block_roots.len(),
@@ -375,7 +375,7 @@ mod tests {
     fn get_harness(
         validator_count: usize,
         spec: Arc<ChainSpec>,
-    ) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
+    ) -> BeaconChainHarness<EphemeralHarnessType> {
         let harness = BeaconChainHarness::builder()
             .spec(spec)
             .keypairs(KEYPAIRS[0..validator_count].to_vec())
@@ -400,7 +400,7 @@ mod tests {
         let fulu_fork_epoch = 10usize;
         let num_blocks_produced = num_epochs * slots_per_epoch;
 
-        let mut spec = test_spec::<MinimalEthSpec>();
+        let mut spec = test_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.bellatrix_fork_epoch = Some(Epoch::new(bellatrix_fork_epoch as u64));
         spec.capella_fork_epoch = Some(Epoch::new(capella_fork_epoch as u64));

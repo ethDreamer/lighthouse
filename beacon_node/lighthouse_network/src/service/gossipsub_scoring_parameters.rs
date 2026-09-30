@@ -34,7 +34,7 @@ pub fn lighthouse_gossip_thresholds() -> PeerScoreThresholds {
     }
 }
 
-pub struct PeerScoreSettings<E: EthSpec> {
+pub struct PeerScoreSettings {
     slot: Duration,
     epoch: Duration,
 
@@ -52,8 +52,8 @@ pub struct PeerScoreSettings<E: EthSpec> {
     phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> PeerScoreSettings<E> {
-    pub fn new(chain_spec: &ChainSpec, mesh_n: usize) -> PeerScoreSettings<E> {
+impl PeerScoreSettings {
+    pub fn new(chain_spec: &ChainSpec, mesh_n: usize) -> PeerScoreSettings {
         let slot = chain_spec.get_slot_duration();
         let beacon_attestation_subnet_weight = 1.0 / chain_spec.attestation_subnet_count as f64;
         let max_positive_score = (MAX_IN_MESH_SCORE + MAX_FIRST_MESSAGE_DELIVERIES_SCORE)

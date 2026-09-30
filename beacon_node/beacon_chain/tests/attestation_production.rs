@@ -362,7 +362,7 @@ async fn produces_attestations() {
             );
             if harness
                 .spec
-                .fork_name_at_slot::<MainnetEthSpec>(data.slot)
+                .fork_name_at_slot(data.slot)
                 .gloas_enabled()
             {
                 assert!(data.index <= 1, "invalid index");
@@ -392,7 +392,7 @@ async fn produces_attestations() {
             let is_same_slot_attestation = slot == block_slot;
             let is_gloas = harness
                 .spec
-                .fork_name_at_slot::<MainnetEthSpec>(slot)
+                .fork_name_at_slot(slot)
                 .gloas_enabled();
             if !is_gloas || is_same_slot_attestation {
                 let early_attestation = {

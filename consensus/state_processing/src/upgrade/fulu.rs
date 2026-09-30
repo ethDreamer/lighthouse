@@ -4,8 +4,8 @@ use std::mem;
 use types::{BeaconState, BeaconStateError as Error, BeaconStateFulu, ChainSpec, EthSpec, Fork};
 
 /// Transform a `Electra` state into an `Fulu` state.
-pub fn upgrade_to_fulu<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_to_fulu(
+    pre_state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let _epoch = pre_state.current_epoch();
@@ -17,8 +17,8 @@ pub fn upgrade_to_fulu<E: EthSpec>(
     Ok(())
 }
 
-fn initialize_proposer_lookahead<E: EthSpec>(
-    state: &BeaconState<E>,
+fn initialize_proposer_lookahead(
+    state: &BeaconState,
     spec: &ChainSpec,
 ) -> Result<Vector<u64, typenum::U<{ Spec::PROPOSER_LOOKAHEAD_SLOTS }>>, Error> {
     let current_epoch = state.current_epoch();
@@ -35,10 +35,10 @@ fn initialize_proposer_lookahead<E: EthSpec>(
     Vector::new(lookahead).map_err(|e| e.into())
 }
 
-pub fn upgrade_state_to_fulu<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_state_to_fulu(
+    pre_state: &mut BeaconState,
     spec: &ChainSpec,
-) -> Result<BeaconState<E>, Error> {
+) -> Result<BeaconState, Error> {
     let epoch = pre_state.current_epoch();
     let proposer_lookahead = initialize_proposer_lookahead(pre_state, spec)?;
     let pre = pre_state.as_electra_mut()?;

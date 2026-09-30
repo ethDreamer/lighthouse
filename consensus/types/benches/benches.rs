@@ -9,7 +9,7 @@ use types::{
     test_utils::generate_deterministic_keypair,
 };
 
-fn get_state<E: EthSpec>(validator_count: usize) -> BeaconState<E> {
+fn get_state(validator_count: usize) -> BeaconState {
     let spec = &Spec::default_spec();
     let eth1_data = Eth1Data {
         deposit_root: Hash256::zero(),
@@ -52,7 +52,7 @@ fn all_benches(c: &mut Criterion) {
     let mut g = c.benchmark_group("types");
     g.sample_size(10);
 
-    let mut state = get_state::<MainnetEthSpec>(validator_count);
+    let mut state = get_state(validator_count);
     state.build_caches(&spec).expect("should build caches");
     let state_bytes = state.as_ssz_bytes();
 
@@ -76,7 +76,7 @@ fn all_benches(c: &mut Criterion) {
             b.iter_batched_ref(
                 || (bytes.clone(), spec.clone()),
                 |(bytes, spec)| {
-                    let state: BeaconState<MainnetEthSpec> =
+                    let state: BeaconState =
                         BeaconState::from_ssz_bytes(bytes, spec).expect("should decode");
                     black_box(state)
                 },

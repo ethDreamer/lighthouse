@@ -18,15 +18,15 @@ pub struct Metadata {
 }
 
 #[derive(Debug)]
-pub struct TransitionTest<E: EthSpec> {
+pub struct TransitionTest {
     pub metadata: Metadata,
-    pub pre: BeaconState<E>,
-    pub blocks: Vec<SignedBeaconBlock<E>>,
-    pub post: Option<BeaconState<E>>,
+    pub pre: BeaconState,
+    pub blocks: Vec<SignedBeaconBlock>,
+    pub post: Option<BeaconState>,
     pub spec: ChainSpec,
 }
 
-impl<E: EthSpec> LoadCase for TransitionTest<E> {
+impl LoadCase for TransitionTest {
     fn load_from_dir(path: &Path, fork_name: ForkName) -> Result<Self, Error> {
         let metadata: Metadata = yaml_decode_file(&path.join("meta.yaml"))?;
         assert_eq!(ForkName::from_str(&metadata.post_fork).unwrap(), fork_name);
@@ -119,7 +119,7 @@ impl<E: EthSpec> LoadCase for TransitionTest<E> {
     }
 }
 
-impl<E: EthSpec> Case for TransitionTest<E> {
+impl Case for TransitionTest {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         // Upgrades exist targeting all forks except phase0/base.
         // Transition tests also need BLS.

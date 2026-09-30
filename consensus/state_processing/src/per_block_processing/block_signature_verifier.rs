@@ -80,14 +80,14 @@ impl From<BlockOperationError<PayloadAttestationInvalid>> for Error {
 ///
 /// This allows for optimizations related to batch BLS operations (see the
 /// `Self::verify_entire_block(..)` function).
-pub struct BlockSignatureVerifier<'a, E, F, D>
+pub struct BlockSignatureVerifier<'a, F, D>
 where
     F: Fn(usize) -> Option<Cow<'a, PublicKey>> + Clone,
     D: Fn(&'a PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {
     get_pubkey: F,
     decompressor: D,
-    state: &'a BeaconState<E>,
+    state: &'a BeaconState,
     spec: &'a ChainSpec,
     sets: ParallelSignatureSets<'a>,
 }
@@ -103,7 +103,7 @@ impl<'a> From<Vec<SignatureSet<'a>>> for ParallelSignatureSets<'a> {
     }
 }
 
-impl<'a, E, F, D> BlockSignatureVerifier<'a, E, F, D>
+impl<'a, F, D> BlockSignatureVerifier<'a, F, D>
 where
     F: Fn(usize) -> Option<Cow<'a, PublicKey>> + Clone,
     D: Fn(&'a PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
@@ -111,7 +111,7 @@ where
     /// Create a new verifier without any included signatures. See the `include...` functions to
     /// add signatures, and the `verify`
     pub fn new(
-        state: &'a BeaconState<E>,
+        state: &'a BeaconState,
         get_pubkey: F,
         decompressor: D,
         spec: &'a ChainSpec,
@@ -132,12 +132,12 @@ where
     ///   contains invalid signatures on deposits._
     ///
     /// See `Self::verify` for more detail.
-    pub fn verify_entire_block<Payload: AbstractExecPayload<E>>(
-        state: &'a BeaconState<E>,
+    pub fn verify_entire_block<Payload: AbstractExecPayload>(
+        state: &'a BeaconState,
         get_pubkey: F,
         decompressor: D,
-        block: &'a SignedBeaconBlock<E, Payload>,
-        ctxt: &mut ConsensusContext<E>,
+        block: &'a SignedBeaconBlock<Payload>,
+        ctxt: &mut ConsensusContext,
         spec: &'a ChainSpec,
     ) -> Result<()> {
         let mut verifier = Self::new(state, get_pubkey, decompressor, spec);
@@ -146,10 +146,10 @@ where
     }
 
     /// Includes all signatures on the block (except the deposit signatures) for verification.
-    pub fn include_all_signatures<Payload: AbstractExecPayload<E>>(
+    pub fn include_all_signatures<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
-        ctxt: &mut ConsensusContext<E>,
+        block: &'a SignedBeaconBlock<Payload>,
+        ctxt: &mut ConsensusContext,
     ) -> Result<()> {
         let block_root = Some(ctxt.get_current_block_root(block)?);
         let verified_proposer_index =
@@ -163,10 +163,10 @@ where
 
     /// Includes all signatures on the block (except the deposit signatures and the proposal
     /// signature) for verification.
-    pub fn include_all_signatures_except_proposal<Payload: AbstractExecPayload<E>>(
+    pub fn include_all_signatures_except_proposal<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
-        ctxt: &mut ConsensusContext<E>,
+        block: &'a SignedBeaconBlock<Payload>,
+        ctxt: &mut ConsensusContext,
     ) -> Result<()> {
         let verified_proposer_index =
             Some(ctxt.get_proposer_index_from_epoch_state(self.state, self.spec)?);
@@ -185,9 +185,9 @@ where
     }
 
     /// Includes the block signature for `self.block` for verification.
-    pub fn include_block_proposal<Payload: AbstractExecPayload<E>>(
+    pub fn include_block_proposal<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
         block_root: Option<Hash256>,
         verified_proposer_index: Option<u64>,
     ) -> Result<()> {
@@ -204,9 +204,9 @@ where
     }
 
     /// Includes the randao signature for `self.block` for verification.
-    pub fn include_randao_reveal<Payload: AbstractExecPayload<E>>(
+    pub fn include_randao_reveal<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
         verified_proposer_index: Option<u64>,
     ) -> Result<()> {
         let set = randao_signature_set(
@@ -221,9 +221,9 @@ where
     }
 
     /// Includes all signatures in `self.block.body.proposer_slashings` for verification.
-    pub fn include_proposer_slashings<Payload: AbstractExecPayload<E>>(
+    pub fn include_proposer_slashings<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         self.sets
             .sets
@@ -250,9 +250,9 @@ where
     }
 
     /// Includes all signatures in `self.block.body.attester_slashings` for verification.
-    pub fn include_attester_slashings<Payload: AbstractExecPayload<E>>(
+    pub fn include_attester_slashings<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         self.sets
             .sets
@@ -278,10 +278,10 @@ where
     }
 
     /// Includes all signatures in `self.block.body.attestations` for verification.
-    pub fn include_attestations<Payload: AbstractExecPayload<E>>(
+    pub fn include_attestations<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
-        ctxt: &mut ConsensusContext<E>,
+        block: &'a SignedBeaconBlock<Payload>,
+        ctxt: &mut ConsensusContext,
     ) -> Result<()> {
         self.sets
             .sets
@@ -306,10 +306,10 @@ where
     }
 
     /// Includes all signatures in `self.block.body.payload_attestations` for verification.
-    pub fn include_payload_attestations<Payload: AbstractExecPayload<E>>(
+    pub fn include_payload_attestations<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
-        ctxt: &mut ConsensusContext<E>,
+        block: &'a SignedBeaconBlock<Payload>,
+        ctxt: &mut ConsensusContext,
     ) -> Result<()> {
         let Ok(payload_attestations) = block.message().body().payload_attestations() else {
             // Nothing to do pre-Gloas.
@@ -339,9 +339,9 @@ where
     }
 
     /// Includes all signatures in `self.block.body.voluntary_exits` for verification.
-    pub fn include_exits<Payload: AbstractExecPayload<E>>(
+    pub fn include_exits<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         self.sets
             .sets
@@ -363,9 +363,9 @@ where
     }
 
     /// Include the signature of the block's sync aggregate (if it exists) for verification.
-    pub fn include_sync_aggregate<Payload: AbstractExecPayload<E>>(
+    pub fn include_sync_aggregate<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         if let Ok(sync_aggregate) = block.message().body().sync_aggregate()
             && let Some(signature_set) = sync_aggregate_signature_set(
@@ -383,9 +383,9 @@ where
     }
 
     /// Include the signature of the block's BLS to execution changes for verification.
-    pub fn include_bls_to_execution_changes<Payload: AbstractExecPayload<E>>(
+    pub fn include_bls_to_execution_changes<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         // To improve performance we might want to decompress the withdrawal pubkeys in parallel.
         if let Ok(bls_to_execution_changes) = block.message().body().bls_to_execution_changes() {
@@ -401,9 +401,9 @@ where
     }
 
     /// Include the signature of the block's execution payload bid.
-    pub fn include_execution_payload_bid<Payload: AbstractExecPayload<E>>(
+    pub fn include_execution_payload_bid<Payload: AbstractExecPayload>(
         &mut self,
-        block: &'a SignedBeaconBlock<E, Payload>,
+        block: &'a SignedBeaconBlock<Payload>,
     ) -> Result<()> {
         if let Ok(signed_execution_payload_bid) =
             block.message().body().signed_execution_payload_bid()

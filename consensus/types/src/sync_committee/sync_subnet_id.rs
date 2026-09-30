@@ -42,7 +42,7 @@ impl SyncSubnetId {
     }
 
     /// Compute required subnets to subscribe to given the sync committee indices.
-    pub fn compute_subnets_for_sync_committee<E: EthSpec>(
+    pub fn compute_subnets_for_sync_committee(
         sync_committee_indices: &[u64],
     ) -> Result<HashSet<Self>, ArithError> {
         let subcommittee_size = Spec::sync_subcommittee_size();

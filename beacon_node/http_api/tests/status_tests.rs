@@ -13,11 +13,11 @@ use types::{EthSpec, ExecPayload, MinimalEthSpec, Slot, Uint256};
 
 
 /// Create a new test environment that is post-merge with `chain_depth` blocks.
-async fn post_merge_tester(chain_depth: u64, validator_count: u64) -> InteractiveTester<E> {
-    let mut spec = test_spec::<E>();
+async fn post_merge_tester(chain_depth: u64, validator_count: u64) -> InteractiveTester {
+    let mut spec = test_spec();
     spec.terminal_total_difficulty = Uint256::from(1);
 
-    let tester = InteractiveTester::<E>::new(Some(spec), validator_count as usize).await;
+    let tester = InteractiveTester::new(Some(spec), validator_count as usize).await;
     let harness = &tester.harness;
     let mock_el = harness.mock_execution_layer.as_ref().unwrap();
 

@@ -24,8 +24,8 @@ const PROPOSER_PREPARATION_LOOKAHEAD_EPOCHS: u64 = 2;
 /// Number of epochs to wait before re-submitting validator registration.
 const EPOCHS_PER_VALIDATOR_REGISTRATION_SUBMISSION: u64 = 1;
 
-fn should_publish_validator_registrations<E: EthSpec>(slot: Slot, spec: &ChainSpec) -> bool {
-    !spec.fork_name_at_slot::<E>(slot).gloas_enabled()
+fn should_publish_validator_registrations(slot: Slot, spec: &ChainSpec) -> bool {
+    !spec.fork_name_at_slot(slot).gloas_enabled()
 }
 
 /// Builds an `PreparationService`.
@@ -225,7 +225,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> PreparationService<S, 
         let validator_registration_fut = async move {
             loop {
                 if let Some(slot) = self.slot_clock.now()
-                    && should_publish_validator_registrations::<S::E>(slot, &spec)
+                    && should_publish_validator_registrations(slot, &spec)
                 {
                     // Poll the endpoint immediately to ensure fee recipients are received.
                     if let Err(e) = self.register_validators(slot).await {
@@ -492,11 +492,11 @@ mod tests {
 
         let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
-        assert!(should_publish_validator_registrations::<E>(
+        assert!(should_publish_validator_registrations(
             first_gloas_slot - 1,
             &spec
         ));
-        assert!(!should_publish_validator_registrations::<E>(
+        assert!(!should_publish_validator_registrations(
             first_gloas_slot,
             &spec
         ));
@@ -508,7 +508,7 @@ mod tests {
         let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = None;
 
-        assert!(should_publish_validator_registrations::<E>(
+        assert!(should_publish_validator_registrations(
             Slot::new(0),
             &spec
         ));

@@ -11,15 +11,15 @@ use types::{
     Slot,
 };
 
-pub type PreBlockHook<'a, E, Error> = Box<
-    dyn FnMut(&mut BeaconState<E>, &SignedBeaconBlock<E, BlindedPayload<E>>) -> Result<(), Error>
+pub type PreBlockHook<'a, Error> = Box<
+    dyn FnMut(&mut BeaconState, &SignedBeaconBlock<BlindedPayload>) -> Result<(), Error>
         + 'a,
 >;
-pub type PostBlockHook<'a, E, Error> = PreBlockHook<'a, E, Error>;
-pub type PreSlotHook<'a, E, Error> =
-    Box<dyn FnMut(Hash256, &mut BeaconState<E>) -> Result<(), Error> + 'a>;
-pub type PostSlotHook<'a, E, Error> = Box<
-    dyn FnMut(&mut BeaconState<E>, Option<EpochProcessingSummary<E>>, bool) -> Result<(), Error>
+pub type PostBlockHook<'a, Error> = PreBlockHook<'a, Error>;
+pub type PreSlotHook<'a, Error> =
+    Box<dyn FnMut(Hash256, &mut BeaconState) -> Result<(), Error> + 'a>;
+pub type PostSlotHook<'a, Error> = Box<
+    dyn FnMut(&mut BeaconState, Option<EpochProcessingSummary>, bool) -> Result<(), Error>
         + 'a,
 >;
 pub type StateRootIterDefault<Error> = std::iter::Empty<Result<(Hash256, Slot), Error>>;
@@ -29,18 +29,17 @@ pub type StateRootIterDefault<Error> = std::iter::Empty<Result<(Hash256, Slot), 
 /// Usage follows a builder pattern.
 pub struct BlockReplayer<
     'a,
-    Spec: EthSpec,
     Error = BlockReplayError,
     StateRootIter: Iterator<Item = Result<(Hash256, Slot), Error>> = StateRootIterDefault<Error>,
 > {
-    state: BeaconState<Spec>,
+    state: BeaconState,
     spec: &'a ChainSpec,
     block_sig_strategy: BlockSignatureStrategy,
     verify_block_root: Option<VerifyBlockRoot>,
-    pre_block_hook: Option<PreBlockHook<'a, Spec, Error>>,
-    post_block_hook: Option<PostBlockHook<'a, Spec, Error>>,
-    pre_slot_hook: Option<PreSlotHook<'a, Spec, Error>>,
-    post_slot_hook: Option<PostSlotHook<'a, Spec, Error>>,
+    pre_block_hook: Option<PreBlockHook<'a, Error>>,
+    post_block_hook: Option<PostBlockHook<'a, Error>>,
+    pre_slot_hook: Option<PreSlotHook<'a, Error>>,
+    post_slot_hook: Option<PostSlotHook<'a, Error>>,
     pub(crate) state_root_iter: Option<Peekable<StateRootIter>>,
     state_root_miss: bool,
     _phantom: PhantomData<Error>,
@@ -71,7 +70,7 @@ impl From<BeaconStateError> for BlockReplayError {
     }
 }
 
-impl<'a, E, Error, StateRootIter> BlockReplayer<'a, E, Error, StateRootIter>
+impl<'a, Error, StateRootIter> BlockReplayer<'a, Error, StateRootIter>
 where
     StateRootIter: Iterator<Item = Result<(Hash256, Slot), Error>>,
     Error: From<BlockReplayError>,
@@ -83,7 +82,7 @@ where
     /// - Full (bulk) signature verification
     /// - Accurate state roots
     /// - Full block root verification
-    pub fn new(state: BeaconState<E>, spec: &'a ChainSpec) -> Self {
+    pub fn new(state: BeaconState, spec: &'a ChainSpec) -> Self {
         Self {
             state,
             spec,
@@ -132,7 +131,7 @@ where
     /// Run a function immediately before each block that is applied during `apply_blocks`.
     ///
     /// This can be used to inspect the state as blocks are applied.
-    pub fn pre_block_hook(mut self, hook: PreBlockHook<'a, E, Error>) -> Self {
+    pub fn pre_block_hook(mut self, hook: PreBlockHook<'a, Error>) -> Self {
         self.pre_block_hook = Some(hook);
         self
     }
@@ -140,13 +139,13 @@ where
     /// Run a function immediately after each block that is applied during `apply_blocks`.
     ///
     /// This can be used to inspect the state as blocks are applied.
-    pub fn post_block_hook(mut self, hook: PostBlockHook<'a, E, Error>) -> Self {
+    pub fn post_block_hook(mut self, hook: PostBlockHook<'a, Error>) -> Self {
         self.post_block_hook = Some(hook);
         self
     }
 
     /// Run a function immediately before slot processing advances the state to the next slot.
-    pub fn pre_slot_hook(mut self, hook: PreSlotHook<'a, E, Error>) -> Self {
+    pub fn pre_slot_hook(mut self, hook: PreSlotHook<'a, Error>) -> Self {
         self.pre_slot_hook = Some(hook);
         self
     }
@@ -155,7 +154,7 @@ where
     ///
     /// The hook receives the state and a bool indicating if this state corresponds to a skipped
     /// slot (i.e. it will not have a block applied).
-    pub fn post_slot_hook(mut self, hook: PostSlotHook<'a, E, Error>) -> Self {
+    pub fn post_slot_hook(mut self, hook: PostSlotHook<'a, Error>) -> Self {
         self.post_slot_hook = Some(hook);
         self
     }
@@ -174,7 +173,7 @@ where
     /// be computed from `self.state` and a state root iterator miss will be recorded.
     fn get_state_root(
         &mut self,
-        blocks: &[SignedBeaconBlock<E, BlindedPayload<E>>],
+        blocks: &[SignedBeaconBlock<BlindedPayload>],
         i: usize,
     ) -> Result<Hash256, Error> {
         let slot = self.state.slot();
@@ -213,7 +212,7 @@ where
     /// after the blocks have been applied.
     pub fn apply_blocks(
         mut self,
-        blocks: Vec<SignedBeaconBlock<E, BlindedPayload<E>>>,
+        blocks: Vec<SignedBeaconBlock<BlindedPayload>>,
         target_slot: Option<Slot>,
     ) -> Result<Self, Error> {
         for (i, block) in blocks.iter().enumerate() {
@@ -306,12 +305,12 @@ where
     }
 
     /// Convert the replayer into the state that was built.
-    pub fn into_state(self) -> BeaconState<E> {
+    pub fn into_state(self) -> BeaconState {
         self.state
     }
 }
 
-impl<E, Error> BlockReplayer<'_, E, Error, StateRootIterDefault<Error>>
+impl<Error> BlockReplayer<'_, Error, StateRootIterDefault<Error>>
 where
     Error: From<BlockReplayError>,
 {

@@ -12,10 +12,10 @@ const MAX_EPOCH_LOOKAHEAD: u64 = 2;
 /// that gets built on the specified state.
 pub fn get_next_withdrawals<T: BeaconChainTypes>(
     chain: &Arc<BeaconChain<T>>,
-    mut state: BeaconState<T::EthSpec>,
+    mut state: BeaconState,
     state_id: StateId,
     proposal_slot: Slot,
-) -> Result<Withdrawals<T::EthSpec>, warp::Rejection> {
+) -> Result<Withdrawals, warp::Rejection> {
     get_next_withdrawals_sanity_checks(chain, &state, proposal_slot)?;
 
     // advance the state to the epoch of the proposal slot.
@@ -47,7 +47,7 @@ pub fn get_next_withdrawals<T: BeaconChainTypes>(
 
 fn get_next_withdrawals_sanity_checks<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
-    state: &BeaconState<T::EthSpec>,
+    state: &BeaconState,
     proposal_slot: Slot,
 ) -> Result<(), warp::Rejection> {
     if proposal_slot <= state.slot() {
@@ -56,7 +56,7 @@ fn get_next_withdrawals_sanity_checks<T: BeaconChainTypes>(
         ));
     }
 
-    let fork = chain.spec.fork_name_at_slot::<T::EthSpec>(proposal_slot);
+    let fork = chain.spec.fork_name_at_slot(proposal_slot);
 
     if !fork.capella_enabled() {
         return Err(warp_utils::reject::custom_bad_request(

@@ -26,7 +26,7 @@ pub const CACHE_STATE_IN_TESTS: bool = true;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
 
-fn get_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+fn get_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType> {
     let chain_config = ChainConfig {
         archive: true,
         ..Default::default()
@@ -45,7 +45,7 @@ fn get_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType<E>> {
     harness
 }
 
-fn get_electra_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+fn get_electra_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType> {
     let chain_config = ChainConfig {
         archive: true,
         ..Default::default()
@@ -818,7 +818,7 @@ async fn test_rewards_base_subset_only() {
 }
 
 async fn check_all_electra_rewards(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     mut balances: Vec<u64>,
 ) {
     let mut proposal_rewards_map = HashMap::new();
@@ -889,7 +889,7 @@ async fn check_all_electra_rewards(
 }
 
 async fn check_all_base_rewards(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     balances: Vec<u64>,
 ) {
     // The box reduces the size on the stack for a clippy lint.
@@ -897,7 +897,7 @@ async fn check_all_base_rewards(
 }
 
 async fn check_all_base_rewards_for_subset(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     mut balances: Vec<u64>,
     validator_subset: Vec<u64>,
 ) {
@@ -929,7 +929,7 @@ async fn check_all_base_rewards_for_subset(
                 .state_at_slot(Slot::new(slot - 1), StateSkipConfig::WithoutStateRoots)
                 .unwrap();
 
-            let mut pre_state = BlockReplayer::<E, BlockReplayError, IntoIter<_, 0>>::new(
+            let mut pre_state = BlockReplayer::<BlockReplayError, IntoIter<_, 0>>::new(
                 parent_state,
                 &harness.spec,
             )

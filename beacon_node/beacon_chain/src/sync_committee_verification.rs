@@ -264,8 +264,8 @@ impl From<ContributionError> for Error {
 /// Wraps a `SignedContributionAndProof` that has been verified for propagation on the gossip network.\
 #[derive(Educe)]
 #[educe(Clone(bound(T: BeaconChainTypes)))]
-pub struct VerifiedSyncContribution<T: BeaconChainTypes> {
-    signed_aggregate: SignedContributionAndProof<T::EthSpec>,
+pub struct VerifiedSyncContribution {
+    signed_aggregate: SignedContributionAndProof,
     participant_pubkeys: Vec<PublicKeyBytes>,
 }
 
@@ -284,11 +284,11 @@ pub struct VerifiedSyncCommitteeMessage {
     subnet_positions: HashMap<SyncSubnetId, Vec<usize>>,
 }
 
-impl<T: BeaconChainTypes> VerifiedSyncContribution<T> {
+impl VerifiedSyncContribution {
     /// Returns `Ok(Self)` if the `signed_aggregate` is valid to be (re)published on the gossip
     /// network.
-    pub fn verify(
-        signed_aggregate: SignedContributionAndProof<T::EthSpec>,
+    pub fn verify<T: BeaconChainTypes>(
+        signed_aggregate: SignedContributionAndProof,
         chain: &BeaconChain<T>,
     ) -> Result<Self, Error> {
         let aggregator_index = signed_aggregate.message.aggregator_index;
@@ -363,7 +363,7 @@ impl<T: BeaconChainTypes> VerifiedSyncContribution<T> {
             SyncSelectionProof::from(signed_aggregate.message.selection_proof.clone());
 
         if !selection_proof
-            .is_aggregator::<T::EthSpec>()
+            .is_aggregator()
             .map_err(|e| Error::BeaconChainError(Box::new(e.into())))?
         {
             return Err(Error::InvalidSelectionProof { aggregator_index });
@@ -424,17 +424,17 @@ impl<T: BeaconChainTypes> VerifiedSyncContribution<T> {
     }
 
     /// A helper function to add this aggregate to `beacon_chain.op_pool`.
-    pub fn add_to_pool(self, chain: &BeaconChain<T>) -> Result<(), Error> {
+    pub fn add_to_pool<T: BeaconChainTypes>(self, chain: &BeaconChain<T>) -> Result<(), Error> {
         chain.add_contribution_to_block_inclusion_pool(self)
     }
 
     /// Returns the underlying `contribution` for the `signed_aggregate`.
-    pub fn contribution(self) -> SyncCommitteeContribution<T::EthSpec> {
+    pub fn contribution(self) -> SyncCommitteeContribution {
         self.signed_aggregate.message.contribution
     }
 
     /// Returns the underlying `signed_aggregate`.
-    pub fn aggregate(&self) -> &SignedContributionAndProof<T::EthSpec> {
+    pub fn aggregate(&self) -> &SignedContributionAndProof {
         &self.signed_aggregate
     }
 
@@ -615,7 +615,7 @@ pub fn verify_propagation_slot_range<S: SlotClock, U: SlotData>(
 /// - `Err(e)`: if there was an error preventing signature verification.
 pub fn verify_signed_aggregate_signatures<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
-    signed_aggregate: &SignedContributionAndProof<T::EthSpec>,
+    signed_aggregate: &SignedContributionAndProof,
     participant_pubkeys: &[PublicKeyBytes],
 ) -> Result<bool, Error> {
     let pubkey_cache = chain.validator_pubkey_cache.read();
@@ -646,7 +646,7 @@ pub fn verify_signed_aggregate_signatures<T: BeaconChainTypes>(
             &chain.spec,
         )
         .map_err(BeaconChainError::SignatureSetError)?,
-        sync_committee_contribution_signature_set_from_pubkeys::<T::EthSpec, _>(
+        sync_committee_contribution_signature_set_from_pubkeys(
             |validator_index| {
                 pubkey_cache
                     .get_pubkey_from_pubkey_bytes(validator_index)
@@ -690,7 +690,7 @@ pub fn verify_sync_committee_message<T: BeaconChainTypes>(
     let fork = chain.spec.fork_at_epoch(next_slot_epoch);
 
     let agg_sig = AggregateSignature::from(&sync_message.signature);
-    let signature_set = sync_committee_message_set_from_pubkeys::<T::EthSpec>(
+    let signature_set = sync_committee_message_set_from_pubkeys(
         pubkey,
         &agg_sig,
         sync_message.slot.epoch(Spec::slots_per_epoch()),

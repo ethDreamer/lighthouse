@@ -42,7 +42,7 @@ impl SignedProposerPreferences {
     }
 
     /// Verify `self.signature` against the given `pubkey`.
-    pub fn verify_signature<E: EthSpec>(
+    pub fn verify_signature(
         &self,
         pubkey: &PublicKey,
         fork: &Fork,

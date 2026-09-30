@@ -21,13 +21,13 @@ impl Metadata {
 }
 
 #[derive(Debug)]
-pub struct ForkTest<E: EthSpec> {
+pub struct ForkTest {
     pub metadata: Metadata,
-    pub pre: BeaconState<E>,
-    pub post: BeaconState<E>,
+    pub pre: BeaconState,
+    pub post: BeaconState,
 }
 
-impl<E: EthSpec> LoadCase for ForkTest<E> {
+impl LoadCase for ForkTest {
     fn load_from_dir(path: &Path, fork_name: ForkName) -> Result<Self, Error> {
         let metadata: Metadata = yaml_decode_file(&path.join("meta.yaml"))?;
         assert_eq!(metadata.fork_name(), fork_name);
@@ -51,7 +51,7 @@ impl<E: EthSpec> LoadCase for ForkTest<E> {
     }
 }
 
-impl<E: EthSpec> Case for ForkTest<E> {
+impl Case for ForkTest {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         // Upgrades exist targeting all forks except phase0/base.
         // Fork tests also need BLS.

@@ -29,4 +29,4 @@ pub use partial_data_column_sidecar::{
 use crate::core::EthSpec;
 use ssz_types::FixedVector;
 
-pub type Blob<E> = FixedVector<u8, typenum::U<{ Spec::BYTES_PER_BLOB }>>;
+pub type Blob = FixedVector<u8, typenum::U<{ Spec::BYTES_PER_BLOB }>>;

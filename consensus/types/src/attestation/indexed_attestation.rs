@@ -57,7 +57,7 @@ use crate::{attestation::AttestationData, core::EthSpec, fork::ForkName};
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct IndexedAttestation<E: EthSpec> {
+pub struct IndexedAttestation {
     /// Lists validator registry indices, not committee indices.
     #[superstruct(only(Base), partial_getter(rename = "attesting_indices_base"))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
@@ -73,7 +73,7 @@ pub struct IndexedAttestation<E: EthSpec> {
     pub signature: AggregateSignature,
 }
 
-impl<E: EthSpec> IndexedAttestation<E> {
+impl IndexedAttestation {
     /// Check if ``attestation_data_1`` and ``attestation_data_2`` have the same target.
     ///
     /// Spec v0.12.1
@@ -130,7 +130,7 @@ impl<E: EthSpec> IndexedAttestation<E> {
         }
     }
 
-    pub fn to_electra(self) -> Result<IndexedAttestationElectra<E>, ssz_types::Error> {
+    pub fn to_electra(self) -> Result<IndexedAttestationElectra, ssz_types::Error> {
         match self {
             Self::Base(att) => {
                 let extended_attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>> =
@@ -159,7 +159,7 @@ impl<E: EthSpec> IndexedAttestation<E> {
         }
     }
 
-    pub fn to_gloas(self) -> Result<IndexedAttestationGloas<E>, ssz_types::Error> {
+    pub fn to_gloas(self) -> Result<IndexedAttestationGloas, ssz_types::Error> {
         let attesting_indices = ProgressiveVariableList::new(self.attesting_indices_to_vec())?;
         let (data, signature) = match self {
             Self::Base(att) => (att.data, att.signature),
@@ -174,7 +174,7 @@ impl<E: EthSpec> IndexedAttestation<E> {
     }
 }
 
-impl<E: EthSpec> IndexedAttestationRef<'_, E> {
+impl IndexedAttestationRef<'_> {
     pub fn is_double_vote(&self, other: Self) -> bool {
         self.data().target.epoch == other.data().target.epoch && self.data() != other.data()
     }
@@ -224,7 +224,7 @@ impl<E: EthSpec> IndexedAttestationRef<'_, E> {
         }
     }
 
-    pub fn clone_as_indexed_attestation(self) -> IndexedAttestation<E> {
+    pub fn clone_as_indexed_attestation(self) -> IndexedAttestation {
         match self {
             IndexedAttestationRef::Base(att) => IndexedAttestation::Base(att.clone()),
             IndexedAttestationRef::Electra(att) => IndexedAttestation::Electra(att.clone()),
@@ -238,7 +238,7 @@ impl<E: EthSpec> IndexedAttestationRef<'_, E> {
 /// Guarantees `att1 == att2 -> hash(att1) == hash(att2)`.
 ///
 /// Used in the operation pool.
-impl<E: EthSpec> Hash for IndexedAttestation<E> {
+impl Hash for IndexedAttestation {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             IndexedAttestation::Base(att) => att.attesting_indices.hash(state),
@@ -306,17 +306,17 @@ mod tests {
 
     mod base {
         use super::*;
-        ssz_and_tree_hash_tests!(IndexedAttestationBase<MainnetEthSpec>);
+        ssz_and_tree_hash_tests!(IndexedAttestationBase);
     }
     mod electra {
         use super::*;
-        ssz_and_tree_hash_tests!(IndexedAttestationElectra<MainnetEthSpec>);
+        ssz_and_tree_hash_tests!(IndexedAttestationElectra);
     }
 
     fn create_indexed_attestation(
         target_epoch: u64,
         source_epoch: u64,
-    ) -> IndexedAttestation<MainnetEthSpec> {
+    ) -> IndexedAttestation {
         let mut u = crate::test_utils::test_unstructured();
         let mut indexed_vote =
             IndexedAttestation::Base(IndexedAttestationBase::arbitrary(&mut u).unwrap());

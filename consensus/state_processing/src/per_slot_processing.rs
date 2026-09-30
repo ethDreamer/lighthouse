@@ -35,12 +35,12 @@ impl From<ssz::BitfieldError> for Error {
 /// `state_root` is `None`, the root of `state` will be computed using a cached tree hash.
 /// Providing the `state_root` makes this function several orders of magnitude faster.
 #[instrument(level = "debug", skip_all)]
-pub fn per_slot_processing<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn per_slot_processing(
+    state: &mut BeaconState,
     state_root: Option<Hash256>,
     gloas_context: GloasVerificationContext<'_>,
     spec: &ChainSpec,
-) -> Result<Option<EpochProcessingSummary<E>>, Error> {
+) -> Result<Option<EpochProcessingSummary>, Error> {
     // Verify that the `BeaconState` instantiation matches the fork at `state.slot()`.
     state
         .fork_name(spec)
@@ -119,8 +119,8 @@ pub fn per_slot_processing<E: EthSpec>(
 }
 
 #[instrument(skip_all)]
-fn cache_state<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn cache_state(
+    state: &mut BeaconState,
     state_root: Option<Hash256>,
 ) -> Result<(), Error> {
     let previous_state_root = if let Some(root) = state_root {

@@ -6,8 +6,8 @@ use types::{BeaconState, ChainSpec, EthSpec, Validator};
 /// Performs a validator registry update, if required.
 ///
 /// NOTE: unchanged in Altair
-pub fn process_registry_updates<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_registry_updates(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     // Process activation eligibility and ejections.
@@ -57,8 +57,8 @@ pub fn process_registry_updates<E: EthSpec>(
     Ok(())
 }
 
-pub fn process_registry_updates_slow<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_registry_updates_slow(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     process_epoch_single_pass(

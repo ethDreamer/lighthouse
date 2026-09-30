@@ -41,7 +41,7 @@ async fn deposit_contract_custom_network() {
     // Arbitrary contract address.
     spec.deposit_contract_address = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".parse().unwrap();
 
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let client = &tester.client;
 
     let result = client.get_config_deposit_contract().await.unwrap().data;
@@ -62,7 +62,7 @@ async fn state_by_root_pruned_from_fork_choice() {
     let validator_count = 24;
     let spec = ForkName::latest().make_genesis_spec(Spec::default_spec());
 
-    let tester = InteractiveTester::<E>::new_with_initializer_and_mutator(
+    let tester = InteractiveTester::new_with_initializer_and_mutator(
         Some(spec.clone()),
         validator_count,
         Some(Box::new(move |builder| {
@@ -114,7 +114,7 @@ async fn state_by_root_pruned_from_fork_choice() {
             .unwrap()
             .unwrap();
         let response = client
-            .get_debug_beacon_states::<E>(StateId::Root(state_root))
+            .get_debug_beacon_states(StateId::Root(state_root))
             .await
             .unwrap()
             .unwrap();
@@ -372,7 +372,7 @@ pub async fn proposer_boost_re_org_test(
         return;
     }
 
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     // Ensure there are enough validators to have `attesters_per_slot`.
     let attesters_per_slot = 10;
@@ -398,7 +398,7 @@ pub async fn proposer_boost_re_org_test(
         ..Default::default()
     };
 
-    let tester = InteractiveTester::<E>::new_with_initializer_and_mutator(
+    let tester = InteractiveTester::new_with_initializer_and_mutator(
         Some(spec),
         validator_count,
         None,
@@ -603,7 +603,7 @@ pub async fn proposer_boost_re_org_test(
         .into();
     let (unsigned_block_type, _) = tester
         .client
-        .get_validator_blocks_v3::<E>(slot_c, &randao_reveal, None, None, None)
+        .get_validator_blocks_v3(slot_c, &randao_reveal, None, None, None)
         .await
         .unwrap();
 
@@ -741,7 +741,7 @@ pub async fn fork_choice_before_proposal() {
     let all_validators = (0..validator_count).collect::<Vec<_>>();
     let num_initial: u64 = 31;
 
-    let tester = InteractiveTester::<E>::new(None, validator_count).await;
+    let tester = InteractiveTester::new(None, validator_count).await;
     let harness = &tester.harness;
 
     // Create some chain depth.
@@ -820,10 +820,10 @@ pub async fn fork_choice_before_proposal() {
         .sign_randao_reveal(&state_b, proposer_index, slot_d)
         .into();
     // Post-Gloas, block production is only supported via the v4 endpoint.
-    let block_d = if harness.spec.fork_name_at_slot::<E>(slot_d).gloas_enabled() {
+    let block_d = if harness.spec.fork_name_at_slot(slot_d).gloas_enabled() {
         tester
             .client
-            .post_validator_blocks_v4::<E>(
+            .post_validator_blocks_v4(
                 slot_d,
                 &randao_reveal,
                 None,
@@ -839,7 +839,7 @@ pub async fn fork_choice_before_proposal() {
     } else {
         tester
             .client
-            .get_validator_blocks::<E>(slot_d, &randao_reveal, None)
+            .get_validator_blocks(slot_d, &randao_reveal, None)
             .await
             .unwrap()
             .into_data()
@@ -862,7 +862,7 @@ async fn queue_attestations_from_http() {
     let validator_count = 128;
     let all_validators = (0..validator_count).collect::<Vec<_>>();
 
-    let tester = InteractiveTester::<E>::new(None, validator_count).await;
+    let tester = InteractiveTester::new(None, validator_count).await;
     let harness = &tester.harness;
     let client = tester.client.clone();
 
@@ -888,7 +888,7 @@ async fn queue_attestations_from_http() {
     let pre_state = harness.get_current_state();
     let (block, post_state) = harness.make_block(pre_state, attestation_slot).await;
     let block_root = block.0.canonical_root();
-    let fork_name = tester.harness.spec.fork_name_at_slot::<E>(attestation_slot);
+    let fork_name = tester.harness.spec.fork_name_at_slot(attestation_slot);
 
     // Make attestations to the block and POST them to the beacon node on a background thread.
     let attestation_future = {
@@ -906,7 +906,7 @@ async fn queue_attestations_from_http() {
 
         tokio::spawn(async move {
             client
-                .post_beacon_pool_attestations_v2::<E>(single_attestations, fork_name)
+                .post_beacon_pool_attestations_v2(single_attestations, fork_name)
                 .await
                 .expect("attestations should be processed successfully")
         })
@@ -938,7 +938,7 @@ async fn queue_attestations_from_http() {
 async fn proposer_duties_with_gossip_tolerance() {
     let validator_count = 64;
 
-    let tester = InteractiveTester::<E>::new(None, validator_count).await;
+    let tester = InteractiveTester::new(None, validator_count).await;
     let harness = &tester.harness;
     let spec = &harness.spec;
     let client = &tester.client;
@@ -1045,7 +1045,7 @@ async fn proposer_duties_with_gossip_tolerance() {
 async fn proposer_duties_v2_with_gossip_tolerance() {
     let validator_count = 64;
 
-    let tester = InteractiveTester::<E>::new(None, validator_count).await;
+    let tester = InteractiveTester::new(None, validator_count).await;
     let harness = &tester.harness;
     let spec = &harness.spec;
     let client = &tester.client;
@@ -1148,7 +1148,7 @@ async fn proposer_duties_v2_with_gossip_tolerance() {
 // `min_seed_lookahead`), while the legacy v1 root remains at the end of epoch N-1.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn proposer_duties_v2_post_fulu_dependent_root() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     if !spec.is_fulu_scheduled() {
         return;
@@ -1157,7 +1157,7 @@ async fn proposer_duties_v2_post_fulu_dependent_root() {
     let validator_count = 24;
     let slots_per_epoch = Spec::slots_per_epoch();
 
-    let tester = InteractiveTester::<E>::new(Some(spec.clone()), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec.clone()), validator_count).await;
     let harness = &tester.harness;
     let client = &tester.client;
     let mock_el = harness.mock_execution_layer.as_ref().unwrap();
@@ -1277,7 +1277,7 @@ async fn proposer_duties_v2_post_fulu_dependent_root() {
 // have been updated with the correct values.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lighthouse_restart_custody_backfill() {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
     // Skip pre-Fulu.
     if !spec.is_fulu_scheduled() {
@@ -1286,7 +1286,7 @@ async fn lighthouse_restart_custody_backfill() {
 
     let validator_count = 64;
 
-    let tester = InteractiveTester::<E>::new_supernode(Some(spec), validator_count).await;
+    let tester = InteractiveTester::new_supernode(Some(spec), validator_count).await;
     let harness = &tester.harness;
     let spec = &harness.spec;
     let client = &tester.client;
@@ -1338,7 +1338,7 @@ async fn lighthouse_restart_custody_backfill() {
 // gossip clock disparity (500ms) of the new epoch.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lighthouse_custody_info() {
-    let mut spec = test_spec::<E>();
+    let mut spec = test_spec();
 
     // Skip pre-Fulu.
     if !spec.is_fulu_scheduled() {
@@ -1352,7 +1352,7 @@ async fn lighthouse_custody_info() {
 
     let validator_count = 64;
 
-    let tester = InteractiveTester::<E>::new(Some(spec), validator_count).await;
+    let tester = InteractiveTester::new(Some(spec), validator_count).await;
     let harness = &tester.harness;
     let spec = &harness.spec;
     let client = &tester.client;

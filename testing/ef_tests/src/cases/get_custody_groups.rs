@@ -6,7 +6,7 @@ use types::data::get_custody_groups;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct GetCustodyGroups<E: EthSpec> {
+pub struct GetCustodyGroups {
     /// The NodeID input.
     pub node_id: String,
     /// The count of custody groups.
@@ -17,13 +17,13 @@ pub struct GetCustodyGroups<E: EthSpec> {
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for GetCustodyGroups<E> {
+impl LoadCase for GetCustodyGroups {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         decode::yaml_decode_file(path.join("meta.yaml").as_path())
     }
 }
 
-impl<E: EthSpec> Case for GetCustodyGroups<E> {
+impl Case for GetCustodyGroups {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         fork_name.fulu_enabled()
     }

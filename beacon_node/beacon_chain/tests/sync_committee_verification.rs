@@ -31,7 +31,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(VALIDATOR_COUNT));
 
 /// Returns a beacon chain harness.
-fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType> {
     let mut spec = Spec::default_spec();
     spec.altair_fork_epoch = Some(Epoch::new(0));
     let harness = BeaconChainHarness::builder()
@@ -50,7 +50,7 @@ fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessTyp
 ///
 /// Also returns some info about who created it.
 fn get_valid_sync_committee_message(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     slot: Slot,
     relative_sync_committee: RelativeSyncCommittee,
     message_index: usize,
@@ -69,7 +69,7 @@ fn get_valid_sync_committee_message(
 ///
 /// Also returns some info about who created it.
 fn get_valid_sync_committee_message_for_block(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     slot: Slot,
     relative_sync_committee: RelativeSyncCommittee,
     message_index: usize,
@@ -95,9 +95,9 @@ fn get_valid_sync_committee_message_for_block(
 }
 
 fn get_valid_sync_contribution(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     relative_sync_committee: RelativeSyncCommittee,
-) -> (SignedContributionAndProof<E>, usize, SecretKey) {
+) -> (SignedContributionAndProof, usize, SecretKey) {
     let head_state = harness.chain.head_beacon_state_cloned();
 
     let head_block_root = harness.chain.head_snapshot().beacon_block_root;
@@ -127,7 +127,7 @@ fn get_valid_sync_contribution(
 
 /// Returns a proof and index for a validator that is **not** an aggregator for the current sync period.
 fn get_non_aggregator(
-    harness: &BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: &BeaconChainHarness<EphemeralHarnessType>,
     slot: Slot,
 ) -> (usize, SecretKey) {
     let state = &harness.chain.head_snapshot().beacon_state;
@@ -150,7 +150,7 @@ fn get_non_aggregator(
                     .expect("should get validator index")
                     .expect("pubkey should exist in beacon chain");
 
-                let selection_proof = SyncSelectionProof::new::<E>(
+                let selection_proof = SyncSelectionProof::new(
                     slot,
                     subcommittee_index as u64,
                     &harness.validator_keypairs[validator_index].sk,
@@ -160,7 +160,7 @@ fn get_non_aggregator(
                 );
 
                 if !selection_proof
-                    .is_aggregator::<E>()
+                    .is_aggregator()
                     .expect("should determine aggregator")
                 {
                     Some(validator_index)
@@ -337,7 +337,7 @@ async fn aggregated_gossip_verification() {
                     .sign(Hash256::from_slice(&int_to_bytes32(i)))
                     .into();
                 if proof
-                    .is_aggregator::<E>()
+                    .is_aggregator()
                     .expect("should determine aggregator")
                 {
                     break proof.into();

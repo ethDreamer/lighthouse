@@ -25,7 +25,7 @@ const SLOT_DURATION_MILLIS: u64 = 400;
 
 const TEST_LOG_LEVEL: Option<&str> = None;
 
-type TestBeaconChainType = Witness<SystemTimeSlotClock, MainnetEthSpec, MemoryStore, MemoryStore>;
+type TestBeaconChainType = Witness<SystemTimeSlotClock, MemoryStore, MemoryStore>;
 
 pub struct TestBeaconChain {
     chain: Arc<BeaconChain<TestBeaconChainType>>,
@@ -54,7 +54,7 @@ impl TestBeaconChain {
                 .store(Arc::new(store))
                 .task_executor(test_runtime.task_executor.clone())
                 .genesis_state(
-                    interop_genesis_state::<MainnetEthSpec>(
+                    interop_genesis_state(
                         &keypairs,
                         0,
                         Hash256::from_slice(DEFAULT_ETH1_BLOCK_HASH),
@@ -69,9 +69,7 @@ impl TestBeaconChain {
                     Duration::from_secs(recent_genesis_time()),
                     Duration::from_millis(SLOT_DURATION_MILLIS),
                 ))
-                .ordered_custody_column_indices(generate_data_column_indices_rand_order::<
-                    MainnetEthSpec,
-                >())
+                .ordered_custody_column_indices(generate_data_column_indices_rand_order())
                 .shutdown_sender(shutdown_tx)
                 .rng(Box::new(StdRng::seed_from_u64(42)))
                 .build()
@@ -213,7 +211,7 @@ mod test {
         let subscription_slot = current_slot + 1;
         let mut committee_count = 1;
         let mut subnet = Subnet::Attestation(
-            SubnetId::compute_subnet::<MainnetEthSpec>(
+            SubnetId::compute_subnet(
                 subscription_slot,
                 committee_index,
                 committee_count,
@@ -227,7 +225,7 @@ mod test {
         {
             committee_count += 1;
             subnet = Subnet::Attestation(
-                SubnetId::compute_subnet::<MainnetEthSpec>(
+                SubnetId::compute_subnet(
                     subscription_slot,
                     committee_index,
                     committee_count,
@@ -307,7 +305,7 @@ mod test {
             true,
         );
 
-        let subnet_id1 = SubnetId::compute_subnet::<MainnetEthSpec>(
+        let subnet_id1 = SubnetId::compute_subnet(
             current_slot + Slot::new(subscription_slot1),
             com1,
             committee_count,
@@ -315,7 +313,7 @@ mod test {
         )
         .unwrap();
 
-        let subnet_id2 = SubnetId::compute_subnet::<MainnetEthSpec>(
+        let subnet_id2 = SubnetId::compute_subnet(
             current_slot + Slot::new(subscription_slot2),
             com2,
             committee_count,
@@ -527,7 +525,7 @@ mod test {
             true,
         );
 
-        let subnet_id1 = SubnetId::compute_subnet::<MainnetEthSpec>(
+        let subnet_id1 = SubnetId::compute_subnet(
             current_slot + Slot::new(subscription_slot1),
             com1,
             committee_count,
@@ -535,7 +533,7 @@ mod test {
         )
         .unwrap();
 
-        let subnet_id2 = SubnetId::compute_subnet::<MainnetEthSpec>(
+        let subnet_id2 = SubnetId::compute_subnet(
             current_slot + Slot::new(subscription_slot2),
             com2,
             committee_count,
@@ -543,7 +541,7 @@ mod test {
         )
         .unwrap();
 
-        let subnet_id3 = SubnetId::compute_subnet::<MainnetEthSpec>(
+        let subnet_id3 = SubnetId::compute_subnet(
             current_slot + Slot::new(subscription_slot3),
             com3,
             committee_count,
@@ -665,7 +663,7 @@ mod test {
 
         // Remove permanent subscription events
 
-        let subnet_ids = SyncSubnetId::compute_subnets_for_sync_committee::<MainnetEthSpec>(
+        let subnet_ids = SyncSubnetId::compute_subnets_for_sync_committee(
             &sync_committee_indices,
         )
         .unwrap();

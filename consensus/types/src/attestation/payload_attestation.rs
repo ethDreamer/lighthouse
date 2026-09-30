@@ -15,7 +15,7 @@ use tree_hash_derive::TreeHash;
 #[educe(PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 #[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))]
-pub struct PayloadAttestation<E: EthSpec> {
+pub struct PayloadAttestation {
     pub aggregation_bits: BitVector<typenum::U<{ Spec::PTC_SIZE }>>,
     pub data: PayloadAttestationData,
     pub signature: AggregateSignature,
@@ -26,5 +26,5 @@ mod payload_attestation_tests {
     use super::*;
     use crate::MinimalEthSpec;
 
-    ssz_and_tree_hash_tests!(PayloadAttestation<MinimalEthSpec>);
+    ssz_and_tree_hash_tests!(PayloadAttestation);
 }

@@ -55,18 +55,18 @@ const MAX_BATCH_DOWNLOAD_ATTEMPTS: u8 = 10;
 /// after `MAX_BATCH_PROCESSING_ATTEMPTS` times, it is considered faulty.
 const MAX_BATCH_PROCESSING_ATTEMPTS: u8 = 10;
 
-type RpcBlocks<E> = Vec<RangeSyncBlock<E>>;
+type RpcBlocks = Vec<RangeSyncBlock>;
 
-type BackFillBatchInfo<E> = BatchInfo<E, BackFillBatchConfig<E>, RpcBlocks<E>>;
+type BackFillBatchInfo = BatchInfo<BackFillBatchConfig, RpcBlocks>;
 
-type BackFillSyncBatches<E> = BTreeMap<BatchId, BackFillBatchInfo<E>>;
+type BackFillSyncBatches = BTreeMap<BatchId, BackFillBatchInfo>;
 
 /// Custom configuration for the batch object.
-struct BackFillBatchConfig<E: EthSpec> {
+struct BackFillBatchConfig {
     marker: PhantomData<E>,
 }
 
-impl<E: EthSpec> BatchConfig for BackFillBatchConfig<E> {
+impl BatchConfig for BackFillBatchConfig {
     fn max_batch_download_attempts() -> u8 {
         MAX_BATCH_DOWNLOAD_ATTEMPTS
     }
@@ -133,7 +133,7 @@ pub struct BackFillSync<T: BeaconChainTypes> {
     last_batch_downloaded: bool,
 
     /// Sorted map of batches undergoing some kind of processing.
-    batches: BackFillSyncBatches<T::EthSpec>,
+    batches: BackFillSyncBatches,
 
     /// The current processing batch, if any.
     current_processing_batch: Option<BatchId>,
@@ -156,13 +156,13 @@ pub struct BackFillSync<T: BeaconChainTypes> {
 
     /// Reference to the network globals in order to obtain valid peers to backfill blocks from
     /// (i.e synced peers).
-    network_globals: Arc<NetworkGlobals<T::EthSpec>>,
+    network_globals: Arc<NetworkGlobals>,
 }
 
 impl<T: BeaconChainTypes> BackFillSync<T> {
     pub fn new(
         beacon_chain: Arc<BeaconChain<T>>,
-        network_globals: Arc<NetworkGlobals<T::EthSpec>>,
+        network_globals: Arc<NetworkGlobals>,
     ) -> Self {
         // Determine if backfill is enabled or not.
         // If, for some reason a backfill has already been completed (or we've used a trusted
@@ -373,7 +373,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         batch_id: BatchId,
         peer_id: &PeerId,
         request_id: Id,
-        blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        blocks: Vec<RangeSyncBlock>,
     ) -> Result<ProcessResult, BackFillError> {
         // check if we have this batch
         let Some(batch) = self.batches.get_mut(&batch_id) else {
@@ -998,7 +998,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         // only request batches up to the buffer size limit
         // NOTE: we don't count batches in the AwaitingValidation state, to prevent stalling sync
         // if the current processing window is contained in a long range of skip slots.
-        let in_buffer = |batch: &BackFillBatchInfo<T::EthSpec>| {
+        let in_buffer = |batch: &BackFillBatchInfo| {
             matches!(
                 batch.state(),
                 BatchState::Downloading(..) | BatchState::AwaitingProcessing(..)

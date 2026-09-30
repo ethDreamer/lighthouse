@@ -23,7 +23,7 @@ pub fn cli_app() -> Command {
 }
 
 /// Run the account manager, returning an error if the operation did not succeed.
-pub fn run<E: EthSpec>(matches: &ArgMatches, env: Environment<E>) -> Result<(), String> {
+pub fn run(matches: &ArgMatches, env: Environment) -> Result<(), String> {
     match matches.subcommand() {
         Some((wallet::CMD, matches)) => wallet::cli_run(matches)?,
         Some((validator::CMD, matches)) => validator::cli_run(matches, env)?,

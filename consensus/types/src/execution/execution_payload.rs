@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub type Transaction<N> = VariableList<u8, N>;
-pub type Transactions<E> = VariableList<
+pub type Transactions = VariableList<
     Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>,
     U<{ Spec::MAX_TRANSACTIONS_PER_PAYLOAD }>,
 >;
@@ -26,7 +26,7 @@ pub type Transactions<E> = VariableList<
 pub type ProgressiveTransactions = ProgressiveVariableList<ProgressiveVariableList<u8>>;
 
 /// Progressive withdrawals list \[Modified in Gloas:EIP7688\].
-pub type ProgressiveWithdrawals<E> =
+pub type ProgressiveWithdrawals =
     ProgressiveVariableList<Withdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
 
 /// Opaque encoded block access list \[New in Gloas:EIP7928\].
@@ -34,20 +34,20 @@ pub type BlockAccessList = ProgressiveVariableList<u8>;
 
 /// Unified read access to the `transactions` of any `ExecutionPayload` variant.
 #[derive(Debug)]
-pub enum TransactionsRef<'a, E: EthSpec> {
-    Bounded(&'a Transactions<E>),
+pub enum TransactionsRef<'a> {
+    Bounded(&'a Transactions),
     Progressive(&'a ProgressiveTransactions),
 }
 
-impl<E: EthSpec> Clone for TransactionsRef<'_, E> {
+impl Clone for TransactionsRef<'_> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<E: EthSpec> Copy for TransactionsRef<'_, E> {}
+impl Copy for TransactionsRef<'_> {}
 
-impl<'a, E: EthSpec> TransactionsRef<'a, E> {
+impl<'a> TransactionsRef<'a> {
     pub fn len(self) -> usize {
         match self {
             Self::Bounded(transactions) => transactions.len(),
@@ -60,7 +60,7 @@ impl<'a, E: EthSpec> TransactionsRef<'a, E> {
     }
 
     /// Iterate the transactions as byte slices.
-    pub fn iter(self) -> TransactionsIter<'a, E> {
+    pub fn iter(self) -> TransactionsIter<'a> {
         match self {
             Self::Bounded(transactions) => TransactionsIter::Bounded(transactions.iter()),
             Self::Progressive(transactions) => TransactionsIter::Progressive(transactions.iter()),
@@ -68,33 +68,33 @@ impl<'a, E: EthSpec> TransactionsRef<'a, E> {
     }
 }
 
-impl<'a, E: EthSpec> From<&'a Transactions<E>> for TransactionsRef<'a, E> {
-    fn from(transactions: &'a Transactions<E>) -> Self {
+impl<'a> From<&'a Transactions> for TransactionsRef<'a> {
+    fn from(transactions: &'a Transactions) -> Self {
         Self::Bounded(transactions)
     }
 }
 
-impl<'a, E: EthSpec> From<&'a ProgressiveTransactions> for TransactionsRef<'a, E> {
+impl<'a> From<&'a ProgressiveTransactions> for TransactionsRef<'a> {
     fn from(transactions: &'a ProgressiveTransactions) -> Self {
         Self::Progressive(transactions)
     }
 }
 
-impl<'a, E: EthSpec> IntoIterator for TransactionsRef<'a, E> {
+impl<'a> IntoIterator for TransactionsRef<'a> {
     type Item = &'a [u8];
-    type IntoIter = TransactionsIter<'a, E>;
+    type IntoIter = TransactionsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-pub enum TransactionsIter<'a, E: EthSpec> {
+pub enum TransactionsIter<'a> {
     Bounded(std::slice::Iter<'a, Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>>),
     Progressive(std::slice::Iter<'a, ProgressiveVariableList<u8>>),
 }
 
-impl<'a, E: EthSpec> Iterator for TransactionsIter<'a, E> {
+impl<'a> Iterator for TransactionsIter<'a> {
     type Item = &'a [u8];
 
     fn next(&mut self) -> Option<&'a [u8]> {
@@ -106,7 +106,7 @@ impl<'a, E: EthSpec> Iterator for TransactionsIter<'a, E> {
 }
 
 /// A reference to the withdrawals of any post-Capella `ExecutionPayload` variant.
-pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
+pub type WithdrawalsRef<'a> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
 
 #[superstruct(
     variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
@@ -160,7 +160,7 @@ pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWA
 #[serde(bound = "E: EthSpec", untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
-pub struct ExecutionPayload<E: EthSpec> {
+pub struct ExecutionPayload {
     #[superstruct(getter(copy))]
     pub parent_hash: ExecutionBlockHash,
     #[superstruct(getter(copy))]
@@ -198,7 +198,7 @@ pub struct ExecutionPayload<E: EthSpec> {
         partial_getter(rename = "transactions_bounded")
     )]
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
-    pub transactions: Transactions<E>,
+    pub transactions: Transactions,
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_prog_var_list")]
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "transactions_progressive"))]
     pub transactions: ProgressiveTransactions,
@@ -206,9 +206,9 @@ pub struct ExecutionPayload<E: EthSpec> {
         only(Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "withdrawals_bounded")
     )]
-    pub withdrawals: Withdrawals<E>,
+    pub withdrawals: Withdrawals,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "withdrawals_progressive"))]
-    pub withdrawals: ProgressiveWithdrawals<E>,
+    pub withdrawals: ProgressiveWithdrawals,
     #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub blob_gas_used: u64,
@@ -223,9 +223,9 @@ pub struct ExecutionPayload<E: EthSpec> {
     pub slot_number: Slot,
 }
 
-impl<'a, E: EthSpec> ExecutionPayloadRef<'a, E> {
+impl<'a> ExecutionPayloadRef<'a> {
     // this emulates clone on a normal reference type
-    pub fn clone_from_ref(&self) -> ExecutionPayload<E> {
+    pub fn clone_from_ref(&self) -> ExecutionPayload {
         map_execution_payload_ref!(&'a _, self, move |payload, cons| {
             cons(payload);
             payload.clone().into()
@@ -233,7 +233,7 @@ impl<'a, E: EthSpec> ExecutionPayloadRef<'a, E> {
     }
 
     /// Unified access to the `transactions` field across all variants.
-    pub fn transactions(self) -> TransactionsRef<'a, E> {
+    pub fn transactions(self) -> TransactionsRef<'a> {
         map_execution_payload_ref!(&'a _, self, move |payload, cons| {
             cons(payload);
             TransactionsRef::from(&payload.transactions)
@@ -241,7 +241,7 @@ impl<'a, E: EthSpec> ExecutionPayloadRef<'a, E> {
     }
 
     /// Unified access to the `withdrawals` field (Capella and later).
-    pub fn withdrawals(self) -> Result<WithdrawalsRef<'a, E>, BeaconStateError> {
+    pub fn withdrawals(self) -> Result<WithdrawalsRef<'a>, BeaconStateError> {
         match self {
             Self::Bellatrix(_) => Err(BeaconStateError::IncorrectStateVariant),
             Self::Capella(payload) => Ok(ListRef::Basic(&payload.withdrawals)),
@@ -254,19 +254,19 @@ impl<'a, E: EthSpec> ExecutionPayloadRef<'a, E> {
     }
 }
 
-impl<E: EthSpec> ExecutionPayload<E> {
+impl ExecutionPayload {
     /// Unified access to the `transactions` field across all variants.
-    pub fn transactions(&self) -> TransactionsRef<'_, E> {
+    pub fn transactions(&self) -> TransactionsRef<'_> {
         self.to_ref().transactions()
     }
 
     /// Unified access to the `withdrawals` field (Capella and later).
-    pub fn withdrawals(&self) -> Result<WithdrawalsRef<'_, E>, BeaconStateError> {
+    pub fn withdrawals(&self) -> Result<WithdrawalsRef<'_>, BeaconStateError> {
         self.to_ref().withdrawals()
     }
 }
 
-impl<E: EthSpec> ForkVersionDecode for ExecutionPayload<E> {
+impl ForkVersionDecode for ExecutionPayload {
     /// SSZ decode with explicit fork variant.
     fn from_ssz_bytes_by_fork(bytes: &[u8], fork_name: ForkName) -> Result<Self, ssz::DecodeError> {
         match fork_name {
@@ -286,13 +286,13 @@ impl<E: EthSpec> ForkVersionDecode for ExecutionPayload<E> {
     }
 }
 
-impl<E: EthSpec> ExecutionPayload<E> {
+impl ExecutionPayload {
     #[allow(clippy::arithmetic_side_effects)]
     /// Returns the maximum size of an execution payload.
     /// TODO(EIP-7732): this seems to only exist for the Bellatrix fork, but Mark's branch has it for all the forks, i.e. max_execution_payload_eip7732_size
     pub fn max_execution_payload_bellatrix_size() -> usize {
         // Fixed part
-        ExecutionPayloadBellatrix::<E>::default().as_ssz_bytes().len()
+        ExecutionPayloadBellatrix::default().as_ssz_bytes().len()
             // Max size of variable length `extra_data` field
             + (Spec::MAX_EXTRA_DATA_BYTES * <u8 as Encode>::ssz_fixed_len())
             // Max size of variable length `transactions` field
@@ -300,7 +300,7 @@ impl<E: EthSpec> ExecutionPayload<E> {
     }
 }
 
-impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for ExecutionPayload<E> {
+impl<'de> ContextDeserialize<'de, ForkName> for ExecutionPayload {
     fn context_deserialize<D>(deserializer: D, context: ForkName) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -340,7 +340,7 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for ExecutionPayload<E> 
     }
 }
 
-impl<E: EthSpec> ExecutionPayload<E> {
+impl ExecutionPayload {
     pub fn fork_name(&self) -> ForkName {
         match self {
             ExecutionPayload::Bellatrix(_) => ForkName::Bellatrix,

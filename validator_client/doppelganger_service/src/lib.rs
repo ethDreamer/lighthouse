@@ -209,16 +209,16 @@ pub struct DoppelgangerService {
 impl DoppelgangerService {
     /// Starts a reoccurring future which will try to keep the doppelganger service updated each
     /// slot.
-    pub fn start_update_service<E, T, V>(
+    pub fn start_update_service<T, V>(
         service: Arc<Self>,
-        context: RuntimeContext<E>,
+        context: RuntimeContext,
         validator_store: Arc<V>,
         beacon_nodes: Arc<BeaconNodeFallback<T>>,
         slot_clock: T,
     ) -> Result<(), String>
     where
         T: 'static + SlotClock,
-        V: ValidatorStore<E = E> + Send + Sync + 'static,
+        V: ValidatorStore + Send + Sync + 'static,
     {
         // Define the `get_index` function as one that uses the validator store.
         let get_index = move |pubkey| validator_store.validator_index(&pubkey);
@@ -263,7 +263,7 @@ impl DoppelgangerService {
 
                     if let Some(slot) = slot_clock.now()
                         && let Err(e) = service
-                            .detect_doppelgangers::<E, _, _, _, _>(
+                            .detect_doppelgangers(
                                 slot,
                                 &get_index,
                                 &get_liveness,
@@ -354,7 +354,7 @@ impl DoppelgangerService {
     /// This function is relatively complex when it comes to generic parameters. This is to allow
     /// for simple unit testing. Using these generics, we can test the `DoppelgangerService` without
     /// needing a BN API or a `ValidatorStore`.
-    async fn detect_doppelgangers<E, I, L, F, S>(
+    async fn detect_doppelgangers<I, L, F, S>(
         &self,
         request_slot: Slot,
         get_index: &I,
@@ -383,7 +383,7 @@ impl DoppelgangerService {
         let liveness_responses = get_liveness(request_epoch, indices_only).await;
 
         // Process the responses, attempting to detect doppelgangers.
-        self.process_liveness_responses::<E, _>(
+        self.process_liveness_responses(
             request_slot,
             liveness_responses,
             &indices_map,
@@ -429,7 +429,7 @@ impl DoppelgangerService {
 
     /// Process the liveness responses from the BN, potentially updating doppelganger states or
     /// shutting down the VC.
-    fn process_liveness_responses<E: EthSpec, S>(
+    fn process_liveness_responses<S>(
         &self,
         request_slot: Slot,
         liveness_responses: LivenessResponses,
@@ -927,7 +927,7 @@ mod test {
             let pubkey_to_index = self.pubkey_to_index_map();
             let get_index = |pubkey| pubkey_to_index.get(&pubkey).copied();
 
-            block_on(self.doppelganger.detect_doppelgangers::<E, _, _, _, _>(
+            block_on(self.doppelganger.detect_doppelgangers(
                 slot,
                 &get_index,
                 &get_liveness,

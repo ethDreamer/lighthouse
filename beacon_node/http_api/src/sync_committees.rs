@@ -180,7 +180,7 @@ fn convert_to_response(duties: Vec<Option<SyncDuty>>, execution_optimistic: bool
 /// Receive sync committee duties, storing them in the pools & broadcasting them.
 pub fn process_sync_committee_signatures<T: BeaconChainTypes>(
     sync_committee_signatures: Vec<SyncCommitteeMessage>,
-    network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>,
+    network_tx: UnboundedSender<NetworkMessage>,
     chain: &BeaconChain<T>,
 ) -> Result<(), warp::reject::Rejection> {
     let mut failures = vec![];
@@ -309,8 +309,8 @@ pub fn get_subnet_positions_for_sync_committee_message<T: BeaconChainTypes>(
 
 /// Receive signed contributions and proofs, storing them in the op pool and broadcasting.
 pub fn process_signed_contribution_and_proofs<T: BeaconChainTypes>(
-    signed_contribution_and_proofs: Vec<SignedContributionAndProof<T::EthSpec>>,
-    network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>,
+    signed_contribution_and_proofs: Vec<SignedContributionAndProof>,
+    network_tx: UnboundedSender<NetworkMessage>,
     chain: &BeaconChain<T>,
 ) -> Result<(), warp::reject::Rejection> {
     let mut verified_contributions = Vec::with_capacity(signed_contribution_and_proofs.len());

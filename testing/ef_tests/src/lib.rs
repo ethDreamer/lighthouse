@@ -23,6 +23,6 @@ mod handler;
 mod results;
 mod type_name;
 
-pub fn testing_spec<E: EthSpec>(fork_name: ForkName) -> ChainSpec {
+pub fn testing_spec(fork_name: ForkName) -> ChainSpec {
     fork_name.make_genesis_spec(Spec::default_spec())
 }

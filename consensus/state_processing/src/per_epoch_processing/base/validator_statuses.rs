@@ -191,8 +191,8 @@ impl ValidatorStatuses {
     /// - Total balances for the current and previous epochs.
     ///
     /// Spec v0.12.1
-    pub fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub fn new(
+        state: &BeaconState,
         spec: &ChainSpec,
     ) -> Result<Self, BeaconStateError> {
         let mut statuses = Vec::with_capacity(state.validators().len());
@@ -238,9 +238,9 @@ impl ValidatorStatuses {
     /// `total_balances` fields.
     ///
     /// Spec v0.12.1
-    pub fn process_attestations<E: EthSpec>(
+    pub fn process_attestations(
         &mut self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
     ) -> Result<(), BeaconStateError> {
         // The `validator_statuses` in `process_epoch` are used in three functions:
         // 1. `process_justification_and_finalization` - this function is a no-operation at the genesis_epoch
@@ -259,7 +259,7 @@ impl ValidatorStatuses {
         {
             let committee = state.get_beacon_committee(a.data.slot, a.data.index)?;
             let attesting_indices =
-                get_attesting_indices::<E>(committee.committee, &a.aggregation_bits)?;
+                get_attesting_indices(committee.committee, &a.aggregation_bits)?;
 
             let mut status = ValidatorStatus::default();
 
@@ -341,9 +341,9 @@ impl ValidatorStatuses {
 /// beacon block in the given `epoch`.
 ///
 /// Spec v0.12.1
-fn target_matches_epoch_start_block<E: EthSpec>(
-    a: &PendingAttestation<E>,
-    state: &BeaconState<E>,
+fn target_matches_epoch_start_block(
+    a: &PendingAttestation,
+    state: &BeaconState,
     epoch: Epoch,
 ) -> Result<bool, BeaconStateError> {
     let slot = epoch.start_slot(Spec::slots_per_epoch());
@@ -356,9 +356,9 @@ fn target_matches_epoch_start_block<E: EthSpec>(
 /// the current slot of the `PendingAttestation`.
 ///
 /// Spec v0.12.1
-fn has_common_beacon_block_root<E: EthSpec>(
-    a: &PendingAttestation<E>,
-    state: &BeaconState<E>,
+fn has_common_beacon_block_root(
+    a: &PendingAttestation,
+    state: &BeaconState,
 ) -> Result<bool, BeaconStateError> {
     let state_block_root = *state.get_block_root(a.data.slot)?;
 

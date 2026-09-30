@@ -249,7 +249,7 @@ impl ProtoNode {
     /// Returns whether the execution payload for the node is considered `timely`
     /// (or not `timely` when `timely` is `false`), taking into consideration local
     /// availability and PTC votes.
-    pub fn payload_timeliness<E: EthSpec>(&self, timely: bool) -> Result<bool, Error> {
+    pub fn payload_timeliness(&self, timely: bool) -> Result<bool, Error> {
         let Ok(node) = self.as_v29() else {
             return Err(Error::InvalidNodeVariant {
                 block_root: self.root(),
@@ -277,7 +277,7 @@ impl ProtoNode {
     /// Return whether the blob data for the node is considered `available`
     /// (or not, when `available` is `False`), taking into consideration local
     /// availability and PTC votes.
-    pub fn payload_data_availability<E: EthSpec>(&self, available: bool) -> Result<bool, Error> {
+    pub fn payload_data_availability(&self, available: bool) -> Result<bool, Error> {
         let Ok(node) = self.as_v29() else {
             return Err(Error::InvalidNodeVariant {
                 block_root: self.root(),
@@ -437,7 +437,7 @@ impl ProtoArray {
     ///   should become the best child.
     /// - If required, update the parents best-descendant with the current node or its best-descendant.
     #[allow(clippy::too_many_arguments)]
-    pub fn apply_score_changes<E: EthSpec>(
+    pub fn apply_score_changes(
         &mut self,
         mut deltas: Vec<NodeDelta>,
     ) -> Result<(), Error> {
@@ -574,7 +574,7 @@ impl ProtoArray {
     /// Register a block with the fork choice.
     ///
     /// It is only sane to supply a `None` parent for the genesis block.
-    pub fn on_block<E: EthSpec>(
+    pub fn on_block(
         &mut self,
         block: Block,
         current_slot: Slot,
@@ -598,7 +598,7 @@ impl ProtoArray {
             .parent_root
             .and_then(|parent| self.indices.get(&parent).copied());
 
-        let node = if !spec.fork_name_at_slot::<E>(block.slot).gloas_enabled() {
+        let node = if !spec.fork_name_at_slot(block.slot).gloas_enabled() {
             ProtoNode::V17(ProtoNodeV17 {
                 slot: block.slot,
                 root: block.root,
@@ -692,7 +692,7 @@ impl ProtoArray {
                 // Anchor gets [True, True]. Others computed from time_into_slot.
                 block_timeliness_attestation_threshold: is_anchor
                     || (is_current_slot
-                        && time_into_slot < spec.get_attestation_due::<E>(current_slot)),
+                        && time_into_slot < spec.get_attestation_due(current_slot)),
                 block_timeliness_ptc_threshold: is_anchor
                     || (is_current_slot && time_into_slot < spec.get_payload_attestation_due()),
                 equivocating_attestation_score: 0,
@@ -765,14 +765,14 @@ impl ProtoArray {
     // Fixing this properly requires committee computation from BeaconState,
     // which is not available in proto_array. The fix would be to pass
     // pre-computed equivocating committee weight from the beacon_chain caller.
-    fn is_head_weak<E: EthSpec>(
+    fn is_head_weak(
         &self,
         head_node: &ProtoNode,
         justified_balances: &JustifiedBalances,
         spec: &ChainSpec,
     ) -> bool {
         let reorg_threshold =
-            calculate_committee_fraction::<E>(justified_balances, spec.reorg_head_weight_threshold)
+            calculate_committee_fraction(justified_balances, spec.reorg_head_weight_threshold)
                 .unwrap_or(0);
 
         let head_weight = head_node
@@ -787,7 +787,7 @@ impl ProtoArray {
     /// Returns `true` if the proposer boost should be kept. Returns `false` if the
     /// boost should be subtracted (invalidated) because the parent is weak and there
     /// are no equivocating blocks at the parent's slot.
-    fn should_apply_proposer_boost<E: EthSpec>(
+    fn should_apply_proposer_boost(
         &self,
         proposer_boost_root: Hash256,
         justified_balances: &JustifiedBalances,
@@ -820,7 +820,7 @@ impl ProtoArray {
         }
 
         // Apply proposer boost if `parent` is not weak
-        if !self.is_head_weak::<E>(parent, justified_balances, spec) {
+        if !self.is_head_weak(parent, justified_balances, spec) {
             return Ok(true);
         }
 
@@ -995,7 +995,7 @@ impl ProtoArray {
     ///
     /// See `find_deepest_node_to_invalidate` for the model, and the documentation of
     /// `InvalidationOperation` for usage.
-    pub fn propagate_execution_payload_invalidation<E: EthSpec>(
+    pub fn propagate_execution_payload_invalidation(
         &mut self,
         op: &InvalidationOperation,
         best_finalized_checkpoint: Checkpoint,
@@ -1009,7 +1009,7 @@ impl ProtoArray {
             return Err(Error::PayloadHashUnknown(op.head_hash()));
         }
         for head_index in head_indices {
-            if let Some(deepest_executed_index) = self.find_deepest_node_to_invalidate::<E>(
+            if let Some(deepest_executed_index) = self.find_deepest_node_to_invalidate(
                 head_index,
                 op,
                 best_finalized_checkpoint,
@@ -1041,7 +1041,7 @@ impl ProtoArray {
     /// judged, or nothing.
     ///
     /// `head_index` is a block that commits to the operation's head payload.
-    fn find_deepest_node_to_invalidate<E: EthSpec>(
+    fn find_deepest_node_to_invalidate(
         &self,
         head_index: usize,
         op: &InvalidationOperation,
@@ -1061,7 +1061,7 @@ impl ProtoArray {
             .filter(|&root| {
                 self.is_descendant(root, head_block_root)
                     && self
-                        .is_finalized_checkpoint_or_descendant::<E>(root, best_finalized_checkpoint)
+                        .is_finalized_checkpoint_or_descendant(root, best_finalized_checkpoint)
             });
 
         match latest_valid_ancestor_root {
@@ -1202,7 +1202,7 @@ impl ProtoArray {
     /// `on_new_block` does not attempt to walk backwards through the tree and update the
     /// best-child/best-descendant links.
     #[allow(clippy::too_many_arguments)]
-    pub fn find_head<E: EthSpec>(
+    pub fn find_head(
         &self,
         justified_root: &Hash256,
         current_slot: Slot,
@@ -1218,7 +1218,7 @@ impl ProtoArray {
             .copied()
             .ok_or(Error::JustifiedNodeUnknown(*justified_root))?;
 
-        let best_fc_node = self.find_head_walk::<E>(
+        let best_fc_node = self.find_head_walk(
             justified_index,
             current_slot,
             best_justified_checkpoint,
@@ -1251,7 +1251,7 @@ impl ProtoArray {
     ///
     /// Returns the set of node indices on viable branches — those with at least
     /// one leaf descendant with correct justified/finalized checkpoints.
-    fn get_filtered_block_tree<E: EthSpec>(
+    fn get_filtered_block_tree(
         &self,
         start_index: usize,
         current_slot: Slot,
@@ -1259,7 +1259,7 @@ impl ProtoArray {
         best_finalized_checkpoint: Checkpoint,
     ) -> Result<HashSet<usize>, Error> {
         let mut viable = HashSet::new();
-        self.filter_block_tree::<E>(
+        self.filter_block_tree(
             start_index,
             current_slot,
             best_justified_checkpoint,
@@ -1282,7 +1282,7 @@ impl ProtoArray {
     ///
     /// This pass keeps one boolean for each block. A Gloas block whose own payload is invalid
     /// stays: only its `FULL` node is dead, and `get_node_children` drops it.
-    fn filter_block_tree<E: EthSpec>(
+    fn filter_block_tree(
         &self,
         start_index: usize,
         current_slot: Slot,
@@ -1355,7 +1355,7 @@ impl ProtoArray {
                 }
             } else {
                 // Spec: leaf — check correct_justified and correct_finalized
-                if self.node_is_viable_for_head::<E>(
+                if self.node_is_viable_for_head(
                     node,
                     current_slot,
                     best_justified_checkpoint,
@@ -1370,7 +1370,7 @@ impl ProtoArray {
 
     /// Spec: `get_head`.
     #[allow(clippy::too_many_arguments)]
-    fn find_head_walk<E: EthSpec>(
+    fn find_head_walk(
         &self,
         start_index: usize,
         current_slot: Slot,
@@ -1387,7 +1387,7 @@ impl ProtoArray {
         };
 
         // Spec: `get_filtered_block_tree`.
-        let viable_nodes = self.get_filtered_block_tree::<E>(
+        let viable_nodes = self.get_filtered_block_tree(
             start_index,
             current_slot,
             best_justified_checkpoint,
@@ -1396,7 +1396,7 @@ impl ProtoArray {
 
         // Compute once rather than per-child per-level.
         let apply_proposer_boost =
-            self.should_apply_proposer_boost::<E>(proposer_boost_root, justified_balances, spec)?;
+            self.should_apply_proposer_boost(proposer_boost_root, justified_balances, spec)?;
 
         loop {
             let children: Vec<_> = if head.payload_status == PayloadStatus::Pending {
@@ -1416,7 +1416,7 @@ impl ProtoArray {
             head = children
                 .into_iter()
                 .map(|(child, ref proto_node)| -> Result<_, Error> {
-                    let weight = self.get_weight::<E>(
+                    let weight = self.get_weight(
                         &child,
                         proto_node,
                         apply_proposer_boost,
@@ -1425,7 +1425,7 @@ impl ProtoArray {
                         justified_balances,
                         spec,
                     )?;
-                    let payload_status_tiebreaker = self.get_payload_status_tiebreaker::<E>(
+                    let payload_status_tiebreaker = self.get_payload_status_tiebreaker(
                         &child,
                         proto_node,
                         current_slot,
@@ -1448,7 +1448,7 @@ impl ProtoArray {
     /// This is similar to `find_head_walk`, except it walks every viable branch instead of taking
     /// the maximum child at each step. Only used in fork choice compliance tests.
     #[allow(clippy::too_many_arguments)]
-    pub fn filtered_block_tree_leaves_and_weights<E: EthSpec>(
+    pub fn filtered_block_tree_leaves_and_weights(
         &self,
         justified_root: &Hash256,
         current_slot: Slot,
@@ -1464,7 +1464,7 @@ impl ProtoArray {
             .copied()
             .ok_or(Error::NodeUnknown(*justified_root))?;
 
-        let viable_nodes = self.get_filtered_block_tree::<E>(
+        let viable_nodes = self.get_filtered_block_tree(
             start_index,
             current_slot,
             justified_checkpoint,
@@ -1472,7 +1472,7 @@ impl ProtoArray {
         )?;
 
         let apply_proposer_boost =
-            self.should_apply_proposer_boost::<E>(proposer_boost_root, justified_balances, spec)?;
+            self.should_apply_proposer_boost(proposer_boost_root, justified_balances, spec)?;
 
         let mut leaves = Vec::new();
         let mut stack = vec![IndexedForkChoiceNode {
@@ -1502,7 +1502,7 @@ impl ProtoArray {
                 } else {
                     fc_node
                 };
-                let weight = self.get_weight::<E>(
+                let weight = self.get_weight(
                     &leaf_node,
                     proto_node,
                     apply_proposer_boost,
@@ -1599,7 +1599,7 @@ impl ProtoArray {
 
     /// Returns the canonical payload status of a block, matching the decision
     /// `get_head` would make between `(root, FULL)` and `(root, EMPTY)`.
-    pub(crate) fn get_canonical_payload_status<E: EthSpec>(
+    pub(crate) fn get_canonical_payload_status(
         &self,
         root: Hash256,
         current_slot: Slot,
@@ -1636,9 +1636,9 @@ impl ProtoArray {
         // Matches the hoisting optimization in `find_head`: `get_weight`'s spec-level
         // `should_apply_proposer_boost` check is precomputed once.
         let apply_proposer_boost =
-            self.should_apply_proposer_boost::<E>(proposer_boost_root, justified_balances, spec)?;
+            self.should_apply_proposer_boost(proposer_boost_root, justified_balances, spec)?;
 
-        let full_weight = self.get_weight::<E>(
+        let full_weight = self.get_weight(
             &full_fc,
             proto_node,
             apply_proposer_boost,
@@ -1648,7 +1648,7 @@ impl ProtoArray {
             spec,
         )?;
 
-        let empty_weight = self.get_weight::<E>(
+        let empty_weight = self.get_weight(
             &empty_fc,
             proto_node,
             apply_proposer_boost,
@@ -1662,13 +1662,13 @@ impl ProtoArray {
             std::cmp::Ordering::Greater => Ok(PayloadStatus::Full),
             std::cmp::Ordering::Less => Ok(PayloadStatus::Empty),
             std::cmp::Ordering::Equal => {
-                let full_tb = self.get_payload_status_tiebreaker::<E>(
+                let full_tb = self.get_payload_status_tiebreaker(
                     &full_fc,
                     proto_node,
                     current_slot,
                     proposer_boost_root,
                 )?;
-                let empty_tb = self.get_payload_status_tiebreaker::<E>(
+                let empty_tb = self.get_payload_status_tiebreaker(
                     &empty_fc,
                     proto_node,
                     current_slot,
@@ -1685,7 +1685,7 @@ impl ProtoArray {
 
     /// Spec: `get_weight`.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn get_weight<E: EthSpec>(
+    pub(crate) fn get_weight(
         &self,
         fc_node: &IndexedForkChoiceNode,
         proto_node: &ProtoNode,
@@ -1711,7 +1711,7 @@ impl ProtoArray {
                 payload_present: false,
             };
             let proposer_score = if self.is_supporting_vote(fc_node, &message)? {
-                get_proposer_score::<E>(justified_balances, spec)?
+                get_proposer_score(justified_balances, spec)?
             } else {
                 0
             };
@@ -1864,7 +1864,7 @@ impl ProtoArray {
         }
     }
 
-    pub(crate) fn get_payload_status_tiebreaker<E: EthSpec>(
+    pub(crate) fn get_payload_status_tiebreaker(
         &self,
         fc_node: &IndexedForkChoiceNode,
         proto_node: &ProtoNode,
@@ -1877,7 +1877,7 @@ impl ProtoArray {
             Ok(fc_node.payload_status as u8)
         } else if fc_node.payload_status == PayloadStatus::Empty {
             Ok(1)
-        } else if self.should_extend_payload::<E>(
+        } else if self.should_extend_payload(
             fc_node,
             proto_node,
             current_slot,
@@ -1893,7 +1893,7 @@ impl ProtoArray {
     /// parent pending node. Returns false if the PTC has voted the data as unavailable.
     /// For a parent from an earlier slot the `Empty` or `Full` node has already been resolved
     /// by attestation weight in `get_head`.
-    pub fn should_build_on_full<E: EthSpec>(
+    pub fn should_build_on_full(
         &self,
         fc_node: &IndexedForkChoiceNode,
         proto_node: &ProtoNode,
@@ -1917,18 +1917,18 @@ impl ProtoArray {
         // Check that false votes have not achieved an absolute majority. This allows the payload to be
         // considered available when either a majority have voted true or not enough votes have
         // been cast either way.
-        if proto_node.payload_data_availability::<E>(false)? {
+        if proto_node.payload_data_availability(false)? {
             return Ok(false);
         }
 
-        if proto_node.payload_timeliness::<E>(false)? {
+        if proto_node.payload_timeliness(false)? {
             return Ok(false);
         }
 
         Ok(true)
     }
 
-    pub fn should_extend_payload<E: EthSpec>(
+    pub fn should_extend_payload(
         &self,
         fc_node: &IndexedForkChoiceNode,
         proto_node: &ProtoNode,
@@ -1978,8 +1978,8 @@ impl ProtoArray {
             .ok_or(Error::InvalidNodeIndex(parent_index))?
             .root();
 
-        Ok((proto_node.payload_timeliness::<E>(true)?
-            && proto_node.payload_data_availability::<E>(true)?)
+        Ok((proto_node.payload_timeliness(true)?
+            && proto_node.payload_data_availability(true)?)
             || proposer_boost_parent_root != fc_node.root
             || proposer_boost_node.is_parent_node_full())
     }
@@ -2059,7 +2059,7 @@ impl ProtoArray {
     ///
     /// Any node that has a different finalized or justified epoch should not be viable for the
     /// head.
-    fn node_is_viable_for_head<E: EthSpec>(
+    fn node_is_viable_for_head(
         &self,
         node: &ProtoNode,
         current_slot: Slot,
@@ -2095,7 +2095,7 @@ impl ProtoArray {
 
         let correct_finalized = best_finalized_checkpoint.epoch == genesis_epoch
             || self
-                .is_finalized_checkpoint_or_descendant::<E>(node.root(), best_finalized_checkpoint);
+                .is_finalized_checkpoint_or_descendant(node.root(), best_finalized_checkpoint);
 
         correct_justified && correct_finalized
     }
@@ -2175,7 +2175,7 @@ impl ProtoArray {
     ///
     /// Notably, this function is checking ancestory of the finalized
     /// *checkpoint* not the finalized *block*.
-    pub fn is_finalized_checkpoint_or_descendant<E: EthSpec>(
+    pub fn is_finalized_checkpoint_or_descendant(
         &self,
         root: Hash256,
         best_finalized_checkpoint: Checkpoint,
@@ -2291,7 +2291,7 @@ impl ProtoArray {
     /// For informational purposes like the beacon HTTP API, we use this as the list of known heads,
     /// even though some of them might not be viable. We do this to maintain consistency between the
     /// definition of "head" used by pruning (which does not consider viability) and fork choice.
-    pub fn heads_descended_from_finalization<E: EthSpec>(
+    pub fn heads_descended_from_finalization(
         &self,
         best_finalized_checkpoint: Checkpoint,
     ) -> Vec<&ProtoNode> {
@@ -2302,7 +2302,7 @@ impl ProtoArray {
                 // TODO(gloas): we unoptimized this for Gloas fork choice, could re-optimize.
                 let num_children = self.nodes.iter().filter(|n| n.parent() == Some(*i)).count();
                 num_children == 0
-                    && self.is_finalized_checkpoint_or_descendant::<E>(
+                    && self.is_finalized_checkpoint_or_descendant(
                         node.root(),
                         best_finalized_checkpoint,
                     )
@@ -2315,7 +2315,7 @@ impl ProtoArray {
 /// A helper method to calculate the proposer boost based on the given `justified_balances`.
 ///
 /// https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md#get_latest_attesting_balance
-pub fn calculate_committee_fraction<E: EthSpec>(
+pub fn calculate_committee_fraction(
     justified_balances: &JustifiedBalances,
     proposer_score_boost: u64,
 ) -> Option<u64> {
@@ -2328,11 +2328,11 @@ pub fn calculate_committee_fraction<E: EthSpec>(
 }
 
 /// Spec: `get_proposer_score`.
-fn get_proposer_score<E: EthSpec>(
+fn get_proposer_score(
     justified_balances: &JustifiedBalances,
     spec: &ChainSpec,
 ) -> Result<u64, Error> {
-    calculate_committee_fraction::<E>(justified_balances, spec.proposer_score_boost)
+    calculate_committee_fraction(justified_balances, spec.proposer_score_boost)
         .ok_or(Error::ProposerBoostOverflow(0))
 }
 

@@ -152,7 +152,7 @@ fn build_chain_inner(
 
     let shuffling_id = AttestationShufflingId::from_components(Epoch::new(0), genesis_root);
 
-    let mut fc = ProtoArrayForkChoice::new::<E>(
+    let mut fc = ProtoArrayForkChoice::new(
         Slot::new(0),    // current_slot
         Slot::new(0),    // finalized_block_slot
         Hash256::zero(), // finalized_block_state_root
@@ -208,7 +208,7 @@ fn build_chain_inner(
             payload_received: false,
         };
 
-        fc.process_block::<E>(block, slot, &spec, Duration::from_secs(0))
+        fc.process_block(block, slot, &spec, Duration::from_secs(0))
             .expect("process block");
 
         block_roots.push(root);
@@ -228,7 +228,7 @@ fn build_chain_inner(
     let balances = JustifiedBalances::from_effective_balances(vec![BALANCE; num_validators])
         .expect("justified balances");
 
-    fc.find_head::<E>(
+    fc.find_head(
         justified_checkpoint,
         finalized_checkpoint,
         &balances,
@@ -256,7 +256,7 @@ fn build_chain_inner(
     // `new` builds head assignments/balances from the state; the bench overwrites balances and
     // slot-tracking variables, so a small committee-cache-ready state suffices (its assignments
     // aren't on the O(V) cost path).
-    let mut seed_state = BeaconState::<E>::new(0, Default::default(), &spec);
+    let mut seed_state = BeaconState::new(0, Default::default(), &spec);
     for _ in 0..seed_validators {
         seed_state
             .validators_mut()
@@ -328,7 +328,7 @@ fn bench_get_current_target_score(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
-                data.fcr.get_current_target_score::<E>(
+                data.fcr.get_current_target_score(
                     block_root_at(REPRESENTATIVE_HEAD_SLOT),
                     Slot::new(REPRESENTATIVE_CURRENT_SLOT),
                     &data.proto_array,
@@ -396,7 +396,7 @@ fn bench_get_latest_confirmed(c: &mut Criterion) {
 
             group.bench_with_input(BenchmarkId::new(scenario.name, n), &n, |b, _| {
                 b.iter(|| {
-                    data.fcr.get_latest_confirmed::<E>(
+                    data.fcr.get_latest_confirmed(
                         head_root,
                         &data.finalized_checkpoint,
                         &data.unrealized_justified_checkpoint,
@@ -431,7 +431,7 @@ fn bench_get_latest_confirmed_empty_slots(c: &mut Criterion) {
         let head_root = block_root_at(69);
         group.bench_with_input(BenchmarkId::new("missed_slot", n), &n, |b, _| {
             b.iter(|| {
-                data.fcr.get_latest_confirmed::<E>(
+                data.fcr.get_latest_confirmed(
                     head_root,
                     &data.finalized_checkpoint,
                     &data.unrealized_justified_checkpoint,

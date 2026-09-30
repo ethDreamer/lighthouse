@@ -144,19 +144,19 @@ impl ValidatorInfo {
 }
 
 /// Result of single-pass epoch processing.
-pub struct SinglePassEpochResult<E: EthSpec> {
-    pub summary: ParticipationEpochSummary<E>,
+pub struct SinglePassEpochResult {
+    pub summary: ParticipationEpochSummary,
     /// Committee cache for the lookahead epoch, built during PTC window processing.
     /// Can be installed as the Next committee cache after `advance_caches`.
     pub lookahead_committee_cache: Option<Arc<CommitteeCache>>,
 }
 
 #[instrument(skip_all)]
-pub fn process_epoch_single_pass<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_epoch_single_pass(
+    state: &mut BeaconState,
     spec: &ChainSpec,
     conf: SinglePassConfig,
-) -> Result<SinglePassEpochResult<E>, Error> {
+) -> Result<SinglePassEpochResult, Error> {
     initialize_epoch_cache(state, spec)?;
     initialize_progressive_balances_cache(state, spec)?;
     state.build_exit_cache(spec)?;
@@ -503,8 +503,8 @@ pub fn process_epoch_single_pass<E: EthSpec>(
 }
 
 // TOOO(EIP-7917): use balances cache
-pub fn process_proposer_lookahead<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_proposer_lookahead(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let mut lookahead = state.proposer_lookahead()?.clone().to_vec();
@@ -536,8 +536,8 @@ pub fn process_proposer_lookahead<E: EthSpec>(
 ///
 /// The returned cache can be injected into the state's Next committee cache slot after
 /// `advance_caches` is called during the epoch transition, avoiding redundant recomputation.
-pub fn process_ptc_window<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn process_ptc_window(
+    state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<Arc<CommitteeCache>, Error> {
     let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
@@ -580,7 +580,7 @@ pub fn process_ptc_window<E: EthSpec>(
 }
 
 /// Calculate the quorum threshold for builder payments based on total active balance.
-fn get_builder_payment_quorum_threshold<E: EthSpec>(
+fn get_builder_payment_quorum_threshold(
     state_ctxt: &StateContext,
     spec: &ChainSpec,
 ) -> Result<u64, Error> {
@@ -594,12 +594,12 @@ fn get_builder_payment_quorum_threshold<E: EthSpec>(
 }
 
 /// Processes the builder pending payments from the previous epoch.
-fn process_builder_pending_payments<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn process_builder_pending_payments(
+    state: &mut BeaconState,
     state_ctxt: &StateContext,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
-    let quorum = get_builder_payment_quorum_threshold::<E>(state_ctxt, spec)?;
+    let quorum = get_builder_payment_quorum_threshold(state_ctxt, spec)?;
 
     // Collect qualifying payments and append to `builder_pending_withdrawals`.
     // We use this pattern rather than a loop to avoid multiple borrows of the state's fields.
@@ -1021,8 +1021,8 @@ fn get_balance_churn_limit(state_ctxt: &StateContext, spec: &ChainSpec) -> Resul
 }
 
 impl SlashingsContext {
-    fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    fn new(
+        state: &BeaconState,
         state_ctxt: &StateContext,
         spec: &ChainSpec,
     ) -> Result<Self, Error> {
@@ -1080,8 +1080,8 @@ fn process_single_slashing(
 }
 
 impl PendingDepositsContext {
-    fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    fn new(
+        state: &BeaconState,
         spec: &ChainSpec,
         config: &SinglePassConfig,
     ) -> Result<Self, Error> {
@@ -1233,7 +1233,7 @@ fn process_pending_deposits_for_validator(
 /// - Apply effective balance updates for all validators previously skipped.
 ///
 /// Prior to Electra, the empty set is returned.
-fn get_validators_in_consolidations<E: EthSpec>(state: &BeaconState<E>) -> BTreeSet<usize> {
+fn get_validators_in_consolidations(state: &BeaconState) -> BTreeSet<usize> {
     let mut referenced_validators = BTreeSet::new();
 
     if let Ok(pending_consolidations) = state.pending_consolidations() {
@@ -1250,8 +1250,8 @@ fn get_validators_in_consolidations<E: EthSpec>(state: &BeaconState<E>) -> BTree
 /// the effective balances for affected validators.
 ///
 /// This is safe because processing consolidations does not depend on the `effective_balance`.
-fn process_pending_consolidations<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn process_pending_consolidations(
+    state: &mut BeaconState,
     validators_in_consolidations: &BTreeSet<usize>,
     next_epoch_cache: &mut PreEpochCache,
     effective_balances_ctxt: &EffectiveBalancesContext,

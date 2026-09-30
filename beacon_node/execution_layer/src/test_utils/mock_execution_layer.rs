@@ -5,14 +5,14 @@ use kzg::Kzg;
 use tempfile::NamedTempFile;
 use types::MainnetEthSpec;
 
-pub struct MockExecutionLayer<E: EthSpec> {
-    pub server: MockServer<E>,
-    pub el: ExecutionLayer<E>,
+pub struct MockExecutionLayer {
+    pub server: MockServer,
+    pub el: ExecutionLayer,
     pub executor: TaskExecutor,
     pub spec: Arc<ChainSpec>,
 }
 
-impl<E: EthSpec> MockExecutionLayer<E> {
+impl MockExecutionLayer {
     pub fn default_params(executor: TaskExecutor) -> Self {
         let mut spec = Spec::default_spec();
         spec.terminal_block_hash = ExecutionBlockHash::zero();
@@ -177,7 +177,7 @@ impl<E: EthSpec> MockExecutionLayer<E> {
             .await
             .unwrap();
 
-        let payload: ExecutionPayload<E> = match block_proposal_content_type {
+        let payload: ExecutionPayload = match block_proposal_content_type {
             BlockProposalContentsType::Full(block) => block.to_payload().into(),
             BlockProposalContentsType::Blinded(_) => panic!("Should always be a full payload"),
         };
@@ -265,9 +265,9 @@ impl<E: EthSpec> MockExecutionLayer<E> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn assert_valid_execution_payload_on_head<Payload: AbstractExecPayload<E>>(
+    pub async fn assert_valid_execution_payload_on_head<Payload: AbstractExecPayload>(
         &self,
-        payload: ExecutionPayload<E>,
+        payload: ExecutionPayload,
         payload_header: Payload,
         block_hash: ExecutionBlockHash,
         parent_hash: ExecutionBlockHash,

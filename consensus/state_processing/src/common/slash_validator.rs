@@ -13,11 +13,11 @@ use types::{
 };
 
 /// Slash the validator with index `slashed_index`.
-pub fn slash_validator<E: EthSpec>(
-    state: &mut BeaconState<E>,
+pub fn slash_validator(
+    state: &mut BeaconState,
     slashed_index: usize,
     opt_whistleblower_index: Option<usize>,
-    ctxt: &mut ConsensusContext<E>,
+    ctxt: &mut ConsensusContext,
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
     let epoch = state.current_epoch();

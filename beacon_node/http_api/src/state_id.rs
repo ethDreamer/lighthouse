@@ -174,7 +174,7 @@ impl StateId {
     pub fn state<T: BeaconChainTypes>(
         &self,
         chain: &BeaconChain<T>,
-    ) -> Result<(BeaconState<T::EthSpec>, ExecutionOptimistic, Finalized), warp::Rejection> {
+    ) -> Result<(BeaconState, ExecutionOptimistic, Finalized), warp::Rejection> {
         let ((state_root, execution_optimistic, finalized), slot_opt) = match &self.0 {
             CoreStateId::Head => {
                 let (cached_head, execution_status) = chain
@@ -221,7 +221,7 @@ impl StateId {
         func: F,
     ) -> Result<U, warp::Rejection>
     where
-        F: Fn(&BeaconState<T::EthSpec>, bool, bool) -> Result<U, warp::Rejection>,
+        F: Fn(&BeaconState, bool, bool) -> Result<U, warp::Rejection>,
     {
         let (state, execution_optimistic, finalized) = match &self.0 {
             CoreStateId::Head => {

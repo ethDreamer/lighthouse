@@ -21,19 +21,19 @@ pub(crate) const PARTIAL_COLUMNS_VERSION_BYTE_GLOAS: u8 = 1;
 pub type HeaderSentSet = Arc<Mutex<HashSet<PeerId>>>;
 
 #[derive(Debug, Clone)]
-pub struct OutgoingPartialColumnFulu<E: EthSpec> {
-    partial_column: Arc<PartialDataColumnFulu<E>>,
-    metadata: MaybeKnownMetadata<E>,
+pub struct OutgoingPartialColumnFulu {
+    partial_column: Arc<PartialDataColumnFulu>,
+    metadata: MaybeKnownMetadata,
     header_message: Vec<u8>,
     header_sent_set: HeaderSentSet,
 }
 
-impl<E: EthSpec> OutgoingPartialColumnFulu<E> {
+impl OutgoingPartialColumnFulu {
     pub fn new(
-        partial_column: Arc<PartialDataColumnFulu<E>>,
-        header: &PartialDataColumnHeader<E>,
+        partial_column: Arc<PartialDataColumnFulu>,
+        header: &PartialDataColumnHeader,
         header_sent_set: HeaderSentSet,
-        requests: CellBitmap<E>,
+        requests: CellBitmap,
     ) -> Self {
         // Always set the request bit for available cells.
         //
@@ -56,7 +56,7 @@ impl<E: EthSpec> OutgoingPartialColumnFulu<E> {
         // is, therefore, to be seen as a "request if not available" bit.
         let requests = requests.union(&partial_column.sidecar.cells_present_bitmap);
 
-        let metadata = PartialDataColumnPartsMetadata::<E> {
+        let metadata = PartialDataColumnPartsMetadata {
             available: partial_column.sidecar.cells_present_bitmap.clone(),
             requests,
         }
@@ -80,18 +80,18 @@ impl<E: EthSpec> OutgoingPartialColumnFulu<E> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum MaybeKnownMetadata<E: EthSpec> {
+enum MaybeKnownMetadata {
     Unknown,
     Known {
-        metadata: Box<PartialDataColumnPartsMetadata<E>>,
+        metadata: Box<PartialDataColumnPartsMetadata>,
         encoded: Vec<u8>,
     },
 }
 
-impl<E: EthSpec> MaybeKnownMetadata<E> {
+impl MaybeKnownMetadata {
     fn do_update(
         &mut self,
-        received: PartialDataColumnPartsMetadata<E>,
+        received: PartialDataColumnPartsMetadata,
     ) -> Result<bool, PartialError> {
         let MaybeKnownMetadata::Known { metadata, encoded } = self else {
             *self = MaybeKnownMetadata::Known {
@@ -124,7 +124,7 @@ impl<E: EthSpec> MaybeKnownMetadata<E> {
     }
 }
 
-impl<E: EthSpec> Metadata for MaybeKnownMetadata<E> {
+impl Metadata for MaybeKnownMetadata {
     fn as_slice(&self) -> &[u8] {
         match self {
             MaybeKnownMetadata::Unknown => &[],
@@ -144,7 +144,7 @@ impl<E: EthSpec> Metadata for MaybeKnownMetadata<E> {
             return Ok(());
         }
 
-        let sidecar = PartialDataColumnSidecar::<E>::from_ssz_bytes(data)
+        let sidecar = PartialDataColumnSidecar::from_ssz_bytes(data)
             .map_err(|_| PartialError::InvalidFormat)?;
 
         self.do_update(PartialDataColumnPartsMetadata {
@@ -155,8 +155,8 @@ impl<E: EthSpec> Metadata for MaybeKnownMetadata<E> {
     }
 }
 
-impl<E: EthSpec> From<PartialDataColumnPartsMetadata<E>> for MaybeKnownMetadata<E> {
-    fn from(metadata: PartialDataColumnPartsMetadata<E>) -> Self {
+impl From<PartialDataColumnPartsMetadata> for MaybeKnownMetadata {
+    fn from(metadata: PartialDataColumnPartsMetadata) -> Self {
         Self::Known {
             encoded: metadata.as_ssz_bytes(),
             metadata: Box::new(metadata),
@@ -164,7 +164,7 @@ impl<E: EthSpec> From<PartialDataColumnPartsMetadata<E>> for MaybeKnownMetadata<
     }
 }
 
-impl<E: EthSpec> Partial for OutgoingPartialColumnFulu<E> {
+impl Partial for OutgoingPartialColumnFulu {
     fn group_id(&self) -> Vec<u8> {
         let mut group_id = Vec::with_capacity(Hash256::len_bytes() + 1);
         group_id.push(PARTIAL_COLUMNS_VERSION_BYTE_FULU);
@@ -187,7 +187,7 @@ impl<E: EthSpec> Partial for OutgoingPartialColumnFulu<E> {
                 let send = self.header_sent_set.lock().insert(peer_id).then(|| {
                     (
                         self.header_message.clone(),
-                        Box::new(MaybeKnownMetadata::<E>::Unknown) as Box<dyn Metadata>,
+                        Box::new(MaybeKnownMetadata::Unknown) as Box<dyn Metadata>,
                     )
                 });
                 trace!(
@@ -213,12 +213,12 @@ impl<E: EthSpec> Partial for OutgoingPartialColumnFulu<E> {
     }
 }
 
-fn action_from_present_metadata<E: EthSpec>(
+fn action_from_present_metadata(
     peer_id: PeerId,
     metadata: &[u8],
-    partial_column: PartialDataColumnRef<E>,
+    partial_column: PartialDataColumnRef,
 ) -> Result<PartialAction, PartialError> {
-    let peer_metadata = PartialDataColumnPartsMetadata::<E>::from_ssz_bytes(metadata)
+    let peer_metadata = PartialDataColumnPartsMetadata::from_ssz_bytes(metadata)
         .map_err(|_| PartialError::InvalidFormat)?;
     let expected_len = partial_column.sidecar().cells_present_bitmap().len();
     if peer_metadata.available.len() != expected_len || peer_metadata.requests.len() != expected_len
@@ -254,7 +254,7 @@ fn action_from_present_metadata<E: EthSpec>(
         );
         Some((
             sidecar.as_ssz_bytes(),
-            Box::new(MaybeKnownMetadata::<E>::from(
+            Box::new(MaybeKnownMetadata::from(
                 PartialDataColumnPartsMetadata {
                     available: peer_metadata
                         .available
@@ -278,21 +278,21 @@ fn action_from_present_metadata<E: EthSpec>(
 }
 
 #[derive(Debug, Clone)]
-pub struct OutgoingPartialColumnGloas<E: EthSpec> {
-    partial_column: Arc<PartialDataColumnGloas<E>>,
+pub struct OutgoingPartialColumnGloas {
+    partial_column: Arc<PartialDataColumnGloas>,
     group_id: Vec<u8>,
-    metadata: MaybeKnownMetadata<E>,
+    metadata: MaybeKnownMetadata,
 }
 
-impl<E: EthSpec> OutgoingPartialColumnGloas<E> {
-    pub fn new(partial_column: Arc<PartialDataColumnGloas<E>>, requests: CellBitmap<E>) -> Self {
+impl OutgoingPartialColumnGloas {
+    pub fn new(partial_column: Arc<PartialDataColumnGloas>, requests: CellBitmap) -> Self {
         // For consistency, we always set the request bit for available cells. The spec allows both,
         // but it is nicer to ensure that a bit once set does not disappear in future messages.
         // `requests` is always derived from this column's `cells_present_bitmap`, so the two share
         // the same length here (`union` itself takes the max of the two lengths and does not
         // validate equality).
         let requests = requests.union(&partial_column.sidecar.cells_present_bitmap);
-        let metadata = PartialDataColumnPartsMetadata::<E> {
+        let metadata = PartialDataColumnPartsMetadata {
             available: partial_column.sidecar.cells_present_bitmap.clone(),
             requests,
         }
@@ -314,7 +314,7 @@ impl<E: EthSpec> OutgoingPartialColumnGloas<E> {
     }
 }
 
-impl<E: EthSpec> Partial for OutgoingPartialColumnGloas<E> {
+impl Partial for OutgoingPartialColumnGloas {
     fn group_id(&self) -> Vec<u8> {
         self.group_id.clone()
     }
@@ -358,13 +358,13 @@ mod tests {
     use types::data::PartialDataColumnSidecarGloas;
 
 
-    fn make_cell(marker: u8) -> types::Cell<E> {
-        let mut cell = types::Cell::<E>::default();
+    fn make_cell(marker: u8) -> types::Cell {
+        let mut cell = types::Cell::default();
         cell[0] = marker;
         cell
     }
 
-    fn make_header(num_commitments: usize) -> PartialDataColumnHeader<E> {
+    fn make_header(num_commitments: usize) -> PartialDataColumnHeader {
         PartialDataColumnHeader {
             kzg_commitments: vec![types::KzgCommitment([0u8; 48]); num_commitments]
                 .try_into()
@@ -390,8 +390,8 @@ mod tests {
         block_root: Hash256,
         total_blobs: usize,
         present_indices: &[usize],
-    ) -> Arc<PartialDataColumnFulu<E>> {
-        let mut bitmap = CellBitmap::<E>::with_capacity(total_blobs).unwrap();
+    ) -> Arc<PartialDataColumnFulu> {
+        let mut bitmap = CellBitmap::with_capacity(total_blobs).unwrap();
         for &idx in present_indices {
             bitmap.set(idx, true).unwrap();
         }
@@ -418,8 +418,8 @@ mod tests {
         })
     }
 
-    fn make_all_one_bitmap(len: usize) -> CellBitmap<E> {
-        CellBitmap::<E>::with_capacity(len).unwrap().not()
+    fn make_all_one_bitmap(len: usize) -> CellBitmap {
+        CellBitmap::with_capacity(len).unwrap().not()
     }
 
     fn make_partial_column_gloas(
@@ -427,8 +427,8 @@ mod tests {
         slot: Slot,
         total_blobs: usize,
         present_indices: &[usize],
-    ) -> Arc<PartialDataColumnGloas<E>> {
-        let mut bitmap = CellBitmap::<E>::with_capacity(total_blobs).unwrap();
+    ) -> Arc<PartialDataColumnGloas> {
+        let mut bitmap = CellBitmap::with_capacity(total_blobs).unwrap();
         for &idx in present_indices {
             bitmap.set(idx, true).unwrap();
         }
@@ -464,8 +464,8 @@ mod tests {
 
     #[test]
     fn update_from_unknown_initializes() {
-        let mut meta = MaybeKnownMetadata::<E>::Unknown;
-        let mut bitmap = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut meta = MaybeKnownMetadata::Unknown;
+        let mut bitmap = CellBitmap::with_capacity(4).unwrap();
         bitmap.set(0, true).unwrap();
         let received = PartialDataColumnPartsMetadata {
             available: bitmap.clone(),
@@ -478,15 +478,15 @@ mod tests {
 
     #[test]
     fn update_unions_bitmaps() {
-        let mut bitmap1 = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut bitmap1 = CellBitmap::with_capacity(4).unwrap();
         bitmap1.set(0, true).unwrap();
-        let mut meta: MaybeKnownMetadata<E> = PartialDataColumnPartsMetadata {
+        let mut meta: MaybeKnownMetadata = PartialDataColumnPartsMetadata {
             available: bitmap1.clone(),
             requests: bitmap1,
         }
         .into();
 
-        let mut bitmap2 = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut bitmap2 = CellBitmap::with_capacity(4).unwrap();
         bitmap2.set(1, true).unwrap();
         let changed = meta
             .do_update(PartialDataColumnPartsMetadata {
@@ -507,17 +507,17 @@ mod tests {
 
     #[test]
     fn update_returns_false_when_no_change() {
-        let mut bitmap = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut bitmap = CellBitmap::with_capacity(4).unwrap();
         bitmap.set(0, true).unwrap();
         bitmap.set(1, true).unwrap();
-        let mut meta: MaybeKnownMetadata<E> = PartialDataColumnPartsMetadata {
+        let mut meta: MaybeKnownMetadata = PartialDataColumnPartsMetadata {
             available: bitmap.clone(),
             requests: bitmap.clone(),
         }
         .into();
 
         // Update with a subset
-        let mut subset = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut subset = CellBitmap::with_capacity(4).unwrap();
         subset.set(0, true).unwrap();
         let changed = meta
             .do_update(PartialDataColumnPartsMetadata {
@@ -530,15 +530,15 @@ mod tests {
 
     #[test]
     fn update_rejects_mismatched_lengths() {
-        let mut bitmap4 = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut bitmap4 = CellBitmap::with_capacity(4).unwrap();
         bitmap4.set(0, true).unwrap();
-        let mut meta: MaybeKnownMetadata<E> = PartialDataColumnPartsMetadata {
+        let mut meta: MaybeKnownMetadata = PartialDataColumnPartsMetadata {
             available: bitmap4.clone(),
             requests: bitmap4,
         }
         .into();
 
-        let mut bitmap6 = CellBitmap::<E>::with_capacity(6).unwrap();
+        let mut bitmap6 = CellBitmap::with_capacity(6).unwrap();
         bitmap6.set(0, true).unwrap();
         let result = meta.do_update(PartialDataColumnPartsMetadata {
             available: bitmap6.clone(),
@@ -582,14 +582,14 @@ mod tests {
         let peer = random_peer_id();
 
         // Peer has [0, 1], wants [0, 1, 2, 3]
-        let mut peer_available = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut peer_available = CellBitmap::with_capacity(4).unwrap();
         peer_available.set(0, true).unwrap();
         peer_available.set(1, true).unwrap();
-        let mut peer_request = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut peer_request = CellBitmap::with_capacity(4).unwrap();
         for i in 0..4 {
             peer_request.set(i, true).unwrap();
         }
-        let peer_meta = PartialDataColumnPartsMetadata::<E> {
+        let peer_meta = PartialDataColumnPartsMetadata {
             available: peer_available,
             requests: peer_request,
         };
@@ -615,11 +615,11 @@ mod tests {
         let peer = random_peer_id();
 
         // Peer has [0, 1, 2] — cells [1, 2] are unknown to us
-        let mut peer_available = CellBitmap::<E>::with_capacity(4).unwrap();
+        let mut peer_available = CellBitmap::with_capacity(4).unwrap();
         peer_available.set(0, true).unwrap();
         peer_available.set(1, true).unwrap();
         peer_available.set(2, true).unwrap();
-        let peer_meta = PartialDataColumnPartsMetadata::<E> {
+        let peer_meta = PartialDataColumnPartsMetadata {
             available: peer_available.clone(),
             requests: peer_available,
         };

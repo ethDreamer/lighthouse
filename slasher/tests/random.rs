@@ -32,7 +32,7 @@ impl Default for TestConfig {
     }
 }
 
-fn make_db() -> (TempDir, SlasherDB<E>) {
+fn make_db() -> (TempDir, SlasherDB) {
     let tempdir = tempdir().unwrap();
     let initial_config = Arc::new(Config::new(tempdir.path().into()));
     let spec = chain_spec();
@@ -40,7 +40,7 @@ fn make_db() -> (TempDir, SlasherDB<E>) {
     (tempdir, db)
 }
 
-fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> SlasherDB<E> {
+fn random_test(seed: u64, mut db: SlasherDB, test_config: TestConfig) -> SlasherDB {
     let check_slashings = test_config.check_slashings;
     let num_validators = test_config.num_validators;
     let max_attestations = test_config.max_attestations;
@@ -58,7 +58,7 @@ fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> Slas
     let config = Arc::new(config);
     db.update_config(config.clone());
 
-    let slasher = Slasher::<E>::from_config_and_db(config.clone(), db).unwrap();
+    let slasher = Slasher::from_config_and_db(config.clone(), db).unwrap();
 
     let validators = (0..num_validators as u64).collect::<Vec<u64>>();
 

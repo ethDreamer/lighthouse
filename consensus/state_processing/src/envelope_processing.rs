@@ -102,9 +102,9 @@ impl From<ArithError> for EnvelopeProcessingError {
 /// `block_state_root` should be the post-block state root (used to fill in the block header
 /// for beacon_block_root verification). If `None`, the latest_block_header must already have
 /// its state_root filled in.
-pub fn verify_execution_payload_envelope<E: EthSpec>(
-    state: &BeaconState<E>,
-    signed_envelope: &SignedExecutionPayloadEnvelope<E>,
+pub fn verify_execution_payload_envelope(
+    state: &BeaconState,
+    signed_envelope: &SignedExecutionPayloadEnvelope,
     verify_signatures: VerifySignatures,
     block_state_root: Hash256,
     spec: &ChainSpec,
@@ -249,7 +249,7 @@ mod tests {
     static KEYPAIRS: LazyLock<Vec<bls::Keypair>> =
         LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
 
-    fn get_harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
+    fn get_harness() -> BeaconChainHarness<EphemeralHarnessType> {
         let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
         BeaconChainHarness::builder()
             .spec(spec.into())

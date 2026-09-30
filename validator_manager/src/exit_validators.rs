@@ -130,7 +130,7 @@ impl ExitConfig {
     }
 }
 
-pub async fn cli_run<E: EthSpec>(
+pub async fn cli_run(
     matches: &ArgMatches,
     dump_config: DumpConfig,
 ) -> Result<(), String> {
@@ -139,11 +139,11 @@ pub async fn cli_run<E: EthSpec>(
     if dump_config.should_exit_early(&config)? {
         Ok(())
     } else {
-        run::<E>(config).await
+        run(config).await
     }
 }
 
-async fn run<E: EthSpec>(config: ExitConfig) -> Result<(), String> {
+async fn run(config: ExitConfig) -> Result<(), String> {
     let ExitConfig {
         vc_url,
         vc_token_path,
@@ -221,7 +221,7 @@ async fn run<E: EthSpec>(config: ExitConfig) -> Result<(), String> {
                 .map_err(|e| format!("Failed to get config spec: {}", e))?
                 .data;
 
-            let spec = ChainSpec::from_config::<E>(config_and_preset.config())
+            let spec = ChainSpec::from_config(config_and_preset.config())
                 .ok_or("Failed to create chain spec")?;
 
             let validator_data = beacon_node
@@ -242,7 +242,7 @@ async fn run<E: EthSpec>(config: ExitConfig) -> Result<(), String> {
                 .data;
 
             let activation_epoch = validator_data.validator.activation_epoch;
-            let current_epoch = get_current_epoch::<E>(genesis_data.genesis_time, &spec)
+            let current_epoch = get_current_epoch(genesis_data.genesis_time, &spec)
                 .ok_or("Failed to get current epoch. Please check your system time")?;
 
             // Check if validator is eligible for exit
@@ -276,7 +276,7 @@ async fn run<E: EthSpec>(config: ExitConfig) -> Result<(), String> {
     Ok(())
 }
 
-pub fn get_current_epoch<E: EthSpec>(genesis_time: u64, spec: &ChainSpec) -> Option<Epoch> {
+pub fn get_current_epoch(genesis_time: u64, spec: &ChainSpec) -> Option<Epoch> {
     let slot_clock = SystemTimeSlotClock::new(
         spec.genesis_slot,
         Duration::from_secs(genesis_time),
@@ -311,7 +311,7 @@ mod test {
         http_config: HttpConfig,
         vc_token: Option<String>,
         validators: Vec<ValidatorSpecification>,
-        beacon_node: InteractiveTester<E>,
+        beacon_node: InteractiveTester,
         index_of_validators_to_exit: Vec<usize>,
         spec: Arc<ChainSpec>,
     }
@@ -478,7 +478,7 @@ mod test {
                 )
                 .await;
 
-            let result = run::<E>(self.exit_config.clone().unwrap()).await;
+            let result = run(self.exit_config.clone().unwrap()).await;
 
             self.beacon_node.harness.advance_slot();
 

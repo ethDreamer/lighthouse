@@ -10,38 +10,38 @@ use types::core::{Epoch, EthSpec, Hash256};
 use types::data::{ColumnIndex, PartialDataColumnGloas, PartialDataColumnHeader};
 
 /// Assembles partial data columns into complete columns
-pub struct PartialDataColumnAssembler<E: EthSpec> {
+pub struct PartialDataColumnAssembler {
     /// Cache of assemblies keyed by block root
-    assemblies: RwLock<LruCache<Hash256, PartialAssembly<E>>>,
+    assemblies: RwLock<LruCache<Hash256, PartialAssembly>>,
     /// Whether getBlobs is disabled. If so, always set `has_local_blobs` to true, as we will never
     /// retrieve blobs from the EL and therefore should immediately request cells from the network.
     disable_get_blobs: bool,
 }
 
 /// Tracks partial columns being assembled for a single block
-struct PartialAssembly<E: EthSpec> {
-    header: Arc<PartialDataColumnHeader<E>>,
+struct PartialAssembly {
+    header: Arc<PartialDataColumnHeader>,
     has_local_blobs: bool,
     /// Map of column_index -> partial column being assembled
-    columns: HashMap<ColumnIndex, AssemblyColumn<E>>,
+    columns: HashMap<ColumnIndex, AssemblyColumn>,
 }
 
 #[derive(Clone, Debug)]
-pub enum AssemblyColumn<E: EthSpec> {
+pub enum AssemblyColumn {
     // As the actual column is Arc'd inside, storing it redundantly here will not increase memory usage.
-    Complete(KzgVerifiedCustodyDataColumn<E>),
-    Incomplete(KzgVerifiedCustodyPartialDataColumnFulu<E>),
+    Complete(KzgVerifiedCustodyDataColumn),
+    Incomplete(KzgVerifiedCustodyPartialDataColumnFulu),
 }
 
 /// The accumulated partials that gained cells in a merge, for republishing. A single merge only
 /// ever touches one fork's store (Fulu: assembler, Gloas: pending payload cache), so this is an
 /// enum of vecs rather than a vec of per-fork enums.
-pub enum UpdatedPartials<E: EthSpec> {
-    Fulu(Vec<KzgVerifiedCustodyPartialDataColumnFulu<E>>),
-    Gloas(Vec<PartialDataColumnGloas<E>>),
+pub enum UpdatedPartials {
+    Fulu(Vec<KzgVerifiedCustodyPartialDataColumnFulu>),
+    Gloas(Vec<PartialDataColumnGloas>),
 }
 
-impl<E: EthSpec> UpdatedPartials<E> {
+impl UpdatedPartials {
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Fulu(partials) => partials.is_empty(),
@@ -51,18 +51,18 @@ impl<E: EthSpec> UpdatedPartials<E> {
 }
 
 /// Result of merging a partial column
-pub struct PartialMergeResult<E: EthSpec> {
+pub struct PartialMergeResult {
     /// How many cells were added to the store
     pub added_cells: usize,
     /// True once the local `getBlobs` attempt has settled: it succeeded, failed, or is disabled.
     pub local_fetch_settled: bool,
     /// Merge that completed the column
-    pub full_columns: Vec<KzgVerifiedCustodyDataColumn<E>>,
+    pub full_columns: Vec<KzgVerifiedCustodyDataColumn>,
     /// The updated partials for publishing.
-    pub updated_partials: UpdatedPartials<E>,
+    pub updated_partials: UpdatedPartials,
 }
 
-impl<E: EthSpec> PartialDataColumnAssembler<E> {
+impl PartialDataColumnAssembler {
     pub fn new(capacity: usize, disable_get_blobs: bool) -> Self {
         Self {
             assemblies: RwLock::new(LruCache::new(capacity)),
@@ -72,7 +72,7 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
 
     /// Insert a `header` for the given `block_root` into the assembler.
     /// Returns true unless there already is a header for the block root.
-    pub fn init(&self, block_root: Hash256, header: Arc<PartialDataColumnHeader<E>>) -> bool {
+    pub fn init(&self, block_root: Hash256, header: Arc<PartialDataColumnHeader>) -> bool {
         let mut assemblies = self.assemblies.write();
 
         if assemblies.contains_key(&block_root) {
@@ -95,9 +95,9 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
     pub fn merge_partials(
         &self,
         block_root: Hash256,
-        partials: Vec<KzgVerifiedCustodyPartialDataColumnFulu<E>>,
-        header: Arc<PartialDataColumnHeader<E>>,
-    ) -> Option<PartialMergeResult<E>> {
+        partials: Vec<KzgVerifiedCustodyPartialDataColumnFulu>,
+        header: Arc<PartialDataColumnHeader>,
+    ) -> Option<PartialMergeResult> {
         let mut assemblies = self.assemblies.write();
         let assembly = assemblies
             .entry(block_root)
@@ -172,7 +172,7 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
     pub fn mark_as_complete(
         &self,
         block_root: Hash256,
-        column: &KzgVerifiedCustodyDataColumn<E>,
+        column: &KzgVerifiedCustodyDataColumn,
     ) -> bool {
         let Ok(fulu) = column.as_data_column().as_fulu() else {
             return false;
@@ -211,7 +211,7 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
         &self,
         block_root: &Hash256,
         column_index: ColumnIndex,
-    ) -> Option<AssemblyColumn<E>> {
+    ) -> Option<AssemblyColumn> {
         self.assemblies
             .read()
             .peek(block_root)?
@@ -228,8 +228,8 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
     pub fn get_columns_and_mark_as_local_fetched(
         &self,
         block_root: Hash256,
-        header: &Arc<PartialDataColumnHeader<E>>,
-    ) -> Vec<AssemblyColumn<E>> {
+        header: &Arc<PartialDataColumnHeader>,
+    ) -> Vec<AssemblyColumn> {
         let mut assemblies = self.assemblies.write();
         let assembly = assemblies
             .entry(block_root)
@@ -245,7 +245,7 @@ impl<E: EthSpec> PartialDataColumnAssembler<E> {
     }
 
     /// Get header for a block if we have an active assembly
-    pub fn get_header(&self, block_root: &Hash256) -> Option<Arc<PartialDataColumnHeader<E>>> {
+    pub fn get_header(&self, block_root: &Hash256) -> Option<Arc<PartialDataColumnHeader>> {
         self.assemblies
             .read()
             .peek(block_root)
@@ -294,13 +294,13 @@ mod tests {
     };
 
 
-    fn make_cell(marker: u8) -> Cell<E> {
-        let mut cell = Cell::<E>::default();
+    fn make_cell(marker: u8) -> Cell {
+        let mut cell = Cell::default();
         cell[0] = marker;
         cell
     }
 
-    fn make_header(num_commitments: usize) -> PartialDataColumnHeader<E> {
+    fn make_header(num_commitments: usize) -> PartialDataColumnHeader {
         PartialDataColumnHeader {
             kzg_commitments: vec![KzgCommitment([0u8; 48]); num_commitments]
                 .try_into()
@@ -327,7 +327,7 @@ mod tests {
         column_index: ColumnIndex,
         total_blobs: usize,
         present_indices: &[usize],
-    ) -> KzgVerifiedCustodyPartialDataColumnFulu<E> {
+    ) -> KzgVerifiedCustodyPartialDataColumnFulu {
         make_partial_with_header(block_root, column_index, total_blobs, present_indices, true)
     }
 
@@ -337,8 +337,8 @@ mod tests {
         total_blobs: usize,
         present_indices: &[usize],
         include_header: bool,
-    ) -> KzgVerifiedCustodyPartialDataColumnFulu<E> {
-        let mut bitmap = CellBitmap::<E>::with_capacity(total_blobs).unwrap();
+    ) -> KzgVerifiedCustodyPartialDataColumnFulu {
+        let mut bitmap = CellBitmap::with_capacity(total_blobs).unwrap();
         for &idx in present_indices {
             bitmap.set(idx, true).unwrap();
         }
@@ -358,7 +358,7 @@ mod tests {
 
         let header = include_header.then(|| make_header(total_blobs)).into();
 
-        let partial: PartialDataColumn<E> = PartialDataColumnFulu {
+        let partial: PartialDataColumn = PartialDataColumnFulu {
             block_root,
             index: column_index,
             sidecar: PartialDataColumnSidecarFulu {
@@ -376,13 +376,13 @@ mod tests {
         .expect("test partial is a Fulu column")
     }
 
-    fn make_full_column(fulu: DataColumnSidecarFulu<E>) -> KzgVerifiedCustodyDataColumn<E> {
+    fn make_full_column(fulu: DataColumnSidecarFulu) -> KzgVerifiedCustodyDataColumn {
         KzgVerifiedCustodyDataColumn::from_asserted_custody(
             KzgVerifiedDataColumn::__new_for_testing(Arc::new(DataColumnSidecar::Fulu(fulu))),
         )
     }
 
-    fn make_assembler() -> PartialDataColumnAssembler<E> {
+    fn make_assembler() -> PartialDataColumnAssembler {
         PartialDataColumnAssembler::new(16, false)
     }
 
@@ -532,9 +532,9 @@ mod tests {
         let partial = make_partial(root, 0, 4, &[0, 1]);
         assembler.merge_partials(root, vec![partial], header);
 
-        let full_column = make_full_column(DataColumnSidecarFulu::<E> {
+        let full_column = make_full_column(DataColumnSidecarFulu {
             index: 0,
-            column: vec![Cell::<E>::default(); 4].try_into().unwrap(),
+            column: vec![Cell::default(); 4].try_into().unwrap(),
             kzg_commitments: vec![KzgCommitment([0u8; 48]); 4].try_into().unwrap(),
             kzg_proofs: vec![KzgProof::empty(); 4].try_into().unwrap(),
             signed_block_header: SignedBeaconBlockHeader {
@@ -560,9 +560,9 @@ mod tests {
         let assembler = make_assembler();
         let root = Hash256::repeat_byte(1);
 
-        let full_column = make_full_column(DataColumnSidecarFulu::<E> {
+        let full_column = make_full_column(DataColumnSidecarFulu {
             index: 0,
-            column: vec![Cell::<E>::default(); 4].try_into().unwrap(),
+            column: vec![Cell::default(); 4].try_into().unwrap(),
             kzg_commitments: vec![KzgCommitment([0u8; 48]); 4].try_into().unwrap(),
             kzg_proofs: vec![KzgProof::empty(); 4].try_into().unwrap(),
             signed_block_header: SignedBeaconBlockHeader {

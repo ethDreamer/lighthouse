@@ -19,7 +19,7 @@ use crate::{
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
-pub struct HistoricalBatch<E: EthSpec> {
+pub struct HistoricalBatch {
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub block_roots: Vector<Hash256, typenum::U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -31,7 +31,7 @@ mod tests {
     use super::*;
     use crate::core::MainnetEthSpec;
 
-    pub type FoundationHistoricalBatch = HistoricalBatch<MainnetEthSpec>;
+    pub type FoundationHistoricalBatch = HistoricalBatch;
 
     ssz_and_tree_hash_tests!(FoundationHistoricalBatch);
 }

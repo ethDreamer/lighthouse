@@ -13,9 +13,9 @@ pub const BAD_PARAMS_ERROR_CODE: i64 = -32602;
 pub const UNKNOWN_PAYLOAD_ERROR_CODE: i64 = -38001;
 pub const FORK_REQUEST_MISMATCH_ERROR_CODE: i64 = -32000;
 
-pub async fn handle_rpc<E: EthSpec>(
+pub async fn handle_rpc(
     body: JsonValue,
-    ctx: Arc<Context<E>>,
+    ctx: Arc<Context>,
 ) -> Result<JsonValue, (String, i64)> {
     *ctx.previous_request.lock() = Some(body.clone());
 
@@ -73,30 +73,30 @@ pub async fn handle_rpc<E: EthSpec>(
         | ENGINE_NEW_PAYLOAD_V6 => {
             let request = match method {
                 ENGINE_NEW_PAYLOAD_V1 => JsonExecutionPayload::Bellatrix(
-                    get_param::<JsonExecutionPayloadBellatrix<E>>(params, 0)
+                    get_param::<JsonExecutionPayloadBellatrix>(params, 0)
                         .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 ),
-                ENGINE_NEW_PAYLOAD_V2 => get_param::<JsonExecutionPayloadCapella<E>>(params, 0)
+                ENGINE_NEW_PAYLOAD_V2 => get_param::<JsonExecutionPayloadCapella>(params, 0)
                     .map(|jep| JsonExecutionPayload::Capella(jep))
                     .or_else(|_| {
-                        get_param::<JsonExecutionPayloadBellatrix<E>>(params, 0)
+                        get_param::<JsonExecutionPayloadBellatrix>(params, 0)
                             .map(|jep| JsonExecutionPayload::Bellatrix(jep))
                     })
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
-                ENGINE_NEW_PAYLOAD_V3 => get_param::<JsonExecutionPayloadDeneb<E>>(params, 0)
+                ENGINE_NEW_PAYLOAD_V3 => get_param::<JsonExecutionPayloadDeneb>(params, 0)
                     .map(|jep| JsonExecutionPayload::Deneb(jep))
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
-                ENGINE_NEW_PAYLOAD_V4 => get_param::<JsonExecutionPayloadFulu<E>>(params, 0)
+                ENGINE_NEW_PAYLOAD_V4 => get_param::<JsonExecutionPayloadFulu>(params, 0)
                     .map(|jep| JsonExecutionPayload::Fulu(jep))
                     .or_else(|_| {
-                        get_param::<JsonExecutionPayloadElectra<E>>(params, 0)
+                        get_param::<JsonExecutionPayloadElectra>(params, 0)
                             .map(|jep| JsonExecutionPayload::Electra(jep))
                     })
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
-                ENGINE_NEW_PAYLOAD_V5 => get_param::<JsonExecutionPayloadGloas<E>>(params, 0)
+                ENGINE_NEW_PAYLOAD_V5 => get_param::<JsonExecutionPayloadGloas>(params, 0)
                     .map(|jep| JsonExecutionPayload::Gloas(jep))
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
-                ENGINE_NEW_PAYLOAD_V6 => get_param::<JsonExecutionPayloadHeze<E>>(params, 0)
+                ENGINE_NEW_PAYLOAD_V6 => get_param::<JsonExecutionPayloadHeze>(params, 0)
                     .map(|jep| JsonExecutionPayload::Heze(jep))
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 _ => unreachable!(),
@@ -531,14 +531,14 @@ pub async fn handle_rpc<E: EthSpec>(
                 get_param::<Vec<Hash256>>(params, 0).map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?;
             let generator = ctx.execution_block_generator.read();
             // V2: all-or-nothing — null if any blob is missing.
-            let results: Vec<Option<BlobAndProofV2<E>>> = versioned_hashes
+            let results: Vec<Option<BlobAndProofV2>> = versioned_hashes
                 .iter()
                 .map(|hash| match generator.get_blob_and_proof(hash) {
                     Some(BlobAndProof::V2(v2)) => Some(v2),
                     _ => None,
                 })
                 .collect();
-            let response: Option<Vec<BlobAndProofV2<E>>> = results.into_iter().collect();
+            let response: Option<Vec<BlobAndProofV2>> = results.into_iter().collect();
             Ok(serde_json::to_value(response).unwrap())
         }
         ENGINE_GET_BLOBS_V4 => {
@@ -571,7 +571,7 @@ pub async fn handle_rpc<E: EthSpec>(
                         blob_cells.push(Some(JsonCell(cell.clone())));
                         proofs.push(Some(*proof));
                     }
-                    Ok(Some(BlobCellsAndProofsV1::<E> { blob_cells, proofs }))
+                    Ok(Some(BlobCellsAndProofsV1 { blob_cells, proofs }))
                 })
                 .collect::<Result<Vec<_>, (String, i64)>>()?;
             Ok(serde_json::to_value(response).unwrap())
@@ -791,7 +791,7 @@ pub async fn handle_rpc<E: EthSpec>(
 
                 match maybe_payload {
                     Some(payload) => {
-                        let payload_body: ExecutionPayloadBodyV1<E> = ExecutionPayloadBodyV1 {
+                        let payload_body: ExecutionPayloadBodyV1 = ExecutionPayloadBodyV1 {
                             transactions: payload
                                 .transactions()
                                 .iter()
@@ -812,7 +812,7 @@ pub async fn handle_rpc<E: EthSpec>(
                                 .transpose()
                                 .unwrap(),
                         };
-                        let json_payload_body: JsonExecutionPayloadBodyV1<E> =
+                        let json_payload_body: JsonExecutionPayloadBodyV1 =
                             payload_body.try_into().unwrap();
                         response.push(Some(json_payload_body));
                     }
@@ -835,7 +835,7 @@ pub async fn handle_rpc<E: EthSpec>(
 
                 match maybe_payload {
                     Some(payload) => {
-                        let payload_body = ExecutionPayloadBodyV2::<E> {
+                        let payload_body = ExecutionPayloadBodyV2 {
                             transactions: ProgressiveTransactions::new(
                                 payload
                                     .transactions()
@@ -863,7 +863,7 @@ pub async fn handle_rpc<E: EthSpec>(
                                 .withdrawals()
                                 .ok()
                                 .map(|withdrawals| {
-                                    ProgressiveWithdrawals::<E>::new(withdrawals.to_vec())
+                                    ProgressiveWithdrawals::new(withdrawals.to_vec())
                                 })
                                 .transpose()
                                 .map_err(|e| {

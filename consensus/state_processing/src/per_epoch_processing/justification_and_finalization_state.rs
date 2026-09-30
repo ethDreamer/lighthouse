@@ -7,7 +7,7 @@ use types::{BeaconState, BeaconStateError, Checkpoint, Epoch, EthSpec, Hash256};
 /// A `JustificationAndFinalizationState` can be created from a `BeaconState` to compute
 /// justification/finality changes and then applied to a `BeaconState` to enshrine those changes.
 #[must_use = "this value must be applied to a state or explicitly dropped"]
-pub struct JustificationAndFinalizationState<E: EthSpec> {
+pub struct JustificationAndFinalizationState {
     /*
      * Immutable fields.
      */
@@ -24,8 +24,8 @@ pub struct JustificationAndFinalizationState<E: EthSpec> {
     justification_bits: BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>>,
 }
 
-impl<E: EthSpec> JustificationAndFinalizationState<E> {
-    pub fn new(state: &BeaconState<E>) -> Self {
+impl JustificationAndFinalizationState {
+    pub fn new(state: &BeaconState) -> Self {
         let previous_epoch = state.previous_epoch();
         let current_epoch = state.current_epoch();
         Self {
@@ -40,7 +40,7 @@ impl<E: EthSpec> JustificationAndFinalizationState<E> {
         }
     }
 
-    pub fn apply_changes_to_state(self, state: &mut BeaconState<E>) {
+    pub fn apply_changes_to_state(self, state: &mut BeaconState) {
         let Self {
             /*
              * Immutable fields do not need to be used.

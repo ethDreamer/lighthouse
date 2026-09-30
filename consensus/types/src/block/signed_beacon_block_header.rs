@@ -23,7 +23,7 @@ pub struct SignedBeaconBlockHeader {
 
 impl SignedBeaconBlockHeader {
     /// Verify that this block header was signed by `pubkey`.
-    pub fn verify_signature<E: EthSpec>(
+    pub fn verify_signature(
         &self,
         pubkey: &PublicKey,
         fork: &Fork,

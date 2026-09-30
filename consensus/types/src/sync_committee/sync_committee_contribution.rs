@@ -27,7 +27,7 @@ pub enum Error {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
-pub struct SyncCommitteeContribution<E: EthSpec> {
+pub struct SyncCommitteeContribution {
     pub slot: Slot,
     pub beacon_block_root: Hash256,
     #[serde(with = "serde_utils::quoted_u64")]
@@ -36,7 +36,7 @@ pub struct SyncCommitteeContribution<E: EthSpec> {
     pub signature: AggregateSignature,
 }
 
-impl<E: EthSpec> SyncCommitteeContribution<E> {
+impl SyncCommitteeContribution {
     /// Create a `SyncCommitteeContribution` from:
     ///
     /// - `message`: A single `SyncCommitteeMessage`.
@@ -85,7 +85,7 @@ pub struct SyncContributionData {
 }
 
 impl SyncContributionData {
-    pub fn from_contribution<E: EthSpec>(signing_data: &SyncCommitteeContribution<E>) -> Self {
+    pub fn from_contribution(signing_data: &SyncCommitteeContribution) -> Self {
         Self {
             slot: signing_data.slot,
             beacon_block_root: signing_data.beacon_block_root,
@@ -94,13 +94,13 @@ impl SyncContributionData {
     }
 }
 
-impl<E: EthSpec> SlotData for SyncCommitteeContribution<E> {
+impl SlotData for SyncCommitteeContribution {
     fn get_slot(&self) -> Slot {
         self.slot
     }
 }
 
-impl<E: EthSpec> SlotData for &SyncCommitteeContribution<E> {
+impl SlotData for &SyncCommitteeContribution {
     fn get_slot(&self) -> Slot {
         self.slot
     }
@@ -117,5 +117,5 @@ mod tests {
     use super::*;
     use crate::*;
 
-    ssz_and_tree_hash_tests!(SyncCommitteeContribution<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(SyncCommitteeContribution);
 }

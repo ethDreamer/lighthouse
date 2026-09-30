@@ -6,8 +6,8 @@ use types::{EthSpec, Hash256};
 /// 32-byte key for accessing the `DhtEnrs`. All zero because `DhtEnrs` has its own column.
 pub const DHT_DB_KEY: Hash256 = Hash256::ZERO;
 
-pub fn load_dht<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+pub fn load_dht<Hot: ItemStore, Cold: ItemStore>(
+    store: Arc<HotColdDB<Hot, Cold>>,
 ) -> Vec<Enr> {
     // Load DHT from store
     match store.get_item(&DHT_DB_KEY) {
@@ -20,16 +20,16 @@ pub fn load_dht<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
 }
 
 /// Attempt to persist the ENR's in the DHT to `self.store`.
-pub fn persist_dht<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+pub fn persist_dht<Hot: ItemStore, Cold: ItemStore>(
+    store: Arc<HotColdDB<Hot, Cold>>,
     enrs: Vec<Enr>,
 ) -> Result<(), store::Error> {
     store.put_item(&DHT_DB_KEY, &PersistedDht { enrs })
 }
 
 /// Attempts to clear any DHT entries.
-pub fn clear_dht<E: EthSpec, Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+pub fn clear_dht<Hot: ItemStore, Cold: ItemStore>(
+    store: Arc<HotColdDB<Hot, Cold>>,
 ) -> Result<(), store::Error> {
     store.hot_db.delete::<PersistedDht>(&DHT_DB_KEY)
 }
@@ -75,7 +75,7 @@ mod tests {
     use types::MinimalEthSpec;
     #[test]
     fn test_persisted_dht() {
-        let store: HotColdDB<MinimalEthSpec, MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(
+        let store: HotColdDB<MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(
             StoreConfig::default(),
             Spec::default_spec().into(),
         )

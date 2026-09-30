@@ -154,7 +154,7 @@ impl<S, T> Deref for AttestationService<S, T> {
     }
 }
 
-fn attestation_deadline<E: EthSpec>(
+fn attestation_deadline(
     slot_clock: &impl SlotClock,
     chain_spec: &ChainSpec,
     now: Duration,
@@ -165,7 +165,7 @@ fn attestation_deadline<E: EthSpec>(
     let duration_to_attestation_deadline = slot_clock
         .start_of(attestation_slot)
         .and_then(|slot_start| {
-            slot_start.checked_add(chain_spec.get_attestation_due::<E>(attestation_slot))
+            slot_start.checked_add(chain_spec.get_attestation_due(attestation_slot))
         })
         .and_then(|deadline| deadline.checked_sub(now));
     (attestation_slot, duration_to_attestation_deadline)
@@ -201,7 +201,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
                     continue;
                 };
                 let (attestation_slot, duration_to_attestation_deadline) =
-                    attestation_deadline::<S::E>(&self.slot_clock, &self.chain_spec, now);
+                    attestation_deadline(&self.slot_clock, &self.chain_spec, now);
                 let Some(duration_to_attestation_deadline) = duration_to_attestation_deadline
                 else {
                     error!(%attestation_slot, "Failed to determine attestation deadline");
@@ -313,7 +313,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
                 .duration_to_slot(slot + 1)
                 .and_then(|duration_to_next_slot| {
                     duration_to_next_slot
-                        .checked_add(self.chain_spec.get_attestation_due::<S::E>(slot))
+                        .checked_add(self.chain_spec.get_attestation_due(slot))
                 })
                 .map(|next_slot_deadline| {
                     next_slot_deadline.saturating_sub(self.chain_spec.get_slot_duration())
@@ -374,7 +374,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
             .ok_or("Unable to determine duration to next slot")?;
         let aggregate_production_instant = Instant::now()
             + duration_to_next_slot
-                .checked_add(self.chain_spec.get_aggregate_attestation_due::<S::E>(slot))
+                .checked_add(self.chain_spec.get_aggregate_attestation_due(slot))
                 .and_then(|offset| offset.checked_sub(self.chain_spec.get_slot_duration()))
                 .unwrap_or_else(|| Duration::from_secs(0));
 
@@ -526,7 +526,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
             let duty = &duty_and_proof.duty;
 
             // Ensure that the attestation matches the duties.
-            if !duty.match_attestation_data::<S::E>(&attestation_data, &self.chain_spec) {
+            if !duty.match_attestation_data(&attestation_data, &self.chain_spec) {
                 crit!(
                     validator = ?duty.pubkey,
                     duty_slot = %duty.slot,
@@ -556,7 +556,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
 
         let fork_name = self
             .chain_spec
-            .fork_name_at_slot::<S::E>(attestation_data.slot);
+            .fork_name_at_slot(attestation_data.slot);
 
         // Publish each batch as it arrives from the stream.
         let mut received_non_empty_batch = false;
@@ -582,7 +582,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
                             );
 
                             beacon_node
-                                .post_beacon_pool_attestations_v2::<S::E>(
+                                .post_beacon_pool_attestations_v2(
                                     single_attestations.clone(),
                                     fork_name,
                                 )
@@ -653,7 +653,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
 
         let fork_name = self
             .chain_spec
-            .fork_name_at_slot::<S::E>(attestation_data.slot);
+            .fork_name_at_slot(attestation_data.slot);
 
         let aggregated_attestation = &self
             .beacon_nodes
@@ -700,7 +700,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
                 let duty = &duty_and_proof.duty;
                 let selection_proof = duty_and_proof.selection_proof.as_ref()?;
 
-                if !duty.match_attestation_data::<S::E>(attestation_data, &self.chain_spec) {
+                if !duty.match_attestation_data(attestation_data, &self.chain_spec) {
                     crit!("Inconsistent validator duties during signing");
                     return None;
                 }
@@ -867,7 +867,7 @@ mod tests {
 
         for (case, now, expected_slot, expected_duration) in test_cases {
             assert_eq!(
-                attestation_deadline::<E>(&slot_clock, &spec, now),
+                attestation_deadline(&slot_clock, &spec, now),
                 (expected_slot, Some(expected_duration)),
                 "{case}"
             );

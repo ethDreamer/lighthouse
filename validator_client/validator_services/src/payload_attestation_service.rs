@@ -232,7 +232,7 @@ where
 
         if !self
             .chain_spec
-            .fork_name_at_slot::<S::E>(attestation_slot)
+            .fork_name_at_slot(attestation_slot)
             .gloas_enabled()
         {
             let sleep_duration = self
@@ -410,7 +410,7 @@ where
         }
 
         let count = messages.len();
-        let fork_name = self.chain_spec.fork_name_at_slot::<S::E>(slot);
+        let fork_name = self.chain_spec.fork_name_at_slot(slot);
         let result = self
             .beacon_nodes
             .first_success(|beacon_node| {

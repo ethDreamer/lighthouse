@@ -14,10 +14,10 @@ use types::{
 ///
 /// Return `(block_hash, transactions_root)`, where `transactions_root` is the root of the RLP
 /// transactions.
-pub fn calculate_execution_block_hash<E: EthSpec>(
-    payload: ExecutionPayloadRef<E>,
+pub fn calculate_execution_block_hash(
+    payload: ExecutionPayloadRef,
     parent_beacon_block_root: Option<Hash256>,
-    execution_requests: Option<ExecutionRequestsRef<E>>,
+    execution_requests: Option<ExecutionRequestsRef>,
 ) -> (ExecutionBlockHash, Hash256) {
     // Calculate the transactions root.
     // We're currently using a deprecated Parity library for this. We should move to a

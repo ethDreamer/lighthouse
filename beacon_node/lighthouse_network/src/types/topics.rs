@@ -46,7 +46,7 @@ pub struct TopicConfig {
 }
 
 /// Returns all the topics the node should subscribe at `fork_name`
-pub fn core_topics_to_subscribe<E: EthSpec>(
+pub fn core_topics_to_subscribe(
     fork_name: ForkName,
     opts: &TopicConfig,
     spec: &ChainSpec,
@@ -137,7 +137,7 @@ pub fn is_fork_non_core_topic(topic: &GossipTopic, _fork_name: ForkName) -> bool
     }
 }
 
-pub fn all_topics_at_fork<E: EthSpec>(fork: ForkName, spec: &ChainSpec) -> Vec<GossipKind> {
+pub fn all_topics_at_fork(fork: ForkName, spec: &ChainSpec) -> Vec<GossipKind> {
     // Compute the worst case of all forks
     let sampling_subnets = HashSet::from_iter(all_data_column_sidecar_subnets_from_spec(spec));
     let opts = TopicConfig {
@@ -146,7 +146,7 @@ pub fn all_topics_at_fork<E: EthSpec>(fork: ForkName, spec: &ChainSpec) -> Vec<G
         subscribe_all_subnets: true,
         sampling_subnets,
     };
-    core_topics_to_subscribe::<E>(fork, &opts, spec)
+    core_topics_to_subscribe(fork, &opts, spec)
 }
 
 /// A gossipsub topic which encapsulates the type of messages that should be sent and received over
@@ -574,7 +574,7 @@ mod tests {
         let topic_config = get_topic_config(&s);
         for fork in ForkName::list_all() {
             assert!(
-                core_topics_to_subscribe::<E>(fork, &topic_config, &spec,)
+                core_topics_to_subscribe(fork, &topic_config, &spec,)
                     .contains(&GossipKind::BeaconBlock)
             );
         }
@@ -586,7 +586,7 @@ mod tests {
         let s = HashSet::from_iter([0.into()]);
         let topic_config = get_topic_config(&s);
         assert!(
-            core_topics_to_subscribe::<E>(ForkName::Fulu, &topic_config, &spec)
+            core_topics_to_subscribe(ForkName::Fulu, &topic_config, &spec)
                 .contains(&GossipKind::DataColumnSidecar(0.into()))
         );
     }
@@ -598,7 +598,7 @@ mod tests {
         let mut topic_config = get_topic_config(&s);
         topic_config.enable_light_client_server = true;
         let latest_fork = *ForkName::list_all().last().unwrap();
-        let topics = core_topics_to_subscribe::<E>(latest_fork, &topic_config, &spec);
+        let topics = core_topics_to_subscribe(latest_fork, &topic_config, &spec);
 
         let mut expected_topics = vec![
             GossipKind::BeaconBlock,

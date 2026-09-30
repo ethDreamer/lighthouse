@@ -16,7 +16,7 @@ pub const MAX_VALIDATOR_COUNT: usize = 160;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| generate_deterministic_keypairs(MAX_VALIDATOR_COUNT));
 
-fn get_harness<E: EthSpec>(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
@@ -40,7 +40,7 @@ fn default_values() {
     assert!(cache.get_beacon_committees_at_slot(Slot::new(0)).is_err());
 }
 
-async fn new_state<E: EthSpec>(validator_count: usize, slot: Slot) -> BeaconState<E> {
+async fn new_state(validator_count: usize, slot: Slot) -> BeaconState {
     let harness = get_harness(validator_count);
     let head_state = harness.get_current_state();
     if slot > Slot::new(0) {
@@ -61,12 +61,12 @@ async fn new_state<E: EthSpec>(validator_count: usize, slot: Slot) -> BeaconStat
 #[tokio::test]
 #[should_panic]
 async fn fails_without_validators() {
-    new_state::<MinimalEthSpec>(0, Slot::new(0)).await;
+    new_state(0, Slot::new(0)).await;
 }
 
 #[tokio::test]
 async fn initializes_with_the_right_epoch() {
-    let state = new_state::<MinimalEthSpec>(16, Slot::new(0)).await;
+    let state = new_state(16, Slot::new(0)).await;
     let spec = &Spec::default_spec();
 
     let cache = CommitteeCache::default();
@@ -88,7 +88,7 @@ async fn shuffles_for_the_right_epoch() {
     let epoch = Epoch::new(6);
     let slot = epoch.start_slot(Spec::slots_per_epoch());
 
-    let mut state = new_state::<MinimalEthSpec>(num_validators, slot).await;
+    let mut state = new_state(num_validators, slot).await;
     let spec = &Spec::default_spec();
 
     assert_eq!(state.current_epoch(), epoch);
@@ -153,7 +153,7 @@ async fn min_randao_epoch_correct() {
     let num_validators = Spec::minimum_validator_count() * 2;
     let current_epoch = Epoch::new(Spec::epochs_per_historical_vector() * 2);
 
-    let mut state = new_state::<MinimalEthSpec>(
+    let mut state = new_state(
         num_validators,
         Epoch::new(1).start_slot(Spec::slots_per_epoch()),
     )
@@ -173,7 +173,7 @@ async fn min_randao_epoch_correct() {
 /// 16 validators gives ~2 members per slot, so the committee wraps.
 #[tokio::test]
 async fn inclusion_list_committee_wraps_around_small_committees() {
-    let mut state = new_state::<MinimalEthSpec>(16, Slot::new(0)).await;
+    let mut state = new_state(16, Slot::new(0)).await;
     let spec = &Spec::default_spec();
     state.build_all_committee_caches(spec).unwrap();
 
@@ -205,7 +205,7 @@ async fn inclusion_list_committee_wraps_around_small_committees() {
 /// Inclusion list duties are looked up an epoch ahead, so the next epoch must resolve.
 #[tokio::test]
 async fn inclusion_list_committee_resolves_for_the_next_epoch() {
-    let mut state = new_state::<MinimalEthSpec>(160, Slot::new(0)).await;
+    let mut state = new_state(160, Slot::new(0)).await;
     let spec = &Spec::default_spec();
     state.build_all_committee_caches(spec).unwrap();
 
@@ -232,7 +232,7 @@ async fn inclusion_list_committee_resolves_for_the_next_epoch() {
 /// 160 validators gives ~20 members per slot, so the committee truncates to the first 16.
 #[tokio::test]
 async fn inclusion_list_committee_truncates_large_committees() {
-    let mut state = new_state::<MinimalEthSpec>(160, Slot::new(0)).await;
+    let mut state = new_state(160, Slot::new(0)).await;
     let spec = &Spec::default_spec();
     state.build_all_committee_caches(spec).unwrap();
 

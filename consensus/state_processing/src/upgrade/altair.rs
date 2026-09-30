@@ -11,9 +11,9 @@ use types::{
 };
 
 /// Translate the participation information from the epoch prior to the fork into Altair's format.
-pub fn translate_participation<E: EthSpec>(
-    state: &mut BeaconState<E>,
-    pending_attestations: &List<PendingAttestation<E>, typenum::U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
+pub fn translate_participation(
+    state: &mut BeaconState,
+    pending_attestations: &List<PendingAttestation, typenum::U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     // Previous epoch committee cache is required for `get_attesting_indices`.
@@ -30,7 +30,7 @@ pub fn translate_participation<E: EthSpec>(
         // Apply flags to all attesting validators.
         let committee = state.get_beacon_committee(data.slot, data.index)?;
         let attesting_indices =
-            get_attesting_indices::<E>(committee.committee, &attestation.aggregation_bits)?;
+            get_attesting_indices(committee.committee, &attestation.aggregation_bits)?;
         let mut epoch_participation = state.previous_epoch_participation_mut()?;
 
         for index in attesting_indices {
@@ -46,8 +46,8 @@ pub fn translate_participation<E: EthSpec>(
 }
 
 /// Transform a `Base` state into an `Altair` state.
-pub fn upgrade_to_altair<E: EthSpec>(
-    pre_state: &mut BeaconState<E>,
+pub fn upgrade_to_altair(
+    pre_state: &mut BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();

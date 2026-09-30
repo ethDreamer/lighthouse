@@ -36,7 +36,7 @@ async fn attestation_simulator_service<T: BeaconChainTypes>(
         match chain.slot_clock.now_duration() {
             Some(now_duration) => {
                 let (attestation_slot, Some(time_to_deadline)) =
-                    time_until_attestation_deadline::<T::EthSpec>(
+                    time_until_attestation_deadline(
                         &chain.slot_clock,
                         &chain.spec,
                         now_duration,
@@ -72,7 +72,7 @@ async fn attestation_simulator_service<T: BeaconChainTypes>(
     }
 }
 
-fn time_until_attestation_deadline<E: EthSpec>(
+fn time_until_attestation_deadline(
     slot_clock: &impl SlotClock,
     chain_spec: &ChainSpec,
     now: Duration,
@@ -83,7 +83,7 @@ fn time_until_attestation_deadline<E: EthSpec>(
     let duration_to_attestation_deadline = slot_clock
         .start_of(attestation_slot)
         .and_then(|slot_start| {
-            slot_start.checked_add(chain_spec.get_attestation_due::<E>(attestation_slot))
+            slot_start.checked_add(chain_spec.get_attestation_due(attestation_slot))
         })
         .and_then(|deadline| deadline.checked_sub(now));
     (attestation_slot, duration_to_attestation_deadline)

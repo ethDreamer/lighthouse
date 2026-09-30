@@ -23,7 +23,7 @@ use warp_utils::query::multi_key_query;
 
 type BeaconStatesPath<T> = BoxedFilter<(
     StateId,
-    TaskSpawner<<T as BeaconChainTypes>::EthSpec>,
+    TaskSpawner,
     Arc<BeaconChain<T>>,
 )>;
 
@@ -39,7 +39,7 @@ pub fn get_beacon_state_pending_consolidations<T: BeaconChainTypes>(
         .and(warp::header::optional::<api_types::Accept>("accept"))
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              accept_header: Option<api_types::Accept>| {
                 task_spawner.blocking_response_task(Priority::P1, move || {
@@ -99,7 +99,7 @@ pub fn get_beacon_state_pending_partial_withdrawals<T: BeaconChainTypes>(
         .and(warp::header::optional::<api_types::Accept>("accept"))
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              accept_header: Option<api_types::Accept>| {
                 task_spawner.blocking_response_task(Priority::P1, move || {
@@ -159,7 +159,7 @@ pub fn get_beacon_state_pending_deposits<T: BeaconChainTypes>(
         .and(warp::header::optional::<api_types::Accept>("accept"))
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              accept_header: Option<api_types::Accept>| {
                 task_spawner.blocking_response_task(Priority::P1, move || {
@@ -218,7 +218,7 @@ pub fn get_beacon_state_proposer_lookahead<T: BeaconChainTypes>(
         .and(warp::header::optional::<api_types::Accept>("accept"))
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              accept_header: Option<api_types::Accept>| {
                 task_spawner.blocking_response_task(Priority::P1, move || {
@@ -279,7 +279,7 @@ pub fn get_beacon_state_randao<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: eth2::types::RandaoQuery| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
@@ -318,7 +318,7 @@ pub fn get_beacon_state_sync_committees<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: eth2::types::SyncCommitteesQuery| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
@@ -391,7 +391,7 @@ pub fn get_beacon_state_committees<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: eth2::types::CommitteesQuery,
              historical_committee_cache: Arc<HistoricalCommitteeCache>| {
@@ -556,7 +556,7 @@ pub fn get_beacon_state_validators_id<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              validator_id: ValidatorId| {
                 // Prioritise requests for validators at the head. These should be fast to service
@@ -637,7 +637,7 @@ pub fn post_beacon_state_validators<T: BeaconChainTypes>(
         .and(warp_utils::json::json())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: ValidatorsRequestBody| {
                 // Prioritise requests for validators at the head. These should be fast to service
@@ -671,7 +671,7 @@ pub fn post_beacon_state_builders<T: BeaconChainTypes>(
         .and(warp_utils::json::json_no_body())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: BuildersRequestBody| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
@@ -698,7 +698,7 @@ pub fn get_beacon_state_validators<T: BeaconChainTypes>(
         .and(multi_key_query::<eth2::types::ValidatorsQuery>())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query_res: Result<eth2::types::ValidatorsQuery, warp::Rejection>| {
                 // Prioritise requests for validators at the head. These should be fast to service
@@ -734,7 +734,7 @@ pub fn post_beacon_state_validator_identities<T: BeaconChainTypes>(
         .and(warp::header::optional::<api_types::Accept>("accept"))
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: ValidatorIdentitiesRequestBody,
              accept_header: Option<api_types::Accept>| {
@@ -781,7 +781,7 @@ pub fn post_beacon_state_validator_balances<T: BeaconChainTypes>(
         .and(warp_utils::json::json_no_body())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query: ValidatorBalancesRequestBody| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
@@ -807,7 +807,7 @@ pub fn get_beacon_state_validator_balances<T: BeaconChainTypes>(
         .and(multi_key_query::<eth2::types::ValidatorBalancesQuery>())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>,
              query_res: Result<eth2::types::ValidatorBalancesQuery, warp::Rejection>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
@@ -833,7 +833,7 @@ pub fn get_beacon_state_finality_checkpoints<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (data, execution_optimistic, finalized) = state_id
@@ -873,7 +873,7 @@ pub fn get_beacon_state_fork<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (fork, execution_optimistic, finalized) =
@@ -898,7 +898,7 @@ pub fn get_beacon_state_root<T: BeaconChainTypes>(
         .and(warp::path::end())
         .then(
             |state_id: StateId,
-             task_spawner: TaskSpawner<T::EthSpec>,
+             task_spawner: TaskSpawner,
              chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (root, execution_optimistic, finalized) = state_id.root(&chain)?;

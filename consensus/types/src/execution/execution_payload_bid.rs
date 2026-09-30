@@ -20,7 +20,7 @@ use tree_hash_derive::TreeHash;
     struct_behaviour = "progressive_container",
     active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
 )]
-pub struct ExecutionPayloadBid<E: EthSpec> {
+pub struct ExecutionPayloadBid {
     pub parent_block_hash: ExecutionBlockHash,
     pub parent_block_root: Hash256,
     pub block_hash: ExecutionBlockHash,
@@ -37,16 +37,16 @@ pub struct ExecutionPayloadBid<E: EthSpec> {
     #[serde(with = "serde_utils::quoted_u64")]
     pub execution_payment: u64,
     // [Modified in Gloas:EIP7688]
-    pub blob_kzg_commitments: ProgressiveKzgCommitments<E>,
+    pub blob_kzg_commitments: ProgressiveKzgCommitments,
     pub execution_requests_root: Hash256,
 }
 
-impl<E: EthSpec> SignedRoot for ExecutionPayloadBid<E> {}
+impl SignedRoot for ExecutionPayloadBid {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(ExecutionPayloadBid<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(ExecutionPayloadBid);
 }

@@ -58,8 +58,8 @@ impl From<BeaconStateError> for Error {
 }
 
 /// Helper function to get a validator public key from a `state`.
-pub fn get_pubkey_from_state<E>(
-    state: &BeaconState<E>,
+pub fn get_pubkey_from_state(
+    state: &BeaconState,
     validator_index: usize,
 ) -> Option<Cow<'_, PublicKey>>
 
@@ -75,8 +75,8 @@ pub fn get_pubkey_from_state<E>(
 }
 
 /// Helper function to get a builder public key from a `state`.
-pub fn get_builder_pubkey_from_state<E>(
-    state: &BeaconState<E>,
+pub fn get_builder_pubkey_from_state(
+    state: &BeaconState,
     builder_index: BuilderIndex,
 ) -> Option<Cow<'_, PublicKey>>
 
@@ -93,10 +93,10 @@ pub fn get_builder_pubkey_from_state<E>(
 }
 
 /// A signature set that is valid if a block was signed by the expected block producer.
-pub fn block_proposal_signature_set<'a, E, F, Payload: AbstractExecPayload<E>>(
-    state: &'a BeaconState<E>,
+pub fn block_proposal_signature_set<'a, F, Payload: AbstractExecPayload>(
+    state: &'a BeaconState,
     get_pubkey: F,
-    signed_block: &'a SignedBeaconBlock<E, Payload>,
+    signed_block: &'a SignedBeaconBlock<Payload>,
     block_root: Option<Hash256>,
     verified_proposer_index: Option<u64>,
     spec: &'a ChainSpec,
@@ -134,8 +134,8 @@ where
 /// Unlike `block_proposal_signature_set` this does **not** check that the proposer index is
 /// correct according to the shuffling. It should only be used if no suitable `BeaconState` is
 /// available.
-pub fn block_proposal_signature_set_from_parts<'a, E, F, Payload: AbstractExecPayload<E>>(
-    signed_block: &'a SignedBeaconBlock<E, Payload>,
+pub fn block_proposal_signature_set_from_parts<'a, F, Payload: AbstractExecPayload>(
+    signed_block: &'a SignedBeaconBlock<Payload>,
     block_root: Option<Hash256>,
     proposer_index: u64,
     fork: &Fork,
@@ -176,8 +176,8 @@ where
     ))
 }
 
-pub fn bls_execution_change_signature_set<'a, E: EthSpec>(
-    state: &'a BeaconState<E>,
+pub fn bls_execution_change_signature_set<'a>(
+    state: &'a BeaconState,
     signed_address_change: &'a SignedBlsToExecutionChange,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>> {
@@ -203,10 +203,10 @@ pub fn bls_execution_change_signature_set<'a, E: EthSpec>(
 }
 
 /// A signature set that is valid if the block proposers randao reveal signature is correct.
-pub fn randao_signature_set<'a, E, F, Payload: AbstractExecPayload<E>>(
-    state: &'a BeaconState<E>,
+pub fn randao_signature_set<'a, F, Payload: AbstractExecPayload>(
+    state: &'a BeaconState,
     get_pubkey: F,
-    block: BeaconBlockRef<'a, E, Payload>,
+    block: BeaconBlockRef<'a, Payload>,
     verified_proposer_index: Option<u64>,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
@@ -239,8 +239,8 @@ where
 }
 
 /// Returns two signature sets, one for each `BlockHeader` included in the `ProposerSlashing`.
-pub fn proposer_slashing_signature_set<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn proposer_slashing_signature_set<'a, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     proposer_slashing: &'a ProposerSlashing,
     spec: &'a ChainSpec,
@@ -267,8 +267,8 @@ where
 }
 
 /// Returns a signature set that is valid if the given `pubkey` signed the `header`.
-fn block_header_signature_set<'a, E: EthSpec>(
-    state: &'a BeaconState<E>,
+fn block_header_signature_set<'a>(
+    state: &'a BeaconState,
     signed_header: &'a SignedBeaconBlockHeader,
     pubkey: Cow<'a, PublicKey>,
     spec: &'a ChainSpec,
@@ -286,11 +286,11 @@ fn block_header_signature_set<'a, E: EthSpec>(
 }
 
 /// Returns the signature set for the given `indexed_attestation`.
-pub fn indexed_attestation_signature_set<'a, 'b, E, F>(
-    state: &'a BeaconState<E>,
+pub fn indexed_attestation_signature_set<'a, 'b, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     signature: &'a AggregateSignature,
-    indexed_attestation: IndexedAttestationRef<'b, E>,
+    indexed_attestation: IndexedAttestationRef<'b>,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
@@ -317,10 +317,10 @@ where
 
 /// Returns the signature set for the given `indexed_attestation` but pubkeys are supplied directly
 /// instead of from the state.
-pub fn indexed_attestation_signature_set_from_pubkeys<'a, 'b, E, F>(
+pub fn indexed_attestation_signature_set_from_pubkeys<'a, 'b, F>(
     get_pubkey: F,
     signature: &'a AggregateSignature,
-    indexed_attestation: &'b IndexedAttestation<E>,
+    indexed_attestation: &'b IndexedAttestation,
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
@@ -347,11 +347,11 @@ where
     Ok(SignatureSet::multiple_pubkeys(signature, pubkeys, message))
 }
 
-pub fn indexed_payload_attestation_signature_set<'a, 'b, E, F>(
-    state: &'a BeaconState<E>,
+pub fn indexed_payload_attestation_signature_set<'a, 'b, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     signature: &'a AggregateSignature,
-    indexed_payload_attestation: &'b IndexedPayloadAttestation<E>,
+    indexed_payload_attestation: &'b IndexedPayloadAttestation,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
@@ -366,10 +366,10 @@ where
     )
 }
 
-pub fn indexed_payload_attestation_signature_set_from_pubkeys<'a, 'b, E, F>(
+pub fn indexed_payload_attestation_signature_set_from_pubkeys<'a, 'b, F>(
     get_pubkey: F,
     signature: &'a AggregateSignature,
-    indexed_payload_attestation: &'b IndexedPayloadAttestation<E>,
+    indexed_payload_attestation: &'b IndexedPayloadAttestation,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
@@ -395,8 +395,8 @@ where
     Ok(SignatureSet::multiple_pubkeys(signature, pubkeys, message))
 }
 
-pub fn proposer_preferences_signature_set<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn proposer_preferences_signature_set<'a, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     signed_proposer_preferences: &'a SignedProposerPreferences,
     spec: &'a ChainSpec,
@@ -425,10 +425,10 @@ where
     ))
 }
 
-pub fn execution_payload_bid_signature_set<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn execution_payload_bid_signature_set<'a, F>(
+    state: &'a BeaconState,
     get_builder_pubkey: F,
-    signed_execution_payload_bid: &'a SignedExecutionPayloadBid<E>,
+    signed_execution_payload_bid: &'a SignedExecutionPayloadBid,
     spec: &'a ChainSpec,
 ) -> Result<Option<SignatureSet<'a>>>
 where
@@ -469,8 +469,8 @@ where
 /// committee member at `message.validator_index` ([New in Heze:EIP7805]).
 ///
 /// The domain is computed at the inclusion list's own slot epoch, not the state's current epoch.
-pub fn inclusion_list_signature_set<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn inclusion_list_signature_set<'a, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     signed_inclusion_list: &'a SignedInclusionList,
     spec: &'a ChainSpec,
@@ -500,10 +500,10 @@ where
 }
 
 /// Returns the signature set for the given `attester_slashing` and corresponding `pubkeys`.
-pub fn attester_slashing_signature_sets<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn attester_slashing_signature_sets<'a, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
-    attester_slashing: AttesterSlashingRef<'a, E>,
+    attester_slashing: AttesterSlashingRef<'a>,
     spec: &'a ChainSpec,
 ) -> Result<(SignatureSet<'a>, SignatureSet<'a>)>
 where
@@ -544,8 +544,8 @@ pub fn deposit_pubkey_signature_message(
 ///
 /// It is invalid for voluntary exits to be signed by builders. Builder exits are made via execution
 /// requests per EIP-8282.
-pub fn exit_signature_set<'a, E, F>(
-    state: &'a BeaconState<E>,
+pub fn exit_signature_set<'a, F>(
+    state: &'a BeaconState,
     get_pubkey: F,
     signed_exit: &'a SignedVoluntaryExit,
     spec: &'a ChainSpec,
@@ -584,9 +584,9 @@ where
     ))
 }
 
-pub fn signed_aggregate_selection_proof_signature_set<'a, E, F>(
+pub fn signed_aggregate_selection_proof_signature_set<'a, F>(
     get_pubkey: F,
-    signed_aggregate_and_proof: &'a SignedAggregateAndProof<E>,
+    signed_aggregate_and_proof: &'a SignedAggregateAndProof,
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
@@ -612,9 +612,9 @@ where
     ))
 }
 
-pub fn signed_aggregate_signature_set<'a, E, F>(
+pub fn signed_aggregate_signature_set<'a, F>(
     get_pubkey: F,
-    signed_aggregate_and_proof: &'a SignedAggregateAndProof<E>,
+    signed_aggregate_and_proof: &'a SignedAggregateAndProof,
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
@@ -646,9 +646,9 @@ where
     ))
 }
 
-pub fn signed_sync_aggregate_selection_proof_signature_set<'a, E, F>(
+pub fn signed_sync_aggregate_selection_proof_signature_set<'a, F>(
     get_pubkey: F,
-    signed_contribution_and_proof: &'a SignedContributionAndProof<E>,
+    signed_contribution_and_proof: &'a SignedContributionAndProof,
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
@@ -682,9 +682,9 @@ where
     ))
 }
 
-pub fn signed_sync_aggregate_signature_set<'a, E, F>(
+pub fn signed_sync_aggregate_signature_set<'a, F>(
     get_pubkey: F,
-    signed_contribution_and_proof: &'a SignedContributionAndProof<E>,
+    signed_contribution_and_proof: &'a SignedContributionAndProof,
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
@@ -716,7 +716,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn sync_committee_contribution_signature_set_from_pubkeys<'a, E, F>(
+pub fn sync_committee_contribution_signature_set_from_pubkeys<'a, F>(
     get_pubkey: F,
     pubkey_bytes: &[PublicKeyBytes],
     signature: &'a AggregateSignature,
@@ -741,7 +741,7 @@ where
     Ok(SignatureSet::multiple_pubkeys(signature, pubkeys, message))
 }
 
-pub fn sync_committee_message_set_from_pubkeys<'a, E>(
+pub fn sync_committee_message_set_from_pubkeys<'a>(
     pubkey: Cow<'a, PublicKey>,
     signature: &'a AggregateSignature,
     epoch: Epoch,
@@ -770,12 +770,12 @@ pub fn sync_committee_message_set_from_pubkeys<'a, E>(
 /// uses a separate function `eth2_fast_aggregate_verify` for this, but we can equivalently
 /// check the exceptional case eagerly and do a `fast_aggregate_verify` in the case where the
 /// check fails (by returning `Some(signature_set)`).
-pub fn sync_aggregate_signature_set<'a, E, D>(
+pub fn sync_aggregate_signature_set<'a, D>(
     decompressor: D,
-    sync_aggregate: &'a SyncAggregate<E>,
+    sync_aggregate: &'a SyncAggregate,
     slot: Slot,
     block_root: Hash256,
-    state: &'a BeaconState<E>,
+    state: &'a BeaconState,
     spec: &ChainSpec,
 ) -> Result<Option<SignatureSet<'a>>>
 where
@@ -838,7 +838,7 @@ mod inclusion_list_signature_tests {
 
     const VALIDATOR_COUNT: usize = 16;
 
-    fn harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
+    fn harness() -> BeaconChainHarness<EphemeralHarnessType> {
         BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(VALIDATOR_COUNT)

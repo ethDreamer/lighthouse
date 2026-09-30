@@ -42,7 +42,7 @@ pub const ENGINE_CAPABILITIES_REFRESH_INTERVAL: u64 = 300;
 pub fn spawn_notifier<T: BeaconChainTypes>(
     executor: task_executor::TaskExecutor,
     beacon_chain: Arc<BeaconChain<T>>,
-    network: Arc<NetworkGlobals<T::EthSpec>>,
+    network: Arc<NetworkGlobals>,
     slot_duration: Duration,
 ) -> Result<(), String> {
     let speedo = Mutex::new(Speedo::default());

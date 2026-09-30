@@ -76,27 +76,27 @@ const LOOKUP_MAX_DURATION_NO_PEERS_SECS: u64 = 10;
 /// take at most 2 GB. 200 lookups allow 3 parallel chains of depth 64 (current maximum).
 const MAX_LOOKUPS: usize = 200;
 
-type BlockDownloadResponse<E> = Result<DownloadResult<Arc<SignedBeaconBlock<E>>>, RpcResponseError>;
-type CustodyDownloadResponse<E> =
-    Result<DownloadResult<DataColumnSidecarList<E>>, RpcResponseError>;
-type PayloadDownloadResponse<E> =
-    Result<DownloadResult<Arc<SignedExecutionPayloadEnvelope<E>>>, RpcResponseError>;
+type BlockDownloadResponse = Result<DownloadResult<Arc<SignedBeaconBlock>>, RpcResponseError>;
+type CustodyDownloadResponse =
+    Result<DownloadResult<DataColumnSidecarList>, RpcResponseError>;
+type PayloadDownloadResponse =
+    Result<DownloadResult<Arc<SignedExecutionPayloadEnvelope>>, RpcResponseError>;
 
-pub enum BlockComponent<E: EthSpec> {
-    Block(DownloadResult<Arc<SignedBeaconBlock<E>>>),
+pub enum BlockComponent {
+    Block(DownloadResult<Arc<SignedBeaconBlock>>),
     Sidecar,
 }
 
 pub type SingleLookupId = u32;
 
-pub struct BlockLookups<T: BeaconChainTypes> {
+pub struct BlockLookups {
     /// A cache of block roots that must be ignored for some time to prevent useless searches. For
     /// example if a chain is too long, its lookup chain is dropped, and range sync is expected to
     /// eventually sync those blocks
     ignored_chains: LRUTimeCache<Hash256>,
 
     // TODO: Why not index lookups by block_root?
-    single_block_lookups: FnvHashMap<SingleLookupId, SingleBlockLookup<T>>,
+    single_block_lookups: FnvHashMap<SingleLookupId, SingleBlockLookup>,
 
     /// Used for testing assertions
     metrics: BlockLookupsMetrics,
@@ -118,7 +118,7 @@ pub(crate) struct BlockLookupSummary {
     pub is_awaiting_event: bool,
 }
 
-impl<T: BeaconChainTypes> BlockLookups<T> {
+impl BlockLookups {
     pub fn new() -> Self {
         Self {
             ignored_chains: LRUTimeCache::new(Duration::from_secs(
@@ -175,10 +175,10 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_child_and_parent(
+    pub fn search_child_and_parent<T: BeaconChainTypes>(
         &mut self,
         block_root: Hash256,
-        block_component: BlockComponent<T::EthSpec>,
+        block_component: BlockComponent,
         parent_root: Hash256,
         parent_block_hash: Option<ExecutionBlockHash>,
         peer_id: PeerId,
@@ -214,7 +214,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_unknown_block(
+    pub fn search_unknown_block<T: BeaconChainTypes>(
         &mut self,
         block_root: Hash256,
         peer_source: &[PeerId],
@@ -229,7 +229,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_payload_envelope(
+    pub fn search_payload_envelope<T: BeaconChainTypes>(
         &mut self,
         block_root: Hash256,
         bid_block_hash: ExecutionBlockHash,
@@ -253,7 +253,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_parent_of_child(
+    pub fn search_parent_of_child<T: BeaconChainTypes>(
         &mut self,
         block_root_to_search: Hash256,
         peer_type: &PeerType,
@@ -356,10 +356,10 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     /// constructed.
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    fn new_current_lookup(
+    fn new_current_lookup<T: BeaconChainTypes>(
         &mut self,
         block_root: Hash256,
-        block_component: Option<BlockComponent<T::EthSpec>>,
+        block_component: Option<BlockComponent>,
         awaiting_parent: Option<AwaitingParent>,
         peers: &[PeerId],
         peer_type: &PeerType,
@@ -453,11 +453,11 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     /* Lookup responses */
 
     /// Process a block response received from a single lookup request.
-    pub fn on_block_download_response(
+    pub fn on_block_download_response<T: BeaconChainTypes>(
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
-        response: BlockDownloadResponse<T::EthSpec>,
+        response: BlockDownloadResponse,
         cx: &mut SyncNetworkContext<T>,
     ) {
         let Some(lookup) = self.single_block_lookups.get_mut(&id.lookup_id) else {
@@ -468,10 +468,10 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
         self.on_lookup_result(id.lookup_id, result, "block_download_response", cx);
     }
 
-    pub fn on_custody_download_response(
+    pub fn on_custody_download_response<T: BeaconChainTypes>(
         &mut self,
         id: SingleLookupReqId,
-        response: CustodyDownloadResponse<T::EthSpec>,
+        response: CustodyDownloadResponse,
         cx: &mut SyncNetworkContext<T>,
     ) {
         let Some(lookup) = self.single_block_lookups.get_mut(&id.lookup_id) else {
@@ -482,11 +482,11 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
         self.on_lookup_result(id.lookup_id, result, "custody_download_response", cx);
     }
 
-    pub fn on_payload_download_response(
+    pub fn on_payload_download_response<T: BeaconChainTypes>(
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
-        response: PayloadDownloadResponse<T::EthSpec>,
+        response: PayloadDownloadResponse,
         cx: &mut SyncNetworkContext<T>,
     ) {
         let Some(lookup) = self.single_block_lookups.get_mut(&id.lookup_id) else {
@@ -513,7 +513,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
 
     /* Processing responses */
 
-    pub fn on_processing_result(
+    pub fn on_processing_result<T: BeaconChainTypes>(
         &mut self,
         process_type: BlockProcessType,
         result: BlockProcessingResult,
@@ -577,7 +577,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     }
 
     /// Makes progress on the immediate children of `block_root`
-    pub fn continue_child_lookups(
+    pub fn continue_child_lookups<T: BeaconChainTypes>(
         &mut self,
         parent_root: Hash256,
         imported_parent: ImportedParent,
@@ -634,7 +634,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
 
     /// Common handler a lookup request error, drop it and update metrics
     /// Returns true if the lookup is created or already exists
-    fn on_lookup_result(
+    fn on_lookup_result<T: BeaconChainTypes>(
         &mut self,
         id: SingleLookupId,
         result: Result<LookupResult, LookupRequestError>,
@@ -809,8 +809,8 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     /// Recursively find the oldest ancestor lookup of another lookup
     fn find_oldest_ancestor_lookup<'a>(
         &'a self,
-        lookup: &'a SingleBlockLookup<T>,
-    ) -> Result<&'a SingleBlockLookup<T>, String> {
+        lookup: &'a SingleBlockLookup,
+    ) -> Result<&'a SingleBlockLookup, String> {
         if let Some(awaiting_parent) = lookup.awaiting_parent() {
             if let Some(lookup) = self
                 .single_block_lookups
@@ -832,7 +832,7 @@ impl<T: BeaconChainTypes> BlockLookups<T> {
     ///
     /// Note: Takes a `lookup_id` as argument to allow recursion on mutable lookups, without having
     /// to duplicate the code to add peers to a lookup
-    fn add_peers_to_lookup_and_ancestors(
+    fn add_peers_to_lookup_and_ancestors<T: BeaconChainTypes>(
         &mut self,
         lookup_id: SingleLookupId,
         peers: &[PeerId],

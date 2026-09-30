@@ -17,7 +17,7 @@ fn check_over_limit<T: Clone + Encode + Decode + 'static, N: Unsigned>(
     assert!(ProgressiveVariableList::<T, N>::new(values).is_err());
 }
 
-fn check_limits<E: EthSpec>() {
+fn check_limits() {
     // Exercise the enclosing wire containers, including nested variable-length lists.
     macro_rules! check {
         ($container:expr, $($field:ident).+, $limit:ty) => {{
@@ -33,7 +33,7 @@ fn check_limits<E: EthSpec>() {
     }
 
     let spec = ForkName::Gloas.make_genesis_spec(Spec::default_spec());
-    let block = BeaconBlockGloas::<E>::empty(&spec);
+    let block = BeaconBlockGloas::<FullPayload>::empty(&spec);
     check!(block, body.proposer_slashings, Spec::MAX_PROPOSER_SLASHINGS);
     check!(
         block,
@@ -57,7 +57,7 @@ fn check_limits<E: EthSpec>() {
         Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK
     );
 
-    let envelope = ExecutionPayloadEnvelope::<E>::empty();
+    let envelope = ExecutionPayloadEnvelope::empty();
     check!(envelope, payload.withdrawals, Spec::MAX_WITHDRAWALS_PER_PAYLOAD);
     check!(
         envelope,
@@ -88,28 +88,28 @@ fn check_limits<E: EthSpec>() {
     .unwrap();
     assert!(round_trip(&envelope).is_ok());
 
-    let attestation: IndexedAttestationGloas<E> = test_arbitrary_instance();
+    let attestation: IndexedAttestationGloas = test_arbitrary_instance();
     check!(attestation, attesting_indices, Spec::MAX_VALIDATORS_PER_SLOT);
-    let column: DataColumnSidecarGloas<E> = test_arbitrary_instance();
+    let column: DataColumnSidecarGloas = test_arbitrary_instance();
     check!(column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
     check!(column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
-    let partial_column: PartialDataColumnSidecarGloas<E> = test_arbitrary_instance();
+    let partial_column: PartialDataColumnSidecarGloas = test_arbitrary_instance();
     check!(partial_column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
     check!(partial_column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
 }
 
 #[test]
 fn progressive_list_limits() {
-    check_limits::<MainnetEthSpec>();
-    check_limits::<MinimalEthSpec>();
-    check_limits::<GnosisEthSpec>();
+    check_limits();
+    check_limits();
+    check_limits();
 }
 
 #[test]
 fn progressive_block_body_errors_propagate() {
     for fork in [ForkName::Gloas, ForkName::Heze] {
         let spec = fork.make_genesis_spec(Spec::default_spec());
-        let mut block = BeaconBlock::<E>::empty(&spec);
+        let mut block = BeaconBlock::<FullPayload>::empty(&spec);
         let mut body = block.body_mut();
         body.set_deposits_from_iter(vec![
             test_arbitrary_instance();
@@ -154,15 +154,15 @@ fn progressive_block_body_errors_propagate() {
 
 #[test]
 fn progressive_column_min_size_matches_encoding() {
-    let sidecar = DataColumnSidecarGloas::<E> {
+    let sidecar = DataColumnSidecarGloas {
         index: 0,
-        column: ProgressiveVariableList::new(vec![Cell::<E>::default()]).unwrap(),
+        column: ProgressiveVariableList::new(vec![Cell::default()]).unwrap(),
         kzg_proofs: ProgressiveVariableList::new(vec![KzgProof::empty()]).unwrap(),
         slot: Slot::new(0),
         beacon_block_root: Hash256::ZERO,
     };
     assert_eq!(
-        DataColumnSidecarGloas::<E>::min_size(),
+        DataColumnSidecarGloas::min_size(),
         sidecar.as_ssz_bytes().len()
     );
 }

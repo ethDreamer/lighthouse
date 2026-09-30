@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-type T = EphemeralHarnessType<E>;
+type T = EphemeralHarnessType;
 
 const NUM_VALIDATORS: usize = 64;
 
@@ -36,7 +36,7 @@ impl TestContext {
     }
 
     fn with_validator_count(num_validators: usize) -> Self {
-        let spec = Arc::new(test_spec::<E>());
+        let spec = Arc::new(test_spec());
         let slot_clock = TestingSlotClock::new(
             Slot::new(0),
             Duration::from_secs(0),
@@ -454,7 +454,7 @@ async fn harness_packs_payload_attestation_messages_by_ptc_weight() {
 #[tokio::test]
 async fn ptc_cache_is_primed_at_gloas_fork_boundary() {
     // Only run this test once, when FORK_NAME=gloas exactly.
-    let mut spec = test_spec::<E>();
+    let mut spec = test_spec();
     if spec.fork_name_at_epoch(Epoch::new(0)) != ForkName::Gloas {
         return;
     }

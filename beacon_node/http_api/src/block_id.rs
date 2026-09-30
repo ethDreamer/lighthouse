@@ -23,8 +23,8 @@ pub struct BlockId(pub CoreBlockId);
 
 type Finalized = bool;
 
-type DataColumnsResponse<T> = (
-    DataColumnSidecarList<<T as BeaconChainTypes>::EthSpec>,
+type DataColumnsResponse = (
+    DataColumnSidecarList,
     ForkName,
     ExecutionOptimistic,
     Finalized,
@@ -151,7 +151,7 @@ impl BlockId {
     pub fn blinded_block_by_root<T: BeaconChainTypes>(
         root: &Hash256,
         chain: &BeaconChain<T>,
-    ) -> Result<Option<SignedBlindedBeaconBlock<T::EthSpec>>, warp::Rejection> {
+    ) -> Result<Option<SignedBlindedBeaconBlock>, warp::Rejection> {
         if let Some(block) = chain
             .get_blinded_block(root)
             .map_err(warp_utils::reject::unhandled_error)?
@@ -172,7 +172,7 @@ impl BlockId {
         chain: &BeaconChain<T>,
     ) -> Result<
         (
-            SignedBlindedBeaconBlock<T::EthSpec>,
+            SignedBlindedBeaconBlock,
             ExecutionOptimistic,
             Finalized,
         ),
@@ -229,7 +229,7 @@ impl BlockId {
         chain: &BeaconChain<T>,
     ) -> Result<
         (
-            Arc<SignedBeaconBlock<T::EthSpec>>,
+            Arc<SignedBeaconBlock>,
             ExecutionOptimistic,
             Finalized,
         ),
@@ -293,7 +293,7 @@ impl BlockId {
         &self,
         query: DataColumnIndicesQuery,
         chain: &BeaconChain<T>,
-    ) -> Result<DataColumnsResponse<T>, Rejection> {
+    ) -> Result<DataColumnsResponse, Rejection> {
         let (root, execution_optimistic, finalized) = self.root(chain)?;
         let block = BlockId::blinded_block_by_root(&root, chain)?.ok_or_else(|| {
             warp_utils::reject::custom_not_found(format!("beacon block with root {}", root))
@@ -343,8 +343,8 @@ impl BlockId {
         chain: &BeaconChain<T>,
     ) -> Result<
         (
-            SignedBlindedBeaconBlock<T::EthSpec>,
-            BlobSidecarList<T::EthSpec>,
+            SignedBlindedBeaconBlock,
+            BlobSidecarList,
             ExecutionOptimistic,
             Finalized,
         ),
@@ -397,7 +397,7 @@ impl BlockId {
         query: BlobsVersionedHashesQuery,
         chain: &BeaconChain<T>,
     ) -> Result<
-        UnversionedResponse<Vec<BlobWrapper<T::EthSpec>>, ExecutionOptimisticFinalizedMetadata>,
+        UnversionedResponse<Vec<BlobWrapper>, ExecutionOptimisticFinalizedMetadata>,
         warp::Rejection,
     > {
         let (root, execution_optimistic, finalized) = self.root(chain)?;
@@ -453,7 +453,7 @@ impl BlockId {
 
         let blobs = blobs
             .into_iter()
-            .map(|blob| BlobWrapper::<T::EthSpec> { blob })
+            .map(|blob| BlobWrapper { blob })
             .collect();
 
         Ok(UnversionedResponse {
@@ -470,7 +470,7 @@ impl BlockId {
         root: Hash256,
         indices: Option<Vec<u64>>,
         max_blobs_per_block: usize,
-    ) -> Result<BlobSidecarList<T::EthSpec>, Rejection> {
+    ) -> Result<BlobSidecarList, Rejection> {
         let blob_sidecar_list = chain
             .store
             .get_blobs(&root)
@@ -497,8 +497,8 @@ impl BlockId {
     fn get_data_columns_for_blob_reconstruction<T: BeaconChainTypes>(
         chain: &BeaconChain<T>,
         root: Hash256,
-        block: &SignedBlindedBeaconBlock<<T as BeaconChainTypes>::EthSpec>,
-    ) -> Result<Vec<Arc<DataColumnSidecar<T::EthSpec>>>, Rejection> {
+        block: &SignedBlindedBeaconBlock,
+    ) -> Result<Vec<Arc<DataColumnSidecar>>, Rejection> {
         let column_indices = chain.store.get_data_column_keys(root).map_err(|e| {
             warp_utils::reject::custom_server_error(format!(
                 "Error fetching data columns keys: {e:?}"
@@ -560,7 +560,7 @@ mod tests {
     use std::time::Duration;
     use types::MinimalEthSpec;
 
-    type TestHarness = BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>>;
+    type TestHarness = BeaconChainHarness<EphemeralHarnessType>;
 
     fn harness() -> TestHarness {
         BeaconChainHarness::builder()

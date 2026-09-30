@@ -37,13 +37,13 @@ enum Payload {
 }
 
 struct InvalidPayloadRig {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: BeaconChainHarness<EphemeralHarnessType>,
     enable_attestations: bool,
 }
 
 impl InvalidPayloadRig {
     fn new() -> Self {
-        let spec = test_spec::<E>();
+        let spec = test_spec();
         Self::new_with_spec(spec)
     }
 
@@ -73,7 +73,7 @@ impl InvalidPayloadRig {
         self
     }
 
-    fn execution_layer(&self) -> ExecutionLayer<E> {
+    fn execution_layer(&self) -> ExecutionLayer {
         self.harness.chain.execution_layer.clone().unwrap()
     }
 
@@ -113,7 +113,7 @@ impl InvalidPayloadRig {
         self.harness.chain.recompute_head_at_current_slot().await;
     }
 
-    fn cached_head(&self) -> CachedHead<E> {
+    fn cached_head(&self) -> CachedHead {
         self.harness.chain.canonical_head.cached_head()
     }
 
@@ -387,8 +387,8 @@ impl InvalidPayloadRig {
     /// leaves the node `NotYetRevealed`.
     async fn import_envelope(
         &self,
-        block: &Arc<SignedBeaconBlock<E>>,
-        opt_envelope: Option<SignedExecutionPayloadEnvelope<E>>,
+        block: &Arc<SignedBeaconBlock>,
+        opt_envelope: Option<SignedExecutionPayloadEnvelope>,
     ) -> Result<(), BlockError> {
         let Some(signed_envelope) = opt_envelope else {
             return Ok(());
@@ -1314,8 +1314,8 @@ async fn attesting_to_optimistic_head() {
 /// `fork_block` to recover it.
 struct InvalidHeadSetup {
     rig: InvalidPayloadRig,
-    fork_block: Arc<SignedBeaconBlock<E>>,
-    invalid_head: CachedHead<E>,
+    fork_block: Arc<SignedBeaconBlock>,
+    invalid_head: CachedHead,
 }
 
 impl InvalidHeadSetup {
@@ -1530,7 +1530,7 @@ async fn weights_after_resetting_optimistic_status() {
         .canonical_head
         .fork_choice_write_lock()
         .proto_array_mut()
-        .set_all_blocks_to_optimistic::<E>(&BTreeSet::new())
+        .set_all_blocks_to_optimistic(&BTreeSet::new())
         .unwrap();
 
     let new_weights = rig

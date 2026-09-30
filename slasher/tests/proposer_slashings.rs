@@ -12,7 +12,7 @@ fn empty_pruning() {
     let tempdir = tempdir().unwrap();
     let config = Config::new(tempdir.path().into());
     let spec = chain_spec();
-    let slasher = Slasher::<E>::open(config, spec).unwrap();
+    let slasher = Slasher::open(config, spec).unwrap();
     slasher.prune_database(Epoch::new(0)).unwrap();
 }
 
@@ -26,7 +26,7 @@ fn block_pruning() {
     config.history_length = 2;
     let spec = chain_spec();
 
-    let slasher = Slasher::<E>::open(config.clone(), spec).unwrap();
+    let slasher = Slasher::open(config.clone(), spec).unwrap();
     let current_epoch = Epoch::from(2 * config.history_length);
 
     // Pruning the empty database should be safe.

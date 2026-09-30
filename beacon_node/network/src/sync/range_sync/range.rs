@@ -213,7 +213,7 @@ where
         chain_id: ChainId,
         batch_id: BatchId,
         request_id: Id,
-        blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        blocks: Vec<RangeSyncBlock>,
     ) {
         // check if this chunk removes the chain
         match self.chains.call_by_id(chain_id, |chain| {
@@ -330,7 +330,7 @@ where
 
     fn on_chain_removed(
         &mut self,
-        chain: SyncingChain<T>,
+        chain: SyncingChain,
         sync_type: RangeSyncType,
         remove_reason: RemoveChain,
         network: &mut SyncNetworkContext<T>,

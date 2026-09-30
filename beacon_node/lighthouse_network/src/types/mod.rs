@@ -7,8 +7,8 @@ mod topics;
 use ssz_types::BitVector;
 use types::EthSpec;
 
-pub type EnrAttestationBitfield<E> = BitVector<typenum::U<{ Spec::SUBNET_BITFIELD_LENGTH }>>;
-pub type EnrSyncCommitteeBitfield<E> = BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>;
+pub type EnrAttestationBitfield = BitVector<typenum::U<{ Spec::SUBNET_BITFIELD_LENGTH }>>;
+pub type EnrSyncCommitteeBitfield = BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>;
 
 pub type Enr = discv5::enr::Enr<discv5::enr::CombinedKey>;
 

@@ -135,7 +135,7 @@ impl BuilderHttpClient {
     /// (larger) response via the `Accept` header, and the response is decoded according to its
     /// `Content-Type`.
     #[allow(clippy::too_many_arguments)]
-    pub async fn get_execution_payload_bid<E: EthSpec>(
+    pub async fn get_execution_payload_bid(
         &self,
         builder_url: &SensitiveUrl,
         slot: Slot,
@@ -144,7 +144,7 @@ impl BuilderHttpClient {
         proposer_pubkey: &PublicKeyBytes,
         signed_request_auth: &SignedRequestAuth,
         fork_name: ForkName,
-    ) -> Result<Option<SignedExecutionPayloadBid<E>>, Error> {
+    ) -> Result<Option<SignedExecutionPayloadBid>, Error> {
         let mut path = builder_url.expose_full().clone();
 
         path.path_segments_mut()
@@ -182,12 +182,12 @@ impl BuilderHttpClient {
 
         match content_type_from_header(&response_headers) {
             ContentType::Ssz => {
-                let bid = SignedExecutionPayloadBid::<E>::from_ssz_bytes(&response_bytes)
+                let bid = SignedExecutionPayloadBid::from_ssz_bytes(&response_bytes)
                     .map_err(Error::InvalidSsz)?;
                 Ok(Some(bid))
             }
             ContentType::Json => {
-                let versioned: ForkVersionedResponse<SignedExecutionPayloadBid<E>> =
+                let versioned: ForkVersionedResponse<SignedExecutionPayloadBid> =
                     serde_json::from_slice(&response_bytes).map_err(Error::InvalidJson)?;
                 Ok(Some(versioned.data))
             }
@@ -248,10 +248,10 @@ impl BuilderHttpClient {
     /// Sent via [`Self::no_redirect_client`]: `builder_url` is wire input (`Eth-Builder-Url`), and
     /// the spec forbids following redirects on this request. A redirect response surfaces as
     /// [`Error::StatusCode`] like any other non-202.
-    pub async fn submit_signed_beacon_block<E: EthSpec>(
+    pub async fn submit_signed_beacon_block(
         &self,
         builder_url: &SensitiveUrl,
-        block: &SignedBeaconBlock<E>,
+        block: &SignedBeaconBlock,
         ssz_request: bool,
     ) -> Result<(), Error> {
         let mut path = builder_url.expose_full().clone();
@@ -329,7 +329,7 @@ mod tests {
         SignedRequestAuth::arbitrary(&mut u).unwrap()
     }
 
-    fn empty_bid_response() -> ForkVersionedResponse<SignedExecutionPayloadBid<E>> {
+    fn empty_bid_response() -> ForkVersionedResponse<SignedExecutionPayloadBid> {
         ForkVersionedResponse {
             version: ForkName::Gloas,
             metadata: EmptyMetadata {},
@@ -356,9 +356,9 @@ mod tests {
         mock.with_status(200).create();
     }
 
-    async fn request_bid(server: &ServerGuard) -> Option<SignedExecutionPayloadBid<E>> {
+    async fn request_bid(server: &ServerGuard) -> Option<SignedExecutionPayloadBid> {
         client_for()
-            .get_execution_payload_bid::<E>(
+            .get_execution_payload_bid(
                 &builder_url(server),
                 Slot::new(1),
                 ExecutionBlockHash::repeat_byte(1),
@@ -460,7 +460,7 @@ mod tests {
 
         BuilderHttpClient::new(None, true)
             .unwrap()
-            .get_execution_payload_bid::<E>(
+            .get_execution_payload_bid(
                 &builder_url(&server),
                 Slot::new(1),
                 ExecutionBlockHash::repeat_byte(1),

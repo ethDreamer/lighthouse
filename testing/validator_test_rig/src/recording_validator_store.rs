@@ -24,7 +24,7 @@ pub struct SignBlockCall {
 }
 
 type SignBlockResult<S> =
-    Result<SignedBlock<<S as ValidatorStore>::E>, StoreError<<S as ValidatorStore>::Error>>;
+    Result<SignedBlock, StoreError<<S as ValidatorStore>::Error>>;
 
 /// A `ValidatorStore` that records block and envelope signing calls and delegates to `inner`.
 pub struct RecordingValidatorStore<S: ValidatorStore> {
@@ -113,10 +113,10 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
     async fn sign_block(
         &self,
         validator_pubkey: PublicKeyBytes,
-        block: UnsignedBlock<Self::E>,
+        block: UnsignedBlock,
         current_slot: Slot,
         local_payload_root: Option<Hash256>,
-    ) -> Result<SignedBlock<Self::E>, StoreError<Self::Error>> {
+    ) -> Result<SignedBlock, StoreError<Self::Error>> {
         self.sign_block_calls.lock().unwrap().push(SignBlockCall {
             validator_pubkey,
             block_root: block.block_root(),
@@ -170,8 +170,8 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
 
     fn sign_aggregate_and_proofs(
         self: &Arc<Self>,
-        aggregates: Vec<AggregateToSign<Self::E>>,
-    ) -> impl Stream<Item = Result<Vec<SignedAggregateAndProof<Self::E>>, StoreError<Self::Error>>> + Send
+        aggregates: Vec<AggregateToSign>,
+    ) -> impl Stream<Item = Result<Vec<SignedAggregateAndProof>, StoreError<Self::Error>>> + Send
     {
         self.inner.sign_aggregate_and_proofs(aggregates)
     }
@@ -185,9 +185,9 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
 
     fn sign_sync_committee_contributions(
         self: &Arc<Self>,
-        contributions: Vec<ContributionToSign<Self::E>>,
+        contributions: Vec<ContributionToSign>,
     ) -> impl Stream<
-        Item = Result<Vec<SignedContributionAndProof<Self::E>>, StoreError<Self::Error>>,
+        Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>,
     > + Send {
         self.inner.sign_sync_committee_contributions(contributions)
     }
@@ -200,8 +200,8 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
     async fn sign_execution_payload_envelope(
         &self,
         validator_pubkey: PublicKeyBytes,
-        envelope: ExecutionPayloadEnvelope<Self::E>,
-    ) -> Result<SignedExecutionPayloadEnvelope<Self::E>, StoreError<Self::Error>> {
+        envelope: ExecutionPayloadEnvelope,
+    ) -> Result<SignedExecutionPayloadEnvelope, StoreError<Self::Error>> {
         self.signed_envelope_block_roots
             .lock()
             .unwrap()

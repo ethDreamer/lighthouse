@@ -20,7 +20,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
 fn get_harness(
     validator_count: usize,
     spec: Arc<ChainSpec>,
-) -> BeaconChainHarness<EphemeralHarnessType<E>> {
+) -> BeaconChainHarness<EphemeralHarnessType> {
     create_test_tracing_subscriber();
     let harness = BeaconChainHarness::builder()
         .spec(spec)
@@ -41,7 +41,7 @@ fn get_harness(
 // Regression test for https://github.com/sigp/lighthouse/issues/7650
 #[tokio::test]
 async fn rpc_blobs_with_invalid_header_signature() {
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
 
     // Only run this test if blobs are enabled and columns are disabled.
     if spec.deneb_fork_epoch.is_none() || spec.is_fulu_scheduled() {

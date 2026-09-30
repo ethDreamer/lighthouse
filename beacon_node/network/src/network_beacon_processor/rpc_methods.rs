@@ -59,7 +59,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         &self,
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,
-        response: Response<T::EthSpec>,
+        response: Response,
     ) {
         self.send_network_message(NetworkMessage::SendResponse {
             peer_id,
@@ -781,7 +781,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: Arc<Self>,
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,
-        request: DataColumnsByRootRequest<T::EthSpec>,
+        request: DataColumnsByRootRequest,
     ) {
         let requested_columns = request
             .data_column_ids
@@ -809,7 +809,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         &self,
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,
-        request: DataColumnsByRootRequest<T::EthSpec>,
+        request: DataColumnsByRootRequest,
     ) -> Result<(), (RpcErrorResponse, &'static str)> {
         let mut send_data_column_count = 0;
         // Only attempt lookups for columns the node has advertised and is responsible for maintaining custody of.
@@ -1431,7 +1431,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         let fork_name = self
             .chain
             .spec
-            .fork_name_at_slot::<T::EthSpec>(request_start_slot);
+            .fork_name_at_slot(request_start_slot);
 
         if !fork_name.gloas_enabled() {
             return Err((
@@ -1773,7 +1773,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         );
 
         // Should not send more than max request data columns
-        if req.max_requested::<T::EthSpec>() > self.chain.spec.max_request_data_column_sidecars {
+        if req.max_requested() > self.chain.spec.max_request_data_column_sidecars {
             return Err((
                 RpcErrorResponse::InvalidRequest,
                 "Request exceeded `MAX_REQUEST_DATA_COLUMN_SIDECARS`",
@@ -1849,7 +1849,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             .collect::<Vec<_>>();
 
         for (root, slot) in block_roots_and_slots {
-            let fork_name = self.chain.spec.fork_name_at_slot::<T::EthSpec>(slot);
+            let fork_name = self.chain.spec.fork_name_at_slot(slot);
             for index in &indices_to_retrieve {
                 match self.chain.get_data_column(&root, index, fork_name) {
                     Ok(Some(data_column_sidecar)) => {
@@ -1905,7 +1905,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     /// Helper function to ensure single item protocol always end with either a single chunk or an
     /// error
-    fn terminate_response_single_item<R, F: Fn(R) -> Response<T::EthSpec>>(
+    fn terminate_response_single_item<R, F: Fn(R) -> Response>(
         &self,
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,
@@ -1928,7 +1928,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     /// Helper function to ensure streamed protocols with multiple responses always end with either
     /// a stream termination or an error
-    fn terminate_response_stream<R, F: FnOnce(Option<R>) -> Response<T::EthSpec>>(
+    fn terminate_response_stream<R, F: FnOnce(Option<R>) -> Response>(
         &self,
         peer_id: PeerId,
         inbound_request_id: InboundRequestId,

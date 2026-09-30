@@ -15,20 +15,20 @@ pub struct KZGVerifyCellKZGProofBatchInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
-pub struct KZGVerifyCellKZGProofBatch<E: EthSpec> {
+pub struct KZGVerifyCellKZGProofBatch {
     pub input: KZGVerifyCellKZGProofBatchInput,
     pub output: Option<bool>,
     #[serde(skip)]
     _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> LoadCase for KZGVerifyCellKZGProofBatch<E> {
+impl LoadCase for KZGVerifyCellKZGProofBatch {
     fn load_from_dir(path: &Path, _fork_name: ForkName) -> Result<Self, Error> {
         decode::yaml_decode_file(path.join("data.yaml").as_path())
     }
 }
 
-impl<E: EthSpec> Case for KZGVerifyCellKZGProofBatch<E> {
+impl Case for KZGVerifyCellKZGProofBatch {
     fn is_enabled_for_fork(fork_name: ForkName) -> bool {
         fork_name.fulu_enabled()
     }

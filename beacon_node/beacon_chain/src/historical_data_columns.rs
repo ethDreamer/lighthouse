@@ -53,7 +53,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     pub fn import_historical_data_column_batch(
         &self,
         epoch: Epoch,
-        historical_data_column_sidecar_list: DataColumnSidecarList<T::EthSpec>,
+        historical_data_column_sidecar_list: DataColumnSidecarList,
         expected_cgc: u64,
     ) -> Result<usize, HistoricalDataColumnError> {
         let mut total_imported = 0;
@@ -95,7 +95,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 continue;
             }
 
-            let fork_name = self.spec.fork_name_at_slot::<T::EthSpec>(slot);
+            let fork_name = self.spec.fork_name_at_slot(slot);
             for column_index in unique_column_indices.clone() {
                 if let Some(data_column) =
                     slot_and_column_index_to_data_columns.remove(&(slot, column_index))

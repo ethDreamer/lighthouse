@@ -13,7 +13,7 @@ use tracing::{debug, error};
 use types::data::{compute_subnets_from_custody_group, get_custody_groups};
 use types::{ChainSpec, ColumnIndex, DataColumnSubnetId, EthSpec, Slot};
 
-pub struct NetworkGlobals<E: EthSpec> {
+pub struct NetworkGlobals {
     /// The current local ENR.
     pub local_enr: RwLock<Enr>,
     /// The local peer_id.
@@ -21,9 +21,9 @@ pub struct NetworkGlobals<E: EthSpec> {
     /// Listening multiaddrs.
     pub listen_multiaddrs: RwLock<Vec<Multiaddr>>,
     /// The collection of known peers.
-    pub peers: RwLock<PeerDB<E>>,
+    pub peers: RwLock<PeerDB>,
     // The local meta data of our node.
-    pub local_metadata: RwLock<MetaData<E>>,
+    pub local_metadata: RwLock<MetaData>,
     /// The current gossipsub topic subscriptions.
     pub gossipsub_subscriptions: RwLock<HashSet<GossipTopic>>,
     /// The current sync status of the node.
@@ -40,10 +40,10 @@ pub struct NetworkGlobals<E: EthSpec> {
     pub spec: Arc<ChainSpec>,
 }
 
-impl<E: EthSpec> NetworkGlobals<E> {
+impl NetworkGlobals {
     pub fn new(
         enr: Enr,
-        local_metadata: MetaData<E>,
+        local_metadata: MetaData,
         trusted_peers: Vec<PeerId>,
         disable_peer_scoring: bool,
         config: Arc<NetworkConfig>,
@@ -74,7 +74,7 @@ impl<E: EthSpec> NetworkGlobals<E> {
 
         let mut sampling_subnets = HashSet::new();
         for custody_index in &custody_groups {
-            let subnets = compute_subnets_from_custody_group::<E>(*custody_index, &spec)
+            let subnets = compute_subnets_from_custody_group(*custody_index, &spec)
                 .expect("should compute custody subnets for node");
             sampling_subnets.extend(subnets);
         }
@@ -113,7 +113,7 @@ impl<E: EthSpec> NetworkGlobals<E> {
 
         let mut sampling_subnets = self.sampling_subnets.write();
         for custody_index in &custody_groups {
-            let subnets = compute_subnets_from_custody_group::<E>(*custody_index, &self.spec)
+            let subnets = compute_subnets_from_custody_group(*custody_index, &self.spec)
                 .expect("should compute custody subnets for node");
             sampling_subnets.extend(subnets);
         }
@@ -246,7 +246,7 @@ impl<E: EthSpec> NetworkGlobals<E> {
         trusted_peers: Vec<PeerId>,
         config: Arc<NetworkConfig>,
         spec: Arc<ChainSpec>,
-    ) -> NetworkGlobals<E> {
+    ) -> NetworkGlobals {
         let metadata = MetaData::V3(MetaDataV3 {
             seq_number: 0,
             attnets: Default::default(),
@@ -258,10 +258,10 @@ impl<E: EthSpec> NetworkGlobals<E> {
 
     pub(crate) fn new_test_globals_with_metadata(
         trusted_peers: Vec<PeerId>,
-        metadata: MetaData<E>,
+        metadata: MetaData,
         config: Arc<NetworkConfig>,
         spec: Arc<ChainSpec>,
-    ) -> NetworkGlobals<E> {
+    ) -> NetworkGlobals {
         use network_utils::enr_ext::CombinedKeyExt;
         let keypair = libp2p::identity::secp256k1::Keypair::generate();
         let enr_key: discv5::enr::CombinedKey = discv5::enr::CombinedKey::from_secp256k1(&keypair);
@@ -293,7 +293,7 @@ mod test {
         let metadata = get_metadata(custody_group_count);
         let config = Arc::new(NetworkConfig::default());
 
-        let globals = NetworkGlobals::<E>::new_test_globals_with_metadata(
+        let globals = NetworkGlobals::new_test_globals_with_metadata(
             vec![],
             metadata,
             config,
@@ -305,7 +305,7 @@ mod test {
         );
     }
 
-    fn get_metadata(custody_group_count: u64) -> MetaData<E> {
+    fn get_metadata(custody_group_count: u64) -> MetaData {
         MetaData::V3(MetaDataV3 {
             seq_number: 0,
             attnets: Default::default(),

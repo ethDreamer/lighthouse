@@ -40,18 +40,18 @@ pub fn fork_context(fork_name: ForkName, spec: &ChainSpec) -> ForkContext {
     let current_slot = current_epoch
         .unwrap_or_else(|| panic!("expect fork {fork_name} to be scheduled"))
         .start_slot(Spec::slots_per_epoch());
-    ForkContext::new::<E>(current_slot, Hash256::zero(), spec)
+    ForkContext::new(current_slot, Hash256::zero(), spec)
 }
 
 pub struct Libp2pInstance(
-    LibP2PService<E>,
+    LibP2PService,
     #[allow(dead_code)]
     // This field is managed for lifetime purposes may not be used directly, hence the `#[allow(dead_code)]` attribute.
     async_channel::Sender<()>,
 );
 
 impl std::ops::Deref for Libp2pInstance {
-    type Target = LibP2PService<E>;
+    type Target = LibP2PService;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -141,7 +141,7 @@ pub async fn build_libp2p_instance(
 }
 
 #[allow(dead_code)]
-pub fn get_enr(node: &LibP2PService<E>) -> Enr {
+pub fn get_enr(node: &LibP2PService) -> Enr {
     node.local_enr()
 }
 

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 use types::{EthSpec, Slot};
 
-impl<E, Hot, Cold> HotColdDB<E, Hot, Cold>
+impl<Hot, Cold> HotColdDB<Hot, Cold>
 where
     Hot: ItemStore,
     Cold: ItemStore,

@@ -29,7 +29,7 @@ fn ceil_two_thirds(value: u64) -> u64 {
 }
 
 struct SameEpochSlashingChild {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: BeaconChainHarness<EphemeralHarnessType>,
     stored_parent_justified: Checkpoint,
     stored_parent_finalized: Checkpoint,
     stored_child_justified: Checkpoint,
@@ -154,11 +154,11 @@ async fn same_epoch_slashing_child<F>(
     inject_slashings: F,
 ) -> SameEpochSlashingChild
 where
-    F: FnOnce(&BeaconChainHarness<EphemeralHarnessType<E>>, &[u64]),
+    F: FnOnce(&BeaconChainHarness<EphemeralHarnessType>, &[u64]),
 {
-    let spec = test_spec::<E>();
+    let spec = test_spec();
 
-    let harness: BeaconChainHarness<EphemeralHarnessType<E>> =
+    let harness: BeaconChainHarness<EphemeralHarnessType> =
         BeaconChainHarness::builder()
             .spec(Arc::new(spec))
             .deterministic_keypairs(validator_count)
@@ -352,7 +352,7 @@ where
 
 /// Builds the Phase0 `ValidatorStatuses` for `state`, mirroring the fork choice `on_block` logic
 /// used to compute unrealized checkpoints for pre-Altair blocks.
-fn base_validator_statuses(state: &BeaconState<E>, spec: &ChainSpec) -> ValidatorStatuses {
+fn base_validator_statuses(state: &BeaconState, spec: &ChainSpec) -> ValidatorStatuses {
     let mut validator_statuses =
         ValidatorStatuses::new(state, spec).expect("should initialize Phase0 validator statuses");
     validator_statuses
@@ -361,7 +361,7 @@ fn base_validator_statuses(state: &BeaconState<E>, spec: &ChainSpec) -> Validato
     validator_statuses
 }
 
-fn current_epoch_target_attesters(state: &BeaconState<E>, spec: &ChainSpec) -> Vec<u64> {
+fn current_epoch_target_attesters(state: &BeaconState, spec: &ChainSpec) -> Vec<u64> {
     if state.fork_name_unchecked().altair_enabled() {
         state
             .current_epoch_participation()

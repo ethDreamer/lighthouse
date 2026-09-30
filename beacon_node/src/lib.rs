@@ -19,25 +19,25 @@ use tracing::{info, warn};
 use types::{ChainSpec, Epoch, EthSpec, ForkName};
 
 /// A type-alias to the tighten the definition of a production-intended `Client`.
-pub type ProductionClient<E> =
-    Client<Witness<SystemTimeSlotClock, E, BeaconNodeBackend, BeaconNodeBackend>>;
+pub type ProductionClient =
+    Client<Witness<SystemTimeSlotClock, BeaconNodeBackend, BeaconNodeBackend>>;
 
 /// The beacon node `Client` that is used in production.
 ///
 /// Generic over some `EthSpec`.
-pub struct ProductionBeaconNode<E: EthSpec>(ProductionClient<E>);
+pub struct ProductionBeaconNode(ProductionClient);
 
-impl<E: EthSpec> ProductionBeaconNode<E> {
+impl ProductionBeaconNode {
     /// Starts a new beacon node `Client` in the given `environment`.
     ///
     /// Identical to `start_from_client_config`, however the `client_config` is generated from the
     /// given `matches` and potentially configuration files on the local filesystem or other
     /// configurations hosted remotely.
     pub async fn new_from_cli(
-        context: RuntimeContext<E>,
+        context: RuntimeContext,
         matches: ArgMatches,
     ) -> Result<Self, String> {
-        let client_config = get_config::<E>(&matches, &context)?;
+        let client_config = get_config(&matches, &context)?;
         Self::new(context, client_config).await
     }
 
@@ -45,7 +45,7 @@ impl<E: EthSpec> ProductionBeaconNode<E> {
     ///
     /// Client behaviour is defined by the given `client_config`.
     pub async fn new(
-        context: RuntimeContext<E>,
+        context: RuntimeContext,
         mut client_config: ClientConfig,
     ) -> Result<Self, String> {
         let spec = context.eth2_config().spec.clone();
@@ -143,7 +143,7 @@ impl<E: EthSpec> ProductionBeaconNode<E> {
             .map(Self)
     }
 
-    pub fn into_inner(self) -> ProductionClient<E> {
+    pub fn into_inner(self) -> ProductionClient {
         self.0
     }
 }
@@ -170,15 +170,15 @@ fn validator_fork_epochs(spec: &ChainSpec) -> Result<(), Vec<(ForkName, Epoch)>>
     }
 }
 
-impl<E: EthSpec> Deref for ProductionBeaconNode<E> {
-    type Target = ProductionClient<E>;
+impl Deref for ProductionBeaconNode {
+    type Target = ProductionClient;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<E: EthSpec> DerefMut for ProductionBeaconNode<E> {
+impl DerefMut for ProductionBeaconNode {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

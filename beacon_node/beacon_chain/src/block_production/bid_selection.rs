@@ -41,21 +41,21 @@ fn gwei_to_wei(gwei: u64) -> Uint256 {
 ///
 /// Fork-coupling seam: `payload`/`execution_requests` are concrete Gloas types. Selection never
 /// inspects them.
-pub struct ExecutionPayloadData<E: EthSpec> {
-    pub payload: ExecutionPayloadGloas<E>,
-    pub execution_requests: ExecutionRequestsGloas<E>,
+pub struct ExecutionPayloadData {
+    pub payload: ExecutionPayloadGloas,
+    pub execution_requests: ExecutionRequestsGloas,
     pub builder_index: u64,
     pub slot: Slot,
-    pub blobs_and_proofs: (types::BlobsList<E>, types::KzgProofs<E>),
+    pub blobs_and_proofs: (types::BlobsList, types::KzgProofs),
 }
 
 /// Where a payload bid came from, and the per-source data the winner needs (plus each source's
 /// ranking input).
-pub enum BidSource<E: EthSpec> {
+pub enum BidSource {
     /// The locally-built payload. Carries the envelope data (boxed to keep the enum small), the EL's
     /// `shouldOverrideBuilder` signal, and the EL block value (its ranking value, in wei).
     Local {
-        payload_data: Box<ExecutionPayloadData<E>>,
+        payload_data: Box<ExecutionPayloadData>,
         should_override_builder: bool,
         block_value: Uint256,
     },
@@ -75,23 +75,23 @@ pub enum BidSource<E: EthSpec> {
 ///
 /// Everything derivable (trusted value, ranking key, reported value) is a method — nothing is stored
 /// that could be recomputed from these fields.
-pub struct BidCandidate<E: EthSpec> {
-    pub signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+pub struct BidCandidate {
+    pub signed_bid: Arc<SignedExecutionPayloadBid>,
     /// The proposer's boost multiplier for this candidate; `100` (neutral) for the local build.
     builder_boost_factor: u64,
     /// The proposer's `min_bid` acceptance floor (gwei) for this candidate. `0` for the local
     /// build: the floor is a policy on builder payments, and the proposer's own block has none,
     /// so it always ranks in the meets-floor tier.
     min_bid: u64,
-    pub source: BidSource<E>,
+    pub source: BidSource,
 }
 
-impl<E: EthSpec> BidCandidate<E> {
+impl BidCandidate {
     /// The local self-build candidate, competing at neutral boost. `block_value` is its EL block
     /// value (wei), used both to rank and to report.
     pub fn local(
-        signed_bid: SignedExecutionPayloadBid<E>,
-        payload_data: ExecutionPayloadData<E>,
+        signed_bid: SignedExecutionPayloadBid,
+        payload_data: ExecutionPayloadData,
         block_value: Uint256,
         should_override_builder: bool,
     ) -> Self {
@@ -109,7 +109,7 @@ impl<E: EthSpec> BidCandidate<E> {
 
     /// A gossip candidate under the global `builder_boost_factor` and `min_bid`.
     pub fn gossip(
-        signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+        signed_bid: Arc<SignedExecutionPayloadBid>,
         builder_boost_factor: u64,
         min_bid: u64,
     ) -> Self {
@@ -130,7 +130,7 @@ impl<E: EthSpec> BidCandidate<E> {
     /// absolute "always prefer" override: a zero-value bid still ranks 0 (`0 × u64::MAX == 0`), so a
     /// non-zero local build outranks it. `min_bid` is the acceptance floor (gwei).
     pub fn direct(
-        signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+        signed_bid: Arc<SignedExecutionPayloadBid>,
         builder_boost_factor: u64,
         max_execution_payment: u64,
         min_bid: u64,
@@ -235,7 +235,7 @@ impl<E: EthSpec> BidCandidate<E> {
 /// The total order is defined by [`rank_key`](BidCandidate::rank_key). On a full tie the earlier
 /// candidate is kept. Returns `None` only when there are no candidates — the caller treats that as
 /// block-production failure.
-pub fn select_payload_bid<E: EthSpec>(candidates: Vec<BidCandidate<E>>) -> Option<BidCandidate<E>> {
+pub fn select_payload_bid(candidates: Vec<BidCandidate>) -> Option<BidCandidate> {
     // `reduce` keeps `best` unless `candidate` is *strictly* greater, so the earliest of any tied
     // maxima wins.
     candidates.into_iter().reduce(|best, candidate| {
@@ -275,7 +275,7 @@ mod tests {
         builder_index: u64,
         value_gwei: u64,
         payment_gwei: u64,
-    ) -> Arc<SignedExecutionPayloadBid<TestSpec>> {
+    ) -> Arc<SignedExecutionPayloadBid> {
         Arc::new(SignedExecutionPayloadBid {
             message: ExecutionPayloadBid {
                 builder_index,
@@ -287,11 +287,11 @@ mod tests {
         })
     }
 
-    fn gossip(value_gwei: u64, boost: u64) -> BidCandidate<TestSpec> {
+    fn gossip(value_gwei: u64, boost: u64) -> BidCandidate {
         BidCandidate::gossip(signed_bid(GOSSIP_BUILDER, value_gwei, 0), boost, 0)
     }
 
-    fn gossip_min_bid(value_gwei: u64, min_bid: u64) -> BidCandidate<TestSpec> {
+    fn gossip_min_bid(value_gwei: u64, min_bid: u64) -> BidCandidate {
         BidCandidate::gossip(
             signed_bid(GOSSIP_BUILDER, value_gwei, 0),
             NEUTRAL_BOOST,
@@ -304,7 +304,7 @@ mod tests {
         payment_gwei: u64,
         boost: u64,
         max_payment: u64,
-    ) -> BidCandidate<TestSpec> {
+    ) -> BidCandidate {
         BidCandidate::direct(
             signed_bid(DIRECT_BUILDER, value_gwei, payment_gwei),
             boost,
@@ -314,7 +314,7 @@ mod tests {
         )
     }
 
-    fn direct_min_bid(value_gwei: u64, max_payment: u64, min_bid: u64) -> BidCandidate<TestSpec> {
+    fn direct_min_bid(value_gwei: u64, max_payment: u64, min_bid: u64) -> BidCandidate {
         BidCandidate::direct(
             signed_bid(DIRECT_BUILDER, value_gwei, 0),
             NEUTRAL_BOOST,
@@ -324,7 +324,7 @@ mod tests {
         )
     }
 
-    fn local(block_value_gwei: u64, should_override_builder: bool) -> BidCandidate<TestSpec> {
+    fn local(block_value_gwei: u64, should_override_builder: bool) -> BidCandidate {
         BidCandidate::local(
             SignedExecutionPayloadBid {
                 message: ExecutionPayloadBid {
@@ -346,7 +346,7 @@ mod tests {
     }
 
     /// `(winning_builder_index, is_local, payload_value_wei, source_label)`.
-    fn outcome(win: BidCandidate<TestSpec>) -> (u64, bool, Uint256, &'static str) {
+    fn outcome(win: BidCandidate) -> (u64, bool, Uint256, &'static str) {
         let source = match &win.source {
             BidSource::Local { .. } => "local",
             BidSource::Gossip => "gossip",
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn nothing_viable_is_none() {
-        assert!(select_payload_bid::<TestSpec>(vec![]).is_none());
+        assert!(select_payload_bid(vec![]).is_none());
     }
 
     #[test]

@@ -16,7 +16,7 @@ use tracing::debug;
 use types::{ChainSpec, EthSpec, Hash256, ProposerPreferences, SignedProposerPreferences, Slot};
 
 /// Verify that proposer preferences are consistent with the current chain state
-pub(crate) fn verify_preferences_consistency<E: EthSpec>(
+pub(crate) fn verify_preferences_consistency(
     preferences: &ProposerPreferences,
     current_slot: Slot,
     spec: &ChainSpec,
@@ -54,7 +54,7 @@ pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub spec: &'a ChainSpec,
     pub store: &'a BeaconStore<T>,
     pub beacon_proposer_cache: &'a Mutex<BeaconProposerCache>,
-    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache<T>>,
+    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache>,
     pub builder_onboarding_cache: Option<&'a OnboardBuildersCache>,
     pub genesis_validators_root: Hash256,
 }
@@ -88,7 +88,7 @@ impl GossipVerifiedProposerPreferences {
             });
         }
 
-        verify_preferences_consistency::<T::EthSpec>(
+        verify_preferences_consistency(
             &signed_preferences.message,
             current_slot,
             ctx.spec,
@@ -134,7 +134,7 @@ impl GossipVerifiedProposerPreferences {
             ctx.beacon_proposer_cache,
             dependent_root,
             proposal_epoch,
-            |proposers| proposers.get_slot::<T::EthSpec>(proposal_slot),
+            |proposers| proposers.get_slot(proposal_slot),
             || {
                 debug!(
                     ?dependent_root,
@@ -182,7 +182,7 @@ impl GossipVerifiedProposerPreferences {
             let pubkey = pubkey_cache
                 .get(validator_index as usize)
                 .ok_or(ProposerPreferencesError::BadSignature)?;
-            signed_preferences.verify_signature::<T::EthSpec>(
+            signed_preferences.verify_signature(
                 pubkey,
                 &proposer.fork,
                 ctx.genesis_validators_root,
@@ -244,7 +244,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 {
                     event_handler.register(EventKind::ProposerPreferences(Box::new(
                         ForkVersionedResponse {
-                            version: self.spec.fork_name_at_slot::<T::EthSpec>(proposal_slot),
+                            version: self.spec.fork_name_at_slot(proposal_slot),
                             metadata: Default::default(),
                             data: (*verified.signed_preferences).clone(),
                         },
@@ -286,7 +286,7 @@ mod tests {
     }
 
     fn spec() -> ChainSpec {
-        test_spec::<E>()
+        test_spec()
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         let current_slot = Slot::new(2 * Spec::slots_per_epoch());
         let prefs = make_preferences(Slot::new(3), 0);
 
-        let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
+        let result = verify_preferences_consistency(&prefs, current_slot, &spec());
         assert!(matches!(
             result,
             Err(ProposerPreferencesError::InvalidProposalEpoch { .. })
@@ -312,7 +312,7 @@ mod tests {
         let current_slot = Slot::new(Spec::slots_per_epoch());
         let prefs = make_preferences(Slot::new(3 * Spec::slots_per_epoch() + 1), 0);
 
-        let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
+        let result = verify_preferences_consistency(&prefs, current_slot, &spec());
         assert!(matches!(
             result,
             Err(ProposerPreferencesError::InvalidProposalEpoch { .. })
@@ -327,7 +327,7 @@ mod tests {
         let current_slot = Slot::new(10);
         let prefs = make_preferences(Slot::new(9), 0);
 
-        let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
+        let result = verify_preferences_consistency(&prefs, current_slot, &spec());
         assert!(matches!(
             result,
             Err(ProposerPreferencesError::ProposalSlotAlreadyPassed { .. })
@@ -342,7 +342,7 @@ mod tests {
         let current_slot = Slot::new(10);
         let prefs = make_preferences(Slot::new(10), 0);
 
-        let result = verify_preferences_consistency::<E>(&prefs, current_slot, &spec());
+        let result = verify_preferences_consistency(&prefs, current_slot, &spec());
         assert!(matches!(
             result,
             Err(ProposerPreferencesError::ProposalSlotAlreadyPassed { .. })

@@ -169,8 +169,8 @@ fn compute_historic_attester_duties<T: BeaconChainTypes>(
     )
 }
 
-fn ensure_state_knows_attester_duties_for_epoch<E: EthSpec>(
-    state: &mut BeaconState<E>,
+fn ensure_state_knows_attester_duties_for_epoch(
+    state: &mut BeaconState,
     state_root: Hash256,
     target_epoch: Epoch,
     builder_onboarding_cache: Option<&OnboardBuildersCache>,

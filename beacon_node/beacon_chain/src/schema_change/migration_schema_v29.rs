@@ -15,7 +15,7 @@ use types::EthSpec;
 ///
 /// Returns a list of store ops to be applied atomically with the schema version write.
 pub fn upgrade_to_v29<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
 ) -> Result<Vec<KeyValueStoreOp>, StoreError> {
     let gloas_fork_slot = db
         .spec
@@ -108,7 +108,7 @@ pub fn upgrade_to_v29<T: BeaconChainTypes>(
 ///
 /// Returns a list of store ops to be applied atomically with the schema version write.
 pub fn downgrade_from_v29<T: BeaconChainTypes>(
-    db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
+    db: &HotColdDB<T::HotStore, T::ColdStore>,
 ) -> Result<Vec<KeyValueStoreOp>, StoreError> {
     // Load the persisted fork choice (v29 format, compressed).
     let Some(fc_bytes) = db

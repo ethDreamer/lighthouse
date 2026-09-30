@@ -19,11 +19,11 @@ use validator_store::ValidatorStore;
 
 use crate::mock_beacon_node::MockBeaconNode;
 
-pub type S = LighthouseValidatorStore<ManualSlotClock, E>;
+pub type S = LighthouseValidatorStore<ManualSlotClock>;
 
 pub struct ValidatorClientHarness {
-    pub mock_beacon_node_1: MockBeaconNode<E>,
-    pub mock_beacon_node_2: MockBeaconNode<E>,
+    pub mock_beacon_node_1: MockBeaconNode,
+    pub mock_beacon_node_2: MockBeaconNode,
     pub beacon_nodes: Arc<BeaconNodeFallback<ManualSlotClock>>,
     pub validator_store: Arc<S>,
     pub slot_clock: ManualSlotClock,
@@ -64,8 +64,8 @@ impl ValidatorClientHarness {
         )
         .await;
 
-        let mock_beacon_node_1 = MockBeaconNode::<E>::new().await;
-        let mock_beacon_node_2 = MockBeaconNode::<E>::new().await;
+        let mock_beacon_node_1 = MockBeaconNode::new().await;
+        let mock_beacon_node_2 = MockBeaconNode::new().await;
 
         let beacon_node_1 =
             CandidateBeaconNode::new(mock_beacon_node_1.beacon_api_client.clone(), 0);
@@ -152,7 +152,7 @@ pub async fn create_validator_store(
         .register_validators(pubkeys.iter())
         .unwrap();
 
-    let validator_store = Arc::new(LighthouseValidatorStore::<_, E>::new(
+    let validator_store = Arc::new(LighthouseValidatorStore::new(
         initialized_validators,
         slashing_protection,
         Hash256::ZERO,

@@ -21,7 +21,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
         return;
     };
 
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let harness = BeaconChainHarness::builder()
         .spec(spec)
         .deterministic_keypairs(8)
@@ -37,7 +37,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
     let mut u = types::test_utils::test_unstructured();
     let sidecar = {
         let slot = Slot::new(10);
-        let fork_name = harness.spec.fork_name_at_slot::<E>(slot);
+        let fork_name = harness.spec.fork_name_at_slot(slot);
         // DA checker only accepts sampling columns, so we need to create one with a sampling index.
         if fork_name.gloas_enabled() {
             let mut random_sidecar = DataColumnSidecarGloas::arbitrary(&mut u).unwrap();
@@ -49,7 +49,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
                 .sampling_columns_for_epoch(epoch)[0];
 
             // For gloas, the bid must be known, e.g. in the pending payload cache
-            let mut bid = SignedExecutionPayloadBid::<E>::empty();
+            let mut bid = SignedExecutionPayloadBid::empty();
             bid.message.slot = Slot::new(10);
             harness
                 .chain
@@ -94,7 +94,7 @@ async fn blob_sidecar_event_on_process_rpc_blobs() {
         return;
     };
 
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let harness = BeaconChainHarness::builder()
         .spec(spec)
         .deterministic_keypairs(8)
@@ -152,7 +152,7 @@ async fn data_column_sidecar_event_on_process_rpc_columns() {
         return;
     };
 
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(8)
@@ -195,7 +195,7 @@ async fn data_column_sidecar_event_on_process_rpc_columns() {
 /// Verifies that a head event is emitted when a block is imported and becomes the head.
 #[tokio::test]
 async fn head_event_on_block_import() {
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(8)
@@ -488,7 +488,7 @@ async fn proposer_preferences_event_on_gossip_verification() {
         assert_eq!(versioned.data.message, preferences);
         assert_eq!(
             versioned.version,
-            harness.spec.fork_name_at_slot::<E>(proposal_slot)
+            harness.spec.fork_name_at_slot(proposal_slot)
         );
     } else {
         panic!("Expected ProposerPreferences event, got {:?}", event);

@@ -84,7 +84,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[instrument(skip_all)]
     pub fn import_historical_block_batch(
         &self,
-        mut blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        mut blocks: Vec<RangeSyncBlock>,
     ) -> Result<usize, HistoricalBlockError> {
         let anchor_info = self.store.get_anchor_info();
         let blob_info = self.store.get_blob_info();
