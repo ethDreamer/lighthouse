@@ -1,5 +1,6 @@
 use alloy_primitives::Bytes;
 use context_deserialize::{ContextDeserialize, context_deserialize};
+use educe::Educe;
 use ethereum_hashing::{DynamicContext, Sha256Context};
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz::{Decode, Encode};
@@ -20,15 +21,19 @@ use crate::{
 };
 
 pub type DepositRequests =
-    VariableList<DepositRequest, U<{ Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
+    VariableList<DepositRequest, typenum::U<{ Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
 pub type WithdrawalRequests =
-    VariableList<WithdrawalRequest, U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>;
-pub type ConsolidationRequests =
-    VariableList<ConsolidationRequest, U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>>;
-pub type BuilderDepositRequests =
-    VariableList<BuilderDepositRequest, U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
+    VariableList<WithdrawalRequest, typenum::U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>;
+pub type ConsolidationRequests = VariableList<
+    ConsolidationRequest,
+    typenum::U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>,
+>;
+pub type BuilderDepositRequests = VariableList<
+    BuilderDepositRequest,
+    typenum::U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>,
+>;
 pub type BuilderExitRequests =
-    VariableList<BuilderExitRequest, U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>;
+    VariableList<BuilderExitRequest, typenum::U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>;
 
 /// EIP-7685 execution requests.
 ///
@@ -47,12 +52,11 @@ pub type BuilderExitRequests =
             Encode,
             Decode,
             TreeHash,
-            PartialEq,
-            Eq,
-            Hash,
+            Educe,
         ),
         context_deserialize(ForkName),
-        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
+        educe(PartialEq, Eq, Hash),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary)),
     ),
     specific_variant_attributes(Gloas(tree_hash(
         struct_behaviour = "progressive_container",
@@ -68,7 +72,8 @@ pub type BuilderExitRequests =
     )
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Encode, TreeHash, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Encode, TreeHash, Educe)]
+#[educe(PartialEq, Eq, Hash)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -181,7 +186,7 @@ impl ExecutionRequests {
     }
 }
 
-impl<'a> ExecutionRequestsRef<'a> {
+impl ExecutionRequestsRef<'_> {
     /// Returns the encoding according to EIP-7685 to send to the execution layer over the engine
     /// api.
     pub fn get_execution_requests_list(&self) -> Vec<Bytes> {

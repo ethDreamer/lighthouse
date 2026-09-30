@@ -1,8 +1,7 @@
-#![cfg(test)]
+#![cfg(all(test, feature = "spec-minimal"))]
 use crate::per_epoch_processing::process_epoch;
 use beacon_chain::test_utils::BeaconChainHarness;
-use beacon_chain::types::Spec;
-use types::Slot;
+use types::{Epoch, Slot, Spec};
 
 #[tokio::test]
 async fn runs_without_error() {

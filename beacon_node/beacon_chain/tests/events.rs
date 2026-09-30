@@ -428,7 +428,7 @@ async fn proposer_preferences_event_on_gossip_verification() {
 
     // Pick a proposal slot in the next epoch so it is always a valid, future slot. The lookahead
     // covers 2 epochs: index = epoch_offset * slots_per_epoch + slot_in_epoch.
-    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
+    let slots_per_epoch = Spec::slots_per_epoch() as usize;
     let proposer_lookahead = head_state
         .proposer_lookahead()
         .expect("gloas state should have proposer lookahead");

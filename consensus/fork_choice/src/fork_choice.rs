@@ -516,10 +516,7 @@ where
         &self,
         block_root: Hash256,
         ancestor_slot: Slot,
-    ) -> Result<Option<Hash256>, Error<T::Error>>
-    where
-        T: ForkChoiceStore,
-    {
+    ) -> Result<Option<Hash256>, Error<T::Error>> {
         let block = self
             .proto_array
             .get_block(&block_root)
@@ -2104,14 +2101,15 @@ impl From<PersistedForkChoiceV29> for PersistedForkChoiceV28 {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
 
     use super::*;
 
     #[test]
     fn slots_since_epoch_start() {
         for epoch in 0..3 {
-            for slot in 0..Spec::slots_per_epoch() {
-                let input = epoch * Spec::slots_per_epoch() + slot;
+            for slot in 0..(Spec::slots_per_epoch()) {
+                let input = epoch * (Spec::slots_per_epoch()) + slot;
                 assert_eq!(compute_slots_since_epoch_start(Slot::new(input)), slot)
             }
         }
@@ -2122,7 +2120,7 @@ mod tests {
         for epoch in 0..3 {
             assert_eq!(
                 compute_start_slot_at_epoch(Epoch::new(epoch)),
-                epoch * Spec::slots_per_epoch()
+                epoch * (Spec::slots_per_epoch())
             )
         }
     }

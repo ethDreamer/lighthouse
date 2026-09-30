@@ -103,7 +103,7 @@ impl LightClientServerCache {
             )),
         )?;
 
-        let cached_parts = self.get_or_compute_prev_block_cache(
+        let cached_parts = self.get_or_compute_prev_block_cache::<T>(
             store.clone(),
             attested_block_root,
             &attested_block.state_root(),
@@ -120,7 +120,12 @@ impl LightClientServerCache {
             &cached_parts.current_sync_committee_branch,
         )?;
 
-        self.store_current_sync_committee(&store, &cached_parts, sync_period, finalized_period)?;
+        self.store_current_sync_committee::<T>(
+            &store,
+            &cached_parts,
+            sync_period,
+            finalized_period,
+        )?;
 
         let attested_slot = attested_block.slot();
 
@@ -190,7 +195,7 @@ impl LightClientServerCache {
         // Spec: Full nodes SHOULD provide the best derivable LightClientUpdate (according to is_better_update)
         // for each sync committee period
         let prev_light_client_update =
-            self.get_light_client_update(&store, sync_period, chain_spec)?;
+            self.get_light_client_update::<T>(&store, sync_period, chain_spec)?;
 
         let should_persist_light_client_update =
             if let Some(prev_light_client_update) = prev_light_client_update {

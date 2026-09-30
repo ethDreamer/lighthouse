@@ -126,7 +126,7 @@ fn get_non_aggregator(
     slot: Slot,
 ) -> (usize, SecretKey) {
     let state = &harness.chain.head_snapshot().beacon_state;
-    let sync_subcommittee_size = Spec::SYNC_COMMITTEE_SIZE
+    let sync_subcommittee_size = (Spec::SYNC_COMMITTEE_SIZE)
         .safe_div(SYNC_COMMITTEE_SUBNET_COUNT as usize)
         .expect("should determine sync subcommittee size");
     let sync_committee = state

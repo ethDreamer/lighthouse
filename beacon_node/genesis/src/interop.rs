@@ -189,11 +189,10 @@ pub fn interop_genesis_state_with_eth1(
         .build_genesis_state(keypairs, genesis_time, eth1_block_hash, spec)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod test {
     use super::*;
-    use types::Spec;
-    use types::test_utils::generate_deterministic_keypairs;
+    use types::{Spec, test_utils::generate_deterministic_keypairs};
 
     #[test]
     fn interop_state() {

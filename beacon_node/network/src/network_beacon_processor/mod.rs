@@ -48,7 +48,7 @@ pub use sync_methods::{BlockProcessingResult, ChainSegmentProcessId};
 
 pub use gossip_methods::ReprocessAllowance;
 
-pub type Error<T> = TrySendError<BeaconWorkEvent<T>>;
+pub type Error = TrySendError<BeaconWorkEvent>;
 
 mod gossip_methods;
 mod rpc_methods;

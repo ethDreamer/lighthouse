@@ -1,7 +1,6 @@
 //! Helper functions and an extension trait for Ethereum 2 ENRs.
 
 pub use discv5::enr::CombinedKey;
-use typenum::U;
 
 use super::ENR_FILENAME;
 use crate::NetworkConfig;
@@ -12,13 +11,12 @@ use lighthouse_version::{client_name, version};
 use network_utils::enr_ext::CombinedKeyExt;
 use network_utils::enr_ext::{EnrExt, QUIC_ENR_KEY, QUIC6_ENR_KEY};
 use ssz::{Decode, Encode};
-use ssz_types::BitVector;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
 use tracing::{debug, warn};
-use types::{ChainSpec, EnrForkId, Spec};
+use types::{ChainSpec, EnrForkId};
 
 /// The ENR field specifying the fork id.
 pub const ETH2_ENR_KEY: &str = "eth2";
@@ -55,7 +53,7 @@ impl Eth2Enr for Enr {
             .ok_or("ENR attestation bitfield non-existent")?
             .map_err(|_| "Invalid RLP Encoding")?;
 
-        BitVector::<U<{ Spec::SUBNET_BITFIELD_LENGTH }>>::from_ssz_bytes(&bitfield_bytes)
+        EnrAttestationBitfield::from_ssz_bytes(&bitfield_bytes)
             .map_err(|_| "Could not decode the ENR attnets bitfield")
     }
 
@@ -65,7 +63,7 @@ impl Eth2Enr for Enr {
             .ok_or("ENR sync committee bitfield non-existent")?
             .map_err(|_| "Invalid RLP Encoding")?;
 
-        BitVector::<U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>::from_ssz_bytes(&bitfield_bytes)
+        EnrSyncCommitteeBitfield::from_ssz_bytes(&bitfield_bytes)
             .map_err(|_| "Could not decode the ENR syncnets bitfield")
     }
 
@@ -272,7 +270,7 @@ pub fn build_enr(
     builder.add_value::<Bytes>(ETH2_ENR_KEY, &enr_fork_id.as_ssz_bytes().into());
 
     // set the "attnets" field on our ENR
-    let bitfield = BitVector::<U<{ Spec::SUBNET_BITFIELD_LENGTH }>>::new();
+    let bitfield = EnrAttestationBitfield::new();
 
     builder.add_value::<Bytes>(
         ATTESTATION_BITFIELD_ENR_KEY,
@@ -280,7 +278,7 @@ pub fn build_enr(
     );
 
     // set the "syncnets" field on our ENR
-    let bitfield = BitVector::<U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>::new();
+    let bitfield = EnrSyncCommitteeBitfield::new();
 
     builder.add_value::<Bytes>(
         SYNC_COMMITTEE_BITFIELD_ENR_KEY,
@@ -361,7 +359,7 @@ pub fn save_enr_to_disk(dir: &Path, enr: &Enr) {
 mod test {
     use super::*;
     use crate::config::Config as NetworkConfig;
-    use types::Epoch;
+    use types::{Epoch, Spec};
 
     const TEST_NFD: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
 

@@ -3827,7 +3827,7 @@ impl BeaconNodeHttpClient {
     pub async fn get_events(
         &self,
         topic: &[EventTopic],
-    ) -> Result<impl Stream<Item = Result<EventKind, Error>> + use<E>, Error> {
+    ) -> Result<impl Stream<Item = Result<EventKind, Error>> + use<>, Error> {
         let mut path = self.eth_path(V1)?;
         path.path_segments_mut()
             .map_err(|()| Error::InvalidUrl(self.server.clone()))?

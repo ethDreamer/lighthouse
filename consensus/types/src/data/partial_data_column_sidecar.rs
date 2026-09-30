@@ -6,6 +6,7 @@ use crate::{
     kzg_ext::KzgCommitments,
     state::BeaconStateError,
 };
+use educe::Educe;
 use kzg::KzgProof;
 use merkle_proof::verify_merkle_proof;
 use ssz::BitList;
@@ -18,12 +19,13 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 use typenum::U;
 
-pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
+pub type CellBitmap = BitList<typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 #[superstruct(
     variants(Fulu, Gloas),
     variant_attributes(
-        derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash),
+        derive(Debug, Clone, Encode, Decode, TreeHash, Educe),
+        educe(PartialEq, Eq, Hash),
         cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     ref_attributes(
@@ -32,7 +34,8 @@ pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
     )
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Encode, Decode, TreeHash, Educe)]
+#[educe(PartialEq, Eq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct PartialDataColumnSidecar {
@@ -273,12 +276,13 @@ impl PartialDataColumnSidecar {
 }
 
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Encode, Decode, TreeHash, Educe)]
+#[educe(PartialEq, Eq, Hash)]
 pub struct PartialDataColumnHeader {
     pub kzg_commitments: KzgCommitments,
     pub signed_block_header: SignedBeaconBlockHeader,
     pub kzg_commitments_inclusion_proof:
-        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+        FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
 }
 
 impl PartialDataColumnHeader {

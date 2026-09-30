@@ -273,7 +273,7 @@ async fn produces_attestations() {
     let chain = &harness.chain;
 
     // Test all valid committee indices for all slots in the chain.
-    // for slot in 0..=current_slot.as_u64() + MainnetEthSpec::slots_per_epoch() * 3 {
+    // for slot in 0..=current_slot.as_u64() + Spec::slots_per_epoch() * 3 {
     for slot in 0..=num_blocks_produced + additional_slots_tested {
         if slot > 0 && slot <= num_blocks_produced {
             harness.advance_slot();

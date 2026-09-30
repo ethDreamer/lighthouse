@@ -142,8 +142,7 @@ impl CommitteeCache {
             active_validator_indices.len(),
             spec.max_committees_per_slot,
             spec.target_committee_size,
-        )
-        .map_err(BeaconStateError::ArithError)? as u64;
+        )? as u64;
 
         let seed = state.get_seed(epoch, Domain::BeaconAttester, spec)?;
 

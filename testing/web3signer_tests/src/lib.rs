@@ -11,7 +11,7 @@
 //!
 //! There is a `download_binary` function in the `get_web3signer` module which obtains the latest version of Web3Signer and makes
 //! it available via the `TEMP_DIR`.
-#![cfg(all(test, unix, not(debug_assertions)))]
+#![cfg(all(test, unix, not(debug_assertions), not(feature = "spec-non-mainnet")))]
 
 mod get_web3signer;
 
@@ -644,7 +644,7 @@ mod tests {
         .assert_signatures_match("beacon_block_base", |pubkey, validator_store| {
             let spec = spec.clone();
             async move {
-                let block = BeaconBlock::<FullPayload>::Base(BeaconBlockBase::empty(&spec));
+                let block = BeaconBlock::Base(BeaconBlockBase::empty(&spec));
                 let block_slot = block.slot();
                 let unsigned_block = UnsignedBlock::Full(FullBlockContents::Block(block));
                 validator_store
@@ -861,7 +861,7 @@ mod tests {
         };
 
         let first_block = || {
-            let mut bellatrix_block = BeaconBlockBellatrix::<FullPayload>::empty(&spec);
+            let mut bellatrix_block = BeaconBlockBellatrix::empty(&spec);
             bellatrix_block.slot = bellatrix_fork_slot;
             BeaconBlock::Bellatrix(bellatrix_block)
         };

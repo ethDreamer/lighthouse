@@ -7,7 +7,6 @@ use beacon_chain::test_utils::{
 use beacon_chain::{
     BlockError, ChainConfig, StateSkipConfig, WhenSlotSkipped,
     test_utils::{AttestationStrategy, BlockStrategy, RelativeSyncCommittee},
-    types::{Epoch, Spec},
 };
 use bls::Keypair;
 use eth2::types::{StandardAttestationRewards, TotalAttestationRewards, ValidatorId};
@@ -15,7 +14,7 @@ use state_processing::{BlockReplayError, BlockReplayer};
 use std::array::IntoIter;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
-use types::{ChainSpec, ForkName, Slot};
+use types::{ChainSpec, Epoch, ForkName, Slot, Spec};
 
 pub const VALIDATOR_COUNT: usize = 64;
 
@@ -280,6 +279,7 @@ async fn test_rewards_electra_slashings() {
     check_all_electra_rewards(&harness, initial_balances).await;
 }
 
+#[cfg(feature = "spec-minimal")]
 #[tokio::test]
 async fn test_rewards_base_slashings() {
     let spec = ForkName::Base.make_genesis_spec(Spec::default_spec());

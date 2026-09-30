@@ -2588,7 +2588,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
         blocks: Vec<SignedBlindedBeaconBlock>,
         target_slot: Slot,
         state_root_iter: Option<impl Iterator<Item = Result<(Hash256, Slot), Error>>>,
-        pre_slot_hook: Option<PreSlotHook<Error>>,
+        pre_slot_hook: Option<PreSlotHook<'_, Error>>,
     ) -> Result<BeaconState, Error> {
         metrics::inc_counter_by(&metrics::STORE_BEACON_REPLAYED_BLOCKS, blocks.len() as u64);
 

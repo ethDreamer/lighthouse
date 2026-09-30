@@ -732,7 +732,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
 
                 // If we are to subscribe to all subnets we do it here
                 if self.network_globals.config.subscribe_all_subnets {
-                    for subnet_id in 0..Spec::SUBNET_BITFIELD_LENGTH as u64 {
+                    for subnet_id in 0..self.beacon_chain.spec.attestation_subnet_count {
                         let subnet = Subnet::Attestation(SubnetId::new(subnet_id));
                         // Update the ENR bitfield
                         self.libp2p.update_enr_subnet(subnet, true);

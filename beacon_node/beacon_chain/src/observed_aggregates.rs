@@ -518,7 +518,7 @@ mod tests {
 
                 const NUM_ELEMENTS: usize = 8;
 
-                fn single_slot_test(store: &mut $type<E>, slot: Slot) {
+                fn single_slot_test(store: &mut $type, slot: Slot) {
                     let items = (0..NUM_ELEMENTS as u64)
                         .map(|i| $method_name(slot, i))
                         .collect::<Vec<_>>();

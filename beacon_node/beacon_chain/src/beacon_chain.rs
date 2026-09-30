@@ -160,6 +160,7 @@ use task_executor::{RayonPoolType, ShutdownReason, TaskExecutor};
 use tokio_stream::Stream;
 use tracing::{debug, debug_span, error, info, info_span, instrument, trace, warn};
 use tree_hash::TreeHash;
+use types::Spec;
 use types::data::{ColumnIndex, FixedBlobSidecarList};
 use types::execution::BlockProductionVersion;
 use types::*;
@@ -1439,13 +1440,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         &self,
         (parent_root, slot, sync_aggregate): LightClientProducerEvent,
     ) -> Result<(), Error> {
-        self.light_client_server_cache.recompute_and_cache_updates(
-            self.store.clone(),
-            slot,
-            &parent_root,
-            &sync_aggregate,
-            &self.spec,
-        )
+        self.light_client_server_cache
+            .recompute_and_cache_updates::<T>(
+                self.store.clone(),
+                slot,
+                &parent_root,
+                &sync_aggregate,
+                &self.spec,
+            )
     }
 
     pub fn get_light_client_updates(
@@ -7663,7 +7665,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             <= self.config.builder_fallback_epochs_since_finalization;
 
         // Check skip slots in the last `SLOTS_PER_EPOCH`.
-        let start_slot = current_slot.saturating_sub(Spec::slots_per_epoch());
+        let start_slot = current_slot.saturating_sub(Spec::SLOTS_PER_EPOCH);
         let mut epoch_skips = 0;
         for slot in start_slot.as_u64()..current_slot.as_u64() {
             if self
@@ -7834,12 +7836,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .finalized_checkpoint()
             .epoch
             .sync_committee_period(&self.spec)?;
-        self.light_client_server_cache.get_light_client_bootstrap(
-            &self.store,
-            block_root,
-            finalized_period,
-            &self.spec,
-        )
+        self.light_client_server_cache
+            .get_light_client_bootstrap::<T>(&self.store, block_root, finalized_period, &self.spec)
     }
 
     pub fn get_blobs_or_columns_store_op(

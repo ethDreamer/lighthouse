@@ -1030,7 +1030,7 @@ impl SlashingsContext {
 
         let target_withdrawable_epoch = state_ctxt
             .current_epoch
-            .safe_add(Spec::epochs_per_slashings_vector().safe_div(2)?)?;
+            .safe_add((Spec::epochs_per_slashings_vector()).safe_div(2)?)?;
 
         let penalty_per_effective_balance_increment = adjusted_total_slashing_balance.safe_div(
             state_ctxt

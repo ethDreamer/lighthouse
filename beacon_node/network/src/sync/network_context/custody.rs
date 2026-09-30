@@ -8,7 +8,7 @@ use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::hash::{BuildHasher, RandomState};
 use std::time::{Duration, Instant};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 use tracing::{Span, debug, debug_span, warn};
 use types::DataColumnSidecarList;
 use types::{DataColumnSidecar, Hash256, Slot, data::ColumnIndex};
@@ -19,7 +19,7 @@ use super::{
 
 const MAX_STALE_NO_PEERS_DURATION: Duration = Duration::from_secs(30);
 
-pub struct ActiveCustodyRequest {
+pub struct ActiveCustodyRequest<T: BeaconChainTypes> {
     block_roots: Vec<Hash256>,
     block_slot: Slot,
     custody_id: CustodyId,
@@ -33,6 +33,7 @@ pub struct ActiveCustodyRequest {
     lookup_peers: Arc<RwLock<HashSet<PeerId>>>,
     /// Span for tracing the lifetime of this request.
     span: Span,
+    _phantom: PhantomData<T>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -58,7 +59,7 @@ struct ActiveBatchColumnsRequest {
 
 pub type CustodyRequestResult = Result<Option<DownloadResult<DataColumnSidecarList>>, Error>;
 
-impl ActiveCustodyRequest {
+impl<T: BeaconChainTypes> ActiveCustodyRequest<T> {
     pub(crate) fn new(
         block_roots: Vec<Hash256>,
         block_slot: Slot,
@@ -84,6 +85,7 @@ impl ActiveCustodyRequest {
             peer_attempts: HashMap::new(),
             lookup_peers,
             span,
+            _phantom: PhantomData,
         }
     }
 
@@ -95,7 +97,7 @@ impl ActiveCustodyRequest {
     /// - `Err`: Custody request has failed and will be dropped
     /// - `Ok(Some)`: Custody request has successfully completed and will be dropped
     /// - `Ok(None)`: Custody request still active
-    pub(crate) fn on_data_column_downloaded<T: BeaconChainTypes>(
+    pub(crate) fn on_data_column_downloaded(
         &mut self,
         peer_id: PeerId,
         req_id: DataColumnsByRootRequestId,
@@ -191,7 +193,7 @@ impl ActiveCustodyRequest {
         self.continue_requests(cx)
     }
 
-    pub(crate) fn continue_requests<T: BeaconChainTypes>(
+    pub(crate) fn continue_requests(
         &mut self,
         cx: &mut SyncNetworkContext<T>,
     ) -> CustodyRequestResult {
@@ -348,7 +350,7 @@ impl ActiveCustodyRequest {
         Ok(None)
     }
 
-    fn select_column_peer<T: BeaconChainTypes>(
+    fn select_column_peer(
         &self,
         cx: &mut SyncNetworkContext<T>,
         data_columns_by_root_per_peer: &ActiveRequestsPerPeer,

@@ -122,8 +122,6 @@ where
 {
     /// Returns a new builder.
     ///
-    /// The `_eth_spec_instance` parameter is only supplied to make concrete the `E` trait.
-    /// This should generally be either the `MinimalEthSpec` or `MainnetEthSpec` types.
     pub fn new(kzg: Arc<Kzg>) -> Self {
         Self {
             store: None,
@@ -907,12 +905,12 @@ where
         // This *must* be stored before constructing the `BeaconChain`, so that its `Drop` instance
         // doesn't write a `PersistedBeaconChain` without the rest of the batch.
         self.pending_io_batch.push(BeaconChain::<
-            Witness<TSlotClock,  THotStore, TColdStore>,
+            Witness<TSlotClock, THotStore, TColdStore>,
         >::persist_head_in_batch_standalone(
             genesis_block_root
         ));
         self.pending_io_batch.push(BeaconChain::<
-            Witness<TSlotClock,  THotStore, TColdStore>,
+            Witness<TSlotClock, THotStore, TColdStore>,
         >::persist_fork_choice_in_batch_standalone(
             &fork_choice,
             store.get_config(),
@@ -1077,7 +1075,7 @@ where
             graffiti_calculator: GraffitiCalculator::new(
                 self.beacon_graffiti,
                 self.execution_layer,
-                slot_clock.slot_duration() * Spec::SLOTS_PER_EPOCH as u32,
+                slot_clock.slot_duration() * Spec::slots_per_epoch() as u32,
             ),
             slasher: self.slasher.clone(),
             validator_monitor: RwLock::new(validator_monitor),
@@ -1563,7 +1561,7 @@ fn build_data_columns_from_blobs(
 }
 
 #[cfg(not(debug_assertions))]
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod test {
     use super::*;
     use crate::test_utils::{
@@ -1580,7 +1578,7 @@ mod test {
     use store::config::StoreConfig;
     use store::{HotColdDB, MemoryStore};
     use task_executor::test_utils::TestRuntime;
-    use types::Slot;
+    use types::Spec;
 
     type Builder = BeaconChainBuilder<EphemeralHarnessType>;
 

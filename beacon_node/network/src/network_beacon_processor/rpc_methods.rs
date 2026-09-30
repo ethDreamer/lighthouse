@@ -699,7 +699,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             })
             .collect();
 
-        for id in request.blob_ids.as_slice() {
+        for id in request.blob_ids.iter() {
             let BlobIdentifier {
                 block_root: root,
                 index,
@@ -815,7 +815,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         // Only attempt lookups for columns the node has advertised and is responsible for maintaining custody of.
         let available_columns = self.chain.custody_context.custody_columns_for_epoch(None);
 
-        for data_column_ids_by_root in request.data_column_ids.as_slice() {
+        for data_column_ids_by_root in request.data_column_ids.iter() {
             let indices_to_retrieve = data_column_ids_by_root
                 .columns
                 .iter()

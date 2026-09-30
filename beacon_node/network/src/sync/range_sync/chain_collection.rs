@@ -20,8 +20,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
-use types::Spec;
-use types::{Epoch, Hash256, Slot};
+use types::{Epoch, Hash256, Slot, Spec};
 
 /// The number of head syncing chains to sync at a time.
 const PARALLEL_HEAD_CHAINS: usize = 2;
@@ -55,9 +54,9 @@ pub struct ChainCollection<T: BeaconChainTypes> {
     /// The beacon chain for processing.
     beacon_chain: Arc<BeaconChain<T>>,
     /// The set of finalized chains being synced.
-    finalized_chains: FnvHashMap<ChainId, SyncingChain>,
+    finalized_chains: FnvHashMap<ChainId, SyncingChain<T>>,
     /// The set of head chains being synced.
-    head_chains: FnvHashMap<ChainId, SyncingChain>,
+    head_chains: FnvHashMap<ChainId, SyncingChain<T>>,
     /// The current sync state of the process.
     state: RangeSyncState,
     #[cfg(test)]
@@ -77,7 +76,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn metrics(&self) -> &ChainCollectionMetrics {
         &self.metrics
     }
@@ -139,9 +138,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
     /// Calls `func` on every chain of the collection. If the result is
     /// `ProcessingResult::RemoveChain`, the chain is removed and returned.
     /// NOTE: `func` must not change the syncing state of a chain.
-    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain, RangeSyncType, RemoveChain)>
+    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain<T>, RangeSyncType, RemoveChain)>
     where
-        F: FnMut(&mut SyncingChain) -> ProcessingResult,
+        F: FnMut(&mut SyncingChain<T>) -> ProcessingResult,
     {
         let mut to_remove = Vec::new();
 
@@ -180,9 +179,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         &mut self,
         id: ChainId,
         func: F,
-    ) -> Result<(Option<(SyncingChain, RemoveChain)>, RangeSyncType), ()>
+    ) -> Result<(Option<(SyncingChain<T>, RemoveChain)>, RangeSyncType), ()>
     where
-        F: FnOnce(&mut SyncingChain) -> ProcessingResult,
+        F: FnOnce(&mut SyncingChain<T>) -> ProcessingResult,
     {
         if let Entry::Occupied(mut entry) = self.finalized_chains.entry(id) {
             // Search in our finalized chains first

@@ -355,6 +355,10 @@ mod custom_tests {
         assert_exited(&state, VALIDATOR_INDEX as usize);
     }
 
+    // The churn limit on minimal (2) is smaller than mainnet (4), so 3 exits
+    // overflow into the next epoch, breaking the simple exit_epoch assertion.
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[tokio::test]
     async fn valid_three() {
         let state = ExitTest {

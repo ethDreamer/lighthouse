@@ -23,14 +23,14 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockBellatrix, BeaconBlockHeader,
     BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas,
-    DataColumnsByRootIdentifier, EmptyBlock, Epoch, ForkName, Hash256, KzgCommitment, KzgProof,
-    LightClientUpdate, LightClientUpdateCapella, SignedBeaconBlock, SignedBeaconBlockHeader, Slot,
-    Spec, SyncAggregate, SyncCommittee,
+    DataColumnsByRootIdentifier, EmptyBlock, Epoch, ForkName, FullPayload, Hash256, KzgCommitment,
+    KzgProof, LightClientUpdate, LightClientUpdateCapella, SignedBeaconBlock,
+    SignedBeaconBlockHeader, Slot, Spec, SyncAggregate, SyncCommittee,
 };
 
 /// Bellatrix block with length < max_rpc_size.
 fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock {
-    let mut block = BeaconBlockBellatrix::<FullPayload>::empty(spec);
+    let mut block: BeaconBlockBellatrix<FullPayload> = BeaconBlockBellatrix::empty(spec);
     let tx = VariableList::try_from(vec![0; 1024]).unwrap();
     let txs = VariableList::try_from(std::iter::repeat_n(tx, 5000).collect::<Vec<_>>()).unwrap();
 
@@ -45,7 +45,7 @@ fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock {
 /// The max limit for a bellatrix block is in the order of ~16GiB which wouldn't fit in memory.
 /// Hence, we generate a bellatrix block just greater than `MAX_RPC_SIZE` to test rejection on the rpc layer.
 fn bellatrix_block_large(spec: &ChainSpec) -> BeaconBlock {
-    let mut block = BeaconBlockBellatrix::<FullPayload>::empty(spec);
+    let mut block: BeaconBlockBellatrix<FullPayload> = BeaconBlockBellatrix::empty(spec);
     // 11,000 × 1KB ≈ 11MB, just above the 10MB max_payload_size.
     // Previously used 100,000 txs (~100MB) which caused hangs and timeouts.
     let tx = VariableList::try_from(vec![0; 1024]).unwrap();
@@ -196,11 +196,11 @@ fn test_tcp_blocks_by_range_chunked_rpc() {
             }));
 
         // BlocksByRange Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_base = Response::BlocksByRange(Some(Arc::new(signed_full_block)));
 
-        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<FullPayload>::full(&spec));
+        let full_block = BeaconBlock::Altair(BeaconBlockAltair::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_altair = Response::BlocksByRange(Some(Arc::new(signed_full_block)));
 
@@ -962,11 +962,11 @@ fn test_tcp_blocks_by_root_chunked_rpc() {
             }));
 
         // BlocksByRoot Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_base = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 
-        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<FullPayload>::full(&spec));
+        let full_block = BeaconBlock::Altair(BeaconBlockAltair::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response_altair = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 
@@ -1070,7 +1070,7 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
     let log_level = "debug";
     let enable_logging = false;
     let _subscriber = build_tracing_subscriber(log_level, enable_logging);
-    let num_of_columns = Spec::NUMBER_OF_COLUMNS;
+    let num_of_columns = Spec::number_of_columns();
     let messages_to_send = 32 * num_of_columns;
 
     let spec = Arc::new(spec_with_all_forks_enabled());
@@ -1099,10 +1099,8 @@ fn test_tcp_columns_by_root_chunked_rpc_for_fork(fork_name: ForkName) {
             vec![
                 DataColumnsByRootIdentifier {
                     block_root: Hash256::zero(),
-                    columns: VariableList::new(
-                        (0..Spec::NUMBER_OF_COLUMNS as u64).collect::<Vec<_>>()
-                    )
-                    .unwrap(),
+                    columns: VariableList::new((0..Spec::number_of_columns()).collect::<Vec<_>>())
+                        .unwrap(),
                 };
                 max_request_blocks
             ],
@@ -1464,7 +1462,7 @@ fn test_tcp_blocks_by_root_chunked_rpc_terminates_correctly() {
             }));
 
         // BlocksByRoot Response
-        let full_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::full(&spec));
+        let full_block = BeaconBlock::Base(BeaconBlockBase::full(&spec));
         let signed_full_block = SignedBeaconBlock::from_block(full_block, Signature::empty());
         let rpc_response = Response::BlocksByRoot(Some(Arc::new(signed_full_block)));
 

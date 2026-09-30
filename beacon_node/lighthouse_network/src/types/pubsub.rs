@@ -265,41 +265,39 @@ impl PubsubMessage {
                         let beacon_block = match fork_context
                             .get_fork_from_context_bytes(gossip_topic.fork_digest)
                         {
-                            Some(ForkName::Base) => SignedBeaconBlock::<FullPayload>::Base(
+                            Some(ForkName::Base) => SignedBeaconBlock::Base(
                                 SignedBeaconBlockBase::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Altair) => SignedBeaconBlock::<FullPayload>::Altair(
+                            Some(ForkName::Altair) => SignedBeaconBlock::Altair(
                                 SignedBeaconBlockAltair::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Bellatrix) => {
-                                SignedBeaconBlock::<FullPayload>::Bellatrix(
-                                    SignedBeaconBlockBellatrix::from_ssz_bytes(data)
-                                        .map_err(|e| format!("{:?}", e))?,
-                                )
-                            }
-                            Some(ForkName::Capella) => SignedBeaconBlock::<FullPayload>::Capella(
+                            Some(ForkName::Bellatrix) => SignedBeaconBlock::Bellatrix(
+                                SignedBeaconBlockBellatrix::from_ssz_bytes(data)
+                                    .map_err(|e| format!("{:?}", e))?,
+                            ),
+                            Some(ForkName::Capella) => SignedBeaconBlock::Capella(
                                 SignedBeaconBlockCapella::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Deneb) => SignedBeaconBlock::<FullPayload>::Deneb(
+                            Some(ForkName::Deneb) => SignedBeaconBlock::Deneb(
                                 SignedBeaconBlockDeneb::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Electra) => SignedBeaconBlock::<FullPayload>::Electra(
+                            Some(ForkName::Electra) => SignedBeaconBlock::Electra(
                                 SignedBeaconBlockElectra::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Fulu) => SignedBeaconBlock::<FullPayload>::Fulu(
+                            Some(ForkName::Fulu) => SignedBeaconBlock::Fulu(
                                 SignedBeaconBlockFulu::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Gloas) => SignedBeaconBlock::<FullPayload>::Gloas(
+                            Some(ForkName::Gloas) => SignedBeaconBlock::Gloas(
                                 SignedBeaconBlockGloas::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Heze) => SignedBeaconBlock::<FullPayload>::Heze(
+                            Some(ForkName::Heze) => SignedBeaconBlock::Heze(
                                 SignedBeaconBlockHeze::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),

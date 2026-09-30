@@ -8,13 +8,11 @@ mod server;
 pub use cli::cli_app;
 use config::BootNodeConfig;
 use tracing_subscriber::EnvFilter;
-use types::SpecId;
 
 /// Run the bootnode given the CLI configuration.
 pub fn run(
     lh_matches: &ArgMatches,
     bn_matches: &ArgMatches,
-    eth_spec_id: SpecId,
     eth2_network_config: &Eth2NetworkConfig,
     debug_level: String,
 ) {
@@ -27,11 +25,7 @@ pub fn run(
         .init();
 
     // Run the main function emitting any errors
-    if let Err(e) = match eth_spec_id {
-        SpecId::Minimal => main(lh_matches, bn_matches, eth2_network_config),
-        SpecId::Mainnet => main(lh_matches, bn_matches, eth2_network_config),
-        SpecId::Gnosis => main(lh_matches, bn_matches, eth2_network_config),
-    } {
+    if let Err(e) = main(lh_matches, bn_matches, eth2_network_config) {
         logging::crit!(?e);
     }
 }

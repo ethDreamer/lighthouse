@@ -1052,7 +1052,7 @@ async fn data_column_reconstruction_at_deadline() {
         .slot_clock
         .set_current_time(slot_start + Duration::from_millis(reconstruction_deadline_millis));
 
-    let min_columns_for_reconstruction = Spec::NUMBER_OF_COLUMNS / 2;
+    let min_columns_for_reconstruction = (Spec::number_of_columns() / 2) as usize;
 
     // Enqueue all columns first - at deadline, reconstruction races with gossip drain
     for i in 0..min_columns_for_reconstruction {

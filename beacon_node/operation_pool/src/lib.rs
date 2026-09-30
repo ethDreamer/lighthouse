@@ -398,7 +398,7 @@ impl OperationPool {
         let prev_epoch_att = self
             .get_valid_attestations_for_epoch(
                 &prev_epoch_key,
-                &*all_attestations,
+                &all_attestations,
                 state,
                 &reward_cache,
                 total_active_balance,
@@ -409,7 +409,7 @@ impl OperationPool {
         let curr_epoch_att = self
             .get_valid_attestations_for_epoch(
                 &curr_epoch_key,
-                &*all_attestations,
+                &all_attestations,
                 state,
                 &reward_cache,
                 total_active_balance,
@@ -904,6 +904,7 @@ mod release_tests {
     use maplit::hashset;
     use state_processing::epoch_cache::initialize_epoch_cache;
     use state_processing::{VerifyOperation, common::get_attesting_indices_from_state};
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use std::collections::BTreeSet;
     use std::sync::{Arc, LazyLock};
     use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
@@ -1200,6 +1201,8 @@ mod release_tests {
 
     /// Adding lots of attestations that only intersect pairwise should lead to two aggregate
     /// attestations.
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn attestation_pairwise_overlapping() {
         let (harness, ref spec) = attestation_test_state(1);
@@ -1290,6 +1293,8 @@ mod release_tests {
     /// signed by the larger number. Then, check that `get_attestations` only returns the
     /// high-quality attestations. To ensure that no aggregation occurs, ALL attestations
     /// are also signed by the 0th member of the committee.
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn attestation_get_max() {
         let small_step_size = 2;
@@ -1390,6 +1395,8 @@ mod release_tests {
         }
     }
 
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn attestation_rewards() {
         let small_step_size = 2;

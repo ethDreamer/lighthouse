@@ -824,11 +824,13 @@ mod tests {
     use futures::future::FutureExt;
     use parking_lot::RwLock;
     use slot_clock::ManualSlotClock;
-    use types::Epoch;
+    use types::{Epoch, Spec};
 
     #[test]
     fn duration_to_attestation_deadline_is_fork_aware() {
-        let mut spec = Spec::default_spec();
+        // Pin the mainnet chain spec so the hardcoded millisecond expectations below hold
+        // regardless of the compiled preset (minimal has 6s slots).
+        let mut spec = ChainSpec::mainnet();
         let gloas_fork_epoch = Epoch::new(1);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
 

@@ -1049,7 +1049,7 @@ pub fn generate_blobs(
     Ok((bundle, transactions.try_into().unwrap()))
 }
 
-pub fn static_valid_tx() -> Result<Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>, String> {
+pub fn static_valid_tx() -> Result<Transaction, String> {
     // This is a real transaction hex encoded, but we don't care about the contents of the transaction.
     let transaction: AlloyTransaction = serde_json::from_str(
         r#"{
@@ -1197,20 +1197,13 @@ mod test {
     fn valid_test_blobs_bundle_v1() {
         assert!(
             validate_blob_bundle_v1().is_ok(),
-            "Mainnet preset test blobs bundle should contain valid proofs"
-        );
-        assert!(
-            validate_blob_bundle_v1().is_ok(),
-            "Minimal preset test blobs bundle should contain valid proofs"
+            "Test blobs bundle should contain valid proofs"
         );
     }
 
     #[test]
     fn valid_test_blobs_bundle_v2() {
-        validate_blob_bundle_v2()
-            .expect("Mainnet preset test blobs bundle v2 should contain valid proofs");
-        validate_blob_bundle_v2()
-            .expect("Minimal preset test blobs bundle v2 should contain valid proofs");
+        validate_blob_bundle_v2().expect("Test blobs bundle v2 should contain valid proofs");
     }
 
     fn validate_blob_bundle_v1() -> Result<(), String> {

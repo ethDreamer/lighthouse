@@ -541,13 +541,14 @@ mod tests {
         },
     };
     use std::time::Duration;
+    use types::Spec;
 
     type TestHarness = BeaconChainHarness<EphemeralHarnessType>;
 
     fn harness() -> TestHarness {
         BeaconChainHarness::builder()
             .default_spec()
-            .deterministic_keypairs(8)
+            .deterministic_keypairs(Spec::minimum_validator_count())
             .fresh_ephemeral_store()
             .mock_execution_layer()
             .build()

@@ -14,7 +14,7 @@ use logging::create_test_tracing_subscriber;
 use std::sync::{Arc, LazyLock};
 use types::*;
 
-// >= 32 validators required for Gloas genesis with MainnetEthSpec (32 slots/epoch).
+// >= 32 validators required for Gloas genesis with MainnetSpec (32 slots/epoch).
 const VALIDATOR_COUNT: usize = 32;
 
 /// A cached set of keys.

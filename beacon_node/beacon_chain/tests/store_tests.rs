@@ -42,7 +42,7 @@ use safe_arith::SafeArith;
 use slot_clock::{SlotClock, TestingSlotClock};
 use ssz::Encode;
 use ssz_types::{ProgressiveVariableList, VariableList};
-use state_processing::{BlockReplayer, state_advance::complete_state_advance};
+use state_processing::{BlockReplayError, BlockReplayer, state_advance::complete_state_advance};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -698,7 +698,7 @@ async fn randao_genesis_storage() {
     let store = get_store(&db_path);
     let harness = get_harness(store.clone(), validator_count);
 
-    let num_slots = Spec::slots_per_epoch() * (Spec::EPOCHS_PER_HISTORICAL_VECTOR - 1) as u64;
+    let num_slots = Spec::slots_per_epoch() * (Spec::epochs_per_historical_vector() - 1);
 
     // Check we have a non-trivial genesis value
     let genesis_value = *harness
@@ -983,37 +983,37 @@ async fn block_replayer_hooks() {
     let mut pre_block_slots = vec![];
     let mut post_block_slots = vec![];
 
-    let mut replay_state =
-        BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(state, &chain.spec)
-            .pre_slot_hook(Box::new(|_, state| {
-                pre_slots.push(state.slot());
-                Ok(())
-            }))
-            .post_slot_hook(Box::new(|state, epoch_summary, is_skip_slot| {
-                if is_skip_slot {
-                    assert!(!block_slots.contains(&state.slot()));
-                } else {
-                    assert!(block_slots.contains(&state.slot()));
-                }
-                if state.slot() % Spec::slots_per_epoch() == 0 {
-                    assert!(epoch_summary.is_some());
-                }
-                post_slots.push(state.slot());
-                Ok(())
-            }))
-            .pre_block_hook(Box::new(|state, block| {
-                assert_eq!(state.slot(), block.slot());
-                pre_block_slots.push(block.slot());
-                Ok(())
-            }))
-            .post_block_hook(Box::new(|state, block| {
-                assert_eq!(state.slot(), block.slot());
-                post_block_slots.push(block.slot());
-                Ok(())
-            }))
-            .apply_blocks(blocks, None)
-            .unwrap()
-            .into_state();
+    let mut replay_state = BlockReplayer::<BlockReplayError>::new(state, &chain.spec)
+        .no_state_root_iter()
+        .pre_slot_hook(Box::new(|_, state| {
+            pre_slots.push(state.slot());
+            Ok(())
+        }))
+        .post_slot_hook(Box::new(|state, epoch_summary, is_skip_slot| {
+            if is_skip_slot {
+                assert!(!block_slots.contains(&state.slot()));
+            } else {
+                assert!(block_slots.contains(&state.slot()));
+            }
+            if state.slot() % Spec::slots_per_epoch() == 0 {
+                assert!(epoch_summary.is_some());
+            }
+            post_slots.push(state.slot());
+            Ok(())
+        }))
+        .pre_block_hook(Box::new(|state, block| {
+            assert_eq!(state.slot(), block.slot());
+            pre_block_slots.push(block.slot());
+            Ok(())
+        }))
+        .post_block_hook(Box::new(|state, block| {
+            assert_eq!(state.slot(), block.slot());
+            post_block_slots.push(block.slot());
+            Ok(())
+        }))
+        .apply_blocks(blocks, None)
+        .unwrap()
+        .into_state();
 
     // All but last slot seen by pre-slot hook
     assert_eq!(&pre_slots, all_slots.split_last().unwrap().1);
@@ -1982,7 +1982,7 @@ async fn build_across_gloas_boundary(
 #[tokio::test]
 async fn proposer_lookahead_retains_slashed_proposer_across_gloas_boundary() {
     let gloas_fork_epoch = Epoch::new(4);
-    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
+    let slots_per_epoch = Spec::slots_per_epoch() as usize;
 
     // Run with no slashings, to determine the proposers scheduled for the fork epoch
     let reference_state =
@@ -2018,7 +2018,7 @@ async fn proposer_lookahead_retains_slashed_proposer_across_gloas_boundary() {
 #[tokio::test]
 async fn proposer_lookahead_excludes_slashed_proposer_only_after_first_two_gloas_epochs() {
     let gloas_fork_epoch = Epoch::new(4);
-    let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
+    let slots_per_epoch = Spec::slots_per_epoch() as usize;
 
     // Run with no slashings, to determine the scheduled proposers on each side of the window
     let reference_state =
@@ -4983,7 +4983,7 @@ async fn test_import_historical_data_columns_batch_no_block_found() {
         return;
     }
 
-    let spec = test_spec();
+    let spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
     let db_path = tempdir().unwrap();
     let store = get_store_generic(&db_path, StoreConfig::default(), spec);
     let start_slot = Slot::new(1);
@@ -7431,15 +7431,13 @@ async fn test_gloas_block_replay_with_envelopes() {
     assert!(!blocks.is_empty(), "should have blocks for replay");
 
     // Replay blocks and verify against the expected state.
-    let mut replayed = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(
-        genesis_state,
-        store.get_chain_spec(),
-    )
-    .no_signature_verification()
-    .minimal_block_root_verification()
-    .apply_blocks(blocks, None)
-    .expect("should replay blocks")
-    .into_state();
+    let replayer: BlockReplayer<'_> = BlockReplayer::new(genesis_state, store.get_chain_spec())
+        .no_signature_verification()
+        .minimal_block_root_verification();
+    let mut replayed = replayer
+        .apply_blocks(blocks, None)
+        .expect("should replay blocks")
+        .into_state();
     replayed.apply_pending_mutations().unwrap();
 
     let (_, mut expected) = states.get(&end_slot).unwrap().clone();
@@ -7465,7 +7463,7 @@ async fn test_gloas_hot_state_hierarchy() {
     let store = get_store(&db_path);
     let harness = get_harness(store.clone(), LOW_VALIDATOR_COUNT);
 
-    // Build enough blocks to span multiple epochs. With MinimalEthSpec (8 slots/epoch),
+    // Build enough blocks to span multiple epochs. With minimal spec (8 slots/epoch),
     // 40 slots covers 5 epochs.
     let num_blocks = Spec::slots_per_epoch() * 5;
     let all_validators = (0..LOW_VALIDATOR_COUNT).collect::<Vec<_>>();

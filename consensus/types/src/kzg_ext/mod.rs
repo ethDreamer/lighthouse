@@ -1,13 +1,13 @@
 pub mod consts;
 
 pub use kzg::{Error as KzgError, Kzg, KzgCommitment, KzgProof};
-use typenum::U;
 
 use crate::core::Spec;
 use crate::{BeaconStateError, Hash256};
 use merkle_proof::{MerkleTree, MerkleTreeError};
 use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};
 use tree_hash::{BYTES_PER_CHUNK, TreeHash};
+use typenum::U;
 
 // Note on List limit:
 // - Deneb to Electra: `MaxBlobCommitmentsPerBlock`
@@ -16,9 +16,10 @@ use tree_hash::{BYTES_PER_CHUNK, TreeHash};
 // introduce a new type for Fulu. This is to avoid messy conversions and having to add extra types
 // with no gains - as `N` does not impact serialisation at all, and only affects merkleization,
 // which we don't current do on `KzgProofs` anyway.
-pub type KzgProofs = VariableList<KzgProof, U<{ Spec::MAX_CELLS_PER_BLOCK }>>;
+pub type KzgProofs = VariableList<KzgProof, typenum::U<{ Spec::MAX_CELLS_PER_BLOCK }>>;
 
-pub type KzgCommitments = VariableList<KzgCommitment, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
+pub type KzgCommitments =
+    VariableList<KzgCommitment, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 /// Progressive (EIP-7688) variant of `KzgCommitments`, used from Gloas onwards.
 ///
@@ -38,8 +39,10 @@ pub fn complete_kzg_commitment_merkle_proof(
     kzg_commitments: &KzgCommitments,
     index: usize,
     kzg_commitments_proof: &[Hash256],
-) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError>
-{
+) -> Result<
+    FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
+    BeaconStateError,
+> {
     // We compute the branches by generating 2 merkle trees:
     // 1. Merkle tree for the `blob_kzg_commitments` List object
     // 2. Merkle tree for the `BeaconBlockBody` container

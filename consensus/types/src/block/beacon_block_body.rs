@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use typenum::U;
 
 use bls::Signature;
 use context_deserialize::{ContextDeserialize, context_deserialize};
@@ -12,6 +11,7 @@ use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     ListRef, SignedExecutionPayloadBid,
@@ -118,7 +118,8 @@ pub const BLOB_KZG_COMMITMENTS_INDEX: usize = 11;
     derive(arbitrary::Arbitrary),
     arbitrary(bound = "Payload: AbstractExecPayload")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, TreeHash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Educe, TreeHash)]
+#[educe(PartialEq, Hash)]
 #[serde(untagged)]
 #[serde(bound = "Payload: AbstractExecPayload")]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -1594,8 +1595,7 @@ mod tests {
     mod gloas {
         use super::super::*;
         use crate::block::BeaconBlock;
-        use crate::core::ChainSpec;
-        use crate::core::Spec;
+        use crate::core::{ChainSpec, Spec};
 
         /// Check the derived Gloas body root against a manual computation from its 13 field
         /// roots, so an incorrect `active_fields` list would change the result (EIP-7688).

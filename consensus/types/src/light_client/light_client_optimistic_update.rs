@@ -4,12 +4,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use superstruct::superstruct;
-use tree_hash::Hash256;
 use tree_hash_derive::TreeHash;
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, Slot},
+    core::{ChainSpec, Hash256, Slot},
     fork::ForkName,
     light_client::{
         LightClientError, LightClientHeader, LightClientHeaderAltair, LightClientHeaderCapella,

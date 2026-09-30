@@ -6,6 +6,7 @@ use arbitrary::Arbitrary;
 use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
 use bls::Keypair;
 use fixed_bytes::FixedBytesExtended;
+#[cfg(feature = "spec-minimal")]
 use milhouse::Vector;
 use ssz::Encode;
 use swap_or_not_shuffle::compute_shuffled_index;
@@ -150,7 +151,7 @@ async fn cache_initialization() {
 
     let mut state = build_state(16).await;
 
-    *state.slot_mut() = (Epoch::new(Spec::genesis_epoch()) + 1).start_slot(Spec::slots_per_epoch());
+    *state.slot_mut() = Epoch::new(Spec::genesis_epoch() + 1).start_slot(Spec::slots_per_epoch());
 
     test_cache_initialization(&mut state, RelativeEpoch::Previous, &spec);
     test_cache_initialization(&mut state, RelativeEpoch::Current, &spec);
@@ -159,6 +160,7 @@ async fn cache_initialization() {
 
 /// Tests committee-specific components
 #[cfg(test)]
+#[cfg(feature = "spec-minimal")]
 mod committees {
     use super::*;
     use std::ops::{Add, Div};
@@ -248,7 +250,7 @@ mod committees {
         let mut new_head_state = harness.get_current_state();
 
         let distinct_hashes =
-            (0..Spec::EPOCHS_PER_HISTORICAL_VECTOR).map(|i| Hash256::from_low_u64_be(i as u64));
+            (0..Spec::epochs_per_historical_vector()).map(Hash256::from_low_u64_be);
         *new_head_state.randao_mixes_mut() = Vector::try_from_iter(distinct_hashes).unwrap();
 
         new_head_state
@@ -279,7 +281,7 @@ mod committees {
 
         committee_consistency_test(
             validator_count,
-            Epoch::new(Spec::genesis_epoch()) + 4,
+            Epoch::new(Spec::genesis_epoch() + 4),
             cached_epoch,
         )
         .await;
@@ -313,7 +315,8 @@ mod committees {
 
 #[test]
 fn decode_base_and_altair() {
-    let spec = Spec::default_spec();
+    let mut spec = Spec::default_spec();
+    spec.altair_fork_epoch = spec.altair_fork_epoch.or(Some(Epoch::new(1)));
 
     let mut u = types::test_utils::test_unstructured();
 

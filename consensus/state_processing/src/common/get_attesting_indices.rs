@@ -124,7 +124,7 @@ pub mod attesting_indices_electra {
                 .enumerate()
                 .filter_map(|(i, &index)| {
                     if let Ok(aggregation_bit_index) = committee_offset.safe_add(i)
-                        && aggregation_bits.get(aggregation_bit_index).unwrap_or(false)
+                        && aggregation_bits.get(aggregation_bit_index) == Ok(true)
                     {
                         return Some(index as u64);
                     }

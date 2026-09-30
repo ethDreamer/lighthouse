@@ -20,14 +20,14 @@ fn check_over_limit<T: Clone + Encode + Decode + 'static, N: Unsigned>(
 fn check_limits() {
     // Exercise the enclosing wire containers, including nested variable-length lists.
     macro_rules! check {
-        ($container:expr, $($field:ident).+, $limit:ty) => {{
+        ($container:expr, $($field:ident).+, $limit:expr) => {{
             let mut value = $container.clone();
             let item = test_arbitrary_instance();
-            value.$($field).+ = ProgressiveVariableList::new(vec![item; <$limit>::to_usize()]).unwrap();
+            value.$($field).+ = ProgressiveVariableList::new(vec![item; $limit]).unwrap();
             assert!(round_trip(&value).is_ok(), stringify!($($field).+));
             check_over_limit(&value.$($field).+, test_arbitrary_instance());
             assert!(value.$($field).+.push(test_arbitrary_instance()).is_err());
-            assert_eq!(value.$($field).+.len(), <$limit>::to_usize());
+            assert_eq!(value.$($field).+.len(), $limit);
             assert!(round_trip(&value).is_ok(), stringify!($($field).+));
         }};
     }

@@ -116,7 +116,7 @@ pub fn get_config(cli_args: &ArgMatches, context: &RuntimeContext) -> Result<Cli
         } else {
             warn!(
                 subnets = spec.data_column_sidecar_subnet_count,
-                columns = Spec::NUMBER_OF_COLUMNS,
+                columns = Spec::number_of_columns(),
                 "Not enabling partial columns on networks with multiple columns per subnet"
             )
         }

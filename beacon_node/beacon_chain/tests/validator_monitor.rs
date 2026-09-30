@@ -1,10 +1,14 @@
-use beacon_chain::test_utils::{
-    AttestationStrategy, BeaconChainHarness, BlockStrategy, EphemeralHarnessType,
-};
-use beacon_chain::validator_monitor::{MISSED_BLOCK_LAG_SLOTS, ValidatorMonitorConfig};
+#[cfg(not(feature = "spec-minimal"))]
+use beacon_chain::test_utils::{AttestationStrategy, BlockStrategy};
+use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
+#[cfg(not(feature = "spec-minimal"))]
+use beacon_chain::validator_monitor::MISSED_BLOCK_LAG_SLOTS;
+use beacon_chain::validator_monitor::ValidatorMonitorConfig;
 use bls::{Keypair, PublicKeyBytes};
 use std::sync::LazyLock;
-use types::{Epoch, Hash256, Slot, Spec};
+#[cfg(not(feature = "spec-minimal"))]
+use types::Hash256;
+use types::{Epoch, Slot, Spec};
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;
@@ -112,9 +116,10 @@ async fn missed_blocks_across_epochs() {
     );
 }
 
+#[cfg(not(feature = "spec-minimal"))]
 #[tokio::test]
 async fn missed_blocks_basic() {
-    // >= 32 validators required for Gloas genesis with MainnetEthSpec (32 slots/epoch).
+    // >= 32 validators required for Gloas genesis with MainnetSpec (32 slots/epoch).
     let validator_count = 32;
 
     let slots_per_epoch = Spec::slots_per_epoch();

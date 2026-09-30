@@ -3,7 +3,7 @@
 //! Measures performance of the core FCR algorithms at various validator set sizes using a
 //! synthetic linear chain built via `ProtoArrayForkChoice`.
 //!
-//! All benchmarks run on `MainnetEthSpec` (32 slots/epoch). The chain spans three epochs so the
+//! All benchmarks run on the compiled `Spec` (mainnet: 32 slots/epoch). The chain spans three epochs so the
 //! FCR state machine has a real epoch boundary and a fully-populated previous epoch to act on.
 //! `get_latest_confirmed` is measured across a table of realistic (chain position, FCR run slot)
 //! scenarios — see `SCENARIOS`.
@@ -125,7 +125,7 @@ impl BenchData {
 /// Build the synthetic chain (slots 0..=CHAIN_TIP_SLOT) with `num_validators` voting for scattered
 /// recent blocks, plus an FCR seeded with the shared balances/checkpoints.
 fn build_chain(num_validators: usize) -> BenchData {
-    build_chain_inner(num_validators, Spec::SLOTS_PER_EPOCH, None)
+    build_chain_inner(num_validators, Spec::slots_per_epoch() as usize, None)
 }
 
 /// `build_chain`, with `seed_validators` in the committee-cached seed state (so `is_in_range`

@@ -476,7 +476,7 @@ impl LightClientUpdate {
         let next_sync_committee = Arc::new(SyncCommittee::temporary());
         macro_rules! min_len {
             ($update:ident) => {
-                $update::<E> {
+                $update {
                     attested_header: Default::default(),
                     next_sync_committee: next_sync_committee.clone(),
                     next_sync_committee_branch: Default::default(),
@@ -541,31 +541,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use super::*;
+        use crate::LightClientUpdateAltair;
         ssz_tests!(LightClientUpdateAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use super::*;
+        use crate::LightClientUpdateCapella;
         ssz_tests!(LightClientUpdateCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use super::*;
+        use crate::LightClientUpdateDeneb;
         ssz_tests!(LightClientUpdateDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use super::*;
+        use crate::LightClientUpdateElectra;
         ssz_tests!(LightClientUpdateElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use super::*;
+        use crate::LightClientUpdateFulu;
         ssz_tests!(LightClientUpdateFulu);
     }
 

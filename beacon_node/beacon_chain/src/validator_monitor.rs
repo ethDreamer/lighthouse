@@ -993,7 +993,7 @@ impl ValidatorMonitor {
                             // of the sync committee.
                             info!(
                                 included = summary.sync_signature_block_inclusions,
-                                expected = Spec::slots_per_epoch(),
+                                expected = Spec::SLOTS_PER_EPOCH,
                                 epoch = %current_epoch,
                                 validator = id,
                                 "Current epoch sync signatures"

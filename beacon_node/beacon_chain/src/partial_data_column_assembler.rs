@@ -603,7 +603,7 @@ mod tests {
     fn do_maintenance_keeps_recent_assemblies() {
         let assembler = make_assembler();
         let root = Hash256::repeat_byte(1);
-        // Header at slot 100 → epoch 100/8 = 12 for MinimalEthSpec (8 slots/epoch)
+        // Header at slot 100 → epoch 100/8 = 12 for MinimalSpec (8 slots/epoch)
         let mut header = make_header(4);
         header.signed_block_header.message.slot = Slot::new(100);
         let header = Arc::new(header);

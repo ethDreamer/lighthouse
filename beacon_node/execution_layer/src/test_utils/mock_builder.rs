@@ -28,6 +28,7 @@ use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use tree_hash::TreeHash;
+use types::Spec;
 use types::builder::{
     BuilderBid, BuilderBidBellatrix, BuilderBidCapella, BuilderBidDeneb, BuilderBidElectra,
     BuilderBidFulu, SignedBuilderBid,
@@ -36,7 +37,7 @@ use types::{
     Address, BeaconState, ChainSpec, Epoch, ExecPayload, ExecutionPayload,
     ExecutionPayloadHeaderRefMut, ExecutionRequests, ExecutionRequestsElectra, ForkName,
     ForkVersionDecode, Hash256, SignedBlindedBeaconBlock, SignedRoot,
-    SignedValidatorRegistrationData, Slot, Spec, Uint256,
+    SignedValidatorRegistrationData, Slot, Uint256,
 };
 use types::{ExecutionBlockHash, ProgressiveTransactions};
 use warp::{
@@ -718,7 +719,7 @@ impl MockBuilder {
                     let next_slot = head.slot + 1;
                     // Find the next proposer index from the cached data or through a beacon api call
                     let epoch = next_slot.epoch(Spec::slots_per_epoch());
-                    let position_in_slot = next_slot.as_u64() % Spec::slots_per_epoch();
+                    let position_in_slot = next_slot.as_u64() % (Spec::slots_per_epoch());
                     let proposer_data = {
                         let proposers_opt = {
                             let proposers_cache = self.proposers_cache.read();

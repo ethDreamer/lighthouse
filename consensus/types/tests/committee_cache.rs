@@ -4,11 +4,13 @@ use std::sync::LazyLock;
 use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
 use bls::Keypair;
 use fixed_bytes::FixedBytesExtended;
+#[cfg(feature = "spec-minimal")]
 use milhouse::Vector;
+#[cfg(feature = "spec-minimal")]
 use swap_or_not_shuffle::shuffle_list;
 use types::*;
 
-use crate::test_utils::generate_deterministic_keypairs;
+use types::test_utils::generate_deterministic_keypairs;
 
 pub const MAX_VALIDATOR_COUNT: usize = 160;
 
@@ -82,6 +84,7 @@ async fn initializes_with_the_right_epoch() {
     assert!(cache.is_initialized_at(state.next_epoch().unwrap()));
 }
 
+#[cfg(feature = "spec-minimal")]
 #[tokio::test]
 async fn shuffles_for_the_right_epoch() {
     let num_validators = Spec::minimum_validator_count() * 2;
@@ -93,8 +96,8 @@ async fn shuffles_for_the_right_epoch() {
 
     assert_eq!(state.current_epoch(), epoch);
 
-    let distinct_hashes: Vec<Hash256> = (0..Spec::EPOCHS_PER_HISTORICAL_VECTOR)
-        .map(|i| Hash256::from_low_u64_be(i as u64))
+    let distinct_hashes: Vec<Hash256> = (0..Spec::epochs_per_historical_vector())
+        .map(Hash256::from_low_u64_be)
         .collect();
 
     *state.randao_mixes_mut() = Vector::try_from_iter(distinct_hashes).unwrap();
@@ -148,6 +151,7 @@ async fn shuffles_for_the_right_epoch() {
     );
 }
 
+#[cfg(feature = "spec-minimal")]
 #[tokio::test]
 async fn min_randao_epoch_correct() {
     let num_validators = Spec::minimum_validator_count() * 2;

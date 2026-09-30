@@ -86,7 +86,7 @@ pub struct JsonExecutionPayload {
     pub state_root: Hash256,
     pub receipts_root: Hash256,
     #[serde(with = "serde_logs_bloom")]
-    pub logs_bloom: FixedVector<u8, U<{ Spec::BYTES_PER_LOGS_BLOOM }>>,
+    pub logs_bloom: FixedVector<u8, typenum::U<{ Spec::BYTES_PER_LOGS_BLOOM }>>,
     pub prev_randao: Hash256,
     #[serde(with = "serde_utils::u64_hex_be")]
     pub block_number: u64,
@@ -97,7 +97,7 @@ pub struct JsonExecutionPayload {
     #[serde(with = "serde_utils::u64_hex_be")]
     pub timestamp: u64,
     #[serde(with = "ssz_types::serde_utils::hex_var_list")]
-    pub extra_data: VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>>,
+    pub extra_data: VariableList<u8, typenum::U<{ Spec::MAX_EXTRA_DATA_BYTES }>>,
     #[serde(with = "serde_utils::u256_hex_be")]
     pub base_fee_per_gas: Uint256,
 
@@ -115,7 +115,8 @@ pub struct JsonExecutionPayload {
         only(Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "withdrawals_bounded")
     )]
-    pub withdrawals: VariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
+    pub withdrawals:
+        VariableList<JsonWithdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "withdrawals_progressive"))]
     pub withdrawals:
         ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
@@ -1350,7 +1351,8 @@ pub struct JsonBlockAccessList(
 pub struct JsonExecutionPayloadBodyV1 {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions,
-    pub withdrawals: Option<VariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
+    pub withdrawals:
+        Option<VariableList<JsonWithdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -17,9 +17,11 @@ use state_processing::common::get_attesting_indices_from_state;
 use state_processing::{per_slot_processing, per_slot_processing::Error as SlotProcessingError};
 use std::sync::{Arc, LazyLock};
 use types::{
-    BeaconState, BeaconStateError, BlockImportSource, ChainSpec, Checkpoint,
-    DEFAULT_PRE_ELECTRA_WS_PERIOD, ForkName, Hash256, RelativeEpoch, Slot, Spec,
+    BeaconState, BeaconStateError, BlockImportSource, Checkpoint, ForkName, Hash256, RelativeEpoch,
+    Slot, Spec,
 };
+#[cfg(not(feature = "spec-non-mainnet"))]
+use types::{ChainSpec, DEFAULT_PRE_ELECTRA_WS_PERIOD};
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;
@@ -38,6 +40,7 @@ fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessTyp
     )
 }
 
+#[cfg(not(feature = "spec-non-mainnet"))]
 fn get_harness_with_spec(
     validator_count: usize,
     spec: &ChainSpec,
@@ -704,10 +707,7 @@ async fn unaggregated_attestations_added_to_fork_choice_some_none() {
 
         if slot <= num_blocks_produced && slot != 0 {
             assert_eq!(
-                latest_message
-                    .expect("latest message should be present")
-                    .slot
-                    .epoch(Spec::slots_per_epoch()),
+                latest_message.unwrap().slot.epoch(Spec::slots_per_epoch()),
                 slot.epoch(Spec::slots_per_epoch()),
                 "Latest message epoch for {} should be equal to epoch {}.",
                 validator,
@@ -1226,6 +1226,8 @@ async fn pseudo_finalize_with_lagging_split_update() {
     pseudo_finalize_test_generic(epochs_per_migration, expect_true_migration).await;
 }
 
+// TODO(spec-gates): This test should be made spec-agnostic.
+#[cfg(not(feature = "spec-non-mainnet"))]
 #[tokio::test]
 async fn test_compute_weak_subjectivity_period() {
     let expected_ws_period_pre_electra = DEFAULT_PRE_ELECTRA_WS_PERIOD;

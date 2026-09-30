@@ -49,6 +49,7 @@ pub enum Error {
 
 /// Wraps a `LightClientOptimisticUpdate` that has been verified for propagation on the gossip network.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct VerifiedLightClientOptimisticUpdate {
     light_client_optimistic_update: LightClientOptimisticUpdate,
     pub parent_root: Hash256,

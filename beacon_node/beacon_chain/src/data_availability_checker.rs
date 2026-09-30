@@ -7,6 +7,7 @@ use crate::data_availability_checker::overflow_lru_cache::{
 };
 use crate::partial_data_column_assembler::{AssemblyColumn, PartialDataColumnAssembler};
 use crate::{BeaconChain, BeaconChainTypes, BlockProcessStatus, CustodyContext, metrics};
+use educe::Educe;
 use kzg::Kzg;
 use slot_clock::SlotClock;
 use std::collections::HashSet;
@@ -328,12 +329,9 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
         // Note: currently not reporting which specific blob is invalid because we fetch all blobs
         // from the same peer for both lookup and range sync.
 
-        let verified_blobs = KzgVerifiedBlobList::new(
-            blobs.into_vec().into_iter().flatten(),
-            &self.kzg,
-            seen_timestamp,
-        )
-        .map_err(AvailabilityCheckError::InvalidBlobs)?;
+        let verified_blobs =
+            KzgVerifiedBlobList::new(blobs.into_iter().flatten(), &self.kzg, seen_timestamp)
+                .map_err(AvailabilityCheckError::InvalidBlobs)?;
 
         self.availability_cache
             .put_kzg_verified_blobs(block_root, verified_blobs)
@@ -687,7 +685,7 @@ async fn availability_cache_maintenance_service<T: BeaconChainTypes>(
     overflow_cache: Arc<DataAvailabilityCheckerInner<T>>,
     partial_assembler: Option<Arc<PartialDataColumnAssembler>>,
 ) {
-    let epoch_duration = chain.slot_clock.slot_duration() * Spec::SLOTS_PER_EPOCH as u32;
+    let epoch_duration = chain.slot_clock.slot_duration() * Spec::slots_per_epoch() as u32;
     loop {
         match chain
             .slot_clock
@@ -817,7 +815,8 @@ impl AvailableBlockData {
 }
 
 /// A fully available block that is ready to be imported into fork choice.
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Educe)]
+#[educe(Hash)]
 pub struct AvailableBlock {
     block_root: Hash256,
     block: Arc<SignedBeaconBlock>,
@@ -842,14 +841,11 @@ impl AvailableBlock {
     /// - `MissingBlobs`: Block requires blobs but they are missing or incomplete
     /// - `MissingCustodyColumns`: Block requires custody columns but they are incomplete
     /// - `KzgCommitmentMismatch`: Blob KZG commitment doesn't match block commitment
-    pub fn new<T>(
+    pub fn new<T: BeaconChainTypes>(
         block: Arc<SignedBeaconBlock>,
         block_data: AvailableBlockData,
         custody_context: &CustodyContext<T>,
-    ) -> Result<Self, AvailabilityCheckError>
-    where
-        T: BeaconChainTypes,
-    {
+    ) -> Result<Self, AvailabilityCheckError> {
         // Ensure block availability
         let blobs_required = custody_context.blobs_required_for_block(&block);
         let columns_required = custody_context.data_columns_required_for_block(&block);
@@ -1012,6 +1008,7 @@ mod test {
     use crate::block_verification_types::RangeSyncBlock;
     use crate::custody_context::NodeCustodyType;
     use crate::data_column_verification::CustodyDataColumn;
+    use crate::observed_data_sidecars::Observe;
     use crate::test_utils::{
         EphemeralHarnessType, NumBlobs, generate_data_column_indices_rand_order,
         generate_rand_block_and_data_columns, get_kzg,
@@ -1066,7 +1063,7 @@ mod test {
         let block_root = Hash256::random();
         // Get 10 columns using the "latest" CGC (head) that block lookup would use.
         // The CGC change becomes effective after CUSTODY_CHANGE_DA_EFFECTIVE_DELAY_SECONDS,
-        // which is typically epoch 2+ for MinimalEthSpec.
+        // which is typically epoch 2+ for MinimalSpec.
         let future_epoch = Epoch::new(10); // Far enough in the future to have the CGC change effective
         let requested_columns = custody_context.sampling_columns_for_epoch(future_epoch);
         assert_eq!(
@@ -1150,7 +1147,7 @@ mod test {
         let block_root = Hash256::random();
         // Get 10 columns using the "latest" CGC that gossip subscriptions would use.
         // The CGC change becomes effective after CUSTODY_CHANGE_DA_EFFECTIVE_DELAY_SECONDS,
-        // which is typically epoch 2+ for MinimalEthSpec.
+        // which is typically epoch 2+ for MinimalSpec.
         let future_epoch = Epoch::new(10); // Far enough in the future to have the CGC change effective
         let requested_columns = custody_context.sampling_columns_for_epoch(future_epoch);
         assert_eq!(

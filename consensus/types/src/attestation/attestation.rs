@@ -2,17 +2,16 @@ use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
-use typenum::U;
 
 use bls::{AggregateSignature, SecretKey, Signature};
 use context_deserialize::{ContextDeserialize, context_deserialize};
-use educe::Educe;
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz::ProgressiveBitList;
 use ssz_derive::{Decode, Encode};
 use ssz_types::{BitList, BitVector};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     attestation::{
@@ -66,8 +65,7 @@ impl From<ssz_types::Error> for Error {
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
-#[educe(PartialEq)]
+#[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq, Deserialize)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
@@ -784,7 +782,7 @@ impl<'de> ContextDeserialize<'de, ForkName> for Attestation {
 }
 
 /*
-impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for Vec<Attestation<E>> {
+impl<'de> ContextDeserialize<'de, ForkName> for Vec<Attestation> {
     fn context_deserialize<D>(
         deserializer: D,
         context: ForkName,
@@ -793,11 +791,11 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for Vec<Attestation<E>> 
         D: Deserializer<'de>,
     {
         if context.electra_enabled() {
-            <Vec<AttestationElectra<E>>>::deserialize(deserializer)
+            <Vec<AttestationElectra>>::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(|vec| vec.into_iter().map(Attestation::Electra).collect::<Vec<_>>())
         } else {
-            <Vec<AttestationBase<E>>>::deserialize(deserializer)
+            <Vec<AttestationBase>>::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(|vec| vec.into_iter().map(Attestation::Base).collect::<Vec<_>>())
         }
@@ -874,7 +872,7 @@ mod tests {
 
         let aggregation_bits = size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>();
         let attestation_data = size_of::<AttestationData>();
-        let committee_bits = size_of::<BitList<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>>();
+        let committee_bits = size_of::<BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>>();
         let signature = size_of::<AggregateSignature>();
 
         assert_eq!(aggregation_bits, 144);

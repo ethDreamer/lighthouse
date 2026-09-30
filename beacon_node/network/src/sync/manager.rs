@@ -256,7 +256,7 @@ pub struct SyncManager<T: BeaconChainTypes> {
     /// Custody syncing.
     custody_backfill_sync: CustodyBackFillSync<T>,
 
-    block_lookups: BlockLookups,
+    block_lookups: BlockLookups<T>,
     /// debounce duplicated `UnknownBlockHashFromAttestation` for the same root peer tuple. A peer
     /// may forward us thousands of a attestations, each one triggering an individual event. Only
     /// one event is useful, the rest generating log noise and wasted cycles
@@ -331,54 +331,54 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn send_sync_message(&mut self, sync_message: SyncMessage) {
         self.network.send_sync_message(sync_message);
     }
 
-    #[cfg(test)]
-    pub(crate) fn block_lookups(&self) -> &BlockLookups {
+    #[cfg(all(test, feature = "spec-minimal"))]
+    pub(crate) fn block_lookups(&self) -> &BlockLookups<T> {
         &self.block_lookups
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn range_sync(&self) -> &RangeSync<T> {
         &self.range_sync
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn network_context(&mut self) -> &mut SyncNetworkContext<T> {
         &mut self.network
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn get_range_sync_chains(
         &self,
     ) -> Result<Option<(RangeSyncType, Slot, Slot)>, &'static str> {
         self.range_sync.state()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn range_sync_state(&self) -> super::range_sync::SyncChainStatus {
         self.range_sync.state()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn __range_failed_chains(&mut self) -> Vec<Hash256> {
         self.range_sync.__failed_chains()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn get_ignored_chains(&mut self) -> Vec<Hash256> {
         self.block_lookups.get_ignored_chains()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn insert_ignored_chain(&mut self, block_root: Hash256) {
         self.block_lookups.insert_ignored_chain(block_root);
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn update_execution_engine_state(&mut self, state: EngineState) {
         self.handle_new_execution_engine_state(state);
     }

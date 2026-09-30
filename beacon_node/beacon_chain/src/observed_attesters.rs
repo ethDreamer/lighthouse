@@ -776,7 +776,7 @@ mod tests {
             mod $mod_name {
                 use super::*;
 
-                fn single_period_test(store: &mut $type<E>, period: Epoch) {
+                fn single_period_test(store: &mut $type, period: Epoch) {
                     let validator_indices = [0, 1, 2, 3, 5, 6, 7, 18, 22];
 
                     for &i in &validator_indices {
@@ -936,7 +936,7 @@ mod tests {
             mod $mod_name {
                 use super::*;
 
-                fn single_period_test(store: &mut $type<E>, key: SlotSubcommitteeIndex) {
+                fn single_period_test(store: &mut $type, key: SlotSubcommitteeIndex) {
                     let validator_indices = [0, 1, 2, 3, 5, 6, 7, 18, 22];
 
                     for &i in &validator_indices {

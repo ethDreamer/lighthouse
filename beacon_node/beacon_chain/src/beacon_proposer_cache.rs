@@ -43,7 +43,7 @@ pub struct EpochBlockProposers {
     pub(crate) epoch: Epoch,
     /// The fork that should be used to verify proposer signatures.
     pub(crate) fork: Fork,
-    /// A list of length `T::EthSpec::slots_per_epoch()`, representing the proposers for each slot
+    /// A list of length `Spec::SLOTS_PER_EPOCH`, representing the proposers for each slot
     /// in that epoch.
     ///
     /// E.g., if `self.epoch == 1`, then `self.proposers[0]` contains the proposer for slot `32`.

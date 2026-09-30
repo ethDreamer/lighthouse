@@ -42,7 +42,6 @@ use crate::{
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-#[serde(deny_unknown_fields)]
 pub struct SignedAggregateAndProof {
     /// The `AggregateAndProof` that was signed.
     #[superstruct(flatten)]

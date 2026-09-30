@@ -28,7 +28,7 @@ mod get_blobs_v2 {
     async fn test_fetch_blobs_v2_no_blobs_in_block() {
         let mut mock_adapter = mock_beacon_adapter(ForkName::Fulu);
         let (publish_fn, _s) = mock_publish_fn();
-        let block = SignedBeaconBlock::<FullPayload>::Fulu(SignedBeaconBlockFulu {
+        let block: SignedBeaconBlock = SignedBeaconBlock::Fulu(SignedBeaconBlockFulu {
             message: BeaconBlockFulu::empty(mock_adapter.spec()),
             signature: Signature::empty(),
         });

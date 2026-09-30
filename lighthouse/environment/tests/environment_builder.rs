@@ -1,7 +1,8 @@
 #![cfg(test)]
+#![cfg(not(feature = "spec-non-mainnet"))]
 
 use environment::EnvironmentBuilder;
-use eth2_network_config::{DEFAULT_HARDCODED_NETWORK, Eth2NetworkConfig};
+use eth2_network_config::{Eth2NetworkConfig, MAINNET_HARDCODED_NETWORK};
 use std::path::PathBuf;
 use types::Config;
 
@@ -12,7 +13,7 @@ fn builder() -> EnvironmentBuilder {
 }
 
 fn eth2_network_config() -> Option<Eth2NetworkConfig> {
-    Eth2NetworkConfig::constant(DEFAULT_HARDCODED_NETWORK).expect("should decode mainnet params")
+    Eth2NetworkConfig::constant(MAINNET_HARDCODED_NETWORK).expect("should decode mainnet params")
 }
 
 mod setup_eth2_config {

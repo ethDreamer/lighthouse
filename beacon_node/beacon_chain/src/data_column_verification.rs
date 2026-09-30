@@ -701,7 +701,8 @@ impl GossipVerifiedPartialDataColumnHeader {
 pub type CustodyDataColumnList = VariableList<CustodyDataColumn, U<{ Spec::NUMBER_OF_COLUMNS }>>;
 
 /// Data column that we must custody
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Encode)]
+#[derive(Debug, Educe, Clone, Encode)]
+#[educe(PartialEq, Eq, Hash(bound()))]
 #[ssz(struct_behaviour = "transparent")]
 pub struct CustodyDataColumn {
     data: Arc<DataColumnSidecar>,
@@ -1886,11 +1887,9 @@ mod test {
     use eth2::types::BlobsBundle;
     use execution_layer::test_utils::generate_blobs;
     use kzg::KzgProof;
-    use ssz::BitList;
     use ssz_types::{ProgressiveVariableList, VariableList};
     use std::sync::Arc;
     use std::time::UNIX_EPOCH;
-    use typenum::U;
     use types::{
         Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSubnetId, ForkName,
         Hash256, PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas,
@@ -2166,9 +2165,7 @@ mod test {
 
         // Create a headerless partial with no cells — should trigger EmptyMessage.
         let num_commitments = header.kzg_commitments.len();
-        let empty_bitmap =
-            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(num_commitments)
-                .unwrap();
+        let empty_bitmap = CellBitmap::with_capacity(num_commitments).unwrap();
 
         let column: PartialDataColumn = PartialDataColumnFulu {
             block_root,
@@ -2206,9 +2203,7 @@ mod test {
 
         // Create a bitmap that says 2 bits are set, but only provide 1 cell/proof.
         let num_commitments = header.kzg_commitments.len();
-        let mut bitmap =
-            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(num_commitments)
-                .unwrap();
+        let mut bitmap = CellBitmap::with_capacity(num_commitments).unwrap();
         bitmap.set(0, true).unwrap();
 
         let column: PartialDataColumn = PartialDataColumnFulu {
@@ -2250,8 +2245,7 @@ mod test {
 
         // Create a bitmap with length different from the number of commitments in the header.
         // Header has 1 commitment, but we use a bitmap with capacity 3.
-        let mut bitmap =
-            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(3).unwrap();
+        let mut bitmap = CellBitmap::with_capacity(3).unwrap();
         bitmap.set(0, true).unwrap();
 
         let column: PartialDataColumn = PartialDataColumnFulu {

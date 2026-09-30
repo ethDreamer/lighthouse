@@ -87,23 +87,23 @@ pub enum BlockComponent {
 
 pub type SingleLookupId = u32;
 
-pub struct BlockLookups {
+pub struct BlockLookups<T: BeaconChainTypes> {
     /// A cache of block roots that must be ignored for some time to prevent useless searches. For
     /// example if a chain is too long, its lookup chain is dropped, and range sync is expected to
     /// eventually sync those blocks
     ignored_chains: LRUTimeCache<Hash256>,
 
     // TODO: Why not index lookups by block_root?
-    single_block_lookups: FnvHashMap<SingleLookupId, SingleBlockLookup>,
+    single_block_lookups: FnvHashMap<SingleLookupId, SingleBlockLookup<T>>,
 
     /// Used for testing assertions
     metrics: BlockLookupsMetrics,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 use lighthouse_network::service::api_types::Id;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 #[derive(Debug)]
 pub(crate) struct BlockLookupSummary {
     /// Lookup ID
@@ -116,7 +116,7 @@ pub(crate) struct BlockLookupSummary {
     pub is_awaiting_event: bool,
 }
 
-impl BlockLookups {
+impl<T: BeaconChainTypes> BlockLookups<T> {
     pub fn new() -> Self {
         Self {
             ignored_chains: LRUTimeCache::new(Duration::from_secs(
@@ -127,22 +127,22 @@ impl BlockLookups {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn metrics(&self) -> &BlockLookupsMetrics {
         &self.metrics
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn insert_ignored_chain(&mut self, block_root: Hash256) {
         self.ignored_chains.insert(block_root);
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn get_ignored_chains(&mut self) -> Vec<Hash256> {
         self.ignored_chains.keys().cloned().collect()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn active_single_lookups(&self) -> Vec<BlockLookupSummary> {
         self.single_block_lookups
             .iter()
@@ -173,7 +173,7 @@ impl BlockLookups {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_child_and_parent<T: BeaconChainTypes>(
+    pub fn search_child_and_parent(
         &mut self,
         block_root: Hash256,
         block_component: BlockComponent,
@@ -212,7 +212,7 @@ impl BlockLookups {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_unknown_block<T: BeaconChainTypes>(
+    pub fn search_unknown_block(
         &mut self,
         block_root: Hash256,
         peer_source: &[PeerId],
@@ -227,7 +227,7 @@ impl BlockLookups {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_payload_envelope<T: BeaconChainTypes>(
+    pub fn search_payload_envelope(
         &mut self,
         block_root: Hash256,
         bid_block_hash: ExecutionBlockHash,
@@ -251,7 +251,7 @@ impl BlockLookups {
     ///
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    pub fn search_parent_of_child<T: BeaconChainTypes>(
+    pub fn search_parent_of_child(
         &mut self,
         block_root_to_search: Hash256,
         peer_type: &PeerType,
@@ -354,7 +354,7 @@ impl BlockLookups {
     /// constructed.
     /// Returns true if the lookup is created or already exists
     #[must_use = "only reference the new lookup if returns true"]
-    fn new_current_lookup<T: BeaconChainTypes>(
+    fn new_current_lookup(
         &mut self,
         block_root: Hash256,
         block_component: Option<BlockComponent>,
@@ -451,7 +451,7 @@ impl BlockLookups {
     /* Lookup responses */
 
     /// Process a block response received from a single lookup request.
-    pub fn on_block_download_response<T: BeaconChainTypes>(
+    pub fn on_block_download_response(
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
@@ -466,7 +466,7 @@ impl BlockLookups {
         self.on_lookup_result(id.lookup_id, result, "block_download_response", cx);
     }
 
-    pub fn on_custody_download_response<T: BeaconChainTypes>(
+    pub fn on_custody_download_response(
         &mut self,
         id: SingleLookupReqId,
         response: CustodyDownloadResponse,
@@ -480,7 +480,7 @@ impl BlockLookups {
         self.on_lookup_result(id.lookup_id, result, "custody_download_response", cx);
     }
 
-    pub fn on_payload_download_response<T: BeaconChainTypes>(
+    pub fn on_payload_download_response(
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
@@ -511,7 +511,7 @@ impl BlockLookups {
 
     /* Processing responses */
 
-    pub fn on_processing_result<T: BeaconChainTypes>(
+    pub fn on_processing_result(
         &mut self,
         process_type: BlockProcessType,
         result: BlockProcessingResult,
@@ -575,7 +575,7 @@ impl BlockLookups {
     }
 
     /// Makes progress on the immediate children of `block_root`
-    pub fn continue_child_lookups<T: BeaconChainTypes>(
+    pub fn continue_child_lookups(
         &mut self,
         parent_root: Hash256,
         imported_parent: ImportedParent,
@@ -632,7 +632,7 @@ impl BlockLookups {
 
     /// Common handler a lookup request error, drop it and update metrics
     /// Returns true if the lookup is created or already exists
-    fn on_lookup_result<T: BeaconChainTypes>(
+    fn on_lookup_result(
         &mut self,
         id: SingleLookupId,
         result: Result<LookupResult, LookupRequestError>,
@@ -807,8 +807,8 @@ impl BlockLookups {
     /// Recursively find the oldest ancestor lookup of another lookup
     fn find_oldest_ancestor_lookup<'a>(
         &'a self,
-        lookup: &'a SingleBlockLookup,
-    ) -> Result<&'a SingleBlockLookup, String> {
+        lookup: &'a SingleBlockLookup<T>,
+    ) -> Result<&'a SingleBlockLookup<T>, String> {
         if let Some(awaiting_parent) = lookup.awaiting_parent() {
             if let Some(lookup) = self
                 .single_block_lookups
@@ -830,7 +830,7 @@ impl BlockLookups {
     ///
     /// Note: Takes a `lookup_id` as argument to allow recursion on mutable lookups, without having
     /// to duplicate the code to add peers to a lookup
-    fn add_peers_to_lookup_and_ancestors<T: BeaconChainTypes>(
+    fn add_peers_to_lookup_and_ancestors(
         &mut self,
         lookup_id: SingleLookupId,
         peers: &[PeerId],

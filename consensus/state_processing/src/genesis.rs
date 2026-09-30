@@ -186,7 +186,7 @@ pub fn initialize_beacon_state_from_eth1(
     // Upgrade to heze if configured from genesis.
     if spec
         .heze_fork_epoch
-        .is_some_and(|fork_epoch| fork_epoch == Epoch::new(Spec::genesis_epoch()))
+        .is_some_and(|fork_epoch| fork_epoch == Spec::genesis_epoch())
     {
         upgrade_to_heze(&mut state, spec)?;
 

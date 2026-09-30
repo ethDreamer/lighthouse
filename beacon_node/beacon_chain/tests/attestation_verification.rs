@@ -231,7 +231,7 @@ fn get_valid_aggregated_attestation<T: BeaconChainTypes>(
 /// attestation.
 fn get_non_aggregator<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
-    aggregate: AttestationRef,
+    aggregate: AttestationRef<'_>,
 ) -> (usize, SecretKey) {
     let head = chain.head_snapshot();
     let state = &head.beacon_state;
@@ -872,8 +872,7 @@ async fn aggregated_gossip_verification() {
                         Spec::validator_registry_limit() + 1
                 }
                 SignedAggregateAndProofRefMut::Gloas(att) => {
-                    att.message.aggregator_index =
-                        Spec::validator_registry_limit() + 1
+                    att.message.aggregator_index = Spec::validator_registry_limit() + 1
                 }
             },
             |_, err| {
@@ -2108,7 +2107,7 @@ async fn gloas_unaggregated_attestation_unknown_payload_envelope() {
     // produced so far has `payload_received == true`.
     harness
         .extend_chain(
-            Spec::SLOTS_PER_EPOCH * 2,
+            Spec::slots_per_epoch() as usize * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -2189,7 +2188,7 @@ async fn gloas_aggregated_attestation_unknown_payload_envelope() {
     // produced so far has `payload_received == true`.
     harness
         .extend_chain(
-            Spec::SLOTS_PER_EPOCH * 2,
+            Spec::slots_per_epoch() as usize * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )

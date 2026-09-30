@@ -85,7 +85,7 @@ impl CachedShuffling {
                 if slot.epoch(Spec::slots_per_epoch()) != epoch {
                     Err(BeaconChainError::AttesterCachePtcOutOfBounds { slot, epoch })
                 } else {
-                    ptcs.get(slot.as_usize() % Spec::SLOTS_PER_EPOCH)
+                    ptcs.get(slot.as_usize() % Spec::slots_per_epoch() as usize)
                         .cloned()
                         .ok_or(BeaconChainError::AttesterCachePtcOutOfBounds { slot, epoch })
                 }
@@ -589,7 +589,7 @@ mod test {
     fn committee_caches() -> (Arc<CommitteeCache>, Arc<CommitteeCache>) {
         let harness = BeaconChainHarness::builder()
             .default_spec()
-            .deterministic_keypairs(8)
+            .deterministic_keypairs(Spec::minimum_validator_count())
             .fresh_ephemeral_store()
             .build();
         let mut state = harness.get_current_state();
@@ -869,7 +869,7 @@ mod test {
 
         let harness = BeaconChainHarness::builder()
             .spec(Arc::new(spec.clone()))
-            .deterministic_keypairs(8)
+            .deterministic_keypairs(Spec::minimum_validator_count())
             .fresh_ephemeral_store()
             .build();
         let state = harness.get_current_state();

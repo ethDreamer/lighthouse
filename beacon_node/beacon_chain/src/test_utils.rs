@@ -74,6 +74,7 @@ use task_executor::{ShutdownReason, test_utils::TestRuntime};
 use tracing::debug;
 use tree_hash::TreeHash;
 use typenum::U4294967296;
+use types::Spec;
 use types::attestation::IndexedAttestationBase;
 use types::data::CustodyIndex;
 use types::execution::BlockProductionVersion;
@@ -128,11 +129,7 @@ pub type BaseHarnessType<THotStore, TColdStore> = Witness<TestingSlotClock, THot
 pub type DiskHarnessType = BaseHarnessType<BeaconNodeBackend, BeaconNodeBackend>;
 pub type EphemeralHarnessType = BaseHarnessType<MemoryStore, MemoryStore>;
 
-pub type BoxedMutator<Hot, Cold> = Box<
-    dyn FnOnce(
-        BeaconChainBuilder<BaseHarnessType<Hot, Cold>>,
-    ) -> BeaconChainBuilder<BaseHarnessType<Hot, Cold>>,
->;
+pub type BoxedMutator<T> = Box<dyn FnOnce(BeaconChainBuilder<T>) -> BeaconChainBuilder<T>>;
 
 pub type AddBlocksResult = (
     HashMap<Slot, SignedBeaconBlockHash>,
@@ -260,8 +257,8 @@ pub struct Builder<T: BeaconChainTypes> {
     store_config: Option<StoreConfig>,
     #[allow(clippy::type_complexity)]
     store: Option<Arc<HotColdDB<T::HotStore, T::ColdStore>>>,
-    initial_mutator: Option<BoxedMutator<T::HotStore, T::ColdStore>>,
-    store_mutator: Option<BoxedMutator<T::HotStore, T::ColdStore>>,
+    initial_mutator: Option<BoxedMutator<T>>,
+    store_mutator: Option<BoxedMutator<T>>,
     execution_layer: Option<ExecutionLayer>,
     mock_execution_layer: Option<MockExecutionLayer>,
     testing_slot_clock: Option<TestingSlotClock>,
@@ -420,6 +417,16 @@ impl Builder<DiskHarnessType> {
     }
 }
 
+impl<Hot, Cold> Default for Builder<BaseHarnessType<Hot, Cold>>
+where
+    Hot: ItemStore,
+    Cold: ItemStore,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Hot, Cold> Builder<BaseHarnessType<Hot, Cold>>
 where
     Hot: ItemStore,
@@ -492,7 +499,7 @@ where
     }
 
     /// This mutator will be run before the `store_mutator`.
-    pub fn initial_mutator(mut self, mutator: BoxedMutator<Hot, Cold>) -> Self {
+    pub fn initial_mutator(mut self, mutator: BoxedMutator<BaseHarnessType<Hot, Cold>>) -> Self {
         assert!(
             self.initial_mutator.is_none(),
             "initial mutator already set"
@@ -502,7 +509,7 @@ where
     }
 
     /// This mutator will be run after the `initial_mutator`.
-    pub fn store_mutator(mut self, mutator: BoxedMutator<Hot, Cold>) -> Self {
+    pub fn store_mutator(mut self, mutator: BoxedMutator<BaseHarnessType<Hot, Cold>>) -> Self {
         assert!(self.store_mutator.is_none(), "store mutator already set");
         self.store_mutator = Some(mutator);
         self
@@ -517,7 +524,10 @@ where
     }
 
     /// Purposefully replace the `store_mutator`.
-    pub fn override_store_mutator(mut self, mutator: BoxedMutator<Hot, Cold>) -> Self {
+    pub fn override_store_mutator(
+        mut self,
+        mutator: BoxedMutator<BaseHarnessType<Hot, Cold>>,
+    ) -> Self {
         assert!(self.store_mutator.is_some(), "store mutator not set");
         self.store_mutator = Some(mutator);
         self
@@ -650,7 +660,7 @@ where
                 ..ChainConfig::default()
             }
         });
-        let mut builder = BeaconChainBuilder::new(self.eth_spec_instance, kzg.clone())
+        let mut builder = BeaconChainBuilder::new(kzg.clone())
             .custom_spec(spec.clone())
             .store(self.store.expect("cannot build without store"))
             .store_migrator_config(
@@ -821,7 +831,7 @@ where
 {
     pub fn builder() -> Builder<BaseHarnessType<Hot, Cold>> {
         create_test_tracing_subscriber();
-        Builder::new(eth_spec_instance)
+        Builder::new()
     }
 
     pub fn execution_block_generator(&self) -> RwLockWriteGuard<'_, ExecutionBlockGenerator> {
@@ -868,7 +878,7 @@ where
         strict_registrations: bool,
         apply_operations: bool,
         broadcast_to_bn: bool,
-    ) -> impl futures::Future<Output = ()> + use<E, Hot, Cold> {
+    ) -> impl futures::Future<Output = ()> + use<Hot, Cold> {
         let mock_el = self
             .mock_execution_layer
             .as_ref()
@@ -3564,7 +3574,7 @@ where
         let _ = self
             .chain
             .light_client_server_cache
-            .recompute_and_cache_updates(
+            .recompute_and_cache_updates::<BaseHarnessType<Hot, Cold>>(
                 self.chain.store.clone(),
                 slot,
                 &block_root,
@@ -4085,7 +4095,7 @@ macro_rules! add_blob_transactions {
             NumBlobs::None => 0,
         };
         let (bundle, transactions) =
-            execution_layer::test_utils::generate_blobs::<E>(num_blobs, $fork_name).unwrap();
+            execution_layer::test_utils::generate_blobs(num_blobs, $fork_name).unwrap();
 
         let payload: &mut $payload_type = &mut $message.body.execution_payload;
         payload.execution_payload.transactions = <_>::default();

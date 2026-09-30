@@ -2,6 +2,7 @@ use std::fmt;
 
 use bls::{PublicKey, Signature};
 use context_deserialize::ContextDeserialize;
+use educe::Educe;
 use merkle_proof::MerkleTree;
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz_derive::{Decode, Encode};
@@ -12,7 +13,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    ExecutionBlockHash,
+    ExecutionBlockHash, Spec,
     block::{
         BLOB_KZG_COMMITMENTS_INDEX, BeaconBlock, BeaconBlockAltair, BeaconBlockBase,
         BeaconBlockBellatrix, BeaconBlockBodyBellatrix, BeaconBlockBodyCapella,
@@ -20,7 +21,7 @@ use crate::{
         BeaconBlockDeneb, BeaconBlockElectra, BeaconBlockFulu, BeaconBlockGloas, BeaconBlockHeader,
         BeaconBlockHeze, BeaconBlockRef, BeaconBlockRefMut, SignedBeaconBlockHeader,
     },
-    core::{ChainSpec, Domain, Epoch, Hash256, SignedRoot, SigningData, Slot, Spec},
+    core::{ChainSpec, Domain, Epoch, Hash256, SignedRoot, SigningData, Slot},
     execution::{
         AbstractExecPayload, BlindedPayload, BlindedPayloadBellatrix, BlindedPayloadCapella,
         BlindedPayloadDeneb, BlindedPayloadElectra, BlindedPayloadFulu, ExecutionPayload,
@@ -65,17 +66,8 @@ impl From<SignedBeaconBlockHash> for Hash256 {
 #[superstruct(
     variants(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
     variant_attributes(
-        derive(
-            Debug,
-            Clone,
-            Serialize,
-            Deserialize,
-            Encode,
-            Decode,
-            TreeHash,
-            PartialEq,
-            Hash,
-        ),
+        derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe,),
+        educe(PartialEq, Hash),
         serde(bound = "Payload: AbstractExecPayload"),
         cfg_attr(
             feature = "arbitrary",
@@ -92,7 +84,8 @@ impl From<SignedBeaconBlockHash> for Hash256 {
     derive(arbitrary::Arbitrary),
     arbitrary(bound = "Payload: AbstractExecPayload")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
+#[educe(PartialEq, Hash)]
 #[serde(untagged)]
 #[serde(bound = "Payload: AbstractExecPayload")]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -292,7 +285,10 @@ impl<Payload: AbstractExecPayload> SignedBeaconBlock<Payload> {
     ) -> Result<
         (
             SignedBeaconBlockHeader,
-            FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+            FixedVector<
+                Hash256,
+                typenum::U<{ crate::Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>,
+            >,
         ),
         BeaconStateError,
     > {
@@ -441,11 +437,11 @@ impl From<SignedBeaconBlockAltair<BlindedPayload>> for SignedBeaconBlockAltair<F
 macro_rules! impl_into_full_block {
     ($fork:ident, [ $($extra_field:ident),* $(,)? ]) => {
         paste::paste! {
-            impl<E: EthSpec> [<SignedBeaconBlock $fork>]<E, BlindedPayload<E>> {
+            impl [<SignedBeaconBlock $fork>]<BlindedPayload> {
                 pub fn into_full_block(
                     self,
-                    execution_payload: [<ExecutionPayload $fork>]<E>,
-                ) -> [<SignedBeaconBlock $fork>]<E, FullPayload<E>> {
+                    execution_payload: [<ExecutionPayload $fork>],
+                ) -> [<SignedBeaconBlock $fork>]<FullPayload> {
                     let [<SignedBeaconBlock $fork>] {
                         message:
                             [<BeaconBlock $fork>] {
@@ -756,10 +752,10 @@ mod test {
 
     #[test]
     fn add_remove_payload_roundtrip() {
-        let spec = &Spec::default_spec();
+        let spec = &spec_with_all_forks_enabled();
         let sig = Signature::empty();
         let blocks = vec![
-            SignedBeaconBlock::<FullPayload>::from_block(
+            SignedBeaconBlock::from_block(
                 BeaconBlock::Base(BeaconBlockBase::empty(spec)),
                 sig.clone(),
             ),
@@ -813,40 +809,43 @@ mod test {
     fn test_ssz_tagged_signed_beacon_block() {
         let spec = &spec_with_all_forks_enabled();
         let sig = Signature::empty();
-        let blocks = vec![
-            SignedBeaconBlock::<FullPayload>::from_block(
-                BeaconBlock::Base(BeaconBlockBase::empty(spec)),
+        let blocks: Vec<SignedBeaconBlock> = vec![
+            SignedBeaconBlock::from_block(
+                BeaconBlock::<FullPayload>::Base(BeaconBlockBase::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Altair(BeaconBlockAltair::empty(spec)),
+                BeaconBlock::<FullPayload>::Altair(BeaconBlockAltair::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Bellatrix(BeaconBlockBellatrix::empty(spec)),
+                BeaconBlock::<FullPayload>::Bellatrix(BeaconBlockBellatrix::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Capella(BeaconBlockCapella::empty(spec)),
+                BeaconBlock::<FullPayload>::Capella(BeaconBlockCapella::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Deneb(BeaconBlockDeneb::empty(spec)),
+                BeaconBlock::<FullPayload>::Deneb(BeaconBlockDeneb::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Electra(BeaconBlockElectra::empty(spec)),
+                BeaconBlock::<FullPayload>::Electra(BeaconBlockElectra::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Fulu(BeaconBlockFulu::empty(spec)),
+                BeaconBlock::<FullPayload>::Fulu(BeaconBlockFulu::empty(spec)),
                 sig.clone(),
             ),
             SignedBeaconBlock::from_block(
-                BeaconBlock::Gloas(BeaconBlockGloas::empty(spec)),
+                BeaconBlock::<FullPayload>::Gloas(BeaconBlockGloas::empty(spec)),
                 sig.clone(),
             ),
-            SignedBeaconBlock::from_block(BeaconBlock::Heze(BeaconBlockHeze::empty(spec)), sig),
+            SignedBeaconBlock::from_block(
+                BeaconBlock::<FullPayload>::Heze(BeaconBlockHeze::empty(spec)),
+                sig,
+            ),
         ];
 
         for block in blocks {

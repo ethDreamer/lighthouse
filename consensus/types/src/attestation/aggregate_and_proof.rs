@@ -32,7 +32,7 @@ use crate::{
     ),
     ref_attributes(
         derive(Debug, PartialEq, TreeHash, Serialize),
-        serde(untagged,),
+        serde(untagged),
         tree_hash(enum_behaviour = "transparent")
     ),
     map_ref_into(AttestationRef)
@@ -42,7 +42,6 @@ use crate::{
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-#[serde(deny_unknown_fields)]
 pub struct AggregateAndProof {
     /// The index of the validator that created the attestation.
     #[serde(with = "serde_utils::quoted_u64")]

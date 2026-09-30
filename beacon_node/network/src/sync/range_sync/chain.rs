@@ -16,6 +16,7 @@ use lighthouse_network::{PeerAction, PeerId};
 use logging::crit;
 use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
 use strum::IntoStaticStr;
 use tracing::{Span, debug, error, instrument, warn};
 use types::{Epoch, Hash256, Slot, Spec};
@@ -98,7 +99,7 @@ pub enum SyncingChainType {
 /// root are grouped into the peer pool and queried for batches when downloading the
 /// chain.
 #[derive(Debug)]
-pub struct SyncingChain {
+pub struct SyncingChain<T: BeaconChainTypes> {
     /// A random id used to identify this chain.
     id: ChainId,
 
@@ -145,6 +146,8 @@ pub struct SyncingChain {
 
     /// The span to track the lifecycle of the syncing chain.
     span: Span,
+    /// Phantom data to pin the `T` type parameter.
+    _phantom: PhantomData<T>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -155,7 +158,7 @@ pub enum ChainSyncingState {
     Syncing,
 }
 
-impl SyncingChain {
+impl<T: BeaconChainTypes> SyncingChain<T> {
     #[allow(clippy::too_many_arguments)]
     #[instrument(
         name = "lh_syncing_chain",
@@ -194,6 +197,7 @@ impl SyncingChain {
             state: ChainSyncingState::Stopped,
             current_processing_batch: None,
             span,
+            _phantom: PhantomData,
         }
     }
 
@@ -263,7 +267,7 @@ impl SyncingChain {
 
     /// A block has been received for a batch on this chain.
     /// If the block correctly completes the batch it will be processed if possible.
-    pub fn on_block_response<T: BeaconChainTypes>(
+    pub fn on_block_response(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -321,7 +325,7 @@ impl SyncingChain {
 
     /// Processes the batch with the given id.
     /// The batch must exist and be ready for processing
-    fn process_batch<T: BeaconChainTypes>(
+    fn process_batch(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -377,7 +381,7 @@ impl SyncingChain {
     }
 
     /// Processes the next ready batch, prioritizing optimistic batches over the processing target.
-    fn process_completed_batches<T: BeaconChainTypes>(
+    fn process_completed_batches(
         &mut self,
         network: &mut SyncNetworkContext<T>,
     ) -> ProcessingResult {
@@ -494,7 +498,7 @@ impl SyncingChain {
 
     /// The block processor has completed processing a batch. This function handles the result
     /// of the batch processor.
-    pub fn on_batch_process_result<T: BeaconChainTypes>(
+    pub fn on_batch_process_result(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -654,7 +658,7 @@ impl SyncingChain {
         }
     }
 
-    fn reject_optimistic_batch<T: BeaconChainTypes>(
+    fn reject_optimistic_batch(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         redownload: bool,
@@ -688,11 +692,7 @@ impl SyncingChain {
     /// If a previous batch has been validated and it had been re-processed, penalize the original
     /// peer.
     #[allow(clippy::modulo_one)]
-    fn advance_chain<T: BeaconChainTypes>(
-        &mut self,
-        network: &mut SyncNetworkContext<T>,
-        validating_epoch: Epoch,
-    ) {
+    fn advance_chain(&mut self, network: &mut SyncNetworkContext<T>, validating_epoch: Epoch) {
         // make sure this epoch produces an advancement
         if validating_epoch <= self.start_epoch {
             return;
@@ -797,7 +797,7 @@ impl SyncingChain {
     /// These events occur when a peer has successfully responded with blocks, but the blocks we
     /// have received are incorrect or invalid. This indicates the peer has not performed as
     /// intended and can result in downvoting a peer.
-    fn handle_invalid_batch<T: BeaconChainTypes>(
+    fn handle_invalid_batch(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -852,7 +852,7 @@ impl SyncingChain {
     /// This chain has been requested to start syncing.
     ///
     /// This could be new chain, or an old chain that is being resumed.
-    pub fn start_syncing<T: BeaconChainTypes>(
+    pub fn start_syncing(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         local_finalized_epoch: Epoch,
@@ -899,7 +899,7 @@ impl SyncingChain {
     /// Add a peer to the chain.
     ///
     /// If the chain is active, this starts requesting batches from this peer.
-    pub fn add_peer<T: BeaconChainTypes>(
+    pub fn add_peer(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         peer_id: PeerId,
@@ -913,7 +913,7 @@ impl SyncingChain {
     /// An RPC error has occurred.
     ///
     /// If the batch exists it is re-requested.
-    pub fn inject_error<T: BeaconChainTypes>(
+    pub fn inject_error(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -993,7 +993,7 @@ impl SyncingChain {
     ///
     /// Batches might get stuck in `AwaitingDownload` post peerdas because of lack of peers
     /// in required subnets. We need to progress them if peers are available at a later point.
-    pub fn attempt_send_awaiting_download_batches<T: BeaconChainTypes>(
+    pub fn attempt_send_awaiting_download_batches(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         src: &str,
@@ -1025,7 +1025,7 @@ impl SyncingChain {
     }
 
     /// Requests the batch assigned to the given id from a given peer.
-    pub fn send_batch<T: BeaconChainTypes>(
+    pub fn send_batch(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -1104,7 +1104,7 @@ impl SyncingChain {
 
     /// Kickstarts the chain by sending for processing batches that are ready and requesting more
     /// batches if needed.
-    pub fn resume<T: BeaconChainTypes>(
+    pub fn resume(
         &mut self,
         network: &mut SyncNetworkContext<T>,
     ) -> Result<KeepChain, RemoveChain> {
@@ -1121,10 +1121,7 @@ impl SyncingChain {
 
     /// Attempts to request the next required batches from the peer pool if the chain is syncing. It will exhaust the peer
     /// pool and left over batches until the batch buffer is reached or all peers are exhausted.
-    fn request_batches<T: BeaconChainTypes>(
-        &mut self,
-        network: &mut SyncNetworkContext<T>,
-    ) -> ProcessingResult {
+    fn request_batches(&mut self, network: &mut SyncNetworkContext<T>) -> ProcessingResult {
         if !matches!(self.state, ChainSyncingState::Syncing) {
             return Ok(KeepChain);
         }
@@ -1168,7 +1165,7 @@ impl SyncingChain {
 
     /// Checks all sampling column subnets for peers. Returns `true` if there is at least one peer in
     /// every sampling column subnet.
-    fn good_peers_on_sampling_subnets<T: BeaconChainTypes>(
+    fn good_peers_on_sampling_subnets(
         &self,
         epoch: Epoch,
         network: &SyncNetworkContext<T>,
@@ -1188,10 +1185,7 @@ impl SyncingChain {
 
     /// Creates the next required batch from the chain. If there are no more batches required,
     /// `false` is returned.
-    fn include_next_batch<T: BeaconChainTypes>(
-        &mut self,
-        network: &mut SyncNetworkContext<T>,
-    ) -> Option<BatchId> {
+    fn include_next_batch(&mut self, network: &mut SyncNetworkContext<T>) -> Option<BatchId> {
         // don't request batches beyond the target head slot
         if self.to_be_downloaded.start_slot(Spec::slots_per_epoch()) >= self.target_head_slot {
             return None;

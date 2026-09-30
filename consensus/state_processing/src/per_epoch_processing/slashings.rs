@@ -4,7 +4,8 @@ use crate::per_epoch_processing::{
     single_pass::{SinglePassConfig, process_epoch_single_pass},
 };
 use safe_arith::{SafeArith, SafeArithIter};
-use types::{BeaconState, ChainSpec, Spec};
+use types::Spec;
+use types::{BeaconState, ChainSpec};
 
 /// Process slashings.
 pub fn process_slashings(
@@ -21,7 +22,7 @@ pub fn process_slashings(
     );
 
     let target_withdrawable_epoch =
-        epoch.safe_add(Spec::epochs_per_slashings_vector().safe_div(2)?)?;
+        epoch.safe_add((Spec::epochs_per_slashings_vector()).safe_div(2)?)?;
     let indices = state
         .validators()
         .iter()

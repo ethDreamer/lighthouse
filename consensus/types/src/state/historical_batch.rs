@@ -26,7 +26,5 @@ pub struct HistoricalBatch {
 mod tests {
     use super::*;
 
-    pub type FoundationHistoricalBatch = HistoricalBatch;
-
-    ssz_and_tree_hash_tests!(FoundationHistoricalBatch);
+    ssz_and_tree_hash_tests!(HistoricalBatch);
 }

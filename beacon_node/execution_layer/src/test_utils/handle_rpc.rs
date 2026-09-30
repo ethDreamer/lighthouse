@@ -6,7 +6,6 @@ use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tracing::debug;
-use types::Spec;
 use types::{ProgressiveTransactions, ProgressiveWithdrawals};
 
 pub const GENERIC_ERROR_CODE: i64 = -1234;
@@ -75,27 +74,31 @@ pub async fn handle_rpc(body: JsonValue, ctx: Arc<Context>) -> Result<JsonValue,
                         .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 ),
                 ENGINE_NEW_PAYLOAD_V2 => get_param::<JsonExecutionPayloadCapella>(params, 0)
-                    .map(|jep| JsonExecutionPayload::Capella(jep))
+                    .map(JsonExecutionPayload::Capella)
                     .or_else(|_| {
                         get_param::<JsonExecutionPayloadBellatrix>(params, 0)
-                            .map(|jep| JsonExecutionPayload::Bellatrix(jep))
+                            .map(JsonExecutionPayload::Bellatrix)
                     })
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 ENGINE_NEW_PAYLOAD_V3 => get_param::<JsonExecutionPayloadDeneb>(params, 0)
-                    .map(|jep| JsonExecutionPayload::Deneb(jep))
+                    .map(JsonExecutionPayload::Deneb)
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
-                ENGINE_NEW_PAYLOAD_V4 => get_param::<JsonExecutionPayloadFulu>(params, 0)
-                    .map(|jep| JsonExecutionPayload::Fulu(jep))
+                ENGINE_NEW_PAYLOAD_V4 => get_param::<JsonExecutionPayloadGloas>(params, 0)
+                    .map(JsonExecutionPayload::Gloas)
+                    .or_else(|_| {
+                        get_param::<JsonExecutionPayloadFulu>(params, 0)
+                            .map(JsonExecutionPayload::Fulu)
+                    })
                     .or_else(|_| {
                         get_param::<JsonExecutionPayloadElectra>(params, 0)
-                            .map(|jep| JsonExecutionPayload::Electra(jep))
+                            .map(JsonExecutionPayload::Electra)
                     })
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 ENGINE_NEW_PAYLOAD_V5 => get_param::<JsonExecutionPayloadGloas>(params, 0)
-                    .map(|jep| JsonExecutionPayload::Gloas(jep))
+                    .map(JsonExecutionPayload::Gloas)
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 ENGINE_NEW_PAYLOAD_V6 => get_param::<JsonExecutionPayloadHeze>(params, 0)
-                    .map(|jep| JsonExecutionPayload::Heze(jep))
+                    .map(JsonExecutionPayload::Heze)
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
                 _ => unreachable!(),
             };
@@ -793,11 +796,7 @@ pub async fn handle_rpc(body: JsonValue, ctx: Arc<Context>) -> Result<JsonValue,
                             transactions: payload
                                 .transactions()
                                 .iter()
-                                .map(|tx| {
-                                    types::Transaction::<
-                                        typenum::U<{ Spec::MAX_BYTES_PER_TRANSACTION }>,
-                                    >::new(tx.to_vec())
-                                })
+                                .map(|tx| types::Transaction::new(tx.to_vec()))
                                 .collect::<Result<Vec<_>, _>>()
                                 .and_then(ssz_types::VariableList::new)
                                 .unwrap(),

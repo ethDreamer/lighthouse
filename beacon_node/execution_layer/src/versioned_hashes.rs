@@ -1,6 +1,5 @@
 use alloy_consensus::TxEnvelope;
 use alloy_rlp::Decodable;
-use typenum::Unsigned;
 use types::{ExecutionPayloadRef, Hash256, VersionedHash};
 
 #[derive(Debug)]
@@ -60,9 +59,7 @@ pub fn extract_versioned_hashes_from_transactions(
     Ok(versioned_hashes)
 }
 
-pub fn beacon_tx_to_tx_envelope<N: Unsigned>(
-    tx: &types::Transaction<N>,
-) -> Result<TxEnvelope, Error> {
+pub fn beacon_tx_to_tx_envelope(tx: &types::Transaction) -> Result<TxEnvelope, Error> {
     tx_bytes_to_tx_envelope(tx)
 }
 

@@ -1,4 +1,5 @@
 use context_deserialize::{ContextDeserialize, context_deserialize};
+use educe::Educe;
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz_derive::{Decode, Encode};
 use superstruct::superstruct;
@@ -15,25 +16,16 @@ use crate::{
 #[superstruct(
     variants(Base, Electra, Gloas),
     variant_attributes(
-        derive(
-            PartialEq,
-            Eq,
-            Hash,
-            Debug,
-            Clone,
-            Serialize,
-            Deserialize,
-            Encode,
-            Decode,
-            TreeHash,
-        ),
+        derive(Educe, Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash,),
         context_deserialize(ForkName),
+        educe(PartialEq, Eq, Hash),
         cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     ref_attributes(derive(Debug))
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Encode, Deserialize, TreeHash, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Encode, Deserialize, TreeHash, Educe)]
+#[educe(PartialEq, Eq, Hash)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -47,7 +39,8 @@ pub struct AttesterSlashing {
 /// This is a copy of the `AttesterSlashing` enum but with `Encode` and `Decode` derived
 /// using the `union` behavior for the purposes of persistence on disk. We use a separate
 /// type so that we don't accidentally use this non-spec encoding in consensus objects.
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Encode, Decode, Educe)]
+#[educe(PartialEq, Eq, Hash)]
 #[ssz(enum_behaviour = "union")]
 pub enum AttesterSlashingOnDisk {
     Base(AttesterSlashingBase),
@@ -203,7 +196,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for AttesterSlashing {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::*;
     mod base {
         use super::*;
         ssz_and_tree_hash_tests!(AttesterSlashingBase);

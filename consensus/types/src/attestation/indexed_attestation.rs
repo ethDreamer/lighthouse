@@ -2,17 +2,16 @@ use std::{
     hash::{Hash, Hasher},
     slice::Iter,
 };
-use typenum::U;
 
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use serde::{Deserialize, Serialize};
 use ssz::Encode;
 use ssz_derive::{Decode, Encode};
 use ssz_types::{ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
 
@@ -45,8 +44,7 @@ use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
     )))
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
-#[educe(PartialEq)]
+#[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq, Deserialize)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
@@ -132,8 +130,8 @@ impl IndexedAttestation {
                     U<{ Spec::MAX_VALIDATORS_PER_SLOT }>,
                 > = VariableList::new(att.attesting_indices.to_vec())
                     .expect("MaxValidatorsPerSlot must be >= MaxValidatorsPerCommittee");
-                // Note a unit test in consensus/types/src/eth_spec.rs asserts this invariant for
-                // all known specs
+                // Note a unit test in consensus/types/src/core/spec.rs asserts this invariant for
+                // each compiled spec.
 
                 Ok(IndexedAttestationElectra {
                     attesting_indices: extended_attesting_indices,

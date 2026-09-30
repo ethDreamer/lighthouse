@@ -263,7 +263,7 @@ impl DoppelgangerService {
 
                     if let Some(slot) = slot_clock.now()
                         && let Err(e) = service
-                            .detect_doppelgangers(
+                            .detect_doppelgangers::<_, _, _, _>(
                                 slot,
                                 &get_index,
                                 &get_liveness,
@@ -383,7 +383,7 @@ impl DoppelgangerService {
         let liveness_responses = get_liveness(request_epoch, indices_only).await;
 
         // Process the responses, attempting to detect doppelgangers.
-        self.process_liveness_responses(
+        self.process_liveness_responses::<_>(
             request_slot,
             liveness_responses,
             &indices_map,
@@ -927,7 +927,7 @@ mod test {
             let pubkey_to_index = self.pubkey_to_index_map();
             let get_index = |pubkey| pubkey_to_index.get(&pubkey).copied();
 
-            block_on(self.doppelganger.detect_doppelgangers(
+            block_on(self.doppelganger.detect_doppelgangers::<_, _, _, _>(
                 slot,
                 &get_index,
                 &get_liveness,

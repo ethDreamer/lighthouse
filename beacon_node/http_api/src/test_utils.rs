@@ -26,7 +26,6 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use store::MemoryStore;
 use task_executor::test_utils::TestRuntime;
 use types::ChainSpec;
 
@@ -57,7 +56,7 @@ pub struct ApiServer<T: BeaconChainTypes, SFut: Future<Output = ()>> {
 
 type HarnessBuilder = Builder<EphemeralHarnessType>;
 type Initializer = Box<dyn FnOnce(HarnessBuilder) -> HarnessBuilder>;
-type Mutator = BoxedMutator<MemoryStore, MemoryStore>;
+type Mutator = BoxedMutator<EphemeralHarnessType>;
 
 impl InteractiveTester {
     pub async fn new(spec: Option<ChainSpec>, validator_count: usize) -> Self {

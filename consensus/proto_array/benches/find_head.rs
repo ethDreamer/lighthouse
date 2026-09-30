@@ -16,7 +16,7 @@ fn get_hash(i: u64) -> ExecutionBlockHash {
 /// Build a linear chain of `num_blocks` blocks.
 fn build_chain(num_blocks: u64, gloas: bool) -> (ProtoArrayForkChoice, types::ChainSpec) {
     let mut spec = Spec::default_spec();
-    let gloas_fork_slot = 32;
+    let gloas_fork_slot = Spec::slots_per_epoch();
     if gloas {
         spec.gloas_fork_epoch = Some(Epoch::new(1));
     }

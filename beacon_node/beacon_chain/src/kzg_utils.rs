@@ -237,7 +237,7 @@ pub fn validate_blobs(
     let _timer = crate::metrics::start_timer(&crate::metrics::KZG_VERIFICATION_BATCH_TIMES);
     let blobs = blobs
         .into_iter()
-        .map(ssz_blob_to_kzg_blob_ref)
+        .map(|blob| ssz_blob_to_kzg_blob_ref(blob))
         .collect::<Result<Vec<_>, KzgError>>()?;
 
     kzg.verify_blob_kzg_proof_batch(&blobs, expected_kzg_commitments, kzg_proofs)
@@ -388,7 +388,10 @@ fn compute_cells_with_provided_proofs(
     }
 
     let proof_chunks = cell_proofs
-        .chunks_exact(Spec::NUMBER_OF_COLUMNS)
+        .as_chunks::<{ Spec::NUMBER_OF_COLUMNS }>()
+        .0
+        .iter()
+        .map(|chunk| chunk.as_slice())
         .collect::<Vec<_>>();
 
     // NOTE: assumes blobs and proofs are ordered by blob index
@@ -510,8 +513,12 @@ pub(crate) fn build_data_column_sidecars_fulu(
             .slot
             .epoch(Spec::slots_per_epoch()),
     ) as usize;
-    let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
-    let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
+    let mut columns = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
+    let mut column_kzg_proofs = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
 
     for (blob_cells, blob_cell_proofs) in blob_cells_and_proofs_vec {
         // we iterate over each column, and we construct the column from "top to bottom",
@@ -575,8 +582,12 @@ pub(crate) fn build_data_column_sidecars_gloas(
     let number_of_columns = Spec::NUMBER_OF_COLUMNS;
     let max_blobs_per_block =
         spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
-    let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
-    let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
+    let mut columns = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
+    let mut column_kzg_proofs = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
 
     for (blob_cells, blob_cell_proofs) in blob_cells_and_proofs_vec {
         // we iterate over each column, and we construct the column from "top to bottom",
@@ -723,8 +734,12 @@ fn build_partial_column_cells(
             blob_cells_and_proofs_vec.len()
         )
     })?;
-    let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
-    let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
+    let mut columns = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
+    let mut column_kzg_proofs = (0..number_of_columns)
+        .map(|_| Vec::with_capacity(max_blobs_per_block))
+        .collect::<Vec<_>>();
 
     for (idx, maybe_cells_and_proofs) in blob_cells_and_proofs_vec.into_iter().enumerate() {
         let Some((blob_cells, blob_cell_proofs)) = maybe_cells_and_proofs else {

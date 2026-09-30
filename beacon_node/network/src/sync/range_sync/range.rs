@@ -93,12 +93,12 @@ where
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn __failed_chains(&mut self) -> Vec<Hash256> {
         self.failed_chains.keys().copied().collect()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn metrics(&self) -> &super::chain_collection::ChainCollectionMetrics {
         self.chains.metrics()
     }
@@ -329,7 +329,7 @@ where
 
     fn on_chain_removed(
         &mut self,
-        chain: SyncingChain,
+        chain: SyncingChain<T>,
         sync_type: RangeSyncType,
         remove_reason: RemoveChain,
         network: &mut SyncNetworkContext<T>,

@@ -1018,14 +1018,14 @@ mod tests {
     /// Smallest sized block across all current forks. Useful for testing
     /// min length check conditions.
     fn empty_base_block(spec: &ChainSpec) -> SignedBeaconBlock {
-        let empty_block = BeaconBlock::Base(BeaconBlockBase::<FullPayload>::empty(spec));
+        let empty_block = BeaconBlock::Base(BeaconBlockBase::empty(spec));
         SignedBeaconBlock::from_block(empty_block, Signature::empty())
     }
 
     fn altair_block(spec: &ChainSpec) -> SignedBeaconBlock {
         // The context bytes are now derived from the block epoch, so we need to have the slot set
         // here.
-        let full_block = BeaconBlock::Altair(BeaconBlockAltair::<FullPayload>::full(spec));
+        let full_block = BeaconBlock::Altair(BeaconBlockAltair::full(spec));
         SignedBeaconBlock::from_block(full_block, Signature::empty())
     }
 
@@ -2182,6 +2182,8 @@ mod tests {
 
     /// Test a malicious snappy encoding for a V2 `BlocksByRange` message where the attacker
     /// sends a valid message filled with a stream of useless padding before the actual message.
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn test_decode_malicious_v2_message() {
         let chain_spec = spec_with_all_forks_enabled();

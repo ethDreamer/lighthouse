@@ -3888,6 +3888,7 @@ mod yaml_tests {
         assert!(ChainSpec::from_config(&duplicate_epoch_config).is_none());
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn blob_schedule_fork_digest() {
         let spec_contents = r#"

@@ -355,7 +355,9 @@ pub fn get_beacon_state_sync_committees<T: BeaconChainTypes>(
                         .map_err(warp_utils::reject::unhandled_error)?;
 
                     let validator_aggregates = validators
-                        .chunks_exact(Spec::SYNC_SUBCOMMITTEE_SIZE)
+                        .as_chunks::<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>()
+                        .0
+                        .iter()
                         .map(|indices| eth2::types::SyncSubcommittee {
                             indices: indices.to_vec(),
                         })

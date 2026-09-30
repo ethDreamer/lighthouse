@@ -25,7 +25,7 @@ impl From<ArithError> for Error {
     }
 }
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct SyncAggregate {
     pub sync_committee_bits: BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,

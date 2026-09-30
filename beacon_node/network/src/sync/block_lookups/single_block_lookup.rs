@@ -10,9 +10,11 @@ use crate::sync::network_context::{
 };
 use beacon_chain::BeaconChainTypes;
 use beacon_chain::block_verification_types::AsBlock;
+use educe::Educe;
 use lighthouse_network::service::api_types::{CustodyRequester, Id, SingleLookupReqId};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use store::Hash256;
@@ -182,8 +184,9 @@ pub enum ImportedParent {
     OnlyGloasBlock(ExecutionBlockHash),
 }
 
-#[derive(Debug)]
-pub struct SingleBlockLookup {
+#[derive(Educe)]
+#[educe(Debug(bound(T: BeaconChainTypes)))]
+pub struct SingleBlockLookup<T: BeaconChainTypes> {
     pub id: Id,
     block_root: Hash256,
     block_request: BlockRequest,
@@ -203,9 +206,10 @@ pub struct SingleBlockLookup {
     awaiting_parent: Option<AwaitingParent>,
     created: Instant,
     pub(crate) span: Span,
+    _phantom: PhantomData<T>,
 }
 
-impl SingleBlockLookup {
+impl<T: BeaconChainTypes> SingleBlockLookup<T> {
     pub fn new(
         requested_block_root: Hash256,
         peers: &[PeerId],
@@ -239,6 +243,7 @@ impl SingleBlockLookup {
             awaiting_parent,
             created: Instant::now(),
             span: lookup_span,
+            _phantom: PhantomData,
         }
     }
 
@@ -370,7 +375,7 @@ impl SingleBlockLookup {
 
     /// Makes progress on all requests of this lookup. Any error is not recoverable and must result
     /// in dropping the lookup. May mark the lookup as completed.
-    pub fn continue_requests<T: BeaconChainTypes>(
+    pub fn continue_requests(
         &mut self,
         cx: &mut SyncNetworkContext<T>,
     ) -> Result<LookupResult, LookupRequestError> {
@@ -524,7 +529,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle block processing result. Advances the lookup state machine.
-    pub fn on_block_processing_result<T: BeaconChainTypes>(
+    pub fn on_block_processing_result(
         &mut self,
         result: BlockProcessingResult,
         cx: &mut SyncNetworkContext<T>,
@@ -564,7 +569,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle data processing result
-    pub fn on_data_processing_result<T: BeaconChainTypes>(
+    pub fn on_data_processing_result(
         &mut self,
         result: BlockProcessingResult,
         cx: &mut SyncNetworkContext<T>,
@@ -593,7 +598,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle payload envelope processing result (Gloas only).
-    pub fn on_payload_processing_result<T: BeaconChainTypes>(
+    pub fn on_payload_processing_result(
         &mut self,
         result: BlockProcessingResult,
         cx: &mut SyncNetworkContext<T>,
@@ -624,7 +629,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle a block download response. Updates download state and advances the lookup.
-    pub fn on_block_download_response<T: BeaconChainTypes>(
+    pub fn on_block_download_response(
         &mut self,
         req_id: ReqId,
         peer_id: PeerId,
@@ -641,7 +646,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle a custody columns download response. Updates download state and advances the lookup.
-    pub fn on_custody_download_response<T: BeaconChainTypes>(
+    pub fn on_custody_download_response(
         &mut self,
         req_id: ReqId,
         result: CustodyDownloadResponse,
@@ -657,7 +662,7 @@ impl SingleBlockLookup {
     }
 
     /// Handle a payload envelope download response. Updates download state and advances the lookup.
-    pub fn on_payload_download_response<T: BeaconChainTypes>(
+    pub fn on_payload_download_response(
         &mut self,
         req_id: ReqId,
         peer_id: PeerId,

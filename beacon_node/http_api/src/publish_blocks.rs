@@ -212,8 +212,12 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock>(
     let slot = block.message().slot();
     let sender_clone = network_tx.clone();
 
-    let build_sidecar_task_handle =
-        spawn_build_data_sidecar_task(chain.clone(), block.clone(), unverified_blobs)?;
+    let build_sidecar_task_handle = spawn_build_data_sidecar_task(
+        chain.clone(),
+        block.clone(),
+        unverified_blobs,
+        current_span.clone(),
+    )?;
 
     // Gossip verify the block and blobs/data columns separately.
     let gossip_verified_block_result = unverified_block.into_gossip_verified_block(&chain);
@@ -394,8 +398,9 @@ type BuildDataSidecarTaskResult = Result<Vec<GossipVerifiedDataColumn>, Rejectio
 /// Convert blobs to data column sidecars.
 fn spawn_build_data_sidecar_task<T: BeaconChainTypes>(
     chain: Arc<BeaconChain<T>>,
-    block: Arc<SignedBeaconBlock<FullPayload>>,
+    block: Arc<SignedBeaconBlock>,
     proofs_and_blobs: UnverifiedBlobs,
+    _current_span: Span,
 ) -> Result<impl Future<Output = BuildDataSidecarTaskResult>, Rejection> {
     chain
         .clone()
@@ -424,7 +429,7 @@ fn spawn_build_data_sidecar_task<T: BeaconChainTypes>(
 /// In the externally constructed case, there wont be any columns here.
 fn build_data_columns<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
-    block: &SignedBeaconBlock<FullPayload>,
+    block: &SignedBeaconBlock,
     blobs: BlobsList,
     kzg_cell_proofs: KzgProofs,
 ) -> Result<Vec<GossipVerifiedDataColumn>, Rejection> {
@@ -795,7 +800,7 @@ fn late_block_logging<T: BeaconChainTypes, P: AbstractExecPayload>(
 pub(crate) fn check_slashable<T: BeaconChainTypes>(
     chain_clone: &BeaconChain<T>,
     block_root: Hash256,
-    block_clone: &SignedBeaconBlock<FullPayload>,
+    block_clone: &SignedBeaconBlock,
 ) -> Result<(), BlockError> {
     let slashable_cache = chain_clone.observed_slashable.read();
     if slashable_cache

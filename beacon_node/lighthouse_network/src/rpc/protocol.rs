@@ -17,17 +17,26 @@ use tokio_util::{
 };
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BlobSidecar, ChainSpec, DataColumnSidecarFulu,
-    DataColumnSidecarGloas, EmptyBlock, Epoch, ForkContext, ForkName, LightClientBootstrap,
-    LightClientBootstrapAltair, LightClientFinalityUpdate, LightClientFinalityUpdateAltair,
-    LightClientOptimisticUpdate, LightClientOptimisticUpdateAltair, LightClientUpdate,
-    SignedBeaconBlock, SignedExecutionPayloadEnvelope, Spec, SpecId,
+    DataColumnSidecarGloas, EmptyBlock, Epoch, ForkContext, ForkName, FullPayload,
+    LightClientBootstrap, LightClientBootstrapAltair, LightClientFinalityUpdate,
+    LightClientFinalityUpdateAltair, LightClientOptimisticUpdate,
+    LightClientOptimisticUpdateAltair, LightClientUpdate, SignedBeaconBlock,
+    SignedExecutionPayloadEnvelope, Spec,
 };
 
-// Note: Hardcoding the `EthSpec` type for `SignedBeaconBlock` as min/max values is
-// same across different `EthSpec` implementations.
+// Note: Hardcoding the spec type for `SignedBeaconBlock` as min/max values is
+// same across different spec implementations.
+//
+// Use a spec with all forks enabled so that fork-specific `empty`/`full` block
+// constructors (which expect their fork epoch to be `Some`) don't panic on
+// specs like `MinimalSpec` where fork epochs default to `None`.
+fn all_forks_spec() -> ChainSpec {
+    ForkName::latest().make_genesis_spec(Spec::default_spec())
+}
+
 pub static SIGNED_BEACON_BLOCK_BASE_MIN: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<FullPayload>::from_block(
-        BeaconBlock::Base(BeaconBlockBase::<FullPayload>::empty(&Spec::default_spec())),
+        BeaconBlock::Base(BeaconBlockBase::empty(&all_forks_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -35,7 +44,7 @@ pub static SIGNED_BEACON_BLOCK_BASE_MIN: LazyLock<usize> = LazyLock::new(|| {
 });
 pub static SIGNED_BEACON_BLOCK_BASE_MAX: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<FullPayload>::from_block(
-        BeaconBlock::Base(BeaconBlockBase::full(&Spec::default_spec())),
+        BeaconBlock::Base(BeaconBlockBase::full(&all_forks_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -44,7 +53,7 @@ pub static SIGNED_BEACON_BLOCK_BASE_MAX: LazyLock<usize> = LazyLock::new(|| {
 
 pub static SIGNED_BEACON_BLOCK_ALTAIR_MAX: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<FullPayload>::from_block(
-        BeaconBlock::Altair(BeaconBlockAltair::full(&Spec::default_spec())),
+        BeaconBlock::Altair(BeaconBlockAltair::full(&all_forks_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -68,8 +77,6 @@ pub static SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MAX: LazyLock<usize> =
     LazyLock::new(SignedExecutionPayloadEnvelope::max_size);
 
 pub static BLOB_SIDECAR_SIZE: LazyLock<usize> = LazyLock::new(BlobSidecar::max_size);
-
-pub static BLOB_SIDECAR_SIZE_MINIMAL: LazyLock<usize> = LazyLock::new(BlobSidecar::max_size);
 
 pub static ERROR_TYPE_MIN: LazyLock<usize> = LazyLock::new(|| {
     VariableList::<u8, MaxErrorLen>::try_from(Vec::<u8>::new())
@@ -699,10 +706,7 @@ impl ProtocolId {
 }
 
 pub fn rpc_blob_limits() -> RpcLimits {
-    match Spec::SPEC_ID {
-        SpecId::Minimal => RpcLimits::new(*BLOB_SIDECAR_SIZE_MINIMAL, *BLOB_SIDECAR_SIZE_MINIMAL),
-        SpecId::Mainnet | SpecId::Gnosis => RpcLimits::new(*BLOB_SIDECAR_SIZE, *BLOB_SIDECAR_SIZE),
-    }
+    RpcLimits::new(*BLOB_SIDECAR_SIZE, *BLOB_SIDECAR_SIZE)
 }
 
 pub fn rpc_data_column_limits(current_digest_epoch: Epoch, spec: &ChainSpec) -> RpcLimits {
@@ -1163,7 +1167,7 @@ mod tests {
     use libp2p::core::UpgradeInfo;
     use std::collections::HashSet;
     use strum::IntoEnumIterator;
-    use types::{Hash256, Slot};
+    use types::{Hash256, Slot, Spec};
 
     /// Whether this protocol should appear in `currently_supported()` for the given context.
     ///

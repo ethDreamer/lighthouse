@@ -1,5 +1,4 @@
 use crate::errors::BeaconChainError;
-use crate::{BeaconChainTypes, BeaconStore};
 use bls::PUBLIC_KEY_UNCOMPRESSED_BYTES_LEN;
 use bls::{PublicKey, PublicKeyBytes};
 use fixed_bytes::FixedBytesExtended;
@@ -8,7 +7,8 @@ use smallvec::SmallVec;
 use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use std::collections::HashMap;
-use store::{DBColumn, Error as StoreError, StoreItem, StoreOp};
+use std::sync::Arc;
+use store::{DBColumn, Error as StoreError, HotColdDB, ItemStore, StoreItem, StoreOp};
 use tracing::instrument;
 use types::{BeaconState, Hash256};
 
@@ -31,9 +31,9 @@ impl ValidatorPubkeyCache {
     ///
     /// The new cache will be updated with the keys from `state` and immediately written to disk.
     #[instrument(name = "validator_pubkey_cache_new", skip_all)]
-    pub fn new<T: BeaconChainTypes>(
+    pub fn new<Hot: ItemStore, Cold: ItemStore>(
         state: &BeaconState,
-        store: BeaconStore<T>,
+        store: Arc<HotColdDB<Hot, Cold>>,
     ) -> Result<Self, BeaconChainError> {
         let mut cache = Self {
             pubkeys: vec![],
@@ -49,8 +49,8 @@ impl ValidatorPubkeyCache {
 
     /// Load the pubkey cache from the given on-disk database.
     #[instrument(name = "validator_pubkey_cache_load_from_store", skip_all)]
-    pub fn load_from_store<T: BeaconChainTypes>(
-        store: BeaconStore<T>,
+    pub fn load_from_store<Hot: ItemStore, Cold: ItemStore>(
+        store: Arc<HotColdDB<Hot, Cold>>,
     ) -> Result<Self, BeaconChainError> {
         let mut pubkeys = vec![];
         let mut indices = HashMap::new();
@@ -240,6 +240,7 @@ impl DatabasePubkey {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::BeaconStore;
     use crate::test_utils::{BeaconChainHarness, EphemeralHarnessType};
     use bls::Keypair;
     use logging::create_test_tracing_subscriber;
@@ -296,7 +297,7 @@ mod test {
 
     #[test]
     fn basic_operation() {
-        // >= 32 validators required for Gloas genesis with MainnetEthSpec (32 slots/epoch).
+        // >= 32 validators required for Gloas genesis with MainnetSpec (32 slots/epoch).
         let (state, keypairs) = get_state(32);
 
         let store = get_store();

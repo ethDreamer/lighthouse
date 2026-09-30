@@ -1867,7 +1867,7 @@ mod tests {
         let spec = ForkName::Capella.make_genesis_spec(Spec::default_spec());
 
         let block: PublishBlockRequest = Arc::new(SignedBeaconBlock::from_block(
-            BeaconBlock::<FullPayload>::Capella(BeaconBlockCapella::empty(&spec)),
+            BeaconBlock::Capella(BeaconBlockCapella::empty(&spec)),
             Signature::empty(),
         ))
         .try_into()
@@ -1884,7 +1884,7 @@ mod tests {
         let spec = ForkName::Deneb.make_genesis_spec(Spec::default_spec());
 
         let block = SignedBeaconBlock::from_block(
-            BeaconBlock::<FullPayload>::Deneb(BeaconBlockDeneb::empty(&spec)),
+            BeaconBlock::Deneb(BeaconBlockDeneb::empty(&spec)),
             Signature::empty(),
         );
         let blobs = BlobsList::try_from(vec![Blob::default()]).unwrap();
@@ -2113,8 +2113,7 @@ impl FullBlockContents {
 
             Ok(FullBlockContents::new(block, Some((kzg_proofs, blobs))))
         } else {
-            BeaconBlock::from_ssz_bytes_for_fork(bytes, fork_name)
-                .map(|block| FullBlockContents::Block(block))
+            BeaconBlock::from_ssz_bytes_for_fork(bytes, fork_name).map(FullBlockContents::Block)
         }
     }
 

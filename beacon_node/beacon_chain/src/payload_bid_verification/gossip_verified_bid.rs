@@ -272,13 +272,10 @@ pub struct GossipVerifiedPayloadBid {
 }
 
 impl GossipVerifiedPayloadBid {
-    pub fn new<T>(
+    pub fn new<T: BeaconChainTypes>(
         signed_bid: Arc<SignedExecutionPayloadBid>,
         ctx: &GossipVerificationContext<'_, T>,
-    ) -> Result<Self, PayloadBidError>
-    where
-        T: BeaconChainTypes,
-    {
+    ) -> Result<Self, PayloadBidError> {
         let bid_slot = signed_bid.message.slot;
         let bid_parent = BidParent::from_bid(&signed_bid.message);
         let bid_parent_block_root = signed_bid.message.parent_block_root;

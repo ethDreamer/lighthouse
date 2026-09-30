@@ -216,7 +216,7 @@ pub async fn verify_full_sync_aggregates_up_to(
                 "Sync aggregate at slot {} was partial, got: {}, expected: {}",
                 slot,
                 sync_aggregate_count,
-                Spec::SYNC_COMMITTEE_SIZE
+                Spec::sync_committee_size()
             ));
         }
     }

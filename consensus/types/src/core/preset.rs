@@ -6,7 +6,7 @@ use crate::core::{ChainSpec, Epoch, Spec};
 ///
 /// This should only be used to check consistency of the compile-time constants
 /// with a preset YAML file, or to make preset values available to the API. Prefer
-/// the constants on `EthSpec` or the fields on `ChainSpec` to constructing and using
+/// the constants on `Spec` or the fields on `ChainSpec` to constructing and using
 /// one of these structs.
 ///
 /// https://github.com/ethereum/eth2.0-specs/blob/dev/presets/mainnet/phase0.yaml
@@ -407,7 +407,8 @@ mod test {
         yaml_serde::from_reader(f).unwrap()
     }
 
-    fn preset_test() {
+    #[test]
+    fn preset_consistent() {
         let preset_name = Spec::SPEC_ID.to_string();
         let spec = Spec::default_spec();
 
@@ -437,20 +438,5 @@ mod test {
 
         let heze: HezePreset = preset_from_file(&preset_name, "heze.yaml");
         assert_eq!(heze, HezePreset::from_chain_spec(&spec));
-    }
-
-    #[test]
-    fn mainnet_presets_consistent() {
-        preset_test();
-    }
-
-    #[test]
-    fn gnosis_presets_consistent() {
-        preset_test();
-    }
-
-    #[test]
-    fn minimal_presets_consistent() {
-        preset_test();
     }
 }

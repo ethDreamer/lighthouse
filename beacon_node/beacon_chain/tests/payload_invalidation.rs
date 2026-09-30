@@ -1549,6 +1549,15 @@ async fn weights_after_resetting_optimistic_status() {
         .set_current_slot(rig.harness.chain.slot().unwrap() + 1);
     rig.recompute_head().await;
 
+    let validators_per_slot = VALIDATOR_COUNT / Spec::SLOTS_PER_EPOCH;
+    let expected_weight = validators_per_slot as u64
+        * head
+            .snapshot
+            .beacon_state
+            .validators()
+            .get(0)
+            .unwrap()
+            .effective_balance;
     assert_eq!(
         rig.harness
             .chain
@@ -1556,13 +1565,8 @@ async fn weights_after_resetting_optimistic_status() {
             .fork_choice_read_lock()
             .get_block_weight(&head.head_block_root())
             .unwrap(),
-        head.snapshot
-            .beacon_state
-            .validators()
-            .get(0)
-            .unwrap()
-            .effective_balance,
-        "proposer boost should be removed from the head block and the vote of a single validator applied"
+        expected_weight,
+        "proposer boost should be removed from the head block and the votes of the slot's committee applied"
     );
 
     // Import a length of chain to ensure the chain can be built atop.

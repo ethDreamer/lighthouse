@@ -1,6 +1,7 @@
 use crate::errors::HandleUnavailable;
 use crate::{Error, HotColdDB, ItemStore};
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use types::{
     BeaconState, BeaconStateError, BlindedPayload, Hash256, SignedBeaconBlock, Slot, Spec,
 };
@@ -231,6 +232,7 @@ impl<Hot: ItemStore, Cold: ItemStore> Iterator for RootsIterator<'_, Hot, Cold> 
 pub struct ParentRootBlockIterator<'a, Hot: ItemStore, Cold: ItemStore> {
     store: &'a HotColdDB<Hot, Cold>,
     next_block_root: Hash256,
+    _phantom: PhantomData<(Hot, Cold)>,
 }
 
 impl<'a, Hot: ItemStore, Cold: ItemStore> ParentRootBlockIterator<'a, Hot, Cold> {
@@ -238,6 +240,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> ParentRootBlockIterator<'a, Hot, Cold>
         Self {
             store,
             next_block_root: start_block_root,
+            _phantom: PhantomData,
         }
     }
 
@@ -346,6 +349,7 @@ mod test {
     use beacon_chain::test_utils::BeaconChainHarness;
     use fixed_bytes::FixedBytesExtended;
     use std::sync::Arc;
+    use types::Spec;
 
     fn get_state() -> BeaconState {
         let harness = BeaconChainHarness::builder()
@@ -382,7 +386,7 @@ mod test {
     fn block_root_iter() {
         let store = get_store();
 
-        let slots_per_historical_root = Spec::SLOTS_PER_HISTORICAL_ROOT;
+        let slots_per_historical_root = Spec::slots_per_historical_root();
 
         let mut state_a: BeaconState = get_state();
         let mut state_b: BeaconState = get_state();
@@ -429,7 +433,7 @@ mod test {
     fn state_root_iter() {
         let store = get_store();
 
-        let slots_per_historical_root = Spec::SLOTS_PER_HISTORICAL_ROOT;
+        let slots_per_historical_root = Spec::slots_per_historical_root();
 
         let mut state_a: BeaconState = get_state();
         let mut state_b: BeaconState = get_state();
@@ -450,8 +454,8 @@ mod test {
                 .unwrap_or_else(|_| panic!("should set state_b slot {}", slot));
         }
 
-        let state_a_root = Hash256::from_low_u64_be(slots_per_historical_root as u64);
-        let state_b_root = Hash256::from_low_u64_be(slots_per_historical_root as u64 * 2);
+        let state_a_root = Hash256::from_low_u64_be(slots_per_historical_root);
+        let state_b_root = Hash256::from_low_u64_be(slots_per_historical_root * 2);
 
         state_a.apply_pending_mutations().unwrap();
         state_b.apply_pending_mutations().unwrap();

@@ -45,7 +45,7 @@ use crate::{
 
 type T = EphemeralHarnessType;
 
-/// Number of regular validators (must be >= min_genesis_active_validator_count for MinimalEthSpec).
+/// Number of regular validators (must be >= min_genesis_active_validator_count for MinimalSpec).
 const NUM_VALIDATORS: usize = 64;
 /// Number of builders to register.
 const NUM_BUILDERS: usize = 4;

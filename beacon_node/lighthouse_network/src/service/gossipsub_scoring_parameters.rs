@@ -100,7 +100,7 @@ impl PeerScoreSettings {
 
         let target_value = Self::decay_convergence(
             params.behaviour_penalty_decay,
-            10.0 / Spec::SLOTS_PER_EPOCH as f64,
+            10.0 / Spec::slots_per_epoch() as f64,
         ) - params.behaviour_penalty_threshold;
         params.behaviour_penalty_weight = thresholds.gossip_threshold / target_value.powi(2);
 
@@ -261,7 +261,7 @@ impl PeerScoreSettings {
             self.max_committees_per_slot,
             self.target_committee_size,
         )
-        .map_err(|e| format!("Could not get committee count from spec: {:?}", e))?;
+        .map_err(|e| format!("Committee count error: {e:?}"))?;
 
         let committees = committees_per_slot * Spec::SLOTS_PER_EPOCH;
 

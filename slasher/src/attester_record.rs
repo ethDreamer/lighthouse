@@ -9,6 +9,7 @@ use std::sync::{
 };
 use tree_hash::TreeHash as _;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 use types::{Hash256, IndexedAttestation, Spec};
 
 #[derive(Debug, Clone, Copy)]
@@ -82,7 +83,7 @@ impl IndexedAttesterRecord {
 
 #[derive(Debug, Clone, Encode, Decode, TreeHash)]
 struct IndexedAttestationHeader {
-    pub attesting_indices: VariableList<u64, typenum::U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
+    pub attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
     pub data_root: Hash256,
     pub signature: AggregateSignature,
 }

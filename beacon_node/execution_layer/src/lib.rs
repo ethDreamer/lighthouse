@@ -2196,10 +2196,8 @@ fn noop(_: &ExecutionLayer, _: PayloadContentsRefTuple) -> Option<FullPayloadCon
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{Block, MockExecutionLayer as GenericMockExecutionLayer};
+    use crate::test_utils::{Block, MockExecutionLayer};
     use task_executor::test_utils::TestRuntime;
-
-    type MockExecutionLayer = GenericMockExecutionLayer;
 
     #[tokio::test]
     async fn produce_three_valid_pos_execution_blocks() {

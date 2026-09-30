@@ -16,11 +16,8 @@ use crate::{
     withdrawal::{Withdrawal, Withdrawals},
 };
 
-pub type Transaction<N> = VariableList<u8, N>;
-pub type Transactions = VariableList<
-    Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>,
-    U<{ Spec::MAX_TRANSACTIONS_PER_PAYLOAD }>,
->;
+pub type Transaction = VariableList<u8, U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>;
+pub type Transactions = VariableList<Transaction, U<{ Spec::MAX_TRANSACTIONS_PER_PAYLOAD }>>;
 
 /// Progressive transactions list \[Modified in Gloas:EIP7688\].
 pub type ProgressiveTransactions = ProgressiveVariableList<ProgressiveVariableList<u8>>;
@@ -90,7 +87,7 @@ impl<'a> IntoIterator for TransactionsRef<'a> {
 }
 
 pub enum TransactionsIter<'a> {
-    Bounded(std::slice::Iter<'a, Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>>),
+    Bounded(std::slice::Iter<'a, Transaction>),
     Progressive(std::slice::Iter<'a, ProgressiveVariableList<u8>>),
 }
 

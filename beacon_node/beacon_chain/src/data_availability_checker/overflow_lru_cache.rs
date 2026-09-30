@@ -734,7 +734,7 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod test {
     use super::*;
 
@@ -750,12 +750,11 @@ mod test {
     };
     use fork_choice::PayloadVerificationStatus;
     use logging::create_test_tracing_subscriber;
-    use slot_clock::TestingSlotClock;
     use state_processing::ConsensusContext;
     use store::{HotColdDB, ItemStore, StoreConfig, database::interface::BeaconNodeBackend};
     use tempfile::{TempDir, tempdir};
     use tracing::info;
-    use types::DataColumnSubnetId;
+    use types::{DataColumnSubnetId, Spec};
 
     const LOW_VALIDATOR_COUNT: usize = 32;
 
@@ -897,20 +896,13 @@ mod test {
         (availability_pending_block, gossip_verified_columns)
     }
 
-    async fn setup_harness_and_cache<T>(
+    async fn setup_harness_and_cache(
         capacity: usize,
     ) -> (
         BeaconChainHarness<DiskHarnessType>,
-        Arc<DataAvailabilityCheckerInner<T>>,
+        Arc<DataAvailabilityCheckerInner<DiskHarnessType>>,
         TempDir,
-    )
-    where
-        T: BeaconChainTypes<
-                HotStore = BeaconNodeBackend,
-                ColdStore = BeaconNodeBackend,
-                SlotClock = TestingSlotClock,
-            >,
-    {
+    ) {
         create_test_tracing_subscriber();
         let chain_db_path = tempdir().expect("should get temp dir");
         let harness = get_fulu_chain(&chain_db_path).await;
@@ -926,7 +918,7 @@ mod test {
             spec.clone(),
         ));
         let cache = Arc::new(
-            DataAvailabilityCheckerInner::<T>::new(capacity, custody_context, spec)
+            DataAvailabilityCheckerInner::new(capacity, custody_context, spec)
                 .expect("should create cache"),
         );
         (harness, cache, chain_db_path)
@@ -934,9 +926,8 @@ mod test {
 
     #[tokio::test]
     async fn overflow_cache_test_insert_components() {
-        type T = DiskHarnessType;
         let capacity = 4;
-        let (harness, cache, _path) = setup_harness_and_cache::<T>(capacity).await;
+        let (harness, cache, _path) = setup_harness_and_cache(capacity).await;
 
         let (pending_block, columns) = availability_pending_block(&harness).await;
         let root = pending_block.import_data.block_root;
@@ -945,7 +936,7 @@ mod test {
         let num_blobs_expected = pending_block.num_blobs_expected();
         let columns_expected = cache.custody_context.num_of_data_columns_to_sample(epoch);
 
-        // All columns are returned from availability_pending_block (E::number_of_columns())
+        // All columns are returned from availability_pending_block (Spec::NUMBER_OF_COLUMNS)
         // but we only need custody columns
         assert_eq!(
             columns.len(),

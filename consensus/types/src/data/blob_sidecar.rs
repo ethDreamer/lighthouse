@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use bls::Signature;
 use context_deserialize::context_deserialize;
+use educe::Educe;
 use kzg::{BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT, Kzg, KzgCommitment, KzgProof};
 use merkle_proof::{MerkleTreeError, merkle_root_from_branch, verify_merkle_proof};
 use rand::Rng;
@@ -48,8 +49,9 @@ impl Ord for BlobIdentifier {
 }
 
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe)]
 #[context_deserialize(ForkName)]
+#[educe(PartialEq, Eq, Hash)]
 pub struct BlobSidecar {
     #[serde(with = "serde_utils::quoted_u64")]
     pub index: u64,
@@ -207,7 +209,7 @@ impl BlobSidecar {
     pub fn verify_blob_sidecar_inclusion_proof(&self) -> bool {
         let kzg_commitments_tree_depth = Spec::kzg_commitments_tree_depth();
 
-        // EthSpec asserts that kzg_commitments_tree_depth is less than KzgCommitmentInclusionProofDepth
+        // Spec asserts that kzg_commitments_tree_depth is less than KzgCommitmentInclusionProofDepth
         let (kzg_commitment_subtree_proof, kzg_commitments_proof) = self
             .kzg_commitment_inclusion_proof
             .split_at(kzg_commitments_tree_depth);

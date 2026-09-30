@@ -17,7 +17,7 @@ pub const MDBX_GROWTH_STEP: isize = 256 * (1 << 20); // 256 MiB
 
 #[derive(Debug)]
 pub struct Environment {
-    env: mdbx::Environment,
+    env: mdbx::Environment<mdbx::NoWriteMap>,
 }
 
 #[derive(Debug)]

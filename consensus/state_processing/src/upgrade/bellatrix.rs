@@ -54,7 +54,7 @@ pub fn upgrade_to_bellatrix(pre_state: &mut BeaconState, spec: &ChainSpec) -> Re
         current_sync_committee: pre.current_sync_committee.clone(),
         next_sync_committee: pre.next_sync_committee.clone(),
         // Execution
-        latest_execution_payload_header: ExecutionPayloadHeaderBellatrix::default(),
+        latest_execution_payload_header: <ExecutionPayloadHeaderBellatrix>::default(),
         // Caches
         total_active_balance: pre.total_active_balance,
         progressive_balances_cache: mem::take(&mut pre.progressive_balances_cache),

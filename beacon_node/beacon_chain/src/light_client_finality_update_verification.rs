@@ -55,6 +55,7 @@ pub enum Error {
 
 /// Wraps a `LightClientFinalityUpdate` that has been verified for propagation on the gossip network.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct VerifiedLightClientFinalityUpdate {
     light_client_finality_update: LightClientFinalityUpdate,
     seen_timestamp: Duration,

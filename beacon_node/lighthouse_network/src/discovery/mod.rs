@@ -1241,16 +1241,16 @@ impl Discovery {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod tests {
     use super::*;
     use crate::rpc::methods::{MetaData, MetaDataV3};
     use libp2p::identity::secp256k1;
     use ssz_types::BitVector;
-    use types::SubnetId;
+    use types::{Spec, SubnetId};
 
     async fn build_discovery() -> Discovery {
-        let spec = Arc::new(ChainSpec::default());
+        let spec = Arc::new(Spec::default_spec());
         let keypair = secp256k1::Keypair::generate();
         let mut config = NetworkConfig::default();
         config.set_listening_addr(network_utils::listen_addr::ListenAddress::unused_v4_ports());
@@ -1331,7 +1331,7 @@ mod tests {
         let enr_key: CombinedKey = CombinedKey::from_secp256k1(&keypair);
 
         // set the "attnets" field on our ENR
-        let mut bitfield = BitVector::<ssz_types::typenum::U64>::new();
+        let mut bitfield = BitVector::<typenum::U<{ Spec::SUBNET_BITFIELD_LENGTH }>>::new();
         for id in subnet_ids {
             bitfield.set(id, true).unwrap();
         }

@@ -118,8 +118,7 @@ fn parse_inspect_config(inspect_config: &Inspect) -> Result<InspectConfig, Strin
     let limit = inspect_config.limit;
     let freezer = inspect_config.freezer;
     let blobs_db = inspect_config.blobs_db;
-
-    let output_dir: PathBuf = inspect_config.output_dir.clone().unwrap_or_default();
+    let output_dir = inspect_config.output_dir.clone().unwrap_or_default();
     Ok(InspectConfig {
         column,
         target,

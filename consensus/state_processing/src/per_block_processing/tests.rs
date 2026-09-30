@@ -16,6 +16,7 @@ use ssz_types::BitList;
 use ssz_types::VariableList;
 use std::sync::{Arc, LazyLock};
 use test_utils::generate_deterministic_keypairs;
+use typenum::U;
 use types::*;
 
 pub const MAX_VALIDATOR_COUNT: usize = 97;
@@ -40,7 +41,7 @@ async fn get_harness(
         (Epoch::new(Spec::genesis_epoch()) + epoch_offset).end_slot(Spec::slots_per_epoch());
     // Use Electra spec to ensure blocks are created at the same fork as the state
     let spec = Arc::new(ForkName::Electra.make_genesis_spec(Spec::default_spec()));
-    let harness = BeaconChainHarness::<EphemeralHarnessType>::builder()
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .keypairs(KEYPAIRS[0..num_validators].to_vec())
         .fresh_ephemeral_store()
@@ -545,11 +546,10 @@ async fn invalid_attestation_bad_aggregation_bitfield_len() {
         .next()
         .unwrap()
     {
-        att.aggregation_bits =
-            BitList::<typenum::U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>::with_capacity(
-                spec.target_committee_size,
-            )
-            .unwrap();
+        att.aggregation_bits = BitList::<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>::with_capacity(
+            spec.target_committee_size,
+        )
+        .unwrap();
     } else {
         panic!("harness should produce Electra attestations");
     }

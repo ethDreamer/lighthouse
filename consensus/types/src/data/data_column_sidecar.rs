@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use typenum::U;
 
 use bls::Signature;
 use context_deserialize::context_deserialize;
+use educe::Educe;
 use kzg::{KzgCommitment, KzgProof};
 use merkle_proof::verify_merkle_proof;
 use safe_arith::ArithError;
@@ -14,6 +14,7 @@ use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::data::partial_data_column_sidecar::{
     PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnSidecarFulu,
@@ -49,18 +50,9 @@ pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
 #[superstruct(
     variants(Fulu, Gloas),
     variant_attributes(
-        derive(
-            Debug,
-            Clone,
-            Serialize,
-            Deserialize,
-            Decode,
-            Encode,
-            PartialEq,
-            Hash,
-            TreeHash,
-        ),
+        derive(Debug, Clone, Serialize, Deserialize, Decode, Encode, Educe, TreeHash,),
         context_deserialize(ForkName),
+        educe(PartialEq, Hash),
         serde(deny_unknown_fields),
         cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),)
     ),
@@ -75,7 +67,8 @@ pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
     )
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq, Hash, Deserialize)]
+#[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
+#[educe(PartialEq, Hash)]
 #[serde(untagged, deny_unknown_fields)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]

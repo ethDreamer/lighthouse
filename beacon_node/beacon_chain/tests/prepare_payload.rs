@@ -424,6 +424,11 @@ async fn prepare_payload_generic(
     let expect_state_advance_to_change_withdrawals = prepare_slot.epoch(Spec::slots_per_epoch())
         > parent_block_slot.epoch(Spec::slots_per_epoch());
     if expect_state_advance_to_change_withdrawals {
+        assert_ne!(
+            withdrawals_advanced_empty, withdrawals_advanced_full,
+            "Applying execution requests should change the expected withdrawals"
+        );
+
         if parent_payload_status == fork_choice::PayloadStatus::Full {
             assert_ne!(
                 withdrawals_unadvanced_full, withdrawals_advanced_full,
@@ -955,7 +960,7 @@ async fn gloas_block_production_caches_blobs_for_column_publishing() {
     // Extend the chain a few slots to get past genesis.
     harness
         .extend_chain(
-            (Spec::SLOTS_PER_EPOCH) + 1,
+            Spec::SLOTS_PER_EPOCH + 1,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )

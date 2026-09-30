@@ -1140,7 +1140,7 @@ enum ResetEpochError {
     SyncCompleted,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod tests {
     use super::*;
     use beacon_chain::test_utils::BeaconChainHarness;
@@ -1148,6 +1148,7 @@ mod tests {
     use lighthouse_network::{NetworkConfig, SyncInfo, SyncStatus};
     use rand_08::SeedableRng;
     use rand_08::prelude::StdRng;
+    use types::Spec;
 
     #[test]
     fn request_batches_should_not_loop_infinitely() {

@@ -15,7 +15,7 @@ pub const SMALL_VEC_SIZE: usize = 8;
 ///
 /// Implements the conditions for gossip verification of exits and slashings from the P2P spec.
 #[derive(Debug, Educe)]
-#[educe(Default(bound(T: ObservableOperation)))]
+#[educe(Default(bound(T: ObservableOperation, )))]
 pub struct ObservedOperations<T: ObservableOperation> {
     /// Indices of validators for whom we have already seen an instance of an operation `T`.
     ///

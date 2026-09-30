@@ -1,5 +1,4 @@
 use std::{fmt, hash::Hash, mem, sync::Arc};
-use typenum::U;
 
 use bls::{AggregatePublicKey, PublicKeyBytes, Signature};
 use compare_fields::CompareFields;
@@ -21,6 +20,7 @@ use swap_or_not_shuffle::compute_shuffled_index;
 use tracing::instrument;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     ExecutionBlockHash, ExecutionPayloadBid, Withdrawal,
@@ -36,7 +36,8 @@ use crate::{
     execution::{
         Eth1Data, ExecutionPayloadHeaderBellatrix, ExecutionPayloadHeaderCapella,
         ExecutionPayloadHeaderDeneb, ExecutionPayloadHeaderElectra, ExecutionPayloadHeaderFulu,
-        ExecutionPayloadHeaderRef, ExecutionPayloadHeaderRefMut, InclusionListCommittee,
+        ExecutionPayloadHeaderRef, ExecutionPayloadHeaderRefMut, FullPayload,
+        InclusionListCommittee,
     },
     fork::{Fork, ForkName, ForkVersionDecode, InconsistentFork, map_fork_name},
     light_client::consts::{
@@ -3577,7 +3578,7 @@ impl BeaconState {
             .get(index)
             .ok_or(BeaconStateError::SlotOutOfBounds)?;
 
-        // Convert from FixedVector<u64, PTCSize> to PTC<E> (FixedVector<usize, PTCSize>)
+        // Convert from FixedVector<u64, PTCSize> to PTC (FixedVector<usize, PTCSize>)
         let indices: Vec<usize> = entry.iter().map(|&v| v as usize).collect();
         Ok(PTC(FixedVector::new(indices)?))
     }
@@ -3751,7 +3752,7 @@ impl BeaconState {
 }
 
 impl ForkVersionDecode for BeaconState {
-    fn from_ssz_bytes_by_fork(bytes: &[u8], fork_name: ForkName) -> Result<Self, ssz::DecodeError> {
+    fn from_ssz_bytes_by_fork(bytes: &[u8], fork_name: ForkName) -> Result<Self, DecodeError> {
         Ok(map_fork_name!(fork_name, Self, <_>::from_ssz_bytes(bytes)?))
     }
 }
@@ -3777,7 +3778,7 @@ impl BeaconState {
 
     /// Specialised deserialisation method that uses the `ChainSpec` as context.
     #[allow(clippy::arithmetic_side_effects)]
-    pub fn from_ssz_bytes(bytes: &[u8], spec: &ChainSpec) -> Result<Self, ssz::DecodeError> {
+    pub fn from_ssz_bytes(bytes: &[u8], spec: &ChainSpec) -> Result<Self, DecodeError> {
         // Slot is after genesis_time (u64) and genesis_validators_root (Hash256).
         let slot_start = <u64 as Decode>::ssz_fixed_len() + <Hash256 as Decode>::ssz_fixed_len();
         let slot_end = slot_start + <Slot as Decode>::ssz_fixed_len();
@@ -4088,11 +4089,15 @@ pub fn compute_weak_subjectivity_period_gloas(
 
 #[cfg(test)]
 mod weak_subjectivity_tests {
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use crate::state::beacon_state::compute_weak_subjectivity_period_electra;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use crate::{ChainSpec, Epoch, Spec};
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     const GWEI_PER_ETH: u64 = 1_000_000_000;
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn test_compute_weak_subjectivity_period_electra() {
         let mut spec = Spec::default_spec();
@@ -4133,6 +4138,7 @@ mod weak_subjectivity_tests {
 
     // caclulate the balance_churn_limit without dealing with states
     // and without initializing the active balance cache
+    #[cfg(not(feature = "spec-non-mainnet"))]
     fn get_balance_churn_limit(total_active_balance: u64, spec: &ChainSpec) -> u64 {
         let churn = std::cmp::max(
             spec.min_per_epoch_churn_limit_electra,

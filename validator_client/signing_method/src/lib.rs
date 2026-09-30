@@ -164,7 +164,7 @@ impl SigningMethod {
             genesis_validators_root,
         });
 
-        self.get_signature_from_root::<Payload>(signable_message, signing_root, executor, fork_info)
+        self.get_signature_from_root(signable_message, signing_root, executor, fork_info)
             .await
     }
 

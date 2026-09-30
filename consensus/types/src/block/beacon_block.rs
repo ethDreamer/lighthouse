@@ -13,7 +13,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    KzgCommitment, SignedExecutionPayloadBid,
+    KzgCommitment, SignedExecutionPayloadBid, Spec,
     attestation::{AttestationBase, AttestationData, IndexedAttestationBase},
     block::{
         BeaconBlockBodyAltair, BeaconBlockBodyBase, BeaconBlockBodyBellatrix,
@@ -21,7 +21,7 @@ use crate::{
         BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
         BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
     },
-    core::{ChainSpec, Domain, Epoch, Graffiti, Hash256, SignedRoot, Slot, Spec},
+    core::{ChainSpec, Domain, Epoch, Graffiti, Hash256, SignedRoot, Slot},
     deposit::{Deposit, DepositData},
     execution::{
         AbstractExecPayload, BlindedPayload, Eth1Data, ExecutionPayload, ExecutionRequestsElectra,
@@ -71,7 +71,8 @@ use crate::{
     derive(arbitrary::Arbitrary),
     arbitrary(bound = "Payload: AbstractExecPayload")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
+#[educe(PartialEq, Hash)]
 #[serde(untagged)]
 #[serde(bound = "Payload: AbstractExecPayload")]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -504,7 +505,7 @@ impl<Payload: AbstractExecPayload> EmptyBlock for BeaconBlockAltair<Payload> {
 impl<Payload: AbstractExecPayload> BeaconBlockAltair<Payload> {
     /// Return an Altair block where the block has maximum size.
     pub fn full(spec: &ChainSpec) -> Self {
-        let base_block: BeaconBlockBase<Payload> = BeaconBlockBase::full(spec);
+        let base_block: BeaconBlockBase<Payload> = BeaconBlockBase::<Payload>::full(spec);
         let sync_aggregate = SyncAggregate {
             sync_committee_signature: AggregateSignature::empty(),
             sync_committee_bits: BitVector::default(),
@@ -766,7 +767,7 @@ impl<Payload: AbstractExecPayload> EmptyBlock for BeaconBlockHeze<Payload> {
 }
 
 // TODO(EIP-7732) Mark's branch had the following implementation but not sure if it's needed so will just add header below for reference
-// impl<E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockEIP7732<E, Payload> {
+// impl<Payload: AbstractExecPayload> BeaconBlockEIP7732<Payload> {
 
 // TODO(EIP-7732) Look into whether we can remove this in the future since no blinded blocks post-gloas
 impl From<BeaconBlockGloas<BlindedPayload>> for BeaconBlockGloas<FullPayload> {
@@ -854,8 +855,8 @@ impl From<BeaconBlockAltair<BlindedPayload>> for BeaconBlockAltair<FullPayload> 
 // We can convert blocks with payloads to blocks without payloads, and an optional payload.
 macro_rules! impl_from {
     ($ty_name:ident, <$($from_params:ty),*>, <$($to_params:ty),*>, $body_expr:expr) => {
-        impl<E: EthSpec> From<$ty_name<$($from_params),*>>
-            for ($ty_name<$($to_params),*>, Option<ExecutionPayload<E>>)
+        impl From<$ty_name<$($from_params),*>>
+            for ($ty_name<$($to_params),*>, Option<ExecutionPayload>)
         {
             #[allow(clippy::redundant_closure_call)]
             fn from(block: $ty_name<$($from_params),*>) -> Self {
@@ -881,20 +882,20 @@ macro_rules! impl_from {
     }
 }
 
-impl_from!(BeaconBlockBase, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyBase<_, _>| body.into());
-impl_from!(BeaconBlockAltair, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyAltair<_, _>| body.into());
-impl_from!(BeaconBlockBellatrix, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyBellatrix<_, _>| body.into());
-impl_from!(BeaconBlockCapella, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyCapella<_, _>| body.into());
-impl_from!(BeaconBlockDeneb, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyDeneb<_, _>| body.into());
-impl_from!(BeaconBlockElectra, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyElectra<_, _>| body.into());
-impl_from!(BeaconBlockFulu, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyFulu<_, _>| body.into());
-impl_from!(BeaconBlockGloas, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyGloas<_, _>| body.into());
-impl_from!(BeaconBlockHeze, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyHeze<_, _>| body.into());
+impl_from!(BeaconBlockBase, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyBase<_>| body.into());
+impl_from!(BeaconBlockAltair, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyAltair<_>| body.into());
+impl_from!(BeaconBlockBellatrix, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyBellatrix<_>| body.into());
+impl_from!(BeaconBlockCapella, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyCapella<_>| body.into());
+impl_from!(BeaconBlockDeneb, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyDeneb<_>| body.into());
+impl_from!(BeaconBlockElectra, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyElectra<_>| body.into());
+impl_from!(BeaconBlockFulu, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyFulu<_>| body.into());
+impl_from!(BeaconBlockGloas, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyGloas<_>| body.into());
+impl_from!(BeaconBlockHeze, <FullPayload>, <BlindedPayload>, |body: BeaconBlockBodyHeze<_>| body.into());
 
 // We can clone blocks with payloads to blocks without payloads, without cloning the payload.
 macro_rules! impl_clone_as_blinded {
     ($ty_name:ident, <$($from_params:ty),*>, <$($to_params:ty),*>) => {
-        impl<E: EthSpec> $ty_name<$($from_params),*>
+        impl $ty_name<$($from_params),*>
         {
             pub fn clone_as_blinded(&self) -> $ty_name<$($to_params),*> {
                 let $ty_name {
@@ -940,7 +941,7 @@ impl<'a> From<BeaconBlockRef<'a, FullPayload>> for BeaconBlock<BlindedPayload> {
 impl From<BeaconBlock<FullPayload>> for (BeaconBlock<BlindedPayload>, Option<ExecutionPayload>) {
     fn from(block: BeaconBlock<FullPayload>) -> Self {
         map_beacon_block!(block, |inner, cons| {
-            let (block, payload) = inner.into();
+            let (block, payload): (_, Option<ExecutionPayload>) = inner.into();
             (cons(block), payload)
         })
     }
@@ -1096,6 +1097,7 @@ mod tests {
     #[test]
     fn decode_base_and_altair() {
         let mut spec = Spec::default_spec();
+        spec.altair_fork_epoch = spec.altair_fork_epoch.or(Some(Epoch::new(1)));
 
         let mut u = crate::test_utils::test_unstructured();
 

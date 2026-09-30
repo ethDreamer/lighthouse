@@ -435,7 +435,7 @@ pub enum AttestationSlashInfo<'a, TErr> {
 ///
 /// No substantial extra work will be done if there is no slasher configured.
 fn process_slash_info<T: BeaconChainTypes>(
-    slash_info: AttestationSlashInfo<Error>,
+    slash_info: AttestationSlashInfo<'_, Error>,
     chain: &BeaconChain<T>,
 ) -> Error {
     use AttestationSlashInfo::*;

@@ -36,7 +36,7 @@ use tempfile::tempdir;
 use types::ExecutionBlockHash;
 use types::{test_utils::generate_deterministic_keypair, *};
 
-// Gloas requires >= 1 validator per slot for PTC committee computation, so >= 32 for MainnetEthSpec.
+// Gloas requires >= 1 validator per slot for PTC committee computation, so >= 32 for MainnetSpec.
 const VALIDATOR_COUNT: usize = 32;
 const CHAIN_SEGMENT_LENGTH: usize = 32 * 6;
 const BLOCK_INDICES: &[usize] = &[1, 32, 64];
@@ -2090,7 +2090,9 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
         .mock_execution_layer()
         .build();
 
-    harness.extend_slots(Spec::SLOTS_PER_EPOCH * 3).await;
+    harness
+        .extend_slots(Spec::slots_per_epoch() as usize * 3)
+        .await;
 
     let justified_checkpoint = harness.justified_checkpoint();
     assert_ne!(justified_checkpoint.epoch, Epoch::new(0));
@@ -2106,7 +2108,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
     harness.advance_slot();
     harness
         .extend_chain(
-            Spec::SLOTS_PER_EPOCH * 2,
+            Spec::slots_per_epoch() as usize * 2,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::SomeValidators(vec![]),
         )

@@ -10,7 +10,7 @@ use super::block_sidecar_coupling::RangeBlockComponentsRequest;
 use super::manager::BlockProcessType;
 use crate::metrics;
 use crate::network_beacon_processor::NetworkBeaconProcessor;
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 use crate::network_beacon_processor::TestBeaconChainType;
 use crate::service::NetworkMessage;
 use crate::status::ToStatusMessage;
@@ -45,12 +45,12 @@ use requests::{
     BlocksByRootRequestItems, DataColumnsByRangeRequestItems, DataColumnsByRootRequestItems,
     PayloadEnvelopesByRangeRequestItems, PayloadEnvelopesByRootRequestItems,
 };
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 use slot_clock::SlotClock;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::sync::Arc;
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 use task_executor::TaskExecutor;
 use tokio::sync::mpsc;
 use tracing::{Span, debug, debug_span, error, warn};
@@ -239,7 +239,7 @@ pub struct SyncNetworkContext<T: BeaconChainTypes> {
     payload_envelopes_by_range_requests:
         ActiveRequests<PayloadEnvelopesByRangeRequestId, PayloadEnvelopesByRangeRequestItems>,
     /// Mapping of active custody column requests for a block root
-    custody_by_root_requests: FnvHashMap<CustodyRequester, ActiveCustodyRequest>,
+    custody_by_root_requests: FnvHashMap<CustodyRequester, ActiveCustodyRequest<T>>,
 
     /// BlocksByRange requests paired with other ByRange requests for data components
     components_by_range_requests:
@@ -281,7 +281,7 @@ pub enum RangeBlockComponent {
     ),
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 impl SyncNetworkContext<TestBeaconChainType> {
     pub fn new_for_testing(
         beacon_chain: Arc<BeaconChain<TestBeaconChainType>>,
@@ -1485,7 +1485,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
     fn handle_custody_by_root_result(
         &mut self,
         id: CustodyRequester,
-        request: ActiveCustodyRequest,
+        request: ActiveCustodyRequest<T>,
         result: CustodyRequestResult,
     ) -> Option<CustodyByRootResult> {
         let result = result
@@ -1685,12 +1685,12 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn custody_backfill_batch_request_count(&self) -> usize {
         self.custody_backfill_data_column_batch_requests.len()
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "spec-minimal"))]
     pub(crate) fn insert_test_custody_backfill_entry(
         &mut self,
         batch_req_id: CustodyBackFillBatchRequestId,

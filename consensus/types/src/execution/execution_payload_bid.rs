@@ -1,14 +1,14 @@
 use crate::kzg_ext::ProgressiveKzgCommitments;
 use crate::{Address, ExecutionBlockHash, ForkName, Hash256, SignedRoot, Slot};
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
-#[derive(Default, Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, Educe)]
+#[derive(
+    Default, Debug, Clone, Serialize, Encode, Decode, TreeHash, Deserialize, PartialEq, Hash,
+)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[educe(PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 // https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/beacon-chain.md#executionpayloadbid
 #[tree_hash(

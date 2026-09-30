@@ -274,7 +274,7 @@ mod tests {
          * Check that a prune empties the cache
          */
 
-        cache.prune(Spec::slots_per_epoch().into());
+        cache.prune((Spec::slots_per_epoch()).into());
         assert_eq!(
             cache.finalized_slot,
             Slot::from(Spec::slots_per_epoch()),
@@ -295,8 +295,8 @@ mod tests {
                 .observe_proposal(block_root_b, block_b.to_ref())
                 .map(SeenBlock::proposer_previously_observed),
             Err(Error::FinalizedBlock {
-                slot: Spec::slots_per_epoch().into(),
-                finalized_slot: Spec::slots_per_epoch().into(),
+                slot: (Spec::slots_per_epoch()).into(),
+                finalized_slot: (Spec::slots_per_epoch()).into(),
             }),
             "cant insert finalized block"
         );

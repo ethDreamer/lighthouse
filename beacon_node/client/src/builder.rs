@@ -93,6 +93,18 @@ pub struct ClientBuilder<T: BeaconChainTypes> {
     light_client_server_rv: Option<Receiver<LightClientProducerEvent>>,
 }
 
+impl<TSlotClock, THotStore, TColdStore> Default
+    for ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
+where
+    TSlotClock: SlotClock + Clone + 'static,
+    THotStore: ItemStore + 'static,
+    TColdStore: ItemStore + 'static,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<TSlotClock, THotStore, TColdStore> ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
 where
     TSlotClock: SlotClock + Clone + 'static,
@@ -100,8 +112,6 @@ where
     TColdStore: ItemStore + 'static,
 {
     /// Instantiates a new, empty builder.
-    ///
-    /// The `eth_spec_instance` parameter is used to concretize `E`.
     pub fn new() -> Self {
         Self {
             slot_clock: None,
@@ -159,7 +169,6 @@ where
         let store = self.store.clone();
         let chain_spec = self.chain_spec.clone();
         let runtime_context = self.runtime_context.clone();
-        let eth_spec_instance = self.eth_spec_instance.clone();
         let chain_config = config.chain.clone();
         let beacon_graffiti = config.beacon_graffiti;
 
@@ -227,7 +236,7 @@ where
         let ordered_custody_column_indices = compute_ordered_custody_column_indices(node_id, &spec)
             .map_err(|e| format!("Failed to compute ordered custody column indices: {:?}", e))?;
 
-        let builder = BeaconChainBuilder::new(eth_spec_instance, Arc::new(kzg))
+        let builder = BeaconChainBuilder::new(Arc::new(kzg))
             .store(store)
             .task_executor(context.executor.clone())
             .custom_spec(spec.clone())

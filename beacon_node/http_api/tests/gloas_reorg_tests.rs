@@ -417,8 +417,8 @@ pub async fn proposer_boost_re_org_test(
     }
 
     // Ensure there are enough validators to have `ATTESTERS_PER_SLOT`.
-    assert!(ATTESTERS_PER_SLOT >= Spec::PTC_SIZE);
-    let validator_count = Spec::SLOTS_PER_EPOCH * ATTESTERS_PER_SLOT;
+    const { assert!(ATTESTERS_PER_SLOT >= Spec::PTC_SIZE) };
+    let validator_count = Spec::slots_per_epoch() as usize * ATTESTERS_PER_SLOT;
     let all_validators = (0..validator_count).collect::<Vec<usize>>();
     let num_initial = head_slot.as_u64().checked_sub(parent_distance + 1).unwrap();
 

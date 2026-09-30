@@ -75,7 +75,7 @@ pub fn get_attestation_participation_flag_indices(
 
     // Participation flag indices
     let mut participation_flag_indices = SmallVec::new();
-    if is_matching_source && inclusion_delay <= Spec::slots_per_epoch().integer_sqrt() {
+    if is_matching_source && inclusion_delay <= (Spec::slots_per_epoch()).integer_sqrt() {
         participation_flag_indices.push(TIMELY_SOURCE_FLAG_INDEX);
     }
     if state.fork_name_unchecked().deneb_enabled() {

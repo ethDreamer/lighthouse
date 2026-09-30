@@ -277,9 +277,10 @@ impl<'a> TryFrom<ExecutionPayloadRef<'a>> for NewPayloadRequest<'a> {
 }
 
 // TODO(EIP-7732) build out the following when it's needed like in Mark's branch
-// impl<'a, E: EthSpec> TryFrom<ExecutionEnvelopeRef<'a, E>> for NewPayloadRequest<E> {
+// impl<'a> TryFrom<ExecutionEnvelopeRef<'a>> for NewPayloadRequest {
 
 #[cfg(test)]
+#[cfg(not(feature = "spec-minimal"))]
 mod test {
     use crate::versioned_hashes::Error as VersionedHashError;
     use crate::{Error, NewPayloadRequest};

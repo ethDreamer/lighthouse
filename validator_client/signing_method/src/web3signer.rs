@@ -48,6 +48,7 @@ pub struct ForkInfo {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(bound = "Payload: AbstractExecPayload")]
 #[serde(rename_all = "snake_case")]
 pub enum Web3SignerObject<'a, Payload: AbstractExecPayload> {
     AggregationSlot {
@@ -165,6 +166,7 @@ impl<'a, Payload: AbstractExecPayload> Web3SignerObject<'a, Payload> {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+#[serde(bound = "Payload: AbstractExecPayload")]
 pub struct SigningRequest<'a, Payload: AbstractExecPayload> {
     #[serde(rename = "type")]
     pub message_type: MessageType,

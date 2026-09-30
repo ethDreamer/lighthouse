@@ -4,7 +4,7 @@ use rand::{prelude::*, rng};
 use slasher::{
     Config, Slasher, SlasherDB,
     test_utils::{
-        E, block, chain_spec, indexed_att, slashed_validators_from_attestations,
+        block, chain_spec, indexed_att, slashed_validators_from_attestations,
         slashed_validators_from_slashings,
     },
 };
@@ -67,6 +67,8 @@ fn random_test(seed: u64, mut db: SlasherDB, test_config: TestConfig) -> Slasher
     let mut current_epoch = Epoch::new(0);
     let mut attestations = vec![];
 
+    let slots_per_epoch = Spec::slots_per_epoch();
+
     for _ in 0..num_attestations {
         let num_attesters = rng.random_range(1..num_validators);
         let mut attesting_indices = validators
@@ -102,8 +104,7 @@ fn random_test(seed: u64, mut db: SlasherDB, test_config: TestConfig) -> Slasher
 
         // Maybe add a random block too
         if test_config.add_blocks && rng.random_bool(0.1) {
-            let slot =
-                rng.random_range(0..1 + 3 * current_epoch.as_u64() * Spec::slots_per_epoch() / 2);
+            let slot = rng.random_range(0..1 + 3 * current_epoch.as_u64() * slots_per_epoch / 2);
             let proposer = rng.random_range(0..num_validators as u64);
             let block_root = rng.random_range(0..2);
             slasher.accept_block_header(block(slot, proposer, block_root));

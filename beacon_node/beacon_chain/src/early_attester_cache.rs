@@ -5,6 +5,7 @@ use proto_array::Block as ProtoBlock;
 use safe_arith::SafeArith;
 use std::sync::Arc;
 use tracing::instrument;
+use types::Spec;
 use types::*;
 
 /// Stores the minimal amount of data required to compute the committee length for any committee at any
@@ -47,15 +48,14 @@ impl CommitteeLengths {
         committee_index: CommitteeIndex,
         spec: &ChainSpec,
     ) -> Result<usize, Error> {
-        let slots_per_epoch = Spec::slots_per_epoch();
-        let request_epoch = slot.epoch(slots_per_epoch);
+        let request_epoch = slot.epoch(Spec::slots_per_epoch());
 
         // Sanity check.
         if request_epoch != self.epoch {
             return Err(Error::EarlyAttesterCacheError);
         }
 
-        let slots_per_epoch = slots_per_epoch as usize;
+        let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
         let committees_per_slot = self.get_committee_count_per_slot(spec)?;
         let index_in_epoch = compute_committee_index_in_epoch(
             slot,
