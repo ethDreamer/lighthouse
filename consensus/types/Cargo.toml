@@ -9,6 +9,9 @@ default = []
 # Enable +, -, *, /, % operators for Slot and Epoch types.
 # Operations saturate instead of wrapping.
 saturating-arith = []
+spec-non-mainnet = []
+spec-minimal = ["spec-non-mainnet"]
+spec-gnosis = ["spec-non-mainnet"]
 sqlite = ["dep:rusqlite"]
 arbitrary = [
     "dep:arbitrary",
