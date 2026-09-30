@@ -124,7 +124,7 @@ pub fn decode_eth1_tx_data(bytes: &[u8], amount: u64) -> Result<(DepositData, Ha
     Ok((deposit_data, root))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod tests {
     use super::*;
     use bls::{Keypair, Signature};

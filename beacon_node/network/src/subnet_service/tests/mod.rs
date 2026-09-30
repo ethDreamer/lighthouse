@@ -155,6 +155,7 @@ async fn get_events_until_num_slots<S: Stream<Item = SubnetServiceMessage> + Unp
 mod test {
 
     #[cfg(not(windows))]
+    #[cfg(not(feature = "spec-minimal"))]
     use crate::subnet_service::MIN_PEER_DISCOVERY_SLOT_LOOK_AHEAD;
 
     use super::*;
@@ -479,6 +480,7 @@ mod test {
         assert_eq!(unexpected_msg_count, 0);
     }
 
+    #[cfg(not(feature = "spec-minimal"))]
     #[cfg(not(windows))]
     #[tokio::test]
     async fn test_subscribe_same_subnet_several_slots_apart() {

@@ -352,7 +352,7 @@ impl From<Error> for BeaconChainError {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "spec-minimal"))]
 mod tests {
     use crate::beacon_block_streamer::{BeaconBlockStreamer, CheckCaches};
     use crate::test_utils::{BeaconChainHarness, EphemeralHarnessType, test_spec};

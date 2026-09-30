@@ -1,5 +1,6 @@
 #![cfg(not(debug_assertions))]
 #![cfg(test)]
+#![cfg(feature = "spec-minimal")]
 use crate::persisted_dht::load_dht;
 use crate::{NetworkConfig, NetworkService};
 use beacon_chain::BeaconChainTypes;
