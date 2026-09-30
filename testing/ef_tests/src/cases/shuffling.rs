@@ -9,9 +9,7 @@ use swap_or_not_shuffle::{compute_shuffled_index, shuffle_list};
 pub struct Shuffling {
     pub seed: String,
     pub count: usize,
-    pub mapping: Vec<usize>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub mapping: Vec<usize>
 }
 
 impl LoadCase for Shuffling {

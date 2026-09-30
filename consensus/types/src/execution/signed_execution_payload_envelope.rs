@@ -16,11 +16,8 @@ use tree_hash_derive::TreeHash;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec")]
+#[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 pub struct SignedExecutionPayloadEnvelope {
     pub message: ExecutionPayloadEnvelope,
@@ -126,7 +123,6 @@ impl SignedExecutionPayloadEnvelope {
 /// Together with the body returned by `engine_getPayloadBodiesByHashV2`, these fields can be used
 /// to reconstruct an `ExecutionPayloadGloas` without an additional execution-layer request.
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-#[serde(bound = "E: EthSpec")]
 pub struct ExecutionPayloadHeaderGloas {
     pub parent_hash: ExecutionBlockHash,
     #[serde(with = "serde_utils::address_hex")]

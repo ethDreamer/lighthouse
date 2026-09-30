@@ -51,12 +51,9 @@ impl Ord for BlobIdentifier {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 #[context_deserialize(ForkName)]
-#[serde(bound = "E: EthSpec")]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
 pub struct BlobSidecar {
     #[serde(with = "serde_utils::quoted_u64")]
     pub index: u64,

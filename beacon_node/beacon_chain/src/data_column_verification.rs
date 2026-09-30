@@ -701,8 +701,7 @@ pub type CustodyDataColumnList =
     VariableList<CustodyDataColumn, U<{ Spec::NUMBER_OF_COLUMNS }>>;
 
 /// Data column that we must custody
-#[derive(Debug, Educe, Clone, Encode)]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Encode)]
 #[ssz(struct_behaviour = "transparent")]
 pub struct CustodyDataColumn {
     data: Arc<DataColumnSidecar>,

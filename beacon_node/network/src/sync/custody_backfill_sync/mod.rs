@@ -44,9 +44,7 @@ type CustodyBackFillBatchInfo =
 type CustodyBackFillBatches = BTreeMap<BatchId, CustodyBackFillBatchInfo>;
 
 #[derive(Debug)]
-pub struct CustodyBackFillBatchConfig {
-    marker: PhantomData<E>,
-}
+pub struct CustodyBackFillBatchConfig {}
 
 impl BatchConfig for CustodyBackFillBatchConfig {
     fn max_batch_download_attempts() -> u8 {

@@ -120,15 +120,13 @@ pub type WithdrawalsRef<'a> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_
             Encode,
             Decode,
             TreeHash,
-            Educe,
+            PartialEq, Hash,
         ),
         context_deserialize(ForkName),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
     ),
     specific_variant_attributes(
@@ -153,11 +151,9 @@ pub type WithdrawalsRef<'a> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec", untagged)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
+#[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct ExecutionPayload {

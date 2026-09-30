@@ -317,8 +317,7 @@ where
             RPCProtocol {
                 fork_context: self.fork_context.clone(),
                 max_rpc_size: self.fork_context.spec.max_payload_size as usize,
-                enable_light_client_server: self.enable_light_client_server,
-                phantom: PhantomData,
+                enable_light_client_server: self.enable_light_client_server
             },
             (),
         );
@@ -340,8 +339,7 @@ where
             RPCProtocol {
                 fork_context: self.fork_context.clone(),
                 max_rpc_size: self.fork_context.spec.max_payload_size as usize,
-                enable_light_client_server: self.enable_light_client_server,
-                phantom: PhantomData,
+                enable_light_client_server: self.enable_light_client_server
             },
             (),
         );

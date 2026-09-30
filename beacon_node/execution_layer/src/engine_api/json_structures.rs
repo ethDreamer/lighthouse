@@ -70,13 +70,13 @@ pub struct JsonPayloadIdResponse {
     variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
     variant_attributes(
         derive(Debug, PartialEq, Default, Serialize, Deserialize,),
-        serde(bound = "E: EthSpec", rename_all = "camelCase"),
+        serde(rename_all = "camelCase"),
     ),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")
 )]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec", rename_all = "camelCase", untagged)]
+#[serde(rename_all = "camelCase", untagged)]
 pub struct JsonExecutionPayload {
     pub parent_hash: ExecutionBlockHash,
     #[serde(with = "serde_utils::address_hex")]
@@ -682,7 +682,7 @@ impl TryFrom<JsonExecutionRequests> for ExecutionRequestsGloas {
     variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
     variant_attributes(
         derive(Debug, PartialEq, Serialize, Deserialize),
-        serde(bound = "E: EthSpec", rename_all = "camelCase")
+        serde(rename_all = "camelCase")
     ),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")
@@ -995,7 +995,7 @@ impl From<JsonPayloadAttributes> for PayloadAttributes {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct JsonBlobsBundleV1 {
     pub commitments: KzgCommitments,
     pub proofs: KzgProofs,
@@ -1026,7 +1026,7 @@ impl From<JsonBlobsBundleV1> for BlobsBundle {
     variants(V1, V2),
     variant_attributes(
         derive(Debug, Clone, PartialEq, Serialize, Deserialize),
-        serde(bound = "E: EthSpec", rename_all = "camelCase")
+        serde(rename_all = "camelCase")
     )
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1091,7 +1091,7 @@ impl TryFrom<&[ColumnIndex]> for CustodyColumnsBitArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec", transparent)]
+#[serde(transparent)]
 pub struct JsonCell(
     #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")] pub Cell,
 );
@@ -1102,7 +1102,6 @@ pub struct JsonCell(
 /// that cell. `proofs[i]` is the KZG cell proof for `blob_cells[i]` and
 /// is only meaningful when the matching cell is `Some`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct BlobCellsAndProofsV1 {
     pub blob_cells: Vec<Option<JsonCell>>,
     pub proofs: Vec<Option<KzgProof>>,
@@ -1347,7 +1346,6 @@ pub struct JsonBlockAccessList(
 );
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct JsonExecutionPayloadBodyV1 {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions,
@@ -1355,7 +1353,7 @@ pub struct JsonExecutionPayloadBodyV1 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(bound = "E: EthSpec", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct JsonExecutionPayloadBodyV2 {
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_prog_var_list")]
     pub transactions: ProgressiveTransactions,

@@ -83,9 +83,7 @@ pub struct HotColdDB<Hot: ItemStore, Cold: ItemStore> {
     /// HTTP API.
     historic_state_cache: Mutex<HistoricStateCache>,
     /// Chain spec.
-    pub spec: Arc<ChainSpec>,
-    /// Mere vessel for E.
-    _phantom: PhantomData<E>,
+    pub spec: Arc<ChainSpec>
 }
 
 #[derive(Debug)]
@@ -250,8 +248,7 @@ impl HotColdDB<MemoryStore, MemoryStore> {
             )),
             config,
             hierarchy,
-            spec,
-            _phantom: PhantomData,
+            spec
         };
 
         Ok(db)
@@ -303,8 +300,7 @@ impl HotColdDB<BeaconNodeBackend, BeaconNodeBackend> {
             )),
             config,
             hierarchy,
-            spec,
-            _phantom: PhantomData,
+            spec
         };
         // Load the config from disk but don't error on a failed read because the config itself may
         // need migrating.

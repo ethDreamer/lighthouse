@@ -5,16 +5,14 @@ use std::marker::PhantomData;
 use types::data::get_custody_groups;
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct GetCustodyGroups {
     /// The NodeID input.
     pub node_id: String,
     /// The count of custody groups.
     pub custody_group_count: u64,
     /// The list of resulting custody groups.
-    pub result: Vec<u64>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub result: Vec<u64>
 }
 
 impl LoadCase for GetCustodyGroups {

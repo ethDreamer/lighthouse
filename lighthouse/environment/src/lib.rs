@@ -102,7 +102,6 @@ fn default_logfile_debug_level() -> LevelFilter {
 #[derive(Clone)]
 pub struct RuntimeContext {
     pub executor: TaskExecutor,
-    pub eth_spec_instance: E,
     pub eth2_config: Eth2Config,
     pub eth2_network_config: Option<Arc<Eth2NetworkConfig>>,
     pub sse_logging_components: Option<SSELoggingComponents>,
@@ -119,7 +118,6 @@ impl RuntimeContext {
 pub struct EnvironmentBuilder {
     runtime: Option<Arc<Runtime>>,
     sse_logging_components: Option<SSELoggingComponents>,
-    eth_spec_instance: E,
     eth2_config: Eth2Config,
     eth2_network_config: Option<Eth2NetworkConfig>,
 }
@@ -130,7 +128,6 @@ impl EnvironmentBuilder {
         Self {
             runtime: None,
             sse_logging_components: None,
-            eth_spec_instance: MinimalEthSpec,
             eth2_config: Eth2Config::minimal(),
             eth2_network_config: None,
         }
@@ -143,7 +140,6 @@ impl EnvironmentBuilder {
         Self {
             runtime: None,
             sse_logging_components: None,
-            eth_spec_instance: MainnetEthSpec,
             eth2_config: Eth2Config::mainnet(),
             eth2_network_config: None,
         }
@@ -156,7 +152,6 @@ impl EnvironmentBuilder {
         Self {
             runtime: None,
             sse_logging_components: None,
-            eth_spec_instance: GnosisEthSpec,
             eth2_config: Eth2Config::gnosis(),
             eth2_network_config: None,
         }
@@ -297,7 +292,6 @@ impl EnvironmentBuilder {
             signal: Some(signal),
             exit,
             sse_logging_components: self.sse_logging_components,
-            eth_spec_instance: self.eth_spec_instance,
             eth2_config: self.eth2_config,
             eth2_network_config: self.eth2_network_config.map(Arc::new),
         })
@@ -315,7 +309,6 @@ pub struct Environment {
     signal: Option<async_channel::Sender<()>>,
     exit: async_channel::Receiver<()>,
     sse_logging_components: Option<SSELoggingComponents>,
-    eth_spec_instance: E,
     pub eth2_config: Eth2Config,
     pub eth2_network_config: Option<Arc<Eth2NetworkConfig>>,
 }
@@ -337,7 +330,6 @@ impl Environment {
                 self.exit.clone(),
                 self.signal_tx.clone(),
             ),
-            eth_spec_instance: self.eth_spec_instance.clone(),
             eth2_config: self.eth2_config.clone(),
             eth2_network_config: self.eth2_network_config.clone(),
             sse_logging_components: self.sse_logging_components.clone(),

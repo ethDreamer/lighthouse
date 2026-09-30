@@ -384,8 +384,7 @@ pub struct ForkChoice<T> {
     forkchoice_update_parameters: ForkchoiceUpdateParameters,
     /// Rejects attestations from the current or a future slot instead of queueing them, as the
     /// spec does. Always `false` in production.
-    spec_test_mode: bool,
-    _phantom: PhantomData<E>,
+    spec_test_mode: bool
 }
 
 impl<T> PartialEq for ForkChoice<T>
@@ -485,8 +484,7 @@ where
                 finalized_hash: None,
                 // This will be updated during the next call to `Self::get_head`.
                 head_root: Hash256::zero(),
-            },
-            _phantom: PhantomData,
+            }
         };
 
         // Ensure that `fork_choice.forkchoice_update_parameters.head_root` is updated.
@@ -2029,8 +2027,7 @@ where
                 finalized_hash: None,
                 // Will be updated in the following call to `Self::get_head`.
                 head_root: Hash256::zero(),
-            },
-            _phantom: PhantomData,
+            }
         };
 
         // If a call to `get_head` fails, the only known cause is because the only head with viable

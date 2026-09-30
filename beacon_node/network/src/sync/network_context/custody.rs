@@ -32,8 +32,7 @@ pub struct ActiveCustodyRequest {
     /// Set of peers that claim to have imported this block and their custody columns
     lookup_peers: Arc<RwLock<HashSet<PeerId>>>,
     /// Span for tracing the lifetime of this request.
-    span: Span,
-    _phantom: PhantomData<T>,
+    span: Span
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -84,8 +83,7 @@ impl ActiveCustodyRequest {
             active_batch_columns_requests: <_>::default(),
             peer_attempts: HashMap::new(),
             lookup_peers,
-            span,
-            _phantom: PhantomData,
+            span
         }
     }
 

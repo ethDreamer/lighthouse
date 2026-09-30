@@ -23,8 +23,7 @@ pub struct BootNodeConfig {
     pub boot_nodes: Vec<Enr>,
     pub local_enr: Enr,
     pub local_key: CombinedKey,
-    pub discv5_config: discv5::Config,
-    phantom: PhantomData<E>,
+    pub discv5_config: discv5::Config
 }
 
 impl BootNodeConfig {
@@ -170,8 +169,7 @@ impl BootNodeConfig {
             boot_nodes,
             local_enr,
             local_key,
-            discv5_config: network_config.discv5_config,
-            phantom: PhantomData,
+            discv5_config: network_config.discv5_config
         })
     }
 }

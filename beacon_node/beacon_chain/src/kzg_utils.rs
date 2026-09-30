@@ -237,7 +237,7 @@ pub fn validate_blobs(
     let _timer = crate::metrics::start_timer(&crate::metrics::KZG_VERIFICATION_BATCH_TIMES);
     let blobs = blobs
         .into_iter()
-        .map(|blob| ssz_blob_to_kzg_blob_ref(blob))
+        .map(ssz_blob_to_kzg_blob_ref)
         .collect::<Result<Vec<_>, KzgError>>()?;
 
     kzg.verify_blob_kzg_proof_batch(&blobs, expected_kzg_commitments, kzg_proofs)

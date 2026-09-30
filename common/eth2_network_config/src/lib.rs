@@ -122,7 +122,7 @@ impl Eth2NetworkConfig {
 
     /// Returns an identifier that should be used for selecting an `EthSpec` instance for this
     /// network configuration.
-    pub fn eth_spec_id(&self) -> Result<EthSpecId, String> {
+    pub fn eth_spec_id(&self) -> Result<SpecId, String> {
         self.config
             .eth_spec_id()
             .ok_or_else(|| "Config does not match any known preset".to_string())

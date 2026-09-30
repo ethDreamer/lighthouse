@@ -34,8 +34,7 @@ impl BidParent {
 type HighestBidMap = BTreeMap<Slot, HashMap<BidParent, GossipVerifiedPayloadBid>>;
 
 /// The mutable state guarded by the cache's lock.
-#[derive(Educe)]
-#[educe(Default(bound = "E: EthSpec"))]
+#[derive(Default)]
 pub struct GossipBidCacheInner {
     /// The current best bid for each `(slot, BidParent)`.
     highest_bid: HighestBidMap,
@@ -53,8 +52,7 @@ pub struct GossipBidCacheInner {
 /// set of `(parent, builder)` pairs that have already bid, so that duplicate and lower-value
 /// gossip bids can be rejected. Stale entries are removed via [`prune`](Self::prune) as the chain
 /// advances.
-#[derive(Educe)]
-#[educe(Default(bound = "E: EthSpec"))]
+#[derive(Default)]
 pub struct GossipVerifiedPayloadBidCache {
     inner: RwLock<GossipBidCacheInner>,
 }

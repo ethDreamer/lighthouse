@@ -11,12 +11,10 @@ pub struct KZGComputeCellsInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGComputeCells {
     pub input: KZGComputeCellsInput,
-    pub output: Option<Vec<String>>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<Vec<String>>
 }
 
 impl LoadCase for KZGComputeCells {

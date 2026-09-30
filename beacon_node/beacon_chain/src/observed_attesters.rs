@@ -180,15 +180,13 @@ impl Item<()> for EpochHashSet {
 /// Stores a `HashSet` of which validator indices have created a sync aggregate during a
 /// slot.
 pub struct SyncContributorSlotHashSet {
-    map: HashMap<usize, Hash256>,
-    phantom: PhantomData<E>,
+    map: HashMap<usize, Hash256>
 }
 
 impl Item<Hash256> for SyncContributorSlotHashSet {
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity),
-            phantom: PhantomData,
+            map: HashMap::with_capacity(capacity)
         }
     }
 
@@ -260,15 +258,13 @@ impl Item<()> for SyncAggregatorSlotHashSet {
 /// Stores a `HashSet` of validator indices that have sent a payload attestation gossip
 /// message during a slot.
 pub struct PayloadAttesterSlotHashSet {
-    set: HashSet<usize>,
-    phantom: PhantomData<E>,
+    set: HashSet<usize>
 }
 
 impl Item<()> for PayloadAttesterSlotHashSet {
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            set: HashSet::with_capacity(capacity),
-            phantom: PhantomData,
+            set: HashSet::with_capacity(capacity)
         }
     }
 
@@ -307,16 +303,14 @@ impl Item<()> for PayloadAttesterSlotHashSet {
 /// `T` should be set to a `EpochBitfield` or `EpochHashSet`.
 pub struct AutoPruningEpochContainer<T> {
     lowest_permissible_epoch: Epoch,
-    items: HashMap<Epoch, T>,
-    _phantom: PhantomData<E>,
+    items: HashMap<Epoch, T>
 }
 
 impl<T> Default for AutoPruningEpochContainer<T> {
     fn default() -> Self {
         Self {
             lowest_permissible_epoch: Epoch::new(0),
-            items: HashMap::new(),
-            _phantom: PhantomData,
+            items: HashMap::new()
         }
     }
 }
@@ -454,7 +448,6 @@ impl<T: Item<()>> AutoPruningEpochContainer<T> {
 pub struct AutoPruningSlotContainer<K: SlotData + Eq + Hash, S, V> {
     lowest_permissible_slot: Slot,
     items: HashMap<K, V>,
-    _phantom_e: PhantomData<E>,
     _phantom_s: PhantomData<S>,
 }
 
@@ -463,7 +456,6 @@ impl<K: SlotData + Eq + Hash, S, V> Default for AutoPruningSlotContainer<K, S, V
         Self {
             lowest_permissible_slot: Slot::new(0),
             items: HashMap::new(),
-            _phantom_e: PhantomData,
             _phantom_s: PhantomData,
         }
     }

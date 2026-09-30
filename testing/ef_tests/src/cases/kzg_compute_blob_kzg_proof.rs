@@ -13,12 +13,10 @@ pub struct KZGComputeBlobKZGProofInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGComputeBlobKZGProof {
     pub input: KZGComputeBlobKZGProofInput,
-    pub output: Option<String>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<String>
 }
 
 impl LoadCase for KZGComputeBlobKZGProof {

@@ -61,7 +61,6 @@ impl<S: ValidatorStore> RecordingValidatorStore<S> {
 
 impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> {
     type Error = S::Error;
-    type E = S::E;
 
     fn validator_index(&self, pubkey: &PublicKeyBytes) -> Option<u64> {
         self.inner.validator_index(pubkey)

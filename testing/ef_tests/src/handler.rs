@@ -460,7 +460,7 @@ where
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ShufflingHandler(PhantomData<E>);
+pub struct ShufflingHandler;
 
 impl Handler for ShufflingHandler {
     type Case = cases::Shuffling;
@@ -484,7 +484,7 @@ impl Handler for ShufflingHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct SanityBlocksHandler(PhantomData<E>);
+pub struct SanityBlocksHandler;
 
 impl Handler for SanityBlocksHandler {
     type Case = cases::SanityBlocks;
@@ -510,7 +510,7 @@ impl Handler for SanityBlocksHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct SanitySlotsHandler(PhantomData<E>);
+pub struct SanitySlotsHandler;
 
 impl Handler for SanitySlotsHandler {
     type Case = cases::SanitySlots;
@@ -535,7 +535,7 @@ impl Handler for SanitySlotsHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct RandomHandler(PhantomData<E>);
+pub struct RandomHandler;
 
 impl Handler for RandomHandler {
     type Case = cases::SanityBlocks;
@@ -574,15 +574,13 @@ impl<T: EpochTransition> Handler for EpochProcessingHandler<T> {
 }
 
 pub struct RewardsHandler {
-    handler_name: &'static str,
-    _phantom: PhantomData<E>,
+    handler_name: &'static str
 }
 
 impl RewardsHandler {
     pub fn new(handler_name: &'static str) -> Self {
         Self {
-            handler_name,
-            _phantom: PhantomData,
+            handler_name
         }
     }
 }
@@ -614,7 +612,7 @@ impl Handler for RewardsHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ForkHandler(PhantomData<E>);
+pub struct ForkHandler;
 
 impl Handler for ForkHandler {
     type Case = cases::ForkTest;
@@ -634,7 +632,7 @@ impl Handler for ForkHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct TransitionHandler(PhantomData<E>);
+pub struct TransitionHandler;
 
 impl Handler for TransitionHandler {
     type Case = cases::TransitionTest;
@@ -654,7 +652,7 @@ impl Handler for TransitionHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct FinalityHandler(PhantomData<E>);
+pub struct FinalityHandler;
 
 impl Handler for FinalityHandler {
     // Reuse the blocks case runner.
@@ -674,15 +672,13 @@ impl Handler for FinalityHandler {
 }
 
 pub struct ForkChoiceHandler {
-    handler_name: String,
-    _phantom: PhantomData<E>,
+    handler_name: String
 }
 
 impl ForkChoiceHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into(),
-            _phantom: PhantomData,
+            handler_name: handler_name.into()
         }
     }
 }
@@ -754,15 +750,13 @@ impl Handler for ForkChoiceHandler {
 }
 
 pub struct ForkChoiceComplianceHandler {
-    handler_name: String,
-    _phantom: PhantomData<E>,
+    handler_name: String
 }
 
 impl ForkChoiceComplianceHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into(),
-            _phantom: PhantomData,
+            handler_name: handler_name.into()
         }
     }
 }
@@ -796,15 +790,13 @@ impl Handler for ForkChoiceComplianceHandler {
 }
 
 pub struct FastConfirmationHandler {
-    handler_name: String,
-    _phantom: PhantomData<E>,
+    handler_name: String
 }
 
 impl FastConfirmationHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into(),
-            _phantom: PhantomData,
+            handler_name: handler_name.into()
         }
     }
 }
@@ -840,7 +832,7 @@ impl Handler for FastConfirmationHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct OptimisticSyncHandler(PhantomData<E>);
+pub struct OptimisticSyncHandler;
 
 impl Handler for OptimisticSyncHandler {
     type Case = cases::ForkChoiceTest;
@@ -874,7 +866,7 @@ impl Handler for OptimisticSyncHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GenesisValidityHandler(PhantomData<E>);
+pub struct GenesisValidityHandler;
 
 impl Handler for GenesisValidityHandler {
     type Case = cases::GenesisValidity;
@@ -894,7 +886,7 @@ impl Handler for GenesisValidityHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GenesisInitializationHandler(PhantomData<E>);
+pub struct GenesisInitializationHandler;
 
 impl Handler for GenesisInitializationHandler {
     type Case = cases::GenesisInitialization;
@@ -914,7 +906,7 @@ impl Handler for GenesisInitializationHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGBlobToKZGCommitmentHandler(PhantomData<E>);
+pub struct KZGBlobToKZGCommitmentHandler;
 
 impl Handler for KZGBlobToKZGCommitmentHandler {
     type Case = cases::KZGBlobToKZGCommitment;
@@ -934,7 +926,7 @@ impl Handler for KZGBlobToKZGCommitmentHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeBlobKZGProofHandler(PhantomData<E>);
+pub struct KZGComputeBlobKZGProofHandler;
 
 impl Handler for KZGComputeBlobKZGProofHandler {
     type Case = cases::KZGComputeBlobKZGProof;
@@ -954,7 +946,7 @@ impl Handler for KZGComputeBlobKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeKZGProofHandler(PhantomData<E>);
+pub struct KZGComputeKZGProofHandler;
 
 impl Handler for KZGComputeKZGProofHandler {
     type Case = cases::KZGComputeKZGProof;
@@ -974,7 +966,7 @@ impl Handler for KZGComputeKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyBlobKZGProofHandler(PhantomData<E>);
+pub struct KZGVerifyBlobKZGProofHandler;
 
 impl Handler for KZGVerifyBlobKZGProofHandler {
     type Case = cases::KZGVerifyBlobKZGProof;
@@ -994,7 +986,7 @@ impl Handler for KZGVerifyBlobKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyBlobKZGProofBatchHandler(PhantomData<E>);
+pub struct KZGVerifyBlobKZGProofBatchHandler;
 
 impl Handler for KZGVerifyBlobKZGProofBatchHandler {
     type Case = cases::KZGVerifyBlobKZGProofBatch;
@@ -1014,7 +1006,7 @@ impl Handler for KZGVerifyBlobKZGProofBatchHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyKZGProofHandler(PhantomData<E>);
+pub struct KZGVerifyKZGProofHandler;
 
 impl Handler for KZGVerifyKZGProofHandler {
     type Case = cases::KZGVerifyKZGProof;
@@ -1034,7 +1026,7 @@ impl Handler for KZGVerifyKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GetCustodyGroupsHandler(PhantomData<E>);
+pub struct GetCustodyGroupsHandler;
 
 impl Handler for GetCustodyGroupsHandler {
     type Case = cases::GetCustodyGroups;
@@ -1054,7 +1046,7 @@ impl Handler for GetCustodyGroupsHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ComputeColumnsForCustodyGroupHandler(PhantomData<E>);
+pub struct ComputeColumnsForCustodyGroupHandler;
 
 impl Handler for ComputeColumnsForCustodyGroupHandler {
     type Case = cases::ComputeColumnsForCustodyGroups;
@@ -1074,8 +1066,7 @@ impl Handler for ComputeColumnsForCustodyGroupHandler {
 
 pub struct GossipValidationHandler {
     handler_name: &'static str,
-    supported_forks: Vec<ForkName>,
-    _phantom: PhantomData<E>,
+    supported_forks: Vec<ForkName>
 }
 
 impl GossipValidationHandler {
@@ -1086,8 +1077,7 @@ impl GossipValidationHandler {
     pub fn for_forks(handler_name: &'static str, supported_forks: Vec<ForkName>) -> Self {
         Self {
             handler_name,
-            supported_forks,
-            _phantom: PhantomData,
+            supported_forks
         }
     }
 
@@ -1128,7 +1118,7 @@ impl Handler for GossipValidationHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeCellsHandler(PhantomData<E>);
+pub struct KZGComputeCellsHandler;
 
 impl Handler for KZGComputeCellsHandler {
     type Case = cases::KZGComputeCells;
@@ -1153,7 +1143,7 @@ impl Handler for KZGComputeCellsHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeCellsAndKZGProofHandler(PhantomData<E>);
+pub struct KZGComputeCellsAndKZGProofHandler;
 
 impl Handler for KZGComputeCellsAndKZGProofHandler {
     type Case = cases::KZGComputeCellsAndKZGProofs;
@@ -1178,7 +1168,7 @@ impl Handler for KZGComputeCellsAndKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyCellKZGProofBatchHandler(PhantomData<E>);
+pub struct KZGVerifyCellKZGProofBatchHandler;
 
 impl Handler for KZGVerifyCellKZGProofBatchHandler {
     type Case = cases::KZGVerifyCellKZGProofBatch;
@@ -1203,7 +1193,7 @@ impl Handler for KZGVerifyCellKZGProofBatchHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGRecoverCellsAndKZGProofHandler(PhantomData<E>);
+pub struct KZGRecoverCellsAndKZGProofHandler;
 
 impl Handler for KZGRecoverCellsAndKZGProofHandler {
     type Case = cases::KZGRecoverCellsAndKZGProofs;
@@ -1228,7 +1218,7 @@ impl Handler for KZGRecoverCellsAndKZGProofHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KzgInclusionMerkleProofValidityHandler(PhantomData<E>);
+pub struct KzgInclusionMerkleProofValidityHandler;
 
 impl Handler for KzgInclusionMerkleProofValidityHandler {
     type Case = cases::KzgInclusionMerkleProofValidity;
@@ -1257,7 +1247,7 @@ impl Handler for KzgInclusionMerkleProofValidityHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct MerkleProofValidityHandler(PhantomData<E>);
+pub struct MerkleProofValidityHandler;
 
 impl Handler for MerkleProofValidityHandler {
     type Case = cases::GenericMerkleProofValidity;
@@ -1286,7 +1276,7 @@ impl Handler for MerkleProofValidityHandler {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct LightClientUpdateHandler(PhantomData<E>);
+pub struct LightClientUpdateHandler;
 
 impl Handler for LightClientUpdateHandler {
     type Case = cases::LightClientVerifyIsBetterUpdate;

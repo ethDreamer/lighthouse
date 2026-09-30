@@ -29,10 +29,8 @@ impl From<ArithError> for Error {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Encode, Decode, TreeHash)]
-#[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 pub struct SyncCommittee {
     pub pubkeys: FixedVector<PublicKeyBytes, typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,

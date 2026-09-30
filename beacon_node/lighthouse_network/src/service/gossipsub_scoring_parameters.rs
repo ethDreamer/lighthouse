@@ -48,8 +48,7 @@ pub struct PeerScoreSettings {
     max_committees_per_slot: usize,
     target_committee_size: usize,
     target_aggregators_per_committee: usize,
-    attestation_subnet_count: u64,
-    phantom: PhantomData<E>,
+    attestation_subnet_count: u64
 }
 
 impl PeerScoreSettings {
@@ -75,8 +74,7 @@ impl PeerScoreSettings {
             max_committees_per_slot: chain_spec.max_committees_per_slot,
             target_committee_size: chain_spec.target_committee_size,
             target_aggregators_per_committee: chain_spec.target_aggregators_per_committee as usize,
-            attestation_subnet_count: chain_spec.attestation_subnet_count,
-            phantom: PhantomData,
+            attestation_subnet_count: chain_spec.attestation_subnet_count
         }
     }
 

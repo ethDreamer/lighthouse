@@ -19,7 +19,6 @@ use types::{DataColumnSubnetId, EthSpec, Slot};
 
 /// Information about a given connected peer.
 #[derive(Clone, Debug, Serialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct PeerInfo {
     /// The peers reputation
     pub(crate) score: Score,

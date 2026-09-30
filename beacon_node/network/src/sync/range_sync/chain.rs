@@ -51,9 +51,7 @@ const MAX_BATCH_DOWNLOAD_ATTEMPTS: u8 = 5;
 /// after `MAX_BATCH_PROCESSING_ATTEMPTS` times, it is considered faulty.
 const MAX_BATCH_PROCESSING_ATTEMPTS: u8 = 3;
 
-pub struct RangeSyncBatchConfig {
-    marker: PhantomData<E>,
-}
+pub struct RangeSyncBatchConfig {}
 
 impl BatchConfig for RangeSyncBatchConfig {
     fn max_batch_download_attempts() -> u8 {

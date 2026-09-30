@@ -821,8 +821,7 @@ impl AvailableBlockData {
 }
 
 /// A fully available block that is ready to be imported into fork choice.
-#[derive(Debug, Clone, Educe)]
-#[educe(Hash(bound(E: EthSpec)))]
+#[derive(Debug, Clone, Hash)]
 pub struct AvailableBlock {
     block_root: Hash256,
     block: Arc<SignedBeaconBlock>,

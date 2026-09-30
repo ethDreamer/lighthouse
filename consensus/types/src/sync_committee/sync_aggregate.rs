@@ -28,11 +28,8 @@ impl From<ArithError> for Error {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec")]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 pub struct SyncAggregate {
     pub sync_committee_bits: BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,

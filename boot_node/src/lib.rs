@@ -14,7 +14,7 @@ use types::{EthSpec, EthSpecId};
 pub fn run(
     lh_matches: &ArgMatches,
     bn_matches: &ArgMatches,
-    eth_spec_id: EthSpecId,
+    eth_spec_id: SpecId,
     eth2_network_config: &Eth2NetworkConfig,
     debug_level: String,
 ) {
@@ -28,13 +28,13 @@ pub fn run(
 
     // Run the main function emitting any errors
     if let Err(e) = match eth_spec_id {
-        EthSpecId::Minimal => {
+        SpecId::Minimal => {
             main(lh_matches, bn_matches, eth2_network_config)
         }
-        EthSpecId::Mainnet => {
+        SpecId::Mainnet => {
             main(lh_matches, bn_matches, eth2_network_config)
         }
-        EthSpecId::Gnosis => {
+        SpecId::Gnosis => {
             main(lh_matches, bn_matches, eth2_network_config)
         }
     } {

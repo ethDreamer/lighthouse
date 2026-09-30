@@ -1314,7 +1314,7 @@ impl<'de> ContextDeserialize<'de, ForkName> for SseExtendedPayloadAttributes {
 }
 
 #[derive(PartialEq, Debug, Serialize, Clone)]
-#[serde(bound = "E: EthSpec", untagged)]
+#[serde(untagged)]
 pub enum EventKind {
     Attestation(Box<Attestation>),
     SingleAttestation(Box<SingleAttestation>),
@@ -1903,7 +1903,6 @@ mod tests {
 
 #[derive(Debug, Encode, Serialize)]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub enum ProduceBlockV3Response {
     Full(FullBlockContents),
@@ -1916,7 +1915,6 @@ pub type JsonProduceBlockV3Response =
 /// A wrapper over a [`BeaconBlock`] or a [`BlockContents`].
 #[derive(Debug, Encode, Serialize)]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub enum FullBlockContents {
     /// This is a full deneb variant with block and blobs.
@@ -1972,7 +1970,6 @@ pub struct ProduceBlockV4Metadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Encode)]
-#[serde(bound = "E: EthSpec")]
 pub struct BlockAndEnvelope {
     pub block: BeaconBlock,
     pub execution_payload_envelope: ExecutionPayloadEnvelope,
@@ -1987,7 +1984,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for BlockAndEnvelope {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        #[serde(bound = "E: EthSpec")]
         struct Helper {
             block: serde_json::Value,
             execution_payload_envelope: ExecutionPayloadEnvelope,
@@ -2065,7 +2061,6 @@ impl ProduceBlockV4Response {
 /// publishing via `POST beacon/execution_payload_envelopes`, used when the receiving beacon node
 /// does not have the blobs cached.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-#[serde(bound = "E: EthSpec")]
 pub struct SignedExecutionPayloadEnvelopeContents {
     pub signed_execution_payload_envelope: SignedExecutionPayloadEnvelope,
     pub kzg_proofs: KzgProofs,
@@ -2274,7 +2269,6 @@ impl TryFrom<&HeaderMap> for ProduceBlockV4Metadata {
 /// A wrapper over a [`SignedBeaconBlock`] or a [`SignedBlockContents`].
 #[derive(Clone, Debug, PartialEq, Encode, Serialize)]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub enum PublishBlockRequest {
     BlockContents(SignedBlockContents),
@@ -2385,7 +2379,6 @@ impl From<SignedBlockContentsTuple> for PublishBlockRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Encode)]
-#[serde(bound = "E: EthSpec")]
 pub struct SignedBlockContents {
     pub signed_block: Arc<SignedBeaconBlock>,
     pub kzg_proofs: KzgProofs,
@@ -2399,7 +2392,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for SignedBlockContents {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        #[serde(bound = "E: EthSpec")]
         struct Helper {
             signed_block: serde_json::Value,
             kzg_proofs: KzgProofs,
@@ -2420,7 +2412,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for SignedBlockContents {
 }
 
 #[derive(Debug, Clone, Serialize, Encode)]
-#[serde(bound = "E: EthSpec")]
 pub struct BlockContents {
     pub block: BeaconBlock,
     pub kzg_proofs: KzgProofs,
@@ -2434,7 +2425,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for BlockContents {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        #[serde(bound = "E: EthSpec")]
         struct Helper {
             block: serde_json::Value,
             kzg_proofs: KzgProofs,
@@ -2456,7 +2446,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for BlockContents {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode)]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub enum FullPayloadContents {
     Payload(ExecutionPayload),
@@ -2541,7 +2530,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for FullPayloadContents {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Encode)]
-#[serde(bound = "E: EthSpec")]
 pub struct ExecutionPayloadAndBlobs {
     pub execution_payload: ExecutionPayload,
     pub blobs_bundle: BlobsBundle,
@@ -2553,7 +2541,6 @@ impl<'de> ContextDeserialize<'de, ForkName> for ExecutionPayloadAndBlobs {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        #[serde(bound = "E: EthSpec")]
         struct Helper {
             execution_payload: serde_json::Value,
             blobs_bundle: BlobsBundle,
@@ -2603,7 +2590,6 @@ pub enum ContentType {
 
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Encode, Decode)]
-#[serde(bound = "E: EthSpec")]
 pub struct BlobsBundle {
     pub commitments: KzgCommitments,
     pub proofs: KzgProofs,
@@ -2696,7 +2682,6 @@ pub struct StandardAttestationRewards {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
-#[serde(bound = "E: EthSpec")]
 #[serde(transparent)]
 pub struct BlobWrapper {
     #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]

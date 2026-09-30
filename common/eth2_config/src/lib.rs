@@ -63,7 +63,7 @@ const CHIADO_GENESIS_STATE_SOURCE: GenesisStateSource = GenesisStateSource::Url 
 /// The core configuration of a Lighthouse beacon node.
 #[derive(Debug, Clone)]
 pub struct Eth2Config {
-    pub eth_spec_id: EthSpecId,
+    pub eth_spec_id: SpecId,
     pub spec: Arc<ChainSpec>,
 }
 
@@ -76,21 +76,21 @@ impl Default for Eth2Config {
 impl Eth2Config {
     pub fn mainnet() -> Self {
         Self {
-            eth_spec_id: EthSpecId::Mainnet,
+            eth_spec_id: SpecId::Mainnet,
             spec: Arc::new(ChainSpec::mainnet()),
         }
     }
 
     pub fn minimal() -> Self {
         Self {
-            eth_spec_id: EthSpecId::Minimal,
+            eth_spec_id: SpecId::Minimal,
             spec: Arc::new(ChainSpec::minimal()),
         }
     }
 
     pub fn gnosis() -> Self {
         Self {
-            eth_spec_id: EthSpecId::Gnosis,
+            eth_spec_id: SpecId::Gnosis,
             spec: Arc::new(ChainSpec::gnosis()),
         }
     }

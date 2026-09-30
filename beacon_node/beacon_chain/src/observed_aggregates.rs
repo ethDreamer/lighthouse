@@ -360,7 +360,6 @@ impl AsReference for SyncCommitteeContribution {
 pub struct ObservedAggregates<T: Consts + AsReference, I> {
     lowest_permissible_slot: Slot,
     sets: Vec<SlotHashSet<I>>,
-    _phantom_spec: PhantomData<E>,
     _phantom_tree_hash: PhantomData<T>,
 }
 
@@ -369,7 +368,6 @@ impl<T: Consts + AsReference, I> Default for ObservedAggregates<T, I> {
         Self {
             lowest_permissible_slot: Slot::new(0),
             sets: vec![],
-            _phantom_spec: PhantomData,
             _phantom_tree_hash: PhantomData,
         }
     }

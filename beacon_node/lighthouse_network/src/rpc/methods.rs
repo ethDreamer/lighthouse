@@ -141,27 +141,19 @@ pub struct Ping {
     variant_attributes(derive(Clone, Debug, PartialEq, Serialize),)
 )]
 #[derive(Clone, Debug, PartialEq)]
-pub struct MetadataRequest {
-    _phantom_data: PhantomData<E>,
-}
+pub struct MetadataRequest {}
 
 impl MetadataRequest {
     pub fn new_v1() -> Self {
-        Self::V1(MetadataRequestV1 {
-            _phantom_data: PhantomData,
-        })
+        Self::V1(MetadataRequestV1 {})
     }
 
     pub fn new_v2() -> Self {
-        Self::V2(MetadataRequestV2 {
-            _phantom_data: PhantomData,
-        })
+        Self::V2(MetadataRequestV2 {})
     }
 
     pub fn new_v3() -> Self {
-        Self::V3(MetadataRequestV3 {
-            _phantom_data: PhantomData,
-        })
+        Self::V3(MetadataRequestV3 {})
     }
 }
 
@@ -170,11 +162,10 @@ impl MetadataRequest {
     variants(V1, V2, V3),
     variant_attributes(
         derive(Encode, Decode, Clone, Debug, PartialEq, Serialize),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
     )
 )]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct MetaData {
     /// A sequential counter indicating when data gets modified.
     pub seq_number: u64,

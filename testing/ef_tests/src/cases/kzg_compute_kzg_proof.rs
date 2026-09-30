@@ -20,12 +20,10 @@ pub struct KZGComputeKZGProofInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGComputeKZGProof {
     pub input: KZGComputeKZGProofInput,
-    pub output: Option<(String, Hash256)>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<(String, Hash256)>
 }
 
 impl LoadCase for KZGComputeKZGProof {

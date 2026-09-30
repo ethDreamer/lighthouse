@@ -14,12 +14,10 @@ pub struct KZGVerifyBlobKZGProofBatchInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGVerifyBlobKZGProofBatch {
     pub input: KZGVerifyBlobKZGProofBatchInput,
-    pub output: Option<bool>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<bool>
 }
 
 impl LoadCase for KZGVerifyBlobKZGProofBatch {
@@ -38,7 +36,7 @@ impl Case for KZGVerifyBlobKZGProofBatch {
             let blobs = input
                 .blobs
                 .iter()
-                .map(|s| parse_blob(s))
+                .map(parse_blob)
                 .collect::<Result<Vec<_>, _>>()?;
             let commitments = input
                 .commitments

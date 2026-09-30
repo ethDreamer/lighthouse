@@ -18,7 +18,6 @@ struct Eth1 {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct GenesisInitialization {
     pub path: PathBuf,
     pub eth1_block_hash: Hash256,

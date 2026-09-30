@@ -75,8 +75,7 @@ pub struct SlasherDB {
     /// LRU cache mapping indexed attestation IDs to their attestation data roots.
     attestation_root_cache: Mutex<LruCache<IndexedAttestationId, Hash256>>,
     pub(crate) config: Arc<Config>,
-    pub(crate) spec: Arc<ChainSpec>,
-    _phantom: PhantomData<E>,
+    pub(crate) spec: Arc<ChainSpec>
 }
 
 /// Database key for the `attesters` database.
@@ -320,8 +319,7 @@ impl SlasherDB {
             databases,
             attestation_root_cache,
             config,
-            spec,
-            _phantom: PhantomData,
+            spec
         };
 
         db = db.migrate()?;

@@ -183,8 +183,7 @@ pub enum ImportedParent {
     OnlyGloasBlock(ExecutionBlockHash),
 }
 
-#[derive(Educe)]
-#[educe(Debug(bound(T: BeaconChainTypes)))]
+#[derive(Debug)]
 pub struct SingleBlockLookup {
     pub id: Id,
     block_root: Hash256,

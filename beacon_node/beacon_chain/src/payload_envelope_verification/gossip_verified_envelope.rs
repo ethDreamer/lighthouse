@@ -133,8 +133,7 @@ pub(crate) fn verify_envelope_consistency(
 
 /// A wrapper around a `SignedExecutionPayloadEnvelope` that indicates it has been approved for re-gossiping on
 /// the p2p network.
-#[derive(Educe)]
-#[educe(Debug(bound = "T: BeaconChainTypes"))]
+#[derive(Debug)]
 pub struct GossipVerifiedEnvelope {
     pub signed_envelope: Arc<SignedExecutionPayloadEnvelope>,
     pub block: Arc<SignedBeaconBlock>,

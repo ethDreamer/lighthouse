@@ -340,7 +340,6 @@ pub trait BeaconChainTypes: Send + Sync + 'static {
     type HotStore: store::ItemStore;
     type ColdStore: store::ItemStore;
     type SlotClock: slot_clock::SlotClock;
-    type EthSpec: types::EthSpec;
 }
 
 struct PartialBeaconBlock {

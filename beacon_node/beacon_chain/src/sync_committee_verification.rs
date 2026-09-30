@@ -262,8 +262,7 @@ impl From<ContributionError> for Error {
 }
 
 /// Wraps a `SignedContributionAndProof` that has been verified for propagation on the gossip network.\
-#[derive(Educe)]
-#[educe(Clone(bound(T: BeaconChainTypes)))]
+#[derive(Clone)]
 pub struct VerifiedSyncContribution {
     signed_aggregate: SignedContributionAndProof,
     participant_pubkeys: Vec<PublicKeyBytes>,

@@ -25,11 +25,10 @@ use crate::{
     variant_attributes(
         derive(Debug, Clone, Serialize, Deserialize, Educe, Decode, Encode, TreeHash,),
         educe(PartialEq),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
         context_deserialize(ForkName),
     )
@@ -37,13 +36,12 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct LightClientHeader {
     pub beacon: BeaconBlockHeader,
 
@@ -63,13 +61,7 @@ pub struct LightClientHeader {
     pub execution: ExecutionPayloadHeaderFulu,
 
     #[superstruct(only(Capella, Deneb, Electra, Fulu))]
-    pub execution_branch: FixedVector<Hash256, ExecutionPayloadProofLen>,
-
-    #[ssz(skip_serializing, skip_deserializing)]
-    #[tree_hash(skip_hashing)]
-    #[serde(skip)]
-    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub _phantom_data: PhantomData<E>,
+    pub execution_branch: FixedVector<Hash256, ExecutionPayloadProofLen>
 }
 
 impl LightClientHeader {
@@ -157,8 +149,7 @@ impl LightClientHeaderAltair {
         block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         Ok(LightClientHeaderAltair {
-            beacon: block.message().block_header(),
-            _phantom_data: PhantomData,
+            beacon: block.message().block_header()
         })
     }
 }
@@ -166,8 +157,7 @@ impl LightClientHeaderAltair {
 impl Default for LightClientHeaderAltair {
     fn default() -> Self {
         Self {
-            beacon: BeaconBlockHeader::empty(),
-            _phantom_data: PhantomData,
+            beacon: BeaconBlockHeader::empty()
         }
     }
 }
@@ -197,8 +187,7 @@ impl LightClientHeaderCapella {
         Ok(LightClientHeaderCapella {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?,
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::new(execution_branch)?
         })
     }
 }
@@ -208,8 +197,7 @@ impl Default for LightClientHeaderCapella {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderCapella::default(),
-            execution_branch: FixedVector::default(),
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::default()
         }
     }
 }
@@ -239,8 +227,7 @@ impl LightClientHeaderDeneb {
         Ok(LightClientHeaderDeneb {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?,
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::new(execution_branch)?
         })
     }
 }
@@ -250,8 +237,7 @@ impl Default for LightClientHeaderDeneb {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderDeneb::default(),
-            execution_branch: FixedVector::default(),
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::default()
         }
     }
 }
@@ -281,8 +267,7 @@ impl LightClientHeaderElectra {
         Ok(LightClientHeaderElectra {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?,
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::new(execution_branch)?
         })
     }
 }
@@ -292,8 +277,7 @@ impl Default for LightClientHeaderElectra {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderElectra::default(),
-            execution_branch: FixedVector::default(),
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::default()
         }
     }
 }
@@ -323,8 +307,7 @@ impl LightClientHeaderFulu {
         Ok(LightClientHeaderFulu {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?,
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::new(execution_branch)?
         })
     }
 }
@@ -334,8 +317,7 @@ impl Default for LightClientHeaderFulu {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderFulu::default(),
-            execution_branch: FixedVector::default(),
-            _phantom_data: PhantomData,
+            execution_branch: FixedVector::default()
         }
     }
 }

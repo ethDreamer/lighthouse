@@ -42,19 +42,19 @@ pub type UnverifiedBlobs = Option<(
 
 pub enum ProvenancedBlock<B: IntoGossipVerifiedBlock> {
     /// The payload was built using a local EE.
-    Local(B, UnverifiedBlobs, PhantomData<T>),
+    Local(B, UnverifiedBlobs),
     /// The payload was build using a remote builder (e.g., via a mev-boost
     /// compatible relay).
-    Builder(B, UnverifiedBlobs, PhantomData<T>),
+    Builder(B, UnverifiedBlobs),
 }
 
 impl<B: IntoGossipVerifiedBlock> ProvenancedBlock<B> {
     pub fn local(block: B, blobs: UnverifiedBlobs) -> Self {
-        Self::Local(block, blobs, PhantomData)
+        Self::Local(block, blobs)
     }
 
     pub fn builder(block: B, blobs: UnverifiedBlobs) -> Self {
-        Self::Builder(block, blobs, PhantomData)
+        Self::Builder(block, blobs)
     }
 }
 
@@ -154,8 +154,8 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock>(
     let data_column_publishing_delay_for_testing = chain.config.data_column_publishing_delay;
 
     let (unverified_block, unverified_blobs, is_locally_built_block) = match provenanced_block {
-        ProvenancedBlock::Local(block, blobs, _) => (block, blobs, true),
-        ProvenancedBlock::Builder(block, blobs, _) => (block, blobs, false),
+        ProvenancedBlock::Local(block, blobs) => (block, blobs, true),
+        ProvenancedBlock::Builder(block, blobs) => (block, blobs, false),
     };
     let provenance = if is_locally_built_block {
         "local"

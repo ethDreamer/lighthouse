@@ -24,8 +24,7 @@ use types::{BeaconState, Hash256};
 pub struct ValidatorPubkeyCache {
     pubkeys: Vec<PublicKey>,
     indices: HashMap<PublicKeyBytes, usize>,
-    pubkey_bytes: Vec<PublicKeyBytes>,
-    _phantom: PhantomData<T>,
+    pubkey_bytes: Vec<PublicKeyBytes>
 }
 
 impl ValidatorPubkeyCache {
@@ -40,8 +39,7 @@ impl ValidatorPubkeyCache {
         let mut cache = Self {
             pubkeys: vec![],
             indices: HashMap::new(),
-            pubkey_bytes: vec![],
-            _phantom: PhantomData,
+            pubkey_bytes: vec![]
         };
 
         let store_ops = cache.import_new_pubkeys(state)?;
@@ -73,8 +71,7 @@ impl ValidatorPubkeyCache {
         Ok(ValidatorPubkeyCache {
             pubkeys,
             indices,
-            pubkey_bytes,
-            _phantom: PhantomData,
+            pubkey_bytes
         })
     }
 

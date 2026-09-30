@@ -72,8 +72,7 @@ use crate::{
     derive(arbitrary::Arbitrary),
     arbitrary(bound = "Payload: AbstractExecPayload")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
 #[serde(untagged)]
 #[serde(bound = "Payload: AbstractExecPayload")]
 #[tree_hash(enum_behaviour = "transparent")]

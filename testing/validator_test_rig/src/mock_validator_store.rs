@@ -47,7 +47,6 @@ impl MockValidatorStore {
 
 impl ValidatorStore for MockValidatorStore {
     type Error = ();
-    type E = MainnetEthSpec;
 
     async fn sign_payload_attestation(
         &self,

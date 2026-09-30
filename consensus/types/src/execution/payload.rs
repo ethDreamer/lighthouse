@@ -156,20 +156,17 @@ pub trait AbstractExecPayload:
             Encode,
             Decode,
             TreeHash,
-            Educe,
+            PartialEq, Hash,
         ),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
-        derive(Debug, Educe, TreeHash),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
+        derive(Debug, PartialEq, Hash, TreeHash),
         tree_hash(enum_behaviour = "transparent"),
     ),
     map_into(ExecutionPayload),
@@ -186,11 +183,8 @@ pub trait AbstractExecPayload:
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec")]
+#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct FullPayload {
     #[superstruct(
@@ -522,20 +516,17 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
             Encode,
             Decode,
             TreeHash,
-            Educe,
+            PartialEq, Hash,
         ),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
-        derive(Debug, Educe, TreeHash),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
+        derive(Debug, PartialEq, Hash, TreeHash),
         tree_hash(enum_behaviour = "transparent"),
     ),
     map_into(ExecutionPayloadHeader),
@@ -551,11 +542,8 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec")]
+#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BlindedPayload {
     #[superstruct(

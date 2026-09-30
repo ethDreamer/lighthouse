@@ -59,8 +59,7 @@ pub struct InclusionListStore {
     lowest_permissible_slot: Slot,
     /// One more than `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS` requires. A slot `S` payload
     /// envelope reads the slot `S-1` lists, and might not be processed until the clock is at `S+1`.
-    slots_retained: u64,
-    _phantom: PhantomData<E>,
+    slots_retained: u64
 }
 
 impl InclusionListStore {
@@ -76,8 +75,7 @@ impl InclusionListStore {
             lowest_permissible_slot: first_heze_slot,
             slots_retained: spec
                 .min_slots_for_inclusion_lists_requests
-                .saturating_add(1),
-            _phantom: PhantomData,
+                .saturating_add(1)
         }
     }
 

@@ -699,8 +699,7 @@ pub fn signature_verify_chain_segment<T: BeaconChainTypes>(
 
 /// A wrapper around a `SignedBeaconBlock` that indicates it has been approved for re-gossiping on
 /// the p2p network.
-#[derive(Educe)]
-#[educe(Debug(bound(T: BeaconChainTypes)))]
+#[derive(Debug)]
 pub struct GossipVerifiedBlock {
     pub block: Arc<SignedBeaconBlock>,
     pub block_root: Hash256,

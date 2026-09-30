@@ -76,7 +76,6 @@ pub struct ProposalData {
 
 pub trait ValidatorStore: Send + Sync {
     type Error: Debug + Send + Sync;
-    type E: EthSpec;
 
     /// Attempts to resolve the pubkey to a validator index.
     ///

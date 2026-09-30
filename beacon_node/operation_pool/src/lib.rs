@@ -66,8 +66,7 @@ pub struct OperationPool {
     payload_attestation_messages:
         RwLock<HashMap<PayloadAttestationData, Vec<PayloadAttestationMessage>>>,
     /// Reward cache for accelerating attestation packing.
-    reward_cache: RwLock<RewardCache>,
-    _phantom: PhantomData<E>,
+    reward_cache: RwLock<RewardCache>
 }
 
 #[derive(Debug, PartialEq)]

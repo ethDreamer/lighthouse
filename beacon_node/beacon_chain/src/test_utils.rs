@@ -254,7 +254,6 @@ pub fn test_custody_context(
 }
 
 pub struct Builder<T: BeaconChainTypes> {
-    eth_spec_instance: T::EthSpec,
     spec: Option<Arc<ChainSpec>>,
     validator_keypairs: Option<Vec<Keypair>>,
     withdrawal_keypairs: Vec<Option<Keypair>>,
@@ -431,7 +430,6 @@ where
         let runtime = TestRuntime::default();
 
         Self {
-            eth_spec_instance,
             spec: None,
             validator_keypairs: None,
             withdrawal_keypairs: vec![],

@@ -11,12 +11,9 @@ use tree_hash_derive::TreeHash;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, Educe)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
+#[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
-#[serde(bound = "E: EthSpec")]
 #[tree_hash(
     struct_behaviour = "progressive_container",
     active_fields(1, 1, 1, 1, 1)

@@ -120,8 +120,7 @@ pub struct BeaconForkChoiceStore<Hot: ItemStore, Cold: ItemStore> {
     unrealized_justified_state_root: Hash256,
     unrealized_finalized_checkpoint: Checkpoint,
     proposer_boost_root: Hash256,
-    equivocating_indices: BTreeSet<u64>,
-    _phantom: PhantomData<E>,
+    equivocating_indices: BTreeSet<u64>
 }
 
 impl<Hot, Cold> BeaconForkChoiceStore<Hot, Cold>
@@ -186,8 +185,7 @@ where
             unrealized_justified_state_root: justified_state_root,
             unrealized_finalized_checkpoint: finalized_checkpoint,
             proposer_boost_root: Hash256::zero(),
-            equivocating_indices: BTreeSet::new(),
-            _phantom: PhantomData,
+            equivocating_indices: BTreeSet::new()
         })
     }
 
@@ -234,8 +232,7 @@ where
             unrealized_justified_state_root: persisted.unrealized_justified_state_root,
             unrealized_finalized_checkpoint: persisted.unrealized_finalized_checkpoint,
             proposer_boost_root: persisted.proposer_boost_root,
-            equivocating_indices: persisted.equivocating_indices,
-            _phantom: PhantomData,
+            equivocating_indices: persisted.equivocating_indices
         })
     }
 }

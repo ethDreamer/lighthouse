@@ -47,15 +47,12 @@ pub type BuilderExitRequests =
             Encode,
             Decode,
             TreeHash,
-            Educe,
+            PartialEq, Eq, Hash,
         ),
         context_deserialize(ForkName),
-        educe(PartialEq, Eq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec"),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
     ),
     specific_variant_attributes(Gloas(tree_hash(
@@ -74,11 +71,9 @@ pub type BuilderExitRequests =
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Encode, TreeHash, Educe)]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec", untagged)]
+#[derive(Debug, Clone, Serialize, Encode, TreeHash, PartialEq, Eq, Hash)]
+#[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct ExecutionRequests {

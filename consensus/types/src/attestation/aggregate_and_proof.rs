@@ -28,16 +28,14 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        serde(bound = "E: EthSpec"),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
     ),
     ref_attributes(
         derive(Debug, PartialEq, TreeHash, Serialize),
-        serde(untagged, bound = "E: EthSpec"),
+        serde(untagged,),
         tree_hash(enum_behaviour = "transparent")
     ),
     map_ref_into(AttestationRef)
@@ -45,13 +43,12 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, TreeHash)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct AggregateAndProof {
     /// The index of the validator that created the attestation.
     #[serde(with = "serde_utils::quoted_u64")]

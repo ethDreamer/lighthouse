@@ -10,8 +10,7 @@ use tree_hash_derive::TreeHash;
 
 #[derive(TreeHash, Debug, Clone, Encode, Decode, Serialize, Deserialize, Educe)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
-#[cfg_attr(feature = "arbitrary", arbitrary(bound = "E: EthSpec"))]
+#[serde(deny_unknown_fields)]
 #[educe(PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 #[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))]

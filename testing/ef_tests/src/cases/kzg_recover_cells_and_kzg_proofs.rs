@@ -12,12 +12,10 @@ pub struct KZGRecoverCellsAndKzgProofsInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGRecoverCellsAndKZGProofs {
     pub input: KZGRecoverCellsAndKzgProofsInput,
-    pub output: Option<(Vec<String>, Vec<String>)>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<(Vec<String>, Vec<String>)>
 }
 
 impl LoadCase for KZGRecoverCellsAndKZGProofs {

@@ -30,7 +30,6 @@ pub enum GenericMerkleProofValidity {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct BeaconStateMerkleProofValidity {
     pub metadata: Option<Metadata>,
     pub state: BeaconState,
@@ -269,7 +268,6 @@ impl Case for KzgInclusionMerkleProofValidity {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct BeaconBlockBodyMerkleProofValidity {
     pub metadata: Option<Metadata>,
     pub block_body: BeaconBlockBody<FullPayload>,

@@ -10,10 +10,8 @@ use tree_hash_derive::TreeHash;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[educe(PartialEq, Hash)]
-#[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 // https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/beacon-chain.md#executionpayloadbid
 #[tree_hash(

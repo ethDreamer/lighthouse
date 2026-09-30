@@ -36,8 +36,7 @@ pub struct SSZSnappyInboundCodec {
     len: Option<usize>,
     /// Maximum bytes that can be sent in one req/resp chunked responses.
     max_packet_size: usize,
-    fork_context: Arc<ForkContext>,
-    phantom: PhantomData<E>,
+    fork_context: Arc<ForkContext>
 }
 
 impl SSZSnappyInboundCodec {
@@ -54,7 +53,6 @@ impl SSZSnappyInboundCodec {
             inner: uvi_codec,
             protocol,
             len: None,
-            phantom: PhantomData,
             fork_context,
             max_packet_size,
         }
@@ -219,8 +217,7 @@ pub struct SSZSnappyOutboundCodec {
     fork_name: Option<ForkName>,
     fork_context: Arc<ForkContext>,
     /// Keeps track of the current response code for a chunk.
-    current_response_code: Option<u8>,
-    phantom: PhantomData<E>,
+    current_response_code: Option<u8>
 }
 
 impl SSZSnappyOutboundCodec {
@@ -240,7 +237,6 @@ impl SSZSnappyOutboundCodec {
             len: None,
             fork_name: None,
             fork_context,
-            phantom: PhantomData,
             current_response_code: None,
         }
     }

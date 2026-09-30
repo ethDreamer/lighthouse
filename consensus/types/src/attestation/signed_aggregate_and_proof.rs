@@ -32,11 +32,9 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        serde(bound = "E: EthSpec"),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
     ),
     map_into(Attestation),
@@ -45,13 +43,12 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, TreeHash)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct SignedAggregateAndProof {
     /// The `AggregateAndProof` that was signed.
     #[superstruct(flatten)]

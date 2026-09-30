@@ -23,7 +23,6 @@ use types::{
 pub struct MockBeaconNode {
     server: ServerGuard,
     pub beacon_api_client: BeaconNodeHttpClient,
-    _phantom: PhantomData<E>,
     pub received_blinded_blocks: Arc<Mutex<Vec<SignedBlindedBeaconBlock>>>,
     pub received_full_blocks: Arc<Mutex<Vec<PublishBlockRequest>>>,
     pub execution_payload_envelope: Arc<Mutex<Vec<SignedExecutionPayloadEnvelope>>>,
@@ -46,7 +45,6 @@ impl MockBeaconNode {
         Self {
             server,
             beacon_api_client,
-            _phantom: PhantomData,
             received_blinded_blocks: Arc::new(Mutex::new(Vec::new())),
             received_full_blocks: Arc::new(Mutex::new(Vec::new())),
             execution_payload_envelope: Arc::new(Mutex::new(Vec::new())),

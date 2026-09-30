@@ -664,9 +664,9 @@ fn main() {
         .ok_or_else(|| "Missing --spec flag".to_string())
         .and_then(|s| FromStr::from_str(s))
         .and_then(|eth_spec_id| match eth_spec_id {
-            EthSpecId::Minimal => run(EnvironmentBuilder::minimal(), &matches),
-            EthSpecId::Mainnet => run(EnvironmentBuilder::mainnet(), &matches),
-            EthSpecId::Gnosis => run(EnvironmentBuilder::gnosis(), &matches),
+            SpecId::Minimal => run(EnvironmentBuilder::minimal(), &matches),
+            SpecId::Mainnet => run(EnvironmentBuilder::mainnet(), &matches),
+            SpecId::Gnosis => run(EnvironmentBuilder::gnosis(), &matches),
         });
 
     match result {

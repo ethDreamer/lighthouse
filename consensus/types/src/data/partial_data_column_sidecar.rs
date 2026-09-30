@@ -23,12 +23,10 @@ pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 #[superstruct(
     variants(Fulu, Gloas),
     variant_attributes(
-        derive(Debug, Clone, Encode, Decode, TreeHash, Educe),
-        educe(PartialEq, Eq, Hash(bound = "E: EthSpec")),
+        derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec")
         ),
     ),
     ref_attributes(
@@ -39,10 +37,8 @@ pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Encode, Decode, TreeHash, Educe)]
-#[educe(PartialEq, Eq, Hash(bound = "E: EthSpec"))]
+#[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct PartialDataColumnSidecar {
@@ -285,10 +281,8 @@ impl PartialDataColumnSidecar {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Encode, Decode, TreeHash, Educe)]
-#[educe(PartialEq, Eq, Hash(bound = "E: EthSpec"))]
+#[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 pub struct PartialDataColumnHeader {
     pub kzg_commitments: KzgCommitments,
     pub signed_block_header: SignedBeaconBlockHeader,

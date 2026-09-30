@@ -33,7 +33,6 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct EpochProcessing<T: EpochTransition> {
     pub path: PathBuf,
     pub metadata: Metadata,

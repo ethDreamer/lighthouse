@@ -11,7 +11,6 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct GenesisValidity {
     pub metadata: Option<Metadata>,
     pub genesis: BeaconState,

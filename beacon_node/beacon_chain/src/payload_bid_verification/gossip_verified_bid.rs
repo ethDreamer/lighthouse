@@ -272,8 +272,7 @@ pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
 
 /// A wrapper around a `SignedExecutionPayloadBid` that indicates it has been approved for re-gossiping on
 /// the p2p network.
-#[derive(Educe)]
-#[educe(Debug(bound = "E: EthSpec"), Clone(bound = "E: EthSpec"))]
+#[derive(Debug, Clone)]
 pub struct GossipVerifiedPayloadBid {
     pub signed_bid: Arc<SignedExecutionPayloadBid>,
 }

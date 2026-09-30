@@ -90,8 +90,7 @@ pub struct ClientBuilder<T: BeaconChainTypes> {
     slasher: Option<Arc<Slasher>>,
     beacon_processor_config: Option<BeaconProcessorConfig>,
     beacon_processor_channels: Option<BeaconProcessorChannels>,
-    light_client_server_rv: Option<Receiver<LightClientProducerEvent>>,
-    eth_spec_instance: T::EthSpec,
+    light_client_server_rv: Option<Receiver<LightClientProducerEvent>>
 }
 
 impl<TSlotClock, THotStore, TColdStore>
@@ -120,7 +119,6 @@ where
             http_api_config: <_>::default(),
             http_metrics_config: <_>::default(),
             slasher: None,
-            eth_spec_instance,
             beacon_processor_config: None,
             beacon_processor_channels: None,
             light_client_server_rv: None,

@@ -492,8 +492,7 @@ impl std::fmt::Display for Encoding {
 pub struct RPCProtocol {
     pub fork_context: Arc<ForkContext>,
     pub max_rpc_size: usize,
-    pub enable_light_client_server: bool,
-    pub phantom: PhantomData<E>,
+    pub enable_light_client_server: bool
 }
 
 impl UpgradeInfo for RPCProtocol {
@@ -715,10 +714,10 @@ impl ProtocolId {
 
 pub fn rpc_blob_limits() -> RpcLimits {
     match Spec::SPEC_ID {
-        EthSpecId::Minimal => {
+        SpecId::Minimal => {
             RpcLimits::new(*BLOB_SIDECAR_SIZE_MINIMAL, *BLOB_SIDECAR_SIZE_MINIMAL)
         }
-        EthSpecId::Mainnet | EthSpecId::Gnosis => {
+        SpecId::Mainnet | SpecId::Gnosis => {
             RpcLimits::new(*BLOB_SIDECAR_SIZE, *BLOB_SIDECAR_SIZE)
         }
     }
@@ -1253,8 +1252,7 @@ mod tests {
             let rpc_protocol = RPCProtocol {
                 fork_context: fork_context.clone(),
                 max_rpc_size: spec.max_payload_size as usize,
-                enable_light_client_server: true,
-                phantom: PhantomData,
+                enable_light_client_server: true
             };
             let protocol_info: HashSet<SupportedProtocol> = rpc_protocol
                 .protocol_info()

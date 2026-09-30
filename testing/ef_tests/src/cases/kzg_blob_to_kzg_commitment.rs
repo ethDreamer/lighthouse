@@ -12,12 +12,10 @@ pub struct KZGBlobToKZGCommitmentInput {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct KZGBlobToKZGCommitment {
     pub input: KZGBlobToKZGCommitmentInput,
-    pub output: Option<String>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub output: Option<String>
 }
 
 impl LoadCase for KZGBlobToKZGCommitment {

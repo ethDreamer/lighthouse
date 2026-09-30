@@ -210,8 +210,7 @@ impl PersistedOperationPool {
             voluntary_exits,
             bls_to_execution_changes: RwLock::new(bls_to_execution_changes),
             payload_attestation_messages: Default::default(),
-            reward_cache: Default::default(),
-            _phantom: Default::default(),
+            reward_cache: Default::default()
         };
         Ok(op_pool)
     }

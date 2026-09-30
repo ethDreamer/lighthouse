@@ -62,9 +62,7 @@ type BackFillBatchInfo = BatchInfo<BackFillBatchConfig, RpcBlocks>;
 type BackFillSyncBatches = BTreeMap<BatchId, BackFillBatchInfo>;
 
 /// Custom configuration for the batch object.
-struct BackFillBatchConfig {
-    marker: PhantomData<E>,
-}
+struct BackFillBatchConfig {}
 
 impl BatchConfig for BackFillBatchConfig {
     fn max_batch_download_attempts() -> u8 {

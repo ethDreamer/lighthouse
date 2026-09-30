@@ -75,8 +75,7 @@ pub struct LighthouseValidatorStore<T> {
     enable_web3signer_slashing_protection: bool,
     prefer_builder_proposals: bool,
     builder_boost_factor: Option<u64>,
-    task_executor: TaskExecutor,
-    _phantom: PhantomData<E>,
+    task_executor: TaskExecutor
 }
 
 impl<T: SlotClock + 'static> LighthouseValidatorStore<T> {
@@ -107,8 +106,7 @@ impl<T: SlotClock + 'static> LighthouseValidatorStore<T> {
             enable_web3signer_slashing_protection: config.enable_web3signer_slashing_protection,
             prefer_builder_proposals: config.prefer_builder_proposals,
             builder_boost_factor: config.builder_boost_factor,
-            task_executor,
-            _phantom: PhantomData,
+            task_executor
         }
     }
 
@@ -834,7 +832,6 @@ impl<T: SlotClock + 'static> LighthouseValidatorStore<T> {
 
 impl<T: SlotClock + 'static> ValidatorStore for LighthouseValidatorStore<T> {
     type Error = SigningError;
-    type E = E;
 
     /// Attempts to resolve the pubkey to a validator index.
     ///

@@ -27,8 +27,7 @@ pub struct ProposalKey {
 /// known_distinct_shufflings` which is much smaller.
 pub struct ObservedSlashable {
     finalized_slot: Slot,
-    items: HashMap<ProposalKey, HashSet<Hash256>>,
-    _phantom: PhantomData<E>,
+    items: HashMap<ProposalKey, HashSet<Hash256>>
 }
 
 impl Default for ObservedSlashable {
@@ -36,8 +35,7 @@ impl Default for ObservedSlashable {
     fn default() -> Self {
         Self {
             finalized_slot: Slot::new(0),
-            items: HashMap::new(),
-            _phantom: PhantomData,
+            items: HashMap::new()
         }
     }
 }

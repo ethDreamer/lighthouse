@@ -2872,11 +2872,11 @@ impl Config {
     /// Maps `self` to an identifier for an `EthSpec` instance.
     ///
     /// Returns `None` if there is no match.
-    pub fn eth_spec_id(&self) -> Option<EthSpecId> {
+    pub fn eth_spec_id(&self) -> Option<SpecId> {
         match self.preset_base.as_str() {
-            "minimal" => Some(EthSpecId::Minimal),
-            "mainnet" => Some(EthSpecId::Mainnet),
-            "gnosis" => Some(EthSpecId::Gnosis),
+            "minimal" => Some(SpecId::Minimal),
+            "mainnet" => Some(SpecId::Mainnet),
+            "gnosis" => Some(SpecId::Gnosis),
             _ => None,
         }
     }

@@ -56,16 +56,14 @@ pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
             Deserialize,
             Decode,
             Encode,
-            Educe,
+            PartialEq, Hash,
             TreeHash,
         ),
         context_deserialize(ForkName),
-        educe(PartialEq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec")
         )
     ),
     ref_attributes(derive(TreeHash), tree_hash(enum_behaviour = "transparent")),
@@ -75,11 +73,9 @@ pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
-#[educe(PartialEq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec", untagged, deny_unknown_fields)]
+#[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq, Hash, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct DataColumnSidecar {

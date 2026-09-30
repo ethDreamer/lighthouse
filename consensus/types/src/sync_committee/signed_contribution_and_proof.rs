@@ -15,10 +15,8 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
-#[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 pub struct SignedContributionAndProof {
     /// The `ContributionAndProof` that was signed.

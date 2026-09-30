@@ -18,7 +18,7 @@ use crate::{
     variants(Base, Electra, Gloas),
     variant_attributes(
         derive(
-            Educe,
+            PartialEq, Eq, Hash,
             Debug,
             Clone,
             Serialize,
@@ -28,12 +28,9 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        educe(PartialEq, Eq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec"),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec")
         ),
     ),
     ref_attributes(derive(Debug))
@@ -41,11 +38,9 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
-#[derive(Debug, Clone, Serialize, Encode, Deserialize, TreeHash, Educe)]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec", untagged)]
+#[derive(Debug, Clone, Serialize, Encode, Deserialize, TreeHash, PartialEq, Eq, Hash)]
+#[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct AttesterSlashing {
@@ -58,8 +53,7 @@ pub struct AttesterSlashing {
 /// This is a copy of the `AttesterSlashing` enum but with `Encode` and `Decode` derived
 /// using the `union` behavior for the purposes of persistence on disk. We use a separate
 /// type so that we don't accidentally use this non-spec encoding in consensus objects.
-#[derive(Debug, Clone, Encode, Decode, Educe)]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, Hash)]
 #[ssz(enum_behaviour = "union")]
 pub enum AttesterSlashingOnDisk {
     Base(AttesterSlashingBase),

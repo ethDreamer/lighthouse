@@ -242,16 +242,14 @@ impl<Hot: ItemStore, Cold: ItemStore> Iterator for RootsIterator<'_, Hot, Cold> 
 /// Block iterator that uses the `parent_root` of each block to backtrack.
 pub struct ParentRootBlockIterator<'a, Hot: ItemStore, Cold: ItemStore> {
     store: &'a HotColdDB<Hot, Cold>,
-    next_block_root: Hash256,
-    _phantom: PhantomData<E>,
+    next_block_root: Hash256
 }
 
 impl<'a, Hot: ItemStore, Cold: ItemStore> ParentRootBlockIterator<'a, Hot, Cold> {
     pub fn new(store: &'a HotColdDB<Hot, Cold>, start_block_root: Hash256) -> Self {
         Self {
             store,
-            next_block_root: start_block_root,
-            _phantom: PhantomData,
+            next_block_root: start_block_root
         }
     }
 

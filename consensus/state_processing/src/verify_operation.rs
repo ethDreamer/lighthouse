@@ -52,8 +52,7 @@ pub trait TransformPersist {
 )]
 pub struct SigVerifiedOp<T: TransformPersist> {
     op: T,
-    verified_against: VerifiedAgainst,
-    _phantom: PhantomData<E>,
+    verified_against: VerifiedAgainst
 }
 
 impl<T: TransformPersist> Encode for SigVerifiedOp<T> {
@@ -97,8 +96,7 @@ impl<T: TransformPersist> Decode for SigVerifiedOp<T> {
         let on_disk = SigVerifiedOpDecode::<T::Persistable>::from_ssz_bytes(bytes)?;
         Ok(SigVerifiedOp {
             op: T::from_persistable(on_disk.op),
-            verified_against: on_disk.verified_against,
-            _phantom: PhantomData,
+            verified_against: on_disk.verified_against
         })
     }
 }
@@ -159,8 +157,7 @@ where
 
         SigVerifiedOp {
             op,
-            verified_against,
-            _phantom: PhantomData,
+            verified_against
         }
     }
 
@@ -369,8 +366,7 @@ impl From<SigVerifiedOp<AttesterSlashingBase>>
     fn from(base: SigVerifiedOp<AttesterSlashingBase>) -> Self {
         SigVerifiedOp {
             op: AttesterSlashing::Base(base.op),
-            verified_against: base.verified_against,
-            _phantom: PhantomData,
+            verified_against: base.verified_against
         }
     }
 }
@@ -384,8 +380,7 @@ impl TryFrom<SigVerifiedOp<AttesterSlashing>>
         match slashing.op {
             AttesterSlashing::Base(base) => Ok(SigVerifiedOp {
                 op: base,
-                verified_against: slashing.verified_against,
-                _phantom: PhantomData,
+                verified_against: slashing.verified_against
             }),
             AttesterSlashing::Electra(_) | AttesterSlashing::Gloas(_) => {
                 Err("non-base attester slashing".to_string())
@@ -440,8 +435,7 @@ mod test {
 
             let verified_op = SigVerifiedOp {
                 op,
-                verified_against,
-                _phantom: PhantomData::<E>,
+                verified_against
             };
 
             let serialized = verified_op.as_ssz_bytes();

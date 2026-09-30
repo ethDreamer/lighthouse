@@ -313,11 +313,10 @@ impl From<BeaconStateHash> for Hash256 {
             TreeHash,
             CompareFields,
         ),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec")
         ),
         educe(Clone),
     ),
@@ -480,11 +479,9 @@ impl From<BeaconStateHash> for Hash256 {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
 )]
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Encode)]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct BeaconState
 

@@ -4,14 +4,12 @@ use std::marker::PhantomData;
 use types::data::{CustodyIndex, compute_columns_for_custody_group};
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct ComputeColumnsForCustodyGroups {
     /// The custody group index.
     pub custody_group: CustodyIndex,
     /// The list of resulting custody columns.
-    pub result: Vec<u64>,
-    #[serde(skip)]
-    _phantom: PhantomData<E>,
+    pub result: Vec<u64>
 }
 
 impl LoadCase for ComputeColumnsForCustodyGroups {

@@ -31,18 +31,17 @@ use crate::{
             Decode,
             Clone,
         ),
-        serde(bound = "E: EthSpec", deny_unknown_fields),
+        serde(deny_unknown_fields),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
         ),
     ),
     map_ref_into(ExecutionPayloadHeaderRef),
     map_ref_mut_into(ExecutionPayloadHeaderRefMut)
 )]
 #[derive(PartialEq, Debug, Encode, Serialize, Deserialize, TreeHash, Clone)]
-#[serde(bound = "E: EthSpec", deny_unknown_fields, untagged)]
+#[serde(deny_unknown_fields, untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BuilderBid {
@@ -112,7 +111,6 @@ impl SignedRoot for BuilderBid {}
 
 /// Validator registration, for use in interacting with servers implementing the builder API.
 #[derive(PartialEq, Debug, Encode, Serialize, Deserialize, Clone)]
-#[serde(bound = "E: EthSpec")]
 pub struct SignedBuilderBid {
     pub message: BuilderBid,
     pub signature: Signature,

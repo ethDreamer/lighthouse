@@ -13,7 +13,6 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(bound = "E: EthSpec")]
 pub struct SanitySlots {
     pub metadata: Metadata,
     pub pre: BeaconState,
