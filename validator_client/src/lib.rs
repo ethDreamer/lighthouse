@@ -93,6 +93,7 @@ pub struct ProductionValidatorClient {
     sync_committee_service: SyncCommitteeService<ValidatorStore, SystemTimeSlotClock>,
     payload_attestation_service: PayloadAttestationService<ValidatorStore, SystemTimeSlotClock>,
     proposer_preferences_service: ProposerPreferencesService<ValidatorStore, SystemTimeSlotClock>,
+
     doppelganger_service: Option<Arc<DoppelgangerService>>,
     preparation_service: PreparationService<ValidatorStore, SystemTimeSlotClock>,
     validator_store: Arc<ValidatorStore>,

@@ -11,8 +11,8 @@ use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 use types::{
-    Address, ChainSpec, ProposerPreparationData, SignedValidatorRegistrationData, Slot, Spec,
-    ValidatorRegistrationData,
+    Address, ChainSpec, Epoch, ProposerPreparationData, SignedValidatorRegistrationData, Slot,
+    Spec, ValidatorRegistrationData,
 };
 use validator_store::{
     DoppelgangerStatus, Error as ValidatorStoreError, ProposalData, ValidatorStore,

@@ -9,6 +9,7 @@ use std::{
 };
 use tracing::debug;
 use tree_hash::TreeHash;
+
 use types::{
     Address, BeaconState, BeaconStateError as Error, BeaconStateGloas, Builder,
     BuilderPendingPayment, ChainSpec, ExecutionPayloadBid, ExecutionRequestsGloas, Fork,

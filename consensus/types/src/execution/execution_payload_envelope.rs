@@ -1,5 +1,6 @@
+use crate::core::Spec;
 use crate::execution::{ExecutionPayloadGloas, ExecutionRequestsGloas};
-use crate::{ForkName, Hash256, SignedRoot, Slot, Spec};
+use crate::{ForkName, Hash256, SignedRoot, Slot};
 use context_deserialize::context_deserialize;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Serialize};

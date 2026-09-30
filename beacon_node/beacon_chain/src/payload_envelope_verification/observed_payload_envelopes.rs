@@ -57,7 +57,6 @@ mod tests {
 
     use super::ObservedPayloadEnvelopes;
     use crate::payload_envelope_verification::gossip_verified_envelope::GossipVerifiedEnvelope;
-    use crate::test_utils::EphemeralHarnessType;
     use bls::Signature;
     use std::sync::Arc;
     use types::{

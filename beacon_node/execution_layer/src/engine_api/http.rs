@@ -16,6 +16,8 @@ use tokio::sync::Mutex;
 use tracing::Span;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use types::ProgressiveTransactions;
+#[cfg(test)]
+use types::Spec;
 
 use std::time::{Duration, Instant};
 
@@ -1663,7 +1665,6 @@ mod test {
     use std::future::Future;
     use std::str::FromStr;
     use std::sync::Arc;
-    use types::Spec;
 
     struct Tester {
         server: MockServer,

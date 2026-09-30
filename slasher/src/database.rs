@@ -864,7 +864,7 @@ impl SlasherDB {
 #[cfg(test)]
 mod test {
     use super::*;
-    use types::{Checkpoint, ForkName};
+    use types::{Checkpoint, ForkName, Spec};
 
     fn indexed_attestation_on_disk_roundtrip_test(
         spec: &ChainSpec,

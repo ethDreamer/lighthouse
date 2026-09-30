@@ -5,7 +5,6 @@ mod keystores;
 
 use doppelganger_service::DoppelgangerService;
 use initialized_validators::{Config as InitializedValidatorsConfig, InitializedValidators};
-use types::Spec;
 
 use crate::{ApiSecret, Config as HttpConfig, Context};
 use account_utils::{
@@ -42,6 +41,8 @@ use zeroize::Zeroizing;
 
 const PASSWORD_BYTES: &[u8] = &[42, 50, 37];
 pub const TEST_DEFAULT_FEE_RECIPIENT: Address = Address::repeat_byte(42);
+
+use types::Spec;
 
 struct ApiTester {
     client: ValidatorClientHttpClient,

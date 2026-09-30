@@ -349,9 +349,8 @@ mod tests {
     use libp2p::identity::Keypair;
     use ssz_types::FixedVector;
     use types::CellBitmap;
-    use types::Spec;
     use types::block::{BeaconBlockHeader, SignedBeaconBlockHeader};
-    use types::core::Slot;
+    use types::core::{Slot, Spec};
     use types::data::PartialDataColumnHeader;
     use types::data::PartialDataColumnSidecarFulu;
     use types::data::PartialDataColumnSidecarGloas;

@@ -336,7 +336,7 @@ mod tests {
     use builder_store::{BuilderDefinition, ValidatorBuilderConfig, ValidatorBuilderDefinition};
     use eth2::types::ProposerData;
     use types::{Epoch, ForkName, Hash256};
-    use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
+    use validator_test_rig::validator_client_harness::ValidatorClientHarness;
 
     /// One epoch before the Gloas fork, lookahead entries for the first Gloas epoch must go out
     /// under `Eth-Consensus-Version: gloas` — the fork their proposal slots belong to — not the

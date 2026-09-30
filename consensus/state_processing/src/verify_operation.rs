@@ -346,7 +346,7 @@ impl TransformPersist for AttesterSlashing {
 }
 
 // TODO: Remove this once we no longer support DB schema version 17
-impl TransformPersist for types::AttesterSlashingBase {
+impl TransformPersist for AttesterSlashingBase {
     type Persistable = Self;
     type PersistableRef<'a> = &'a Self;
 

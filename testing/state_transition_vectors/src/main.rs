@@ -11,8 +11,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::sync::LazyLock;
-use types::Slot;
-use types::{BeaconState, SignedBeaconBlock, test_utils::generate_deterministic_keypairs};
+use types::{BeaconState, SignedBeaconBlock, Slot, test_utils::generate_deterministic_keypairs};
 
 pub const VALIDATOR_COUNT: usize = 64;
 

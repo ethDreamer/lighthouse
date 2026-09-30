@@ -4,8 +4,7 @@ use itertools::Itertools;
 use ssz::{BitList, BitVector, ProgressiveBitList};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use superstruct::superstruct;
-use typenum::U;
-use typenum::Unsigned;
+use typenum::{U, Unsigned};
 use types::{
     Attestation, AttestationData, BeaconState, Checkpoint, Epoch, Hash256, Slot, Spec,
     attestation::{AttestationBase, AttestationElectra, AttestationGloas},

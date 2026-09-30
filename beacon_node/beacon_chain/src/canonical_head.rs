@@ -75,6 +75,7 @@ use store::{
 };
 use task_executor::{JoinHandle, ShutdownReason};
 use tracing::{debug, error, info, instrument, warn};
+use types::Spec;
 use types::*;
 
 /// Simple wrapper around `RwLock` that uses private visibility to prevent any other modules from

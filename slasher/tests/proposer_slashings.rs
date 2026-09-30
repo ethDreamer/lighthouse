@@ -2,7 +2,7 @@
 
 use slasher::{
     Config, Slasher,
-    test_utils::{E, block as test_block, chain_spec},
+    test_utils::{block as test_block, chain_spec},
 };
 use tempfile::tempdir;
 use types::{Epoch, Spec};

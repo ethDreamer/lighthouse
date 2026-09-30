@@ -4,8 +4,9 @@ use crate::{VerifySignatures, signature_sets::sync_aggregate_signature_set};
 use bls::PublicKeyBytes;
 use safe_arith::SafeArith;
 use std::borrow::Cow;
+use types::Spec;
 use types::consts::altair::{PROPOSER_WEIGHT, SYNC_REWARD_WEIGHT, WEIGHT_DENOMINATOR};
-use types::{BeaconState, BeaconStateError, ChainSpec, Spec, SyncAggregate};
+use types::{BeaconState, BeaconStateError, ChainSpec, SyncAggregate};
 
 pub fn process_sync_aggregate(
     state: &mut BeaconState,

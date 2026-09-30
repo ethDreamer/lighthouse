@@ -15,8 +15,9 @@ use std::{
 };
 use sync_status::SyncStatus;
 use tracing::{debug, error, trace, warn};
+use types::Spec;
 use types::data::compute_subnets_for_node;
-use types::{ChainSpec, DataColumnSubnetId, Epoch, Hash256, Slot, Spec};
+use types::{ChainSpec, DataColumnSubnetId, Epoch, Hash256, Slot};
 
 pub mod client;
 pub mod peer_info;

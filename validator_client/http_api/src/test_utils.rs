@@ -29,12 +29,13 @@ use task_executor::test_utils::TestRuntime;
 use tempfile::{TempDir, tempdir};
 use tokio::sync::oneshot;
 use types::ChainSpec;
-use types::Spec;
 use validator_services::block_service::BlockService;
 use zeroize::Zeroizing;
 
 pub const PASSWORD_BYTES: &[u8] = &[42, 50, 37];
 pub const TEST_DEFAULT_FEE_RECIPIENT: Address = Address::repeat_byte(42);
+
+use types::Spec;
 
 pub struct HdValidatorScenario {
     pub count: usize,

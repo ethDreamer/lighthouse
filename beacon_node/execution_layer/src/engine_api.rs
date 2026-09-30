@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 use superstruct::superstruct;
 pub use types::{
-    Address, BeaconBlockRef, BlockAccessList, ConsolidationRequest, EthSpec, ExecutionBlockHash,
+    Address, BeaconBlockRef, BlockAccessList, ConsolidationRequest, ExecutionBlockHash,
     ExecutionPayload, ExecutionPayloadHeader, ExecutionPayloadRef, ForkName, Hash256, Transactions,
     Uint256, Withdrawal, Withdrawals,
 };

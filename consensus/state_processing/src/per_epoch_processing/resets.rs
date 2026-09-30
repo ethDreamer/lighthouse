@@ -1,7 +1,7 @@
 use super::errors::EpochProcessingError;
 use milhouse::List;
 use safe_arith::SafeArith;
-use types::core::Spec;
+use types::Spec;
 use types::state::BeaconState;
 
 pub fn process_eth1_data_reset(state: &mut BeaconState) -> Result<(), EpochProcessingError> {

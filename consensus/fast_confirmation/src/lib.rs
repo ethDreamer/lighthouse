@@ -1554,7 +1554,6 @@ mod tests {
     #[test]
     fn head_balance_source_rebuilt_after_intra_epoch_slashing() {
         use state_processing::{GloasVerificationContext, per_slot_processing};
-        use types::MinimalEthSpec;
 
         let spec = Spec::default_spec();
         let mut state: BeaconState = BeaconState::new(0, Default::default(), &spec);

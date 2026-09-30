@@ -33,7 +33,8 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, warn};
-use types::{ChainSpec, Config as ConfigSpec, Slot, Spec};
+use types::Spec;
+use types::{ChainSpec, Config as ConfigSpec, Slot};
 use validator_metrics::{ENDPOINT_ERRORS, ENDPOINT_REQUESTS, inc_counter_vec};
 
 /// Message emitted when the VC detects the BN is using a different spec.

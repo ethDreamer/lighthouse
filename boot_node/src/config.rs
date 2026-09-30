@@ -196,7 +196,6 @@ impl BootNodeConfigSerialization {
             local_enr,
             local_key: _,
             discv5_config,
-            phantom: _,
         } = config;
 
         let (ipv4_listen_socket, ipv6_listen_socket) = match discv5_config.listen_config {

@@ -6,7 +6,7 @@ use slasher::{
     Config, Slasher,
     config::DEFAULT_CHUNK_SIZE,
     test_utils::{
-        E, att_slashing, chain_spec, indexed_att, indexed_att_electra,
+        att_slashing, chain_spec, indexed_att, indexed_att_electra,
         slashed_validators_from_slashings,
     },
 };
