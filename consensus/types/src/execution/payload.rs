@@ -1,3 +1,4 @@
+use educe::Educe;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use ssz::{Decode, Encode};
@@ -7,6 +8,7 @@ use std::{borrow::Cow, fmt::Debug, hash::Hash};
 use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     core::{Address, ExecutionBlockHash, Hash256, Spec},
@@ -147,23 +149,15 @@ pub trait AbstractExecPayload:
 #[superstruct(
     variants(Bellatrix, Capella, Deneb, Electra, Fulu),
     variant_attributes(
-        derive(
-            Debug,
-            Clone,
-            Serialize,
-            Deserialize,
-            Encode,
-            Decode,
-            TreeHash,
-            PartialEq,
-            Hash,
-        ),
+        derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe,),
+        educe(PartialEq, Hash),
         serde(deny_unknown_fields),
         cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
-        derive(Debug, PartialEq, Hash, TreeHash),
+        derive(Debug, Educe, TreeHash),
+        educe(PartialEq, Hash),
         tree_hash(enum_behaviour = "transparent"),
     ),
     map_into(ExecutionPayload),
@@ -178,7 +172,8 @@ pub trait AbstractExecPayload:
     )
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, Educe)]
+#[educe(PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct FullPayload {
     #[superstruct(
@@ -502,23 +497,15 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
 #[superstruct(
     variants(Bellatrix, Capella, Deneb, Electra, Fulu),
     variant_attributes(
-        derive(
-            Debug,
-            Clone,
-            Serialize,
-            Deserialize,
-            Encode,
-            Decode,
-            TreeHash,
-            PartialEq,
-            Hash,
-        ),
+        derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, Educe,),
+        educe(PartialEq, Hash),
         serde(deny_unknown_fields),
         cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
-        derive(Debug, PartialEq, Hash, TreeHash),
+        derive(Debug, Educe, TreeHash),
+        educe(PartialEq, Hash),
         tree_hash(enum_behaviour = "transparent"),
     ),
     map_into(ExecutionPayloadHeader),
@@ -532,7 +519,8 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
     )
 )]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, TreeHash, Educe)]
+#[educe(PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BlindedPayload {
     #[superstruct(
@@ -788,12 +776,12 @@ macro_rules! impl_exec_payload_common {
      $f:block,
      $g:block,
      $h:block) => {
-        impl<E: EthSpec> ExecPayload<E> for $wrapper_type<E> {
+        impl ExecPayload for $wrapper_type {
             fn block_type() -> BlockType {
                 BlockType::$block_type_variant
             }
 
-            fn to_execution_payload_header(&self) -> ExecutionPayloadHeader<E> {
+            fn to_execution_payload_header(&self) -> ExecutionPayloadHeader {
                 ExecutionPayloadHeader::$fork_variant($wrapped_type_header::from(
                     &self.$wrapped_field,
                 ))
@@ -815,7 +803,7 @@ macro_rules! impl_exec_payload_common {
                 self.$wrapped_field.timestamp
             }
 
-            fn extra_data(&self) -> VariableList<u8, E::MaxExtraDataBytes> {
+            fn extra_data(&self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
                 self.$wrapped_field.extra_data.clone()
             }
 
@@ -840,7 +828,7 @@ macro_rules! impl_exec_payload_common {
                 f(self)
             }
 
-            fn transactions(&self) -> Option<&Transactions<E>> {
+            fn transactions(&self) -> Option<&Transactions> {
                 let f = $f;
                 f(self)
             }
@@ -856,8 +844,8 @@ macro_rules! impl_exec_payload_common {
             }
         }
 
-        impl<E: EthSpec> From<$wrapped_type<E>> for $wrapper_type<E> {
-            fn from($wrapped_field: $wrapped_type<E>) -> Self {
+        impl From<$wrapped_type> for $wrapper_type {
+            fn from($wrapped_field: $wrapped_type) -> Self {
                 Self { $wrapped_field }
             }
         }
@@ -878,24 +866,23 @@ macro_rules! impl_exec_payload_for_fork {
             $fork_variant, // Bellatrix
             Blinded,
             {
-                |wrapper: &$wrapper_type_header<E>| {
+                |wrapper: &$wrapper_type_header| {
                     wrapper.execution_payload_header
                         == $wrapped_type_header::from(&$wrapped_type_full::default())
                 }
             },
             { |_| { None } },
             {
-                let c: for<'a> fn(
-                    &'a $wrapper_type_header<E>,
-                ) -> Result<Hash256, BeaconStateError> = |payload: &$wrapper_type_header<E>| {
-                    let wrapper_ref_type = BlindedPayloadRef::$fork_variant(&payload);
-                    wrapper_ref_type.withdrawals_root()
-                };
+                let c: for<'a> fn(&'a $wrapper_type_header) -> Result<Hash256, BeaconStateError> =
+                    |payload: &$wrapper_type_header| {
+                        let wrapper_ref_type = BlindedPayloadRef::$fork_variant(&payload);
+                        wrapper_ref_type.withdrawals_root()
+                    };
                 c
             },
             {
-                let c: for<'a> fn(&'a $wrapper_type_header<E>) -> Result<u64, BeaconStateError> =
-                    |payload: &$wrapper_type_header<E>| {
+                let c: for<'a> fn(&'a $wrapper_type_header) -> Result<u64, BeaconStateError> =
+                    |payload: &$wrapper_type_header| {
                         let wrapper_ref_type = BlindedPayloadRef::$fork_variant(&payload);
                         wrapper_ref_type.blob_gas_used()
                     };
@@ -903,10 +890,10 @@ macro_rules! impl_exec_payload_for_fork {
             }
         );
 
-        impl<E: EthSpec> TryInto<$wrapper_type_header<E>> for BlindedPayload<E> {
+        impl TryInto<$wrapper_type_header> for BlindedPayload {
             type Error = BeaconStateError;
 
-            fn try_into(self) -> Result<$wrapper_type_header<E>, Self::Error> {
+            fn try_into(self) -> Result<$wrapper_type_header, Self::Error> {
                 match self {
                     BlindedPayload::$fork_variant(payload) => Ok(payload),
                     _ => Err(BeaconStateError::IncorrectStateVariant),
@@ -921,7 +908,7 @@ macro_rules! impl_exec_payload_for_fork {
         // The default `BlindedPayload` is therefore the payload header that results from blinding the
         // default `ExecutionPayload`, which differs from the default `ExecutionPayloadHeader` in that
         // its `transactions_root` is the hash of the empty list rather than 0x0.
-        impl<E: EthSpec> Default for $wrapper_type_header<E> {
+        impl Default for $wrapper_type_header {
             fn default() -> Self {
                 Self {
                     execution_payload_header: $wrapped_type_header::from(
@@ -931,9 +918,9 @@ macro_rules! impl_exec_payload_for_fork {
             }
         }
 
-        impl<E: EthSpec> TryFrom<ExecutionPayloadHeader<E>> for $wrapper_type_header<E> {
+        impl TryFrom<ExecutionPayloadHeader> for $wrapper_type_header {
             type Error = BeaconStateError;
-            fn try_from(header: ExecutionPayloadHeader<E>) -> Result<Self, Self::Error> {
+            fn try_from(header: ExecutionPayloadHeader) -> Result<Self, Self::Error> {
                 match header {
                     ExecutionPayloadHeader::$fork_variant(execution_payload_header) => {
                         Ok(execution_payload_header.into())
@@ -944,8 +931,8 @@ macro_rules! impl_exec_payload_for_fork {
         }
 
         // BlindedPayload* from CoW reference to ExecutionPayload* (hopefully just a reference).
-        impl<'a, E: EthSpec> From<Cow<'a, $wrapped_type_full<E>>> for $wrapper_type_header<E> {
-            fn from(execution_payload: Cow<'a, $wrapped_type_full<E>>) -> Self {
+        impl<'a> From<Cow<'a, $wrapped_type_full>> for $wrapper_type_header {
+            fn from(execution_payload: Cow<'a, $wrapped_type_full>) -> Self {
                 Self {
                     execution_payload_header: $wrapped_type_header::from(&*execution_payload),
                 }
@@ -963,26 +950,26 @@ macro_rules! impl_exec_payload_for_fork {
             $fork_variant, // Bellatrix
             Full,
             {
-                |wrapper: &$wrapper_type_full<E>| {
+                |wrapper: &$wrapper_type_full| {
                     wrapper.execution_payload == $wrapped_type_full::default()
                 }
             },
             {
-                let c: for<'a> fn(&'a $wrapper_type_full<E>) -> Option<&'a Transactions<E>> =
-                    |payload: &$wrapper_type_full<E>| Some(&payload.execution_payload.transactions);
+                let c: for<'a> fn(&'a $wrapper_type_full) -> Option<&'a Transactions> =
+                    |payload: &$wrapper_type_full| Some(&payload.execution_payload.transactions);
                 c
             },
             {
-                let c: for<'a> fn(&'a $wrapper_type_full<E>) -> Result<Hash256, BeaconStateError> =
-                    |payload: &$wrapper_type_full<E>| {
+                let c: for<'a> fn(&'a $wrapper_type_full) -> Result<Hash256, BeaconStateError> =
+                    |payload: &$wrapper_type_full| {
                         let wrapper_ref_type = FullPayloadRef::$fork_variant(&payload);
                         wrapper_ref_type.withdrawals_root()
                     };
                 c
             },
             {
-                let c: for<'a> fn(&'a $wrapper_type_full<E>) -> Result<u64, BeaconStateError> =
-                    |payload: &$wrapper_type_full<E>| {
+                let c: for<'a> fn(&'a $wrapper_type_full) -> Result<u64, BeaconStateError> =
+                    |payload: &$wrapper_type_full| {
                         let wrapper_ref_type = FullPayloadRef::$fork_variant(&payload);
                         wrapper_ref_type.blob_gas_used()
                     };
@@ -990,7 +977,7 @@ macro_rules! impl_exec_payload_for_fork {
             }
         );
 
-        impl<E: EthSpec> Default for $wrapper_type_full<E> {
+        impl Default for $wrapper_type_full {
             fn default() -> Self {
                 Self {
                     execution_payload: $wrapped_type_full::default(),
@@ -999,32 +986,32 @@ macro_rules! impl_exec_payload_for_fork {
         }
 
         // FullPayload * from CoW reference to ExecutionPayload* (hopefully already owned).
-        impl<'a, E: EthSpec> From<Cow<'a, $wrapped_type_full<E>>> for $wrapper_type_full<E> {
-            fn from(execution_payload: Cow<'a, $wrapped_type_full<E>>) -> Self {
+        impl<'a> From<Cow<'a, $wrapped_type_full>> for $wrapper_type_full {
+            fn from(execution_payload: Cow<'a, $wrapped_type_full>) -> Self {
                 Self {
                     execution_payload: $wrapped_type_full::from(execution_payload.into_owned()),
                 }
             }
         }
 
-        impl<E: EthSpec> TryFrom<ExecutionPayloadHeader<E>> for $wrapper_type_full<E> {
+        impl TryFrom<ExecutionPayloadHeader> for $wrapper_type_full {
             type Error = BeaconStateError;
-            fn try_from(_: ExecutionPayloadHeader<E>) -> Result<Self, Self::Error> {
+            fn try_from(_: ExecutionPayloadHeader) -> Result<Self, Self::Error> {
                 Err(BeaconStateError::PayloadConversionLogicFlaw)
             }
         }
 
-        impl<E: EthSpec> TryFrom<$wrapped_type_header<E>> for $wrapper_type_full<E> {
+        impl TryFrom<$wrapped_type_header> for $wrapper_type_full {
             type Error = BeaconStateError;
-            fn try_from(_: $wrapped_type_header<E>) -> Result<Self, Self::Error> {
+            fn try_from(_: $wrapped_type_header) -> Result<Self, Self::Error> {
                 Err(BeaconStateError::PayloadConversionLogicFlaw)
             }
         }
 
-        impl<E: EthSpec> TryInto<$wrapper_type_full<E>> for FullPayload<E> {
+        impl TryInto<$wrapper_type_full> for FullPayload {
             type Error = BeaconStateError;
 
-            fn try_into(self) -> Result<$wrapper_type_full<E>, Self::Error> {
+            fn try_into(self) -> Result<$wrapper_type_full, Self::Error> {
                 match self {
                     FullPayload::$fork_variant(payload) => Ok(payload),
                     _ => Err(BeaconStateError::PayloadConversionLogicFlaw),

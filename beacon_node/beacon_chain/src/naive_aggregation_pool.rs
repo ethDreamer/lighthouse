@@ -325,7 +325,7 @@ impl AggregateMap for AggregatedAttestationMap {
 
     /// Use the `TARGET_COMMITTEE_SIZE`.
     ///
-    /// Note: hard-coded until `TARGET_COMMITTEE_SIZE` is available via `EthSpec`.
+    /// Note: hard-coded until `TARGET_COMMITTEE_SIZE` is available via `Spec`.
     fn default_capacity() -> usize {
         128
     }
@@ -773,8 +773,8 @@ mod tests {
                 fn single_item() {
                     let mut a = $get_method_name(Slot::new(0));
 
-                    let mut pool: NaiveAggregationPool<$map_type<E>> =
-                        NaiveAggregationPool::<$map_type<E>>::default();
+                    let mut pool: NaiveAggregationPool<$map_type> =
+                        NaiveAggregationPool::<$map_type>::default();
 
                     assert_eq!(
                         pool.insert(a.as_reference()),
@@ -818,8 +818,8 @@ mod tests {
                     $sign_method_name(&mut a_0, 0, genesis_validators_root);
                     $sign_method_name(&mut a_1, 1, genesis_validators_root);
 
-                    let mut pool: NaiveAggregationPool<$map_type<E>> =
-                        NaiveAggregationPool::<$map_type<E>>::default();
+                    let mut pool: NaiveAggregationPool<$map_type> =
+                        NaiveAggregationPool::<$map_type>::default();
 
                     assert_eq!(
                         pool.insert(a_0.as_reference()),
@@ -871,8 +871,8 @@ mod tests {
                     let mut base = $get_method_name(Slot::new(0));
                     $sign_method_name(&mut base, 0, Hash256::random());
 
-                    let mut pool: NaiveAggregationPool<$map_type<E>> =
-                        NaiveAggregationPool::<$map_type<E>>::default();
+                    let mut pool: NaiveAggregationPool<$map_type> =
+                        NaiveAggregationPool::<$map_type>::default();
 
                     for i in 0..SLOTS_RETAINED * 2 {
                         let slot = Slot::from(i);
@@ -920,8 +920,8 @@ mod tests {
                     let mut base = $get_method_name(Slot::new(0));
                     $sign_method_name(&mut base, 0, Hash256::random());
 
-                    let mut pool: NaiveAggregationPool<$map_type<E>> =
-                        NaiveAggregationPool::<$map_type<E>>::default();
+                    let mut pool: NaiveAggregationPool<$map_type> =
+                        NaiveAggregationPool::<$map_type>::default();
 
                     for i in 0..=$item_limit {
                         let mut a = base.clone();
