@@ -130,52 +130,52 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "proposer_slashings_basic")
     )]
-    pub proposer_slashings: VariableList<ProposerSlashing, E::MaxProposerSlashings>,
+    pub proposer_slashings: VariableList<ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>>,
     #[superstruct(
         only(Gloas, Heze),
         partial_getter(rename = "proposer_slashings_progressive")
     )]
-    pub proposer_slashings: ProgressiveVariableList<ProposerSlashing, E::MaxProposerSlashings>,
+    pub proposer_slashings: ProgressiveVariableList<ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb),
         partial_getter(rename = "attester_slashings_base")
     )]
-    pub attester_slashings: VariableList<AttesterSlashingBase<E>, E::MaxAttesterSlashings>,
+    pub attester_slashings: VariableList<AttesterSlashingBase<E>, U<{ Spec::MAX_ATTESTER_SLASHINGS }>>,
     #[superstruct(
         only(Electra, Fulu),
         partial_getter(rename = "attester_slashings_electra")
     )]
     pub attester_slashings:
-        VariableList<AttesterSlashingElectra<E>, E::MaxAttesterSlashingsElectra>,
+        VariableList<AttesterSlashingElectra<E>, U<{ Spec::MAX_ATTESTER_SLASHINGS_ELECTRA }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "attester_slashings_gloas"))]
     pub attester_slashings:
-        ProgressiveVariableList<AttesterSlashingGloas<E>, E::MaxAttesterSlashingsElectra>,
+        ProgressiveVariableList<AttesterSlashingGloas<E>, U<{ Spec::MAX_ATTESTER_SLASHINGS_ELECTRA }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb),
         partial_getter(rename = "attestations_base")
     )]
-    pub attestations: VariableList<AttestationBase<E>, E::MaxAttestations>,
+    pub attestations: VariableList<AttestationBase<E>, U<{ Spec::MAX_ATTESTATIONS }>>,
     #[superstruct(only(Electra, Fulu), partial_getter(rename = "attestations_electra"))]
-    pub attestations: VariableList<AttestationElectra<E>, E::MaxAttestationsElectra>,
+    pub attestations: VariableList<AttestationElectra<E>, U<{ Spec::MAX_ATTESTATIONS_ELECTRA }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "attestations_gloas"))]
-    pub attestations: ProgressiveVariableList<AttestationGloas<E>, E::MaxAttestationsElectra>,
+    pub attestations: ProgressiveVariableList<AttestationGloas<E>, U<{ Spec::MAX_ATTESTATIONS_ELECTRA }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "deposits_basic")
     )]
-    pub deposits: VariableList<Deposit, E::MaxDeposits>,
+    pub deposits: VariableList<Deposit, U<{ Spec::MAX_DEPOSITS }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "deposits_progressive"))]
-    pub deposits: ProgressiveVariableList<Deposit, E::MaxDeposits>,
+    pub deposits: ProgressiveVariableList<Deposit, U<{ Spec::MAX_DEPOSITS }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "voluntary_exits_basic")
     )]
-    pub voluntary_exits: VariableList<SignedVoluntaryExit, E::MaxVoluntaryExits>,
+    pub voluntary_exits: VariableList<SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>>,
     #[superstruct(
         only(Gloas, Heze),
         partial_getter(rename = "voluntary_exits_progressive")
     )]
-    pub voluntary_exits: ProgressiveVariableList<SignedVoluntaryExit, E::MaxVoluntaryExits>,
+    pub voluntary_exits: ProgressiveVariableList<SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>>,
     #[superstruct(only(Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     pub sync_aggregate: SyncAggregate<E>,
     // We flatten the execution payload so that serde can use the name of the inner type,
@@ -204,13 +204,13 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
         partial_getter(rename = "bls_to_execution_changes_basic")
     )]
     pub bls_to_execution_changes:
-        VariableList<SignedBlsToExecutionChange, E::MaxBlsToExecutionChanges>,
+        VariableList<SignedBlsToExecutionChange, U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>>,
     #[superstruct(
         only(Gloas, Heze),
         partial_getter(rename = "bls_to_execution_changes_progressive")
     )]
     pub bls_to_execution_changes:
-        ProgressiveVariableList<SignedBlsToExecutionChange, E::MaxBlsToExecutionChanges>,
+        ProgressiveVariableList<SignedBlsToExecutionChange, U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>>,
     #[superstruct(only(Deneb, Electra, Fulu))]
     pub blob_kzg_commitments: KzgCommitments<E>,
     #[superstruct(only(Electra, Fulu))]
@@ -219,7 +219,7 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     pub signed_execution_payload_bid: SignedExecutionPayloadBid<E>,
     #[superstruct(only(Gloas, Heze))]
     pub payload_attestations:
-        ProgressiveVariableList<PayloadAttestation<E>, E::MaxPayloadAttestations>,
+        ProgressiveVariableList<PayloadAttestation<E>, U<{ Spec::MAX_PAYLOAD_ATTESTATIONS }>>,
     #[superstruct(only(Gloas, Heze))]
     pub parent_execution_requests: ExecutionRequestsGloas<E>,
     #[superstruct(only(Base, Altair, Gloas, Heze))]
@@ -236,22 +236,22 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBody<E, Payload> {
         self.to_ref().execution_payload()
     }
 
-    pub fn proposer_slashings(&self) -> ListRef<'_, ProposerSlashing, E::MaxProposerSlashings> {
+    pub fn proposer_slashings(&self) -> ListRef<'_, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
         self.to_ref().proposer_slashings()
     }
 
-    pub fn deposits(&self) -> ListRef<'_, Deposit, E::MaxDeposits> {
+    pub fn deposits(&self) -> ListRef<'_, Deposit, U<{ Spec::MAX_DEPOSITS }>> {
         self.to_ref().deposits()
     }
 
-    pub fn voluntary_exits(&self) -> ListRef<'_, SignedVoluntaryExit, E::MaxVoluntaryExits> {
+    pub fn voluntary_exits(&self) -> ListRef<'_, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
         self.to_ref().voluntary_exits()
     }
 
     pub fn bls_to_execution_changes(
         &self,
     ) -> Result<
-        ListRef<'_, SignedBlsToExecutionChange, E::MaxBlsToExecutionChanges>,
+        ListRef<'_, SignedBlsToExecutionChange, U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>>,
         BeaconStateError,
     > {
         self.to_ref().bls_to_execution_changes()
@@ -327,7 +327,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
     pub fn kzg_commitment_merkle_proof(
         &self,
         index: usize,
-    ) -> Result<FixedVector<Hash256, E::KzgCommitmentInclusionProofDepth>, BeaconStateError> {
+    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
         let kzg_commitments_proof = self.kzg_commitments_merkle_proof()?;
         let proof = self.complete_kzg_commitment_merkle_proof(index, &kzg_commitments_proof)?;
         Ok(proof)
@@ -340,7 +340,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         &self,
         index: usize,
         kzg_commitments_proof: &[Hash256],
-    ) -> Result<FixedVector<Hash256, E::KzgCommitmentInclusionProofDepth>, BeaconStateError> {
+    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
         match self {
             Self::Base(_)
             | Self::Altair(_)
@@ -361,7 +361,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
     /// Produces the proof of inclusion for `self.blob_kzg_commitments`.
     pub fn kzg_commitments_merkle_proof(
         &self,
-    ) -> Result<FixedVector<Hash256, E::KzgCommitmentsInclusionProofDepth>, BeaconStateError> {
+    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
         // [Modified in Gloas:EIP7688] the body is a progressive container with different
         // generalized indices, which are not implemented yet. The body also no longer contains
         // `blob_kzg_commitments`, which moved to the execution payload bid (EIP-7732).
@@ -433,7 +433,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         })
     }
 
-    pub fn proposer_slashings(&self) -> ListRef<'a, ProposerSlashing, E::MaxProposerSlashings> {
+    pub fn proposer_slashings(&self) -> ListRef<'a, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
         match self {
             Self::Base(body) => ListRef::Basic(&body.proposer_slashings),
             Self::Altair(body) => ListRef::Basic(&body.proposer_slashings),
@@ -447,7 +447,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         }
     }
 
-    pub fn deposits(&self) -> ListRef<'a, Deposit, E::MaxDeposits> {
+    pub fn deposits(&self) -> ListRef<'a, Deposit, U<{ Spec::MAX_DEPOSITS }>> {
         match self {
             Self::Base(body) => ListRef::Basic(&body.deposits),
             Self::Altair(body) => ListRef::Basic(&body.deposits),
@@ -461,7 +461,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         }
     }
 
-    pub fn voluntary_exits(&self) -> ListRef<'a, SignedVoluntaryExit, E::MaxVoluntaryExits> {
+    pub fn voluntary_exits(&self) -> ListRef<'a, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
         match self {
             Self::Base(body) => ListRef::Basic(&body.voluntary_exits),
             Self::Altair(body) => ListRef::Basic(&body.voluntary_exits),
@@ -478,7 +478,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
     pub fn bls_to_execution_changes(
         &self,
     ) -> Result<
-        ListRef<'a, SignedBlsToExecutionChange, E::MaxBlsToExecutionChanges>,
+        ListRef<'a, SignedBlsToExecutionChange, U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>>,
         BeaconStateError,
     > {
         match self {

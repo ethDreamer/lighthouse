@@ -2,7 +2,7 @@ use crate::EthSpec;
 use ssz_types::FixedVector;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PTC<E: EthSpec>(pub FixedVector<usize, E::PTCSize>);
+pub struct PTC<E: EthSpec>(pub FixedVector<usize, typenum::U<{ Spec::PTC_SIZE }>>);
 
 impl<'a, E: EthSpec> IntoIterator for &'a PTC<E> {
     type Item = &'a usize;

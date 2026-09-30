@@ -32,7 +32,7 @@ pub fn single_attestation_to_attestation<E: EthSpec>(
 
     if fork_name.gloas_enabled() {
         // [Modified in Gloas:EIP7688] Gloas attestations use a progressive aggregation bitfield.
-        let mut committee_bits: BitVector<E::MaxCommitteesPerSlot> = BitVector::default();
+        let mut committee_bits: BitVector<typenum::U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
         committee_bits
             .set(committee_index as usize, true)
             .map_err(|e| Error::Invalid(e.into()))?;
@@ -48,7 +48,7 @@ pub fn single_attestation_to_attestation<E: EthSpec>(
             signature: single_attestation.signature.clone(),
         }))
     } else if fork_name.electra_enabled() {
-        let mut committee_bits: BitVector<E::MaxCommitteesPerSlot> = BitVector::default();
+        let mut committee_bits: BitVector<typenum::U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
         committee_bits
             .set(committee_index as usize, true)
             .map_err(|e| Error::Invalid(e.into()))?;

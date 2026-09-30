@@ -194,7 +194,7 @@ fn initialize_ptc_window<E: EthSpec>(
 ) -> Result<(), Error> {
     let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
 
-    let empty_previous_epoch = vec![FixedVector::<u64, E::PTCSize>::from_elem(0); slots_per_epoch];
+    let empty_previous_epoch = vec![FixedVector::<u64, typenum::U<{ Spec::PTC_SIZE }>>::from_elem(0); slots_per_epoch];
     let mut ptcs = empty_previous_epoch;
 
     // Compute PTC for current epoch + lookahead epochs

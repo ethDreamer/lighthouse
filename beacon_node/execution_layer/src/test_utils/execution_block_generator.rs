@@ -51,7 +51,7 @@ pub enum Block<E: EthSpec> {
     PoS(ExecutionPayload<E>),
 }
 
-pub fn mock_el_extra_data<E: EthSpec>() -> VariableList<u8, E::MaxExtraDataBytes> {
+pub fn mock_el_extra_data<E: EthSpec>() -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
     "block gen was here".as_bytes().to_vec().try_into().unwrap()
 }
 
@@ -1016,7 +1016,7 @@ pub fn load_test_blobs_bundle_v2<E: EthSpec>()
 ///
 /// Every blob served by the mock EL is a copy of that blob, so these cells apply to all of them.
 pub fn load_test_blob_cells<E: EthSpec>() -> Result<Vec<Cell<E>>, String> {
-    FixedVector::<Cell<E>, E::CellsPerExtBlob>::from_ssz_bytes(TEST_BLOB_CELLS)
+    FixedVector::<Cell<E>, U<{ Spec::CELLS_PER_EXT_BLOB }>>::from_ssz_bytes(TEST_BLOB_CELLS)
         .map(|cells| cells.to_vec())
         .map_err(|e| format!("Unable to decode ssz: {:?}", e))
 }
@@ -1053,7 +1053,7 @@ pub fn generate_blobs<E: EthSpec>(
     Ok((bundle, transactions.try_into().unwrap()))
 }
 
-pub fn static_valid_tx<E: EthSpec>() -> Result<Transaction<E::MaxBytesPerTransaction>, String> {
+pub fn static_valid_tx<E: EthSpec>() -> Result<Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>, String> {
     // This is a real transaction hex encoded, but we don't care about the contents of the transaction.
     let transaction: AlloyTransaction = serde_json::from_str(
         r#"{

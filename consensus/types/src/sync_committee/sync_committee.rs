@@ -35,7 +35,7 @@ impl From<ArithError> for Error {
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 pub struct SyncCommittee<E: EthSpec> {
-    pub pubkeys: FixedVector<PublicKeyBytes, E::SyncCommitteeSize>,
+    pub pubkeys: FixedVector<PublicKeyBytes, typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,
     pub aggregate_pubkey: PublicKeyBytes,
 }
 

@@ -65,7 +65,7 @@ pub struct BlobSidecar<E: EthSpec> {
     pub kzg_commitment: KzgCommitment,
     pub kzg_proof: KzgProof,
     pub signed_block_header: SignedBeaconBlockHeader,
-    pub kzg_commitment_inclusion_proof: FixedVector<Hash256, E::KzgCommitmentInclusionProofDepth>,
+    pub kzg_commitment_inclusion_proof: FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
 }
 
 impl<E: EthSpec> PartialOrd for BlobSidecar<E> {
@@ -296,7 +296,7 @@ impl<E: EthSpec> BlobSidecar<E> {
 pub type BlobSidecarList<E> = RuntimeVariableList<Arc<BlobSidecar<E>>>;
 /// Alias for a non length-constrained list of `BlobSidecar`s.
 pub type FixedBlobSidecarList<E> = RuntimeFixedVector<Option<Arc<BlobSidecar<E>>>>;
-pub type BlobsList<E> = VariableList<Blob<E>, <E as EthSpec>::MaxBlobCommitmentsPerBlock>;
+pub type BlobsList<E> = VariableList<Blob<E>, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 #[cfg(test)]
 mod tests {

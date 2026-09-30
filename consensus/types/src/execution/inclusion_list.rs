@@ -7,7 +7,7 @@ use ssz_types::FixedVector;
 use tree_hash_derive::TreeHash;
 
 /// The inclusion list committee, ordered by committee position.
-pub type InclusionListCommittee<E> = FixedVector<u64, <E as EthSpec>::InclusionListCommitteeSize>;
+pub type InclusionListCommittee<E> = FixedVector<u64, typenum::U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>;
 
 #[derive(Default, Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, Educe)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]

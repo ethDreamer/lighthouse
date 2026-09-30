@@ -13,7 +13,7 @@ use types::{
 /// Translate the participation information from the epoch prior to the fork into Altair's format.
 pub fn translate_participation<E: EthSpec>(
     state: &mut BeaconState<E>,
-    pending_attestations: &List<PendingAttestation<E>, E::MaxPendingAttestations>,
+    pending_attestations: &List<PendingAttestation<E>, typenum::U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
     spec: &ChainSpec,
 ) -> Result<(), Error> {
     // Previous epoch committee cache is required for `get_attesting_indices`.

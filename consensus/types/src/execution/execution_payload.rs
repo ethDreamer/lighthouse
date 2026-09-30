@@ -18,8 +18,8 @@ use crate::{
 
 pub type Transaction<N> = VariableList<u8, N>;
 pub type Transactions<E> = VariableList<
-    Transaction<<E as EthSpec>::MaxBytesPerTransaction>,
-    <E as EthSpec>::MaxTransactionsPerPayload,
+    Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>,
+    U<{ Spec::MAX_TRANSACTIONS_PER_PAYLOAD }>,
 >;
 
 /// Progressive transactions list \[Modified in Gloas:EIP7688\].
@@ -27,7 +27,7 @@ pub type ProgressiveTransactions = ProgressiveVariableList<ProgressiveVariableLi
 
 /// Progressive withdrawals list \[Modified in Gloas:EIP7688\].
 pub type ProgressiveWithdrawals<E> =
-    ProgressiveVariableList<Withdrawal, <E as EthSpec>::MaxWithdrawalsPerPayload>;
+    ProgressiveVariableList<Withdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
 
 /// Opaque encoded block access list \[New in Gloas:EIP7928\].
 pub type BlockAccessList = ProgressiveVariableList<u8>;
@@ -90,7 +90,7 @@ impl<'a, E: EthSpec> IntoIterator for TransactionsRef<'a, E> {
 }
 
 pub enum TransactionsIter<'a, E: EthSpec> {
-    Bounded(std::slice::Iter<'a, Transaction<<E as EthSpec>::MaxBytesPerTransaction>>),
+    Bounded(std::slice::Iter<'a, Transaction<U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>>),
     Progressive(std::slice::Iter<'a, ProgressiveVariableList<u8>>),
 }
 
@@ -106,7 +106,7 @@ impl<'a, E: EthSpec> Iterator for TransactionsIter<'a, E> {
 }
 
 /// A reference to the withdrawals of any post-Capella `ExecutionPayload` variant.
-pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, <E as EthSpec>::MaxWithdrawalsPerPayload>;
+pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>;
 
 #[superstruct(
     variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
@@ -171,7 +171,7 @@ pub struct ExecutionPayload<E: EthSpec> {
     #[superstruct(getter(copy))]
     pub receipts_root: Hash256,
     #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]
-    pub logs_bloom: FixedVector<u8, E::BytesPerLogsBloom>,
+    pub logs_bloom: FixedVector<u8, U<{ Spec::BYTES_PER_LOGS_BLOOM }>>,
     #[superstruct(getter(copy))]
     pub prev_randao: Hash256,
     #[serde(with = "serde_utils::quoted_u64")]
@@ -187,7 +187,7 @@ pub struct ExecutionPayload<E: EthSpec> {
     #[superstruct(getter(copy))]
     pub timestamp: u64,
     #[serde(with = "ssz_types::serde_utils::hex_var_list")]
-    pub extra_data: VariableList<u8, E::MaxExtraDataBytes>,
+    pub extra_data: VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>>,
     #[serde(with = "serde_utils::quoted_u256")]
     #[superstruct(getter(copy))]
     pub base_fee_per_gas: Uint256,

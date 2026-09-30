@@ -24,7 +24,7 @@ pub mod attesting_indices_base {
     /// Returns validator indices which participated in the attestation, sorted by increasing index.
     pub fn get_attesting_indices<E: EthSpec>(
         committee: &[usize],
-        bitlist: &BitList<E::MaxValidatorsPerCommittee>,
+        bitlist: &BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     ) -> Result<Vec<u64>, BeaconStateError> {
         if bitlist.len() != committee.len() {
             return Err(BeaconStateError::InvalidBitfield);
@@ -97,7 +97,7 @@ pub mod attesting_indices_electra {
     pub fn get_attesting_indices<E: EthSpec, B: ssz::BitfieldBehaviour>(
         committees: &[BeaconCommittee],
         aggregation_bits: &ssz::Bitfield<B>,
-        committee_bits: &BitVector<E::MaxCommitteesPerSlot>,
+        committee_bits: &BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>,
     ) -> Result<Vec<u64>, BeaconStateError> {
         let mut attesting_indices = vec![];
 
@@ -152,7 +152,7 @@ pub mod attesting_indices_electra {
     }
 
     pub fn get_committee_indices<E: EthSpec>(
-        committee_bits: &BitVector<E::MaxCommitteesPerSlot>,
+        committee_bits: &BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>,
     ) -> Vec<CommitteeIndex> {
         committee_bits
             .iter()

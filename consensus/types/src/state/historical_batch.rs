@@ -21,9 +21,9 @@ use crate::{
 #[context_deserialize(ForkName)]
 pub struct HistoricalBatch<E: EthSpec> {
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub block_roots: Vector<Hash256, E::SlotsPerHistoricalRoot>,
+    pub block_roots: Vector<Hash256, typenum::U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub state_roots: Vector<Hash256, E::SlotsPerHistoricalRoot>,
+    pub state_roots: Vector<Hash256, typenum::U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
 }
 
 #[cfg(test)]

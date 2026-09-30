@@ -80,16 +80,16 @@ impl From<ssz_types::Error> for Error {
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]
 pub struct Attestation<E: EthSpec> {
     #[superstruct(only(Base), partial_getter(rename = "aggregation_bits_base"))]
-    pub aggregation_bits: BitList<E::MaxValidatorsPerCommittee>,
+    pub aggregation_bits: BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     #[superstruct(only(Electra), partial_getter(rename = "aggregation_bits_electra"))]
-    pub aggregation_bits: BitList<E::MaxValidatorsPerSlot>,
+    pub aggregation_bits: BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
     // [Modified in Gloas:EIP7688]
     #[superstruct(only(Gloas), partial_getter(rename = "aggregation_bits_gloas"))]
     pub aggregation_bits: ProgressiveBitList,
     pub data: AttestationData,
     pub signature: AggregateSignature,
     #[superstruct(only(Electra, Gloas))]
-    pub committee_bits: BitVector<E::MaxCommitteesPerSlot>,
+    pub committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>,
 }
 
 impl<E: EthSpec> Hash for Attestation<E> {
@@ -119,7 +119,7 @@ impl<E: EthSpec> Attestation<E> {
         spec: &ChainSpec,
     ) -> Result<Self, Error> {
         if spec.fork_name_at_slot::<E>(slot).gloas_enabled() {
-            let mut committee_bits: BitVector<E::MaxCommitteesPerSlot> = BitVector::default();
+            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
                 .map_err(|_| Error::InvalidCommitteeIndex)?;
@@ -139,7 +139,7 @@ impl<E: EthSpec> Attestation<E> {
                 signature: AggregateSignature::infinity(),
             }))
         } else if spec.fork_name_at_slot::<E>(slot).electra_enabled() {
-            let mut committee_bits: BitVector<E::MaxCommitteesPerSlot> = BitVector::default();
+            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
                 .map_err(|_| Error::InvalidCommitteeIndex)?;
@@ -662,8 +662,8 @@ impl<E: EthSpec> AttestationBase<E> {
 
     pub fn extend_aggregation_bits(
         &self,
-    ) -> Result<BitList<E::MaxValidatorsPerSlot>, ssz::BitfieldError> {
-        self.aggregation_bits.resize::<E::MaxValidatorsPerSlot>()
+    ) -> Result<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>, ssz::BitfieldError> {
+        self.aggregation_bits.resize::<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>()
     }
 
     pub fn get_aggregation_bits(&self) -> Vec<u64> {
@@ -862,7 +862,7 @@ mod tests {
         use std::mem::size_of;
 
         let aggregation_bits =
-            size_of::<BitList<<MainnetEthSpec as EthSpec>::MaxValidatorsPerCommittee>>();
+            size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>>();
         let attestation_data = size_of::<AttestationData>();
         let signature = size_of::<AggregateSignature>();
 
@@ -883,10 +883,10 @@ mod tests {
         use std::mem::size_of;
 
         let aggregation_bits =
-            size_of::<BitList<<MainnetEthSpec as EthSpec>::MaxValidatorsPerSlot>>();
+            size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>();
         let attestation_data = size_of::<AttestationData>();
         let committee_bits =
-            size_of::<BitList<<MainnetEthSpec as EthSpec>::MaxCommitteesPerSlot>>();
+            size_of::<BitList<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>>();
         let signature = size_of::<AggregateSignature>();
 
         assert_eq!(aggregation_bits, 144);

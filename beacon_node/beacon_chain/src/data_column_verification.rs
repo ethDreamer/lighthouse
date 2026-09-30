@@ -698,7 +698,7 @@ impl<E: EthSpec> GossipVerifiedPartialDataColumnHeader<E> {
 }
 
 pub type CustodyDataColumnList<E> =
-    VariableList<CustodyDataColumn<E>, <E as EthSpec>::NumberOfColumns>;
+    VariableList<CustodyDataColumn<E>, U<{ Spec::NUMBER_OF_COLUMNS }>>;
 
 /// Data column that we must custody
 #[derive(Debug, Educe, Clone, Encode)]
@@ -2169,7 +2169,7 @@ mod test {
         // Create a headerless partial with no cells — should trigger EmptyMessage.
         let num_commitments = header.kzg_commitments.len();
         let empty_bitmap =
-            BitList::<<E as EthSpec>::MaxBlobCommitmentsPerBlock>::with_capacity(num_commitments)
+            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(num_commitments)
                 .unwrap();
 
         let column: PartialDataColumn<E> = PartialDataColumnFulu {
@@ -2209,7 +2209,7 @@ mod test {
         // Create a bitmap that says 2 bits are set, but only provide 1 cell/proof.
         let num_commitments = header.kzg_commitments.len();
         let mut bitmap =
-            BitList::<<E as EthSpec>::MaxBlobCommitmentsPerBlock>::with_capacity(num_commitments)
+            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(num_commitments)
                 .unwrap();
         bitmap.set(0, true).unwrap();
 
@@ -2253,7 +2253,7 @@ mod test {
         // Create a bitmap with length different from the number of commitments in the header.
         // Header has 1 commitment, but we use a bitmap with capacity 3.
         let mut bitmap =
-            BitList::<<E as EthSpec>::MaxBlobCommitmentsPerBlock>::with_capacity(3).unwrap();
+            BitList::<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>::with_capacity(3).unwrap();
         bitmap.set(0, true).unwrap();
 
         let column: PartialDataColumn<E> = PartialDataColumnFulu {

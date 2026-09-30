@@ -21,7 +21,7 @@ pub struct JustificationAndFinalizationState<E: EthSpec> {
     previous_justified_checkpoint: Checkpoint,
     current_justified_checkpoint: Checkpoint,
     finalized_checkpoint: Checkpoint,
-    justification_bits: BitVector<E::JustificationBitsLength>,
+    justification_bits: BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>>,
 }
 
 impl<E: EthSpec> JustificationAndFinalizationState<E> {
@@ -106,11 +106,11 @@ impl<E: EthSpec> JustificationAndFinalizationState<E> {
         &mut self.finalized_checkpoint
     }
 
-    pub fn justification_bits(&self) -> &BitVector<E::JustificationBitsLength> {
+    pub fn justification_bits(&self) -> &BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>> {
         &self.justification_bits
     }
 
-    pub fn justification_bits_mut(&mut self) -> &mut BitVector<E::JustificationBitsLength> {
+    pub fn justification_bits_mut(&mut self) -> &mut BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>> {
         &mut self.justification_bits
     }
 }

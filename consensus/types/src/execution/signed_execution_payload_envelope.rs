@@ -134,7 +134,7 @@ pub struct ExecutionPayloadHeaderGloas<E: EthSpec> {
     pub state_root: Hash256,
     pub receipts_root: Hash256,
     #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]
-    pub logs_bloom: FixedVector<u8, E::BytesPerLogsBloom>,
+    pub logs_bloom: FixedVector<u8, typenum::U<{ Spec::BYTES_PER_LOGS_BLOOM }>>,
     pub prev_randao: Hash256,
     #[serde(with = "serde_utils::quoted_u64")]
     pub block_number: u64,
@@ -145,7 +145,7 @@ pub struct ExecutionPayloadHeaderGloas<E: EthSpec> {
     #[serde(with = "serde_utils::quoted_u64")]
     pub timestamp: u64,
     #[serde(with = "ssz_types::serde_utils::hex_var_list")]
-    pub extra_data: VariableList<u8, E::MaxExtraDataBytes>,
+    pub extra_data: VariableList<u8, typenum::U<{ Spec::MAX_EXTRA_DATA_BYTES }>>,
     #[serde(with = "serde_utils::quoted_u256")]
     pub base_fee_per_gas: Uint256,
     pub block_hash: ExecutionBlockHash,

@@ -7434,7 +7434,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         parent_block_root: Hash256,
         slot: Slot,
         only_timely: bool,
-    ) -> Result<BitVector<<T::EthSpec as EthSpec>::InclusionListCommitteeSize>, Error> {
+    ) -> Result<BitVector<typenum::U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>, Error> {
         let (il_committee, dependent_root) =
             self.inclusion_list_committee(parent_block_root, slot)?;
 
@@ -7449,7 +7449,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         &self,
         parent_block_root: Hash256,
         slot: Slot,
-        bits: &BitVector<<T::EthSpec as EthSpec>::InclusionListCommitteeSize>,
+        bits: &BitVector<typenum::U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>,
         only_timely: bool,
     ) -> Result<bool, Error> {
         let (il_committee, dependent_root) =

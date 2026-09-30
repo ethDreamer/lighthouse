@@ -19,10 +19,10 @@ use types::{
 pub type ObservedSyncContributions<E> = ObservedAggregates<
     SyncCommitteeContribution<E>,
     E,
-    BitVector<<E as types::EthSpec>::SyncSubcommitteeSize>,
+    BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>,
 >;
 pub type ObservedAggregateAttestations<E> =
-    ObservedAggregates<Attestation<E>, E, BitList<<E as types::EthSpec>::MaxValidatorsPerSlot>>;
+    ObservedAggregates<Attestation<E>, E, BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>;
 
 /// Attestation data augmented with committee index
 ///
@@ -118,12 +118,12 @@ pub trait SubsetItem {
 /// comparison. Valid Gloas attestations have at most `MaxValidatorsPerSlot` aggregation bits.
 fn progressive_bits_to_bitlist<E: EthSpec>(
     bits: &ProgressiveBitList,
-) -> Result<BitList<E::MaxValidatorsPerSlot>, ssz::BitfieldError> {
+) -> Result<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>, ssz::BitfieldError> {
     BitList::from_bytes(bits.clone().into_bytes())
 }
 
 impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
-    type Item = BitList<E::MaxValidatorsPerSlot>;
+    type Item = BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>;
     fn is_subset(&self, other: &Self::Item) -> bool {
         match self {
             Self::Base(att) => {
@@ -187,7 +187,7 @@ impl<E: EthSpec> SubsetItem for AttestationRef<'_, E> {
 }
 
 impl<E: EthSpec> SubsetItem for &SyncCommitteeContribution<E> {
-    type Item = BitVector<E::SyncSubcommitteeSize>;
+    type Item = BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>;
     fn is_subset(&self, other: &Self::Item) -> bool {
         self.aggregation_bits.is_subset(other)
     }

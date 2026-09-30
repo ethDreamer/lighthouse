@@ -28,9 +28,9 @@ pub struct ParticipationEpochSummary<E: EthSpec> {
     /// Copy of the validator registry prior to mutation.
     validators: ValidatorsOwned<E>,
     /// Copy of the participation flags for the previous epoch.
-    previous_epoch_participation: AnyList<ParticipationFlags, E::ValidatorRegistryLimit>,
+    previous_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     /// Copy of the participation flags for the current epoch.
-    current_epoch_participation: AnyList<ParticipationFlags, E::ValidatorRegistryLimit>,
+    current_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     previous_epoch: Epoch,
     current_epoch: Epoch,
 }
@@ -38,8 +38,8 @@ pub struct ParticipationEpochSummary<E: EthSpec> {
 impl<E: EthSpec> ParticipationEpochSummary<E> {
     pub fn new(
         validators: ValidatorsOwned<E>,
-        previous_epoch_participation: AnyList<ParticipationFlags, E::ValidatorRegistryLimit>,
-        current_epoch_participation: AnyList<ParticipationFlags, E::ValidatorRegistryLimit>,
+        previous_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+        current_epoch_participation: AnyList<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         previous_epoch: Epoch,
         current_epoch: Epoch,
     ) -> Self {

@@ -32,14 +32,14 @@ pub struct CompactAttestationData {
 pub struct CompactIndexedAttestation<E: EthSpec> {
     pub attesting_indices: Vec<u64>,
     #[superstruct(only(Base), partial_getter(rename = "aggregation_bits_base"))]
-    pub aggregation_bits: BitList<E::MaxValidatorsPerCommittee>,
+    pub aggregation_bits: BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     #[superstruct(only(Electra), partial_getter(rename = "aggregation_bits_electra"))]
-    pub aggregation_bits: BitList<E::MaxValidatorsPerSlot>,
+    pub aggregation_bits: BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
     #[superstruct(only(Gloas), partial_getter(rename = "aggregation_bits_gloas"))]
     pub aggregation_bits: ProgressiveBitList,
     pub signature: AggregateSignature,
     #[superstruct(only(Electra, Gloas))]
-    pub committee_bits: BitVector<E::MaxCommitteesPerSlot>,
+    pub committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>,
 }
 
 #[derive(Debug)]

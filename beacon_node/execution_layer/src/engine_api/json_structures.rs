@@ -84,7 +84,7 @@ pub struct JsonExecutionPayload<E: EthSpec> {
     pub state_root: Hash256,
     pub receipts_root: Hash256,
     #[serde(with = "serde_logs_bloom")]
-    pub logs_bloom: FixedVector<u8, E::BytesPerLogsBloom>,
+    pub logs_bloom: FixedVector<u8, U<{ Spec::BYTES_PER_LOGS_BLOOM }>>,
     pub prev_randao: Hash256,
     #[serde(with = "serde_utils::u64_hex_be")]
     pub block_number: u64,
@@ -95,7 +95,7 @@ pub struct JsonExecutionPayload<E: EthSpec> {
     #[serde(with = "serde_utils::u64_hex_be")]
     pub timestamp: u64,
     #[serde(with = "ssz_types::serde_utils::hex_var_list")]
-    pub extra_data: VariableList<u8, E::MaxExtraDataBytes>,
+    pub extra_data: VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>>,
     #[serde(with = "serde_utils::u256_hex_be")]
     pub base_fee_per_gas: Uint256,
 
@@ -113,9 +113,9 @@ pub struct JsonExecutionPayload<E: EthSpec> {
         only(Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "withdrawals_bounded")
     )]
-    pub withdrawals: VariableList<JsonWithdrawal, E::MaxWithdrawalsPerPayload>,
+    pub withdrawals: VariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "withdrawals_progressive"))]
-    pub withdrawals: ProgressiveVariableList<JsonWithdrawal, E::MaxWithdrawalsPerPayload>,
+    pub withdrawals: ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
     #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze))]
     #[serde(with = "serde_utils::u64_hex_be")]
     pub blob_gas_used: u64,
@@ -1351,7 +1351,7 @@ pub struct JsonBlockAccessList(
 pub struct JsonExecutionPayloadBodyV1<E: EthSpec> {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<E>,
-    pub withdrawals: Option<VariableList<JsonWithdrawal, E::MaxWithdrawalsPerPayload>>,
+    pub withdrawals: Option<VariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1359,7 +1359,7 @@ pub struct JsonExecutionPayloadBodyV1<E: EthSpec> {
 pub struct JsonExecutionPayloadBodyV2<E: EthSpec> {
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_prog_var_list")]
     pub transactions: ProgressiveTransactions,
-    pub withdrawals: Option<ProgressiveVariableList<JsonWithdrawal, E::MaxWithdrawalsPerPayload>>,
+    pub withdrawals: Option<ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
     #[serde(default)]
     pub block_access_list: Option<JsonBlockAccessList>,
 }

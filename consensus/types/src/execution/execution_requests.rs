@@ -20,15 +20,15 @@ use crate::{
 };
 
 pub type DepositRequests<E> =
-    VariableList<DepositRequest, <E as EthSpec>::MaxDepositRequestsPerPayload>;
+    VariableList<DepositRequest, U<{ Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
 pub type WithdrawalRequests<E> =
-    VariableList<WithdrawalRequest, <E as EthSpec>::MaxWithdrawalRequestsPerPayload>;
+    VariableList<WithdrawalRequest, U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>;
 pub type ConsolidationRequests<E> =
-    VariableList<ConsolidationRequest, <E as EthSpec>::MaxConsolidationRequestsPerPayload>;
+    VariableList<ConsolidationRequest, U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>>;
 pub type BuilderDepositRequests<E> =
-    VariableList<BuilderDepositRequest, <E as EthSpec>::MaxBuilderDepositRequestsPerPayload>;
+    VariableList<BuilderDepositRequest, U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
 pub type BuilderExitRequests<E> =
-    VariableList<BuilderExitRequest, <E as EthSpec>::MaxBuilderExitRequestsPerPayload>;
+    VariableList<BuilderExitRequest, U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>;
 
 /// EIP-7685 execution requests.
 ///
@@ -89,19 +89,19 @@ pub struct ExecutionRequests<E: EthSpec> {
     #[superstruct(only(Electra), partial_getter(rename = "withdrawals_electra"))]
     pub withdrawals: WithdrawalRequests<E>,
     #[superstruct(only(Gloas), partial_getter(rename = "withdrawals_gloas"))]
-    pub withdrawals: ProgressiveVariableList<WithdrawalRequest, E::MaxWithdrawalRequestsPerPayload>,
+    pub withdrawals: ProgressiveVariableList<WithdrawalRequest, U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>,
     #[superstruct(only(Electra), partial_getter(rename = "consolidations_electra"))]
     pub consolidations: ConsolidationRequests<E>,
     #[superstruct(only(Gloas), partial_getter(rename = "consolidations_gloas"))]
     pub consolidations:
-        ProgressiveVariableList<ConsolidationRequest, E::MaxConsolidationRequestsPerPayload>,
+        ProgressiveVariableList<ConsolidationRequest, U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>>,
     // [New in Gloas:EIP8282] The builder request lists are only present on the Gloas variant.
     #[superstruct(only(Gloas))]
     pub builder_deposits:
-        ProgressiveVariableList<BuilderDepositRequest, E::MaxBuilderDepositRequestsPerPayload>,
+        ProgressiveVariableList<BuilderDepositRequest, U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>>,
     #[superstruct(only(Gloas))]
     pub builder_exits:
-        ProgressiveVariableList<BuilderExitRequest, E::MaxBuilderExitRequestsPerPayload>,
+        ProgressiveVariableList<BuilderExitRequest, U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>,
 }
 
 impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for ExecutionRequests<E> {

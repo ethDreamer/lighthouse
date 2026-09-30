@@ -18,7 +18,7 @@ use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
-pub type CellBitmap<E> = BitList<<E as EthSpec>::MaxBlobCommitmentsPerBlock>;
+pub type CellBitmap<E> = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 #[superstruct(
     variants(Fulu, Gloas),
@@ -48,15 +48,15 @@ pub type CellBitmap<E> = BitList<<E as EthSpec>::MaxBlobCommitmentsPerBlock>;
 pub struct PartialDataColumnSidecar<E: EthSpec> {
     pub cells_present_bitmap: CellBitmap<E>,
     #[superstruct(only(Fulu), partial_getter(rename = "column_fulu"))]
-    pub column: VariableList<Cell<E>, E::MaxBlobCommitmentsPerBlock>,
+    pub column: VariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     // [Modified in Gloas:EIP7688]
     #[superstruct(only(Gloas), partial_getter(rename = "column_gloas"))]
-    pub column: ProgressiveVariableList<Cell<E>, E::MaxBlobCommitmentsPerBlock>,
+    pub column: ProgressiveVariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     #[superstruct(only(Fulu), partial_getter(rename = "kzg_proofs_fulu"))]
-    pub kzg_proofs: VariableList<KzgProof, E::MaxBlobCommitmentsPerBlock>,
+    pub kzg_proofs: VariableList<KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     // [Modified in Gloas:EIP7688]
     #[superstruct(only(Gloas), partial_getter(rename = "kzg_proofs_gloas"))]
-    pub kzg_proofs: ProgressiveVariableList<KzgProof, E::MaxBlobCommitmentsPerBlock>,
+    pub kzg_proofs: ProgressiveVariableList<KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     #[superstruct(only(Fulu))]
     pub header: ListEncodedOption<PartialDataColumnHeader<E>>,
 }
@@ -135,7 +135,7 @@ impl<'a, E: EthSpec> PartialDataColumnView<'a, E> {
 
 impl<'a, E: EthSpec> PartialDataColumnSidecarRef<'a, E> {
     /// Unified view over the `column` field across forks (EIP-7688).
-    pub fn column(&self) -> ListRef<'a, Cell<E>, E::MaxBlobCommitmentsPerBlock> {
+    pub fn column(&self) -> ListRef<'a, Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             Self::Fulu(sidecar) => ListRef::Basic(&sidecar.column),
             Self::Gloas(sidecar) => ListRef::Progressive(&sidecar.column),
@@ -143,7 +143,7 @@ impl<'a, E: EthSpec> PartialDataColumnSidecarRef<'a, E> {
     }
 
     /// Unified view over the `kzg_proofs` field across forks (EIP-7688).
-    pub fn kzg_proofs(&self) -> ListRef<'a, KzgProof, E::MaxBlobCommitmentsPerBlock> {
+    pub fn kzg_proofs(&self) -> ListRef<'a, KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             Self::Fulu(sidecar) => ListRef::Basic(&sidecar.kzg_proofs),
             Self::Gloas(sidecar) => ListRef::Progressive(&sidecar.kzg_proofs),
@@ -260,12 +260,12 @@ impl<'a, E: EthSpec> PartialDataColumnSidecarRef<'a, E> {
 
 impl<E: EthSpec> PartialDataColumnSidecar<E> {
     /// Unified view over the `column` field across forks (EIP-7688).
-    pub fn column(&self) -> ListRef<'_, Cell<E>, E::MaxBlobCommitmentsPerBlock> {
+    pub fn column(&self) -> ListRef<'_, Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         self.to_ref().column()
     }
 
     /// Unified view over the `kzg_proofs` field across forks (EIP-7688).
-    pub fn kzg_proofs(&self) -> ListRef<'_, KzgProof, E::MaxBlobCommitmentsPerBlock> {
+    pub fn kzg_proofs(&self) -> ListRef<'_, KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         self.to_ref().kzg_proofs()
     }
 
@@ -292,7 +292,7 @@ impl<E: EthSpec> PartialDataColumnSidecar<E> {
 pub struct PartialDataColumnHeader<E: EthSpec> {
     pub kzg_commitments: KzgCommitments<E>,
     pub signed_block_header: SignedBeaconBlockHeader,
-    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, E::KzgCommitmentsInclusionProofDepth>,
+    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
 }
 
 impl<E: EthSpec> PartialDataColumnHeader<E> {

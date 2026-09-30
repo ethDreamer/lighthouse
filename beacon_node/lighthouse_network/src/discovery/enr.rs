@@ -56,7 +56,7 @@ impl Eth2Enr for Enr {
             .ok_or("ENR attestation bitfield non-existent")?
             .map_err(|_| "Invalid RLP Encoding")?;
 
-        BitVector::<E::SubnetBitfieldLength>::from_ssz_bytes(&bitfield_bytes)
+        BitVector::<U<{ Spec::SUBNET_BITFIELD_LENGTH }>>::from_ssz_bytes(&bitfield_bytes)
             .map_err(|_| "Could not decode the ENR attnets bitfield")
     }
 
@@ -68,7 +68,7 @@ impl Eth2Enr for Enr {
             .ok_or("ENR sync committee bitfield non-existent")?
             .map_err(|_| "Invalid RLP Encoding")?;
 
-        BitVector::<E::SyncCommitteeSubnetCount>::from_ssz_bytes(&bitfield_bytes)
+        BitVector::<U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>::from_ssz_bytes(&bitfield_bytes)
             .map_err(|_| "Could not decode the ENR syncnets bitfield")
     }
 
@@ -275,7 +275,7 @@ pub fn build_enr<E: EthSpec>(
     builder.add_value::<Bytes>(ETH2_ENR_KEY, &enr_fork_id.as_ssz_bytes().into());
 
     // set the "attnets" field on our ENR
-    let bitfield = BitVector::<E::SubnetBitfieldLength>::new();
+    let bitfield = BitVector::<U<{ Spec::SUBNET_BITFIELD_LENGTH }>>::new();
 
     builder.add_value::<Bytes>(
         ATTESTATION_BITFIELD_ENR_KEY,
@@ -283,7 +283,7 @@ pub fn build_enr<E: EthSpec>(
     );
 
     // set the "syncnets" field on our ENR
-    let bitfield = BitVector::<E::SyncCommitteeSubnetCount>::new();
+    let bitfield = BitVector::<U<{ Spec::SYNC_COMMITTEE_SUBNET_COUNT }>>::new();
 
     builder.add_value::<Bytes>(
         SYNC_COMMITTEE_BITFIELD_ENR_KEY,

@@ -32,7 +32,7 @@ pub struct SyncCommitteeContribution<E: EthSpec> {
     pub beacon_block_root: Hash256,
     #[serde(with = "serde_utils::quoted_u64")]
     pub subcommittee_index: u64,
-    pub aggregation_bits: BitVector<E::SyncSubcommitteeSize>,
+    pub aggregation_bits: BitVector<typenum::U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>,
     pub signature: AggregateSignature,
 }
 

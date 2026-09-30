@@ -73,7 +73,7 @@ impl<E: EthSpec> PartialHeaderOrBid<E> {
         }
     }
 
-    pub fn kzg_commitments(&self) -> ListRef<'_, KzgCommitment, E::MaxBlobCommitmentsPerBlock> {
+    pub fn kzg_commitments(&self) -> ListRef<'_, KzgCommitment, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             PartialHeaderOrBid::PartialHeader(header) => ListRef::Basic(&header.kzg_commitments),
             PartialHeaderOrBid::Bid(bid) => ListRef::Progressive(&bid.message.blob_kzg_commitments),

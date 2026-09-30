@@ -296,7 +296,7 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignedBeaconBlock<E, Payload> 
     ) -> Result<
         (
             SignedBeaconBlockHeader,
-            FixedVector<Hash256, E::KzgCommitmentsInclusionProofDepth>,
+            FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
         ),
         BeaconStateError,
     > {

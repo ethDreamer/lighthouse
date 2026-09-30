@@ -71,8 +71,8 @@ const MAX_RANDOM_VALUE: u64 = (1 << 16) - 1;
 const SAFETY_DECAY: u64 = 10;
 
 pub type Validators<E> =
-    List<Validator, <E as EthSpec>::ValidatorRegistryLimit, BTreeMap<usize, Validator>>;
-pub type Balances<E> = List<u64, <E as EthSpec>::ValidatorRegistryLimit>;
+    List<Validator, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>, BTreeMap<usize, Validator>>;
+pub type Balances<E> = List<u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>;
 
 // Progressive (EIP-7688) variants of the above, used from Gloas onwards.
 pub type ValidatorsGloas = ProgressiveList<Validator, BTreeMap<usize, Validator>>;
@@ -81,14 +81,14 @@ pub type BalancesGloas = ProgressiveList<u64>;
 // Views over list fields that are (fixed-capacity) `List`s pre-Gloas and `ProgressiveList`s
 // from Gloas onwards (EIP-7688).
 pub type ValidatorsRef<'a, E> =
-    AnyListRef<'a, Validator, <E as EthSpec>::ValidatorRegistryLimit, BTreeMap<usize, Validator>>;
+    AnyListRef<'a, Validator, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>, BTreeMap<usize, Validator>>;
 pub type ValidatorsMut<'a, E> =
-    AnyListMut<'a, Validator, <E as EthSpec>::ValidatorRegistryLimit, BTreeMap<usize, Validator>>;
-pub type BalancesRef<'a, E> = AnyListRef<'a, u64, <E as EthSpec>::ValidatorRegistryLimit>;
-pub type BalancesMut<'a, E> = AnyListMut<'a, u64, <E as EthSpec>::ValidatorRegistryLimit>;
+    AnyListMut<'a, Validator, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>, BTreeMap<usize, Validator>>;
+pub type BalancesRef<'a, E> = AnyListRef<'a, u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>;
+pub type BalancesMut<'a, E> = AnyListMut<'a, u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>;
 pub type ValidatorsOwned<E> =
-    AnyList<Validator, <E as EthSpec>::ValidatorRegistryLimit, BTreeMap<usize, Validator>>;
-pub type BalancesOwned<E> = AnyList<u64, <E as EthSpec>::ValidatorRegistryLimit>;
+    AnyList<Validator, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>, BTreeMap<usize, Validator>>;
+pub type BalancesOwned<E> = AnyList<u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BeaconStateError {
@@ -510,20 +510,20 @@ where
     pub latest_block_header: BeaconBlockHeader,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[compare_fields(as_iter)]
-    pub block_roots: Vector<Hash256, E::SlotsPerHistoricalRoot>,
+    pub block_roots: Vector<Hash256, U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[compare_fields(as_iter)]
-    pub state_roots: Vector<Hash256, E::SlotsPerHistoricalRoot>,
+    pub state_roots: Vector<Hash256, U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
     // Frozen in Capella, replaced by historical_summaries
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[compare_fields(as_iter)]
-    pub historical_roots: List<Hash256, E::HistoricalRootsLimit>,
+    pub historical_roots: List<Hash256, U<{ Spec::HISTORICAL_ROOTS_LIMIT }>>,
 
     // Ethereum 1.0 chain data
     #[metastruct(exclude_from(tree_lists))]
     pub eth1_data: Eth1Data,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub eth1_data_votes: List<Eth1Data, E::SlotsPerEth1VotingPeriod>,
+    pub eth1_data_votes: List<Eth1Data, U<{ Spec::SLOTS_PER_ETH1_VOTING_PERIOD }>>,
     #[superstruct(getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     #[serde(with = "serde_utils::quoted_u64")]
@@ -548,7 +548,7 @@ where
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "balances_basic")
     )]
-    pub balances: List<u64, E::ValidatorRegistryLimit>,
+    pub balances: List<u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -557,20 +557,20 @@ where
 
     // Randomness
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub randao_mixes: Vector<Hash256, E::EpochsPerHistoricalVector>,
+    pub randao_mixes: Vector<Hash256, U<{ Spec::EPOCHS_PER_HISTORICAL_VECTOR }>>,
 
     // Slashings
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_fixed_vec")]
-    pub slashings: Vector<u64, E::EpochsPerSlashingsVector>,
+    pub slashings: Vector<u64, U<{ Spec::EPOCHS_PER_SLASHINGS_VECTOR }>>,
 
     // Attestations (genesis fork only)
     #[superstruct(only(Base))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub previous_epoch_attestations: List<PendingAttestation<E>, E::MaxPendingAttestations>,
+    pub previous_epoch_attestations: List<PendingAttestation<E>, U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
     #[superstruct(only(Base))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub current_epoch_attestations: List<PendingAttestation<E>, E::MaxPendingAttestations>,
+    pub current_epoch_attestations: List<PendingAttestation<E>, U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
 
     // Participation (Altair and later)
     #[compare_fields(as_iter)]
@@ -579,7 +579,7 @@ where
         partial_getter(rename = "previous_epoch_participation_basic")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub previous_epoch_participation: List<ParticipationFlags, E::ValidatorRegistryLimit>,
+    pub previous_epoch_participation: List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[superstruct(
         only(Gloas, Heze),
@@ -592,7 +592,7 @@ where
         partial_getter(rename = "current_epoch_participation_basic")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub current_epoch_participation: List<ParticipationFlags, E::ValidatorRegistryLimit>,
+    pub current_epoch_participation: List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[superstruct(
         only(Gloas, Heze),
         partial_getter(rename = "current_epoch_participation_progressive")
@@ -603,7 +603,7 @@ where
     // Finality
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[metastruct(exclude_from(tree_lists))]
-    pub justification_bits: BitVector<E::JustificationBitsLength>,
+    pub justification_bits: BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>>,
     #[superstruct(getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     pub previous_justified_checkpoint: Checkpoint,
@@ -621,7 +621,7 @@ where
         partial_getter(rename = "inactivity_scores_basic")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub inactivity_scores: List<u64, E::ValidatorRegistryLimit>,
+    pub inactivity_scores: List<u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
     #[superstruct(
         only(Gloas, Heze),
@@ -684,7 +684,7 @@ where
     // Deep history valid from Capella onwards.
     #[superstruct(only(Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub historical_summaries: List<HistoricalSummary, E::HistoricalRootsLimit>,
+    pub historical_summaries: List<HistoricalSummary, U<{ Spec::HISTORICAL_ROOTS_LIMIT }>>,
 
     // Electra
     #[superstruct(only(Electra, Fulu, Gloas, Heze), partial_getter(copy))]
@@ -712,7 +712,7 @@ where
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Electra, Fulu), partial_getter(rename = "pending_deposits_basic"))]
-    pub pending_deposits: List<PendingDeposit, E::PendingDepositsLimit>,
+    pub pending_deposits: List<PendingDeposit, U<{ Spec::PENDING_DEPOSITS_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(
@@ -727,7 +727,7 @@ where
         partial_getter(rename = "pending_partial_withdrawals_basic")
     )]
     pub pending_partial_withdrawals:
-        List<PendingPartialWithdrawal, E::PendingPartialWithdrawalsLimit>,
+        List<PendingPartialWithdrawal, U<{ Spec::PENDING_PARTIAL_WITHDRAWALS_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(
@@ -741,7 +741,7 @@ where
         only(Electra, Fulu),
         partial_getter(rename = "pending_consolidations_basic")
     )]
-    pub pending_consolidations: List<PendingConsolidation, E::PendingConsolidationsLimit>,
+    pub pending_consolidations: List<PendingConsolidation, U<{ Spec::PENDING_CONSOLIDATIONS_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(
@@ -755,7 +755,7 @@ where
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Fulu, Gloas, Heze))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_fixed_vec")]
-    pub proposer_lookahead: Vector<u64, E::ProposerLookaheadSlots>,
+    pub proposer_lookahead: Vector<u64, U<{ Spec::PROPOSER_LOOKAHEAD_SLOTS }>>,
     // Gloas
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -770,12 +770,12 @@ where
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Gloas, Heze))]
     #[metastruct(exclude_from(tree_lists))]
-    pub execution_payload_availability: BitVector<E::SlotsPerHistoricalRoot>,
+    pub execution_payload_availability: BitVector<U<{ Spec::SLOTS_PER_HISTORICAL_ROOT }>>,
 
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Gloas, Heze))]
-    pub builder_pending_payments: Vector<BuilderPendingPayment, E::BuilderPendingPaymentsLimit>,
+    pub builder_pending_payments: Vector<BuilderPendingPayment, U<{ Spec::BUILDER_PENDING_PAYMENTS_LIMIT }>>,
 
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -795,7 +795,7 @@ where
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Gloas, Heze))]
-    pub ptc_window: Vector<FixedVector<u64, E::PTCSize>, E::PtcWindowLength>,
+    pub ptc_window: Vector<FixedVector<u64, U<{ Spec::PTC_SIZE }>>, U<{ Spec::PTC_WINDOW_LENGTH }>>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -916,8 +916,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         previous_epoch_participation,
         previous_epoch_participation_mut,
-        AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
-        AnyListMut<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
+        AnyListRef<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+        AnyListMut<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         basic(Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base)
@@ -926,8 +926,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         current_epoch_participation,
         current_epoch_participation_mut,
-        AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
-        AnyListMut<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
+        AnyListRef<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+        AnyListMut<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         basic(Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base)
@@ -936,8 +936,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         inactivity_scores,
         inactivity_scores_mut,
-        AnyListRef<'_, u64, E::ValidatorRegistryLimit>,
-        AnyListMut<'_, u64, E::ValidatorRegistryLimit>,
+        AnyListRef<'_, u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+        AnyListMut<'_, u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
         basic(Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base)
@@ -946,8 +946,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         pending_deposits,
         pending_deposits_mut,
-        AnyListRef<'_, PendingDeposit, E::PendingDepositsLimit>,
-        AnyListMut<'_, PendingDeposit, E::PendingDepositsLimit>,
+        AnyListRef<'_, PendingDeposit, U<{ Spec::PENDING_DEPOSITS_LIMIT }>>,
+        AnyListMut<'_, PendingDeposit, U<{ Spec::PENDING_DEPOSITS_LIMIT }>>,
         basic(Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base, Altair, Bellatrix, Capella, Deneb)
@@ -956,8 +956,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         pending_partial_withdrawals,
         pending_partial_withdrawals_mut,
-        AnyListRef<'_, PendingPartialWithdrawal, E::PendingPartialWithdrawalsLimit>,
-        AnyListMut<'_, PendingPartialWithdrawal, E::PendingPartialWithdrawalsLimit>,
+        AnyListRef<'_, PendingPartialWithdrawal, U<{ Spec::PENDING_PARTIAL_WITHDRAWALS_LIMIT }>>,
+        AnyListMut<'_, PendingPartialWithdrawal, U<{ Spec::PENDING_PARTIAL_WITHDRAWALS_LIMIT }>>,
         basic(Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base, Altair, Bellatrix, Capella, Deneb)
@@ -966,8 +966,8 @@ impl<E: EthSpec> BeaconState<E> {
     impl_any_list_accessors!(
         pending_consolidations,
         pending_consolidations_mut,
-        AnyListRef<'_, PendingConsolidation, E::PendingConsolidationsLimit>,
-        AnyListMut<'_, PendingConsolidation, E::PendingConsolidationsLimit>,
+        AnyListRef<'_, PendingConsolidation, U<{ Spec::PENDING_CONSOLIDATIONS_LIMIT }>>,
+        AnyListMut<'_, PendingConsolidation, U<{ Spec::PENDING_CONSOLIDATIONS_LIMIT }>>,
         basic(Electra, Fulu),
         progressive(Gloas, Heze),
         absent(Base, Altair, Bellatrix, Capella, Deneb)
@@ -2032,7 +2032,7 @@ impl<E: EthSpec> BeaconState<E> {
     }
 
     /// Get a reference to the entire `slashings` vector.
-    pub fn get_all_slashings(&self) -> &Vector<u64, E::EpochsPerSlashingsVector> {
+    pub fn get_all_slashings(&self) -> &Vector<u64, U<{ Spec::EPOCHS_PER_SLASHINGS_VECTOR }>> {
         self.slashings()
     }
 
@@ -2093,9 +2093,9 @@ impl<E: EthSpec> BeaconState<E> {
         (
             ValidatorsMut<'_, E>,
             BalancesMut<'_, E>,
-            AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
-            AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
-            AnyListMut<'_, u64, E::ValidatorRegistryLimit>,
+            AnyListRef<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+            AnyListRef<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+            AnyListMut<'_, u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
             &mut ProgressiveBalancesCache,
             &mut ExitCache,
             &mut EpochCache,
@@ -2207,7 +2207,7 @@ impl<E: EthSpec> BeaconState<E> {
     /// Used by the database layer for efficient diffing. Errors on Base states (no such field).
     pub fn take_inactivity_scores(
         &mut self,
-    ) -> Result<AnyList<u64, E::ValidatorRegistryLimit>, BeaconStateError> {
+    ) -> Result<AnyList<u64, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>, BeaconStateError> {
         match self {
             Self::Base(_) => Err(BeaconStateError::IncorrectStateVariant),
             Self::Altair(state) => Ok(AnyList::Basic(std::mem::take(&mut state.inactivity_scores))),
@@ -2701,7 +2701,7 @@ impl<E: EthSpec> BeaconState<E> {
         epoch: Epoch,
         previous_epoch: Epoch,
         current_epoch: Epoch,
-    ) -> Result<AnyListMut<'_, ParticipationFlags, E::ValidatorRegistryLimit>, BeaconStateError>
+    ) -> Result<AnyListMut<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>, BeaconStateError>
     {
         if epoch == current_epoch {
             self.current_epoch_participation_mut()

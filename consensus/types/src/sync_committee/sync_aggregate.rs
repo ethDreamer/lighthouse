@@ -35,7 +35,7 @@ impl From<ArithError> for Error {
 #[serde(bound = "E: EthSpec")]
 #[context_deserialize(ForkName)]
 pub struct SyncAggregate<E: EthSpec> {
-    pub sync_committee_bits: BitVector<E::SyncCommitteeSize>,
+    pub sync_committee_bits: BitVector<typenum::U<{ Spec::SYNC_COMMITTEE_SIZE }>>,
     pub sync_committee_signature: AggregateSignature,
 }
 

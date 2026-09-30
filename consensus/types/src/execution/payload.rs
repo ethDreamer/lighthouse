@@ -44,7 +44,7 @@ pub trait ExecPayload<E: EthSpec>: Debug + Clone + PartialEq + Hash + TreeHash +
     fn prev_randao(&self) -> Hash256;
     fn block_number(&self) -> u64;
     fn timestamp(&self) -> u64;
-    fn extra_data(&self) -> VariableList<u8, E::MaxExtraDataBytes>;
+    fn extra_data(&self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>>;
     fn block_hash(&self) -> ExecutionBlockHash;
     fn fee_recipient(&self) -> Address;
     fn gas_limit(&self) -> u64;
@@ -275,7 +275,7 @@ impl<E: EthSpec> ExecPayload<E> for FullPayload<E> {
         })
     }
 
-    fn extra_data<'a>(&'a self) -> VariableList<u8, E::MaxExtraDataBytes> {
+    fn extra_data<'a>(&'a self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
         map_full_payload_ref!(&'a _, self.to_ref(), move |payload, cons| {
             cons(payload);
             payload.execution_payload.extra_data.clone()
@@ -412,7 +412,7 @@ impl<E: EthSpec> ExecPayload<E> for FullPayloadRef<'_, E> {
         })
     }
 
-    fn extra_data<'a>(&'a self) -> VariableList<u8, E::MaxExtraDataBytes> {
+    fn extra_data<'a>(&'a self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
         map_full_payload_ref!(&'a _, self, move |payload, cons| {
             cons(payload);
             payload.execution_payload.extra_data.clone()
@@ -621,7 +621,7 @@ impl<E: EthSpec> ExecPayload<E> for BlindedPayload<E> {
         })
     }
 
-    fn extra_data<'a>(&'a self) -> VariableList<u8, <E as EthSpec>::MaxExtraDataBytes> {
+    fn extra_data<'a>(&'a self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
         map_blinded_payload_ref!(&'a _, self.to_ref(), move |payload, cons| {
             cons(payload);
             payload.execution_payload_header.extra_data.clone()
@@ -727,7 +727,7 @@ impl<'b, E: EthSpec> ExecPayload<E> for BlindedPayloadRef<'b, E> {
         })
     }
 
-    fn extra_data<'a>(&'a self) -> VariableList<u8, <E as EthSpec>::MaxExtraDataBytes> {
+    fn extra_data<'a>(&'a self) -> VariableList<u8, U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
         map_blinded_payload_ref!(&'a _, self, move |payload, cons| {
             cons(payload);
             payload.execution_payload_header.extra_data.clone()

@@ -546,7 +546,7 @@ async fn invalid_attestation_bad_aggregation_bitfield_len() {
         .unwrap()
     {
         att.aggregation_bits =
-            BitList::<<MainnetEthSpec as EthSpec>::MaxValidatorsPerSlot>::with_capacity(
+            BitList::<typenum::U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>::with_capacity(
                 spec.target_committee_size,
             )
             .unwrap();

@@ -796,7 +796,7 @@ pub async fn handle_rpc<E: EthSpec>(
                                 .transactions()
                                 .iter()
                                 .map(|tx| {
-                                    types::Transaction::<E::MaxBytesPerTransaction>::new(
+                                    types::Transaction::<typenum::U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>::new(
                                         tx.to_vec(),
                                     )
                                 })

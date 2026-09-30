@@ -17,7 +17,7 @@ use crate::{attestation::AttestationData, core::EthSpec, fork::ForkName};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct PendingAttestation<E: EthSpec> {
-    pub aggregation_bits: BitList<E::MaxValidatorsPerCommittee>,
+    pub aggregation_bits: BitList<typenum::U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     pub data: AttestationData,
     #[serde(with = "serde_utils::quoted_u64")]
     pub inclusion_delay: u64,

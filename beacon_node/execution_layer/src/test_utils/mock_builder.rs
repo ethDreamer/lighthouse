@@ -77,7 +77,7 @@ impl Operation {
     }
 }
 
-pub fn mock_builder_extra_data<E: EthSpec>() -> VariableList<u8, E::MaxExtraDataBytes> {
+pub fn mock_builder_extra_data<E: EthSpec>() -> VariableList<u8, typenum::U<{ Spec::MAX_EXTRA_DATA_BYTES }>> {
     "mock_builder".as_bytes().to_vec().try_into().unwrap()
 }
 

@@ -544,7 +544,7 @@ pub fn process_ptc_window<E: EthSpec>(
 
     // Convert Vector -> List to use tree-efficient pop_front.
     let ptc_window = state.ptc_window()?.clone();
-    let mut window: List<_, E::PtcWindowLength> = List::from(ptc_window);
+    let mut window: List<_, typenum::U<{ Spec::PTC_WINDOW_LENGTH }>> = List::from(ptc_window);
 
     // Drop the oldest epoch from the front (reuses shared tree nodes).
     window

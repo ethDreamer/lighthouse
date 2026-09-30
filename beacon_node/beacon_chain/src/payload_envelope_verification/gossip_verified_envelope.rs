@@ -606,7 +606,7 @@ mod tests {
         assert!(verify_envelope_consistency::<E>(&envelope, &block, &bid, Slot::new(0)).is_ok());
 
         assert!(
-            ProgressiveVariableList::<Withdrawal, <E as EthSpec>::MaxWithdrawalsPerPayload>::new(
+            ProgressiveVariableList::<Withdrawal, typenum::U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>::new(
                 vec![withdrawal; max + 1]
             )
             .is_err()

@@ -211,7 +211,7 @@ impl<E: EthSpec> InclusionListStore<E> {
         dependent_root: DependentRoot,
         il_committee: &InclusionListCommittee<E>,
         only_timely: bool,
-    ) -> Result<BitVector<E::InclusionListCommitteeSize>, Error> {
+    ) -> Result<BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>, Error> {
         let submitted = self.submitted_validators(slot, dependent_root, only_timely);
 
         let mut bits = BitVector::new();
@@ -230,7 +230,7 @@ impl<E: EthSpec> InclusionListStore<E> {
         slot: Slot,
         dependent_root: DependentRoot,
         il_committee: &InclusionListCommittee<E>,
-        bits: &BitVector<E::InclusionListCommitteeSize>,
+        bits: &BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>,
         only_timely: bool,
     ) -> Result<bool, Error> {
         let local =
@@ -423,7 +423,7 @@ mod tests {
                 .unwrap()
         );
 
-        let mut missing = BitVector::<<E as EthSpec>::InclusionListCommitteeSize>::new();
+        let mut missing = BitVector::<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>::new();
         missing.set(7, true).unwrap();
         assert!(
             !store

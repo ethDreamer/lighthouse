@@ -61,14 +61,14 @@ pub struct IndexedAttestation<E: EthSpec> {
     /// Lists validator registry indices, not committee indices.
     #[superstruct(only(Base), partial_getter(rename = "attesting_indices_base"))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    pub attesting_indices: VariableList<u64, E::MaxValidatorsPerCommittee>,
+    pub attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>,
     #[superstruct(only(Electra), partial_getter(rename = "attesting_indices_electra"))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    pub attesting_indices: VariableList<u64, E::MaxValidatorsPerSlot>,
+    pub attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
     // [Modified in Gloas:EIP7688]
     #[superstruct(only(Gloas), partial_getter(rename = "attesting_indices_gloas"))]
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    pub attesting_indices: ProgressiveVariableList<u64, E::MaxValidatorsPerSlot>,
+    pub attesting_indices: ProgressiveVariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>,
     pub data: AttestationData,
     pub signature: AggregateSignature,
 }
@@ -133,7 +133,7 @@ impl<E: EthSpec> IndexedAttestation<E> {
     pub fn to_electra(self) -> Result<IndexedAttestationElectra<E>, ssz_types::Error> {
         match self {
             Self::Base(att) => {
-                let extended_attesting_indices: VariableList<u64, E::MaxValidatorsPerSlot> =
+                let extended_attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>> =
                     VariableList::new(att.attesting_indices.to_vec())
                         .expect("MaxValidatorsPerSlot must be >= MaxValidatorsPerCommittee");
                 // Note a unit test in consensus/types/src/eth_spec.rs asserts this invariant for
@@ -147,7 +147,7 @@ impl<E: EthSpec> IndexedAttestation<E> {
             }
             Self::Electra(att) => Ok(att),
             Self::Gloas(att) => {
-                let attesting_indices: VariableList<u64, E::MaxValidatorsPerSlot> =
+                let attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>> =
                     VariableList::new(att.attesting_indices.to_vec())?;
 
                 Ok(IndexedAttestationElectra {

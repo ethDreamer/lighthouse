@@ -16,7 +16,7 @@ use tree_hash_derive::TreeHash;
 #[context_deserialize(ForkName)]
 #[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))]
 pub struct PayloadAttestation<E: EthSpec> {
-    pub aggregation_bits: BitVector<E::PTCSize>,
+    pub aggregation_bits: BitVector<typenum::U<{ Spec::PTC_SIZE }>>,
     pub data: PayloadAttestationData,
     pub signature: AggregateSignature,
 }

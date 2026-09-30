@@ -33,15 +33,15 @@ use crate::{
 };
 
 pub type ColumnIndex = u64;
-pub type Cell<E> = FixedVector<u8, <E as EthSpec>::BytesPerCell>;
-pub type DataColumn<E> = VariableList<Cell<E>, <E as EthSpec>::MaxBlobCommitmentsPerBlock>;
+pub type Cell<E> = FixedVector<u8, U<{ Spec::BYTES_PER_CELL }>>;
+pub type DataColumn<E> = VariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
 /// Identifies a set of data columns associated with a specific beacon block.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, TreeHash, Deserialize)]
 #[context_deserialize(ForkName)]
 pub struct DataColumnsByRootIdentifier<E: EthSpec> {
     pub block_root: Hash256,
-    pub columns: VariableList<ColumnIndex, E::NumberOfColumns>,
+    pub columns: VariableList<ColumnIndex, U<{ Spec::NUMBER_OF_COLUMNS }>>,
 }
 
 pub type DataColumnSidecarList<E> = Vec<Arc<DataColumnSidecar<E>>>;
@@ -91,21 +91,21 @@ pub struct DataColumnSidecar<E: EthSpec> {
     // [Modified in Gloas:EIP7688]
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_fixed_vec")]
     #[superstruct(only(Gloas), partial_getter(rename = "column_gloas"))]
-    pub column: ProgressiveVariableList<Cell<E>, E::MaxBlobCommitmentsPerBlock>,
+    pub column: ProgressiveVariableList<Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     /// All the KZG commitments associated with the block, used for verifying sample cells.
     /// In Gloas, commitments come from `block.body.signed_execution_payload_bid.message.blob_kzg_commitments`.
     #[superstruct(only(Fulu))]
     pub kzg_commitments: KzgCommitments<E>,
     #[superstruct(only(Fulu), partial_getter(rename = "kzg_proofs_fulu"))]
-    pub kzg_proofs: VariableList<KzgProof, E::MaxBlobCommitmentsPerBlock>,
+    pub kzg_proofs: VariableList<KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     // [Modified in Gloas:EIP7688]
     #[superstruct(only(Gloas), partial_getter(rename = "kzg_proofs_gloas"))]
-    pub kzg_proofs: ProgressiveVariableList<KzgProof, E::MaxBlobCommitmentsPerBlock>,
+    pub kzg_proofs: ProgressiveVariableList<KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>,
     #[superstruct(only(Fulu))]
     pub signed_block_header: SignedBeaconBlockHeader,
     /// An inclusion proof, proving the inclusion of `blob_kzg_commitments` in `BeaconBlockBody`.
     #[superstruct(only(Fulu))]
-    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, E::KzgCommitmentsInclusionProofDepth>,
+    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
     #[superstruct(only(Gloas), partial_getter(rename = "slot_gloas"))]
     pub slot: Slot,
     #[superstruct(only(Gloas))]
@@ -114,7 +114,7 @@ pub struct DataColumnSidecar<E: EthSpec> {
 
 impl<E: EthSpec> DataColumnSidecar<E> {
     /// Unified view over the `column` field across forks (EIP-7688).
-    pub fn column(&self) -> ListRef<'_, Cell<E>, E::MaxBlobCommitmentsPerBlock> {
+    pub fn column(&self) -> ListRef<'_, Cell<E>, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             DataColumnSidecar::Fulu(sidecar) => ListRef::Basic(&sidecar.column),
             DataColumnSidecar::Gloas(sidecar) => ListRef::Progressive(&sidecar.column),
@@ -122,7 +122,7 @@ impl<E: EthSpec> DataColumnSidecar<E> {
     }
 
     /// Unified view over the `kzg_proofs` field across forks (EIP-7688).
-    pub fn kzg_proofs(&self) -> ListRef<'_, KzgProof, E::MaxBlobCommitmentsPerBlock> {
+    pub fn kzg_proofs(&self) -> ListRef<'_, KzgProof, U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             DataColumnSidecar::Fulu(sidecar) => ListRef::Basic(&sidecar.kzg_proofs),
             DataColumnSidecar::Gloas(sidecar) => ListRef::Progressive(&sidecar.kzg_proofs),

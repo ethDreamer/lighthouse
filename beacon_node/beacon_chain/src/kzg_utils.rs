@@ -493,7 +493,7 @@ pub fn compute_cells<E: EthSpec>(blobs: &[&Blob<E>], kzg: &Kzg) -> Result<Vec<Kz
 
 pub(crate) fn build_data_column_sidecars_fulu<E: EthSpec>(
     kzg_commitments: KzgCommitments<E>,
-    kzg_commitments_inclusion_proof: FixedVector<Hash256, E::KzgCommitmentsInclusionProofDepth>,
+    kzg_commitments_inclusion_proof: FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
     signed_block_header: SignedBeaconBlockHeader,
     blob_cells_and_proofs_vec: Vec<CellsAndKzgProofs>,
     spec: &ChainSpec,
