@@ -57,7 +57,7 @@ pub fn run_parse_ssz(
     info!(
         "Using {} network config ({} preset)",
         spec.config_name.as_deref().unwrap_or("unknown"),
-        Spec::SPEC_ID
+        Spec::PRESET_BASE
     );
     info!(%type_str, "Type");
 

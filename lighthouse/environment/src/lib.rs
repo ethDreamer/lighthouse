@@ -21,7 +21,7 @@ use task_executor::{ShutdownReason, TaskExecutor};
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use tracing::{error, info, warn};
 use tracing_subscriber::filter::LevelFilter;
-use types::Spec;
+use types::SpecId;
 
 #[cfg(target_family = "unix")]
 use {
@@ -132,9 +132,7 @@ impl EnvironmentBuilder {
             eth2_network_config: None,
         }
     }
-}
 
-impl EnvironmentBuilder {
     /// Creates a new builder using the `mainnet` eth2 specification.
     pub fn mainnet() -> Self {
         Self {
@@ -144,9 +142,7 @@ impl EnvironmentBuilder {
             eth2_network_config: None,
         }
     }
-}
 
-impl EnvironmentBuilder {
     /// Creates a new builder using the `gnosis` eth2 specification.
     pub fn gnosis() -> Self {
         Self {
@@ -156,9 +152,16 @@ impl EnvironmentBuilder {
             eth2_network_config: None,
         }
     }
-}
 
-impl EnvironmentBuilder {
+    /// Creates a new builder from a `SpecId`.
+    pub fn from_spec_id(spec_id: SpecId) -> Self {
+        match spec_id {
+            SpecId::Mainnet => Self::mainnet(),
+            SpecId::Minimal => Self::minimal(),
+            SpecId::Gnosis => Self::gnosis(),
+        }
+    }
+
     /// Specifies that a multi-threaded tokio runtime should be used. Ideal for production uses.
     ///
     /// The `Runtime` used is just the standard tokio runtime.
@@ -458,10 +461,6 @@ impl Environment {
         if let Some(signal) = self.signal.take() {
             drop(signal);
         }
-    }
-
-    pub fn eth_spec_instance(&self) -> &Spec {
-        &self.eth_spec_instance
     }
 
     pub fn eth2_config(&self) -> &Eth2Config {

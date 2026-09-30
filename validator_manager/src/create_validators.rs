@@ -614,13 +614,17 @@ async fn run(config: CreateConfig, spec: &ChainSpec) -> Result<(), String> {
 pub mod tests {
     use super::*;
     use bls::SignatureBytes;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use eth2_network_config::Eth2NetworkConfig;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use regex::Regex;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use std::path::Path;
     use std::str::FromStr;
     use tempfile::{TempDir, tempdir};
     use tree_hash::TreeHash;
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     const TEST_VECTOR_DEPOSIT_CLI_VERSION: &str = "1.3.0"; // Update to ethstaker-deposit-cli version
 
     fn junk_execution_address() -> Option<Address> {
@@ -909,6 +913,9 @@ pub mod tests {
             .assert_err();
     }
 
+    // This test loads hardcoded mainnet/holesky test vectors via `Eth2NetworkConfig::constant()`,
+    // which rejects configs whose `preset_base` doesn't match the compiled `Spec::SPEC_ID`.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[tokio::test]
     async fn ethstaker_deposit_cli_vectors() {
         let vectors_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -925,6 +932,7 @@ pub mod tests {
         }
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     async fn run_test_vector<P: AsRef<Path>>(name: &str, vectors_path: P) {
         /*
          * Parse the test vector name into a set of test parameters.

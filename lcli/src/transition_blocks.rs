@@ -61,9 +61,7 @@
 //!     --exclude-cache-builds \
 //!     --exclude-post-block-thc
 //! ```
-use beacon_chain::{
-    test_utils::EphemeralHarnessType, validator_pubkey_cache::ValidatorPubkeyCache,
-};
+use beacon_chain::validator_pubkey_cache::ValidatorPubkeyCache;
 use clap::ArgMatches;
 use clap_utils::{parse_optional, parse_required};
 use environment::Environment;
@@ -123,7 +121,7 @@ pub fn run(
         exclude_post_block_thc: matches.get_flag("exclude-post-block-thc"),
     };
 
-    info!("Using {} spec", Spec::SPEC_ID);
+    info!("Using {} spec", Spec::PRESET_BASE);
     info!("Doing {} runs", runs);
     info!("{:?}", &config);
 

@@ -7,7 +7,6 @@ use execution_layer::{
 };
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use types::*;
 
 pub fn run(mut env: Environment, matches: &ArgMatches) -> Result<(), String> {
     let jwt_output_path: Option<PathBuf> = parse_optional(matches, "jwt-output-path")?;

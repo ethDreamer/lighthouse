@@ -24,7 +24,6 @@ pub type ProductionClient =
 
 /// The beacon node `Client` that is used in production.
 ///
-/// Generic over some `EthSpec`.
 pub struct ProductionBeaconNode(ProductionClient);
 
 impl ProductionBeaconNode {
@@ -74,7 +73,7 @@ impl ProductionBeaconNode {
             );
         }
 
-        let builder = ClientBuilder::new(context.eth_spec_instance.clone())
+        let builder = ClientBuilder::new()
             .runtime_context(context)
             .chain_spec(spec.clone())
             .beacon_processor(client_config.beacon_processor.clone())
@@ -202,16 +201,19 @@ mod test {
     #[test]
     fn test_validator_fork_epoch_alignments() {
         let mut spec = Spec::default_spec();
+        // Derive the test epochs from the spec's sync committee period so the test is
+        // preset-agnostic (the period differs per preset: 256 mainnet, 8 minimal, 512 gnosis).
+        // A fork epoch that is a multiple of the period is aligned; one offset by 1 is not.
+        let period = spec.epochs_per_sync_committee_period.as_u64();
+        let aligned_epoch = Epoch::new(period);
+        let misaligned_epoch = Epoch::new(period + 1);
         spec.altair_fork_epoch = Some(Epoch::new(0));
-        spec.bellatrix_fork_epoch = Some(Epoch::new(256));
-        spec.deneb_fork_epoch = Some(Epoch::new(257));
+        spec.bellatrix_fork_epoch = Some(aligned_epoch);
+        spec.deneb_fork_epoch = Some(misaligned_epoch);
         spec.electra_fork_epoch = None;
         spec.fulu_fork_epoch = None;
         spec.gloas_fork_epoch = None;
         let result = validator_fork_epochs(&spec);
-        assert_eq!(
-            result,
-            Err(vec![(ForkName::Deneb, spec.deneb_fork_epoch.unwrap())])
-        );
+        assert_eq!(result, Err(vec![(ForkName::Deneb, misaligned_epoch)]));
     }
 }

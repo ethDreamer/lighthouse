@@ -182,7 +182,7 @@ pub fn get_extra_fields(spec: &ChainSpec) -> HashMap<String, Value> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Epoch, GasLimitSchedule, GasLimitScheduleEntry};
+    use crate::{Epoch, GasLimitSchedule, GasLimitScheduleEntry, core::Spec};
     use std::fs::File;
     use tempfile::NamedTempFile;
 
@@ -269,8 +269,8 @@ mod test {
     // This is not exhaustive, but it can be extended as new fields are added to the spec.
     #[test]
     fn test_required_spec_fields_exist() {
-        let mainnet_spec = ChainSpec::mainnet();
-        let config = ConfigAndPreset::from_chain_spec(&mainnet_spec);
+        let spec = Spec::default_spec();
+        let config = ConfigAndPreset::from_chain_spec(&spec);
         let json = serde_json::to_value(&config).expect("should serialize");
         let obj = json.as_object().expect("should be an object");
         let required_fields = [

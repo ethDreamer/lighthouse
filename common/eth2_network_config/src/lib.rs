@@ -42,7 +42,32 @@ pub const BASE_CONFIG_FILE: &str = "config.yaml";
 // - `HARDCODED_NET_NAMES: &[&'static str]`
 instantiate_hardcoded_nets!(eth2_config);
 
-pub const DEFAULT_HARDCODED_NETWORK: &str = "mainnet";
+pub const MAINNET_HARDCODED_NETWORK: &str = "mainnet";
+pub const GNOSIS_HARDCODED_NETWORK: &str = "gnosis";
+pub const MAINNET_HARDCODED_NET_NAMES: &[&str] =
+    &[MAINNET_HARDCODED_NETWORK, "sepolia", "holesky", "hoodi"];
+pub const MINIMAL_HARDCODED_NET_NAMES: &[&str] = &[];
+pub const GNOSIS_HARDCODED_NET_NAMES: &[&str] = &[GNOSIS_HARDCODED_NETWORK, "chiado"];
+
+pub const fn default_hardcoded_network_for_preset(preset_base: SpecId) -> Option<&'static str> {
+    match preset_base {
+        SpecId::Mainnet => Some(MAINNET_HARDCODED_NETWORK),
+        SpecId::Minimal => None,
+        SpecId::Gnosis => Some(GNOSIS_HARDCODED_NETWORK),
+    }
+}
+
+pub const fn hardcoded_net_names_for_preset(preset_base: SpecId) -> &'static [&'static str] {
+    match preset_base {
+        SpecId::Mainnet => MAINNET_HARDCODED_NET_NAMES,
+        SpecId::Minimal => MINIMAL_HARDCODED_NET_NAMES,
+        SpecId::Gnosis => GNOSIS_HARDCODED_NET_NAMES,
+    }
+}
+
+pub const fn supported_hardcoded_net_names() -> &'static [&'static str] {
+    hardcoded_net_names_for_preset(Spec::SPEC_ID)
+}
 
 /// A simple slice-or-vec enum to avoid cloning the beacon state bytes in the
 /// binary whilst also supporting loading them from a file at runtime.
@@ -120,7 +145,7 @@ impl Eth2NetworkConfig {
         })
     }
 
-    /// Returns an identifier that should be used for selecting an `EthSpec` instance for this
+    /// Returns an identifier that should be used for selecting an `Spec` instance for this
     /// network configuration.
     pub fn eth_spec_id(&self) -> Result<SpecId, String> {
         self.config
@@ -193,8 +218,10 @@ impl Eth2NetworkConfig {
     pub fn chain_spec(&self) -> Result<ChainSpec, String> {
         ChainSpec::from_config(&self.config).ok_or_else(|| {
             format!(
-                "YAML configuration incompatible with spec constants for {}",
-                Spec::SPEC_ID
+                "YAML configuration has preset_base '{}' which is incompatible with this \
+                 binary's spec '{}'",
+                self.config.preset_base,
+                Spec::PRESET_BASE
             )
         })
     }
@@ -480,7 +507,20 @@ mod tests {
 
     #[test]
     fn default_network_exists() {
-        assert!(HARDCODED_NET_NAMES.contains(&DEFAULT_HARDCODED_NETWORK));
+        assert!(HARDCODED_NET_NAMES.contains(&MAINNET_HARDCODED_NETWORK));
+    }
+
+    #[test]
+    fn default_hardcoded_network_by_preset() {
+        assert_eq!(
+            default_hardcoded_network_for_preset(SpecId::Mainnet),
+            Some(MAINNET_HARDCODED_NETWORK)
+        );
+        assert_eq!(default_hardcoded_network_for_preset(SpecId::Minimal), None);
+        assert_eq!(
+            default_hardcoded_network_for_preset(SpecId::Gnosis),
+            Some(GNOSIS_HARDCODED_NETWORK)
+        );
     }
 
     #[test]
@@ -492,6 +532,41 @@ mod tests {
     }
 
     #[test]
+    fn hardcoded_testnet_names_by_preset() {
+        let preset_networks = [
+            (SpecId::Mainnet, MAINNET_HARDCODED_NET_NAMES),
+            (SpecId::Minimal, MINIMAL_HARDCODED_NET_NAMES),
+            (SpecId::Gnosis, GNOSIS_HARDCODED_NET_NAMES),
+        ];
+
+        let mut names_by_preset = preset_networks
+            .iter()
+            .flat_map(|(_, names)| names.iter().copied())
+            .collect::<Vec<_>>();
+        names_by_preset.sort_unstable();
+
+        let mut all_names = HARDCODED_NET_NAMES.to_vec();
+        all_names.sort_unstable();
+
+        assert_eq!(
+            names_by_preset, all_names,
+            "preset network lists must partition HARDCODED_NET_NAMES"
+        );
+
+        for (preset, names) in preset_networks {
+            assert_eq!(hardcoded_net_names_for_preset(preset), names);
+
+            for name in names {
+                let config = Eth2NetworkConfig::constant(name)
+                    .unwrap_or_else(|e| panic!("should decode {name} config: {e}"))
+                    .unwrap_or_else(|| panic!("{name} must be a hardcoded network"));
+                assert_eq!(config.eth_spec_id().unwrap(), preset);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(not(feature = "spec-non-mainnet"))]
     fn mainnet_config_eq_chain_spec() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&MAINNET).unwrap();
         let spec = ChainSpec::mainnet();
@@ -499,6 +574,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "spec-gnosis")]
     fn gnosis_config_eq_chain_spec() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&GNOSIS).unwrap();
         let spec = ChainSpec::gnosis();
@@ -506,6 +582,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "spec-non-mainnet"))]
     async fn mainnet_genesis_state() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&MAINNET).unwrap();
         config
@@ -520,11 +597,25 @@ mod tests {
             let config = Eth2NetworkConfig::from_hardcoded_net(net)
                 .unwrap_or_else(|e| panic!("{:?}: {:?}", net.name, e));
 
-            // Ensure we can parse the YAML config to a chain spec.
-            if config.config.preset_base == types::GNOSIS {
-                config.chain_spec().unwrap();
+            // Configs whose preset_base matches the current compiled Spec
+            // must parse successfully. Configs for a different spec are
+            // expected to fail (preset mismatch).
+            if config.config.preset_base == Spec::PRESET_BASE {
+                config.chain_spec().unwrap_or_else(|e| {
+                    panic!(
+                        "{}: chain spec should parse for matching preset '{}': {}",
+                        net.name, config.config.preset_base, e
+                    )
+                });
             } else {
-                config.chain_spec().unwrap();
+                assert!(
+                    config.chain_spec().is_err(),
+                    "{}: chain spec should fail for non-matching preset '{}' \
+                     (binary spec: '{}')",
+                    net.name,
+                    config.config.preset_base,
+                    Spec::PRESET_BASE,
+                );
             }
 
             assert_eq!(

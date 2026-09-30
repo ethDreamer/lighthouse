@@ -13,7 +13,7 @@ use cli::LighthouseSubcommands;
 use directory::{DEFAULT_BEACON_NODE_DIR, DEFAULT_VALIDATOR_DIR, parse_path_or_default};
 use environment::tracing_common;
 use environment::{EnvironmentBuilder, LoggerConfig};
-use eth2_network_config::{DEFAULT_HARDCODED_NETWORK, Eth2NetworkConfig, HARDCODED_NET_NAMES};
+use eth2_network_config::{Eth2NetworkConfig, supported_hardcoded_net_names};
 use ethereum_hashing::have_sha_extensions;
 use futures::TryFutureExt;
 use lighthouse_version::VERSION;
@@ -31,7 +31,7 @@ use task_executor::ShutdownReason;
 use tracing::{Level, info};
 use tracing_samplers::PrefixBasedSampler;
 use tracing_subscriber::{Layer, filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use types::SpecId;
+use types::{Spec, SpecId};
 use validator_client::ProductionValidatorClient;
 
 pub static SHORT_VERSION: LazyLock<String> = LazyLock::new(|| VERSION.replace("Lighthouse/", ""));
@@ -43,15 +43,14 @@ pub static LONG_VERSION: LazyLock<String> = LazyLock::new(|| {
          SHA256 hardware acceleration: {}\n\
          Allocator: {}\n\
          Profile: {}\n\
-         Specs: mainnet (true), minimal ({}), gnosis ({})",
+         Spec: {}",
         SHORT_VERSION.as_str(),
         bls_library_name(),
         bls_hardware_acceleration(),
         have_sha_extensions(),
         allocator_name(),
         build_profile_name(),
-        cfg!(feature = "spec-minimal"),
-        cfg!(feature = "gnosis"),
+        Spec::SPEC_ID,
     )
 });
 
@@ -327,7 +326,7 @@ fn main() {
                 .long("network")
                 .value_name("network")
                 .help("Name of the Eth2 chain Lighthouse will sync and follow.")
-                .value_parser(HARDCODED_NET_NAMES.to_vec())
+                .value_parser(supported_hardcoded_net_names().to_vec())
                 .conflicts_with("testnet-dir")
                 .action(ArgAction::Set)
                 .global(true)
@@ -450,13 +449,7 @@ fn main() {
                 .expect("Debug-level must be present")
                 .into();
 
-            boot_node::run(
-                &matches,
-                bootnode_matches,
-                eth_spec_id,
-                &eth2_network_config,
-                debug_info,
-            );
+            boot_node::run(&matches, bootnode_matches, &eth2_network_config, debug_info);
 
             return Ok(());
         }
@@ -766,7 +759,7 @@ fn run(
     let network_name = match (optional_testnet, optional_testnet_dir) {
         (Some(testnet), None) => testnet,
         (None, Some(testnet_dir)) => format!("custom ({})", testnet_dir.display()),
-        (None, None) => DEFAULT_HARDCODED_NETWORK.to_string(),
+        (None, None) => clap_utils::default_network_name().to_string(),
         (Some(_), Some(_)) => panic!("CLI prevents both --network and --testnet-dir"),
     };
 

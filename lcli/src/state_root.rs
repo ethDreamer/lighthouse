@@ -27,7 +27,7 @@ pub fn run(
     info!(
         "Using {} network ({} spec)",
         spec.config_name.as_deref().unwrap_or("unknown"),
-        Spec::SPEC_ID
+        Spec::PRESET_BASE
     );
     info!("Doing {} runs", runs);
 

@@ -567,6 +567,10 @@ mod test {
             .assert_ok();
     }
 
+    // On MinimalSpec the per-epoch churn limit is 2, so 3 simultaneous exits
+    // overflow into the next epoch and the simple same-epoch assertion fails.
+    // TODO(spec-gates): This test should be made spec-agnostic.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[tokio::test]
     async fn exit_multiple_validators() {
         TestBuilder::new()

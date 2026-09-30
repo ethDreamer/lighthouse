@@ -11,15 +11,14 @@ mod state_root;
 mod transition_blocks;
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
-use clap_utils::{FLAG_HEADER, parse_optional};
+use clap_utils::{FLAG_HEADER, default_hardcoded_network, parse_optional};
 use environment::{EnvironmentBuilder, LoggerConfig};
-use eth2_network_config::Eth2NetworkConfig;
+use eth2_network_config::{Eth2NetworkConfig, supported_hardcoded_net_names};
 use parse_ssz::run_parse_ssz;
 use std::path::PathBuf;
 use std::process;
-use std::str::FromStr;
 use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use types::SpecId;
+use types::{Spec, SpecId};
 
 fn main() {
     let matches = Command::new("Lighthouse CLI Tool")
@@ -33,8 +32,8 @@ fn main() {
                 .value_name("STRING")
                 .action(ArgAction::Set)
                 .value_parser(["minimal", "mainnet", "gnosis"])
-                .default_value("mainnet")
                 .global(true)
+                .help("Assert that this lcli binary was compiled for the given spec.")
                 .display_order(0)
         )
         .arg(
@@ -53,7 +52,8 @@ fn main() {
                 .value_name("NAME")
                 .action(ArgAction::Set)
                 .global(true)
-                .help("The network to use. Defaults to mainnet.")
+                .value_parser(supported_hardcoded_net_names().to_vec())
+                .help("The network to use. Defaults to the compiled spec's default network, if one exists.")
                 .conflicts_with("testnet-dir")
                 .display_order(0)
         )
@@ -636,7 +636,8 @@ fn main() {
                         .value_name("NAME")
                         .action(ArgAction::Set)
                         .global(true)
-                        .help("The network to use. Defaults to mainnet.")
+                        .value_parser(supported_hardcoded_net_names().to_vec())
+                        .help("The network to use. Defaults to the compiled spec's default network, if one exists.")
                         .conflicts_with("testnet-dir")
                         .display_order(0)
                 )
@@ -659,15 +660,8 @@ fn main() {
         )
         .get_matches();
 
-    let result = matches
-        .get_one::<String>("spec")
-        .ok_or_else(|| "Missing --spec flag".to_string())
-        .and_then(|s| FromStr::from_str(s))
-        .and_then(|eth_spec_id| match eth_spec_id {
-            SpecId::Minimal => run(EnvironmentBuilder::minimal(), &matches),
-            SpecId::Mainnet => run(EnvironmentBuilder::mainnet(), &matches),
-            SpecId::Gnosis => run(EnvironmentBuilder::gnosis(), &matches),
-        });
+    let result = verify_requested_spec(&matches)
+        .and_then(|_| run(EnvironmentBuilder::from_spec_id(Spec::SPEC_ID), &matches));
 
     match result {
         Ok(()) => process::exit(0),
@@ -676,6 +670,25 @@ fn main() {
             process::exit(1)
         }
     }
+}
+
+fn verify_requested_spec(matches: &ArgMatches) -> Result<(), String> {
+    if let Some(requested_spec) = matches
+        .get_one::<String>("spec")
+        .map(|spec| spec.parse::<SpecId>())
+        .transpose()?
+        && requested_spec != Spec::SPEC_ID
+    {
+        return Err(format!(
+            "This lcli binary was compiled for `{}` and cannot run with `--spec {}`. \
+             Use an lcli binary compiled for `{}`.",
+            Spec::PRESET_BASE,
+            requested_spec,
+            requested_spec,
+        ));
+    }
+
+    Ok(())
 }
 
 fn run(env_builder: EnvironmentBuilder, matches: &ArgMatches) -> Result<(), String> {
@@ -725,8 +738,13 @@ fn run(env_builder: EnvironmentBuilder, matches: &ArgMatches) -> Result<(), Stri
         if let Some(testnet_dir) = parse_optional::<PathBuf>(matches, "testnet-dir")? {
             (Some(testnet_dir), None)
         } else {
-            let network_name =
-                parse_optional(matches, "network")?.unwrap_or_else(|| "mainnet".to_string());
+            let network_name = parse_optional(matches, "network")?
+                .or_else(|| default_hardcoded_network().map(ToString::to_string))
+                .ok_or_else(|| {
+                    "This lcli binary was compiled for the minimal spec, which has no default \
+                     hardcoded network. Please specify --network or --testnet-dir."
+                        .to_string()
+                })?;
             (None, Some(network_name))
         };
 

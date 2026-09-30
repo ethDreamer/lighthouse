@@ -55,7 +55,7 @@ pub fn run(
     let beacon_url: Option<SensitiveUrl> = parse_optional(matches, "beacon-url")?;
     let runs: usize = parse_required(matches, "runs")?;
 
-    info!("Using {} spec", Spec::SPEC_ID);
+    info!("Using {} spec", Spec::PRESET_BASE);
     info!("Doing {} runs", runs);
 
     /*

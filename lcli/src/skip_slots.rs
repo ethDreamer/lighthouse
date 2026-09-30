@@ -78,7 +78,7 @@ pub fn run(
     let cli_state_root: Option<Hash256> = parse_optional(matches, "state-root")?;
     let partial: bool = matches.get_flag("partial-state-advance");
 
-    info!("Using {} spec", Spec::SPEC_ID);
+    info!("Using {} spec", Spec::PRESET_BASE);
     info!("Advancing {} slots", slots);
     info!("Doing {} runs", runs);
 

@@ -56,6 +56,11 @@ pub struct ChainSpec {
     pub config_name: Option<String>,
 
     /*
+     * Preset base
+     */
+    pub preset_base: SpecId,
+
+    /*
      * Constants
      */
     pub genesis_slot: Slot,
@@ -1186,6 +1191,10 @@ impl ChainSpec {
              */
             config_name: Some("mainnet".to_string()),
             /*
+             * Preset base
+             */
+            preset_base: SpecId::Mainnet,
+            /*
              * Constants
              */
             genesis_slot: Slot::new(0),
@@ -1536,7 +1545,8 @@ impl ChainSpec {
         let boot_nodes = vec![];
 
         Self {
-            config_name: None,
+            config_name: Some("minimal".to_string()),
+            preset_base: SpecId::Minimal,
             max_committees_per_slot: 4,
             target_committee_size: 4,
             min_per_epoch_churn_limit: 2,
@@ -1643,6 +1653,10 @@ impl ChainSpec {
     pub fn gnosis() -> Self {
         Self {
             config_name: Some("gnosis".to_string()),
+            /*
+             * Preset base
+             */
+            preset_base: SpecId::Gnosis,
             /*
              * Constants
              */
@@ -2860,7 +2874,7 @@ where
 }
 
 impl Config {
-    /// Maps `self` to an identifier for an `EthSpec` instance.
+    /// Maps `self` to a `SpecId` identifier.
     ///
     /// Returns `None` if there is no match.
     pub fn eth_spec_id(&self) -> Option<SpecId> {
@@ -2875,7 +2889,7 @@ impl Config {
     pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             config_name: spec.config_name.clone(),
-            preset_base: Spec::SPEC_ID.to_string(),
+            preset_base: spec.preset_base.to_string(),
 
             terminal_total_difficulty: spec.terminal_total_difficulty,
             terminal_block_hash: spec.terminal_block_hash,
@@ -3339,7 +3353,7 @@ mod tests {
 
     #[test]
     fn test_get_domain() {
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         test_domain(Domain::BeaconProposer, spec.domain_beacon_proposer, &spec);
         test_domain(Domain::BeaconAttester, spec.domain_beacon_attester, &spec);
@@ -3412,7 +3426,7 @@ mod tests {
     // Test that `fork_name_at_epoch` and `fork_epoch` are consistent.
     #[test]
     fn fork_name_at_epoch_consistency() {
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         for fork_name in ForkName::list_all() {
             if let Some(fork_epoch) = spec.fork_epoch(fork_name) {
@@ -3424,7 +3438,7 @@ mod tests {
     // Test that `next_fork_epoch` is consistent with the other functions.
     #[test]
     fn next_fork_epoch_consistency() {
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         let mut last_fork_slot = Slot::new(0);
 
@@ -3497,8 +3511,8 @@ mod yaml_tests {
             .write(true)
             .open(tmp_file.as_ref())
             .expect("error opening file");
-        let mainnet_spec = ChainSpec::mainnet();
-        let yamlconfig = Config::from_chain_spec(&mainnet_spec);
+        let spec = Spec::default_spec();
+        let yamlconfig = Config::from_chain_spec(&spec);
         yaml_serde::to_writer(writer, &yamlconfig).expect("failed to write or serialize");
 
         let reader = File::options()
@@ -3512,55 +3526,65 @@ mod yaml_tests {
 
     #[test]
     fn slot_duration_fallback_both_fields() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        let spec = Spec::default_spec();
+        let sps = spec.seconds_per_slot;
+        let sdm = spec.slot_duration_ms;
+        let mut config = Config::from_chain_spec(&spec);
+        config.seconds_per_slot = Some(MaybeQuoted { value: sps });
+        config.slot_duration_ms = Some(MaybeQuoted { value: sdm });
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sps);
+        assert_eq!(result.slot_duration_ms, sdm);
     }
 
     #[test]
     fn slot_duration_fallback_both_fields_inconsistent() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 10 });
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        assert_eq!(config.apply_to_chain_spec(&mainnet), None);
+        let spec = Spec::default_spec();
+        let mut config = Config::from_chain_spec(&spec);
+        // Set seconds_per_slot to a value inconsistent with slot_duration_ms.
+        config.seconds_per_slot = Some(MaybeQuoted {
+            value: spec.seconds_per_slot.saturating_add(1),
+        });
+        config.slot_duration_ms = Some(MaybeQuoted {
+            value: spec.slot_duration_ms,
+        });
+        assert_eq!(config.apply_to_chain_spec(&spec), None);
     }
 
     #[test]
     fn slot_duration_fallback_seconds_only() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
+        let spec = Spec::default_spec();
+        let sps = spec.seconds_per_slot;
+        let mut config = Config::from_chain_spec(&spec);
+        config.seconds_per_slot = Some(MaybeQuoted { value: sps });
         config.slot_duration_ms = None;
-        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sps);
+        assert_eq!(result.slot_duration_ms, sps.saturating_mul(1000));
     }
 
     #[test]
     fn slot_duration_fallback_ms_only() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec(&mainnet);
+        let spec = Spec::default_spec();
+        let sdm = spec.slot_duration_ms;
+        let mut config = Config::from_chain_spec(&spec);
         config.seconds_per_slot = None;
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        config.slot_duration_ms = Some(MaybeQuoted { value: sdm });
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sdm / 1000);
+        assert_eq!(result.slot_duration_ms, sdm);
     }
 
     #[test]
     fn slot_duration_fallback_neither() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec(&mainnet);
+        let spec = Spec::default_spec();
+        let mut config = Config::from_chain_spec(&spec);
         config.seconds_per_slot = None;
         config.slot_duration_ms = None;
-        assert!(config.apply_to_chain_spec(&mainnet).is_none());
+        assert!(config.apply_to_chain_spec(&spec).is_none());
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn blob_schedule_max_blobs_per_block() {
         let spec_contents = r#"
@@ -3718,6 +3742,7 @@ mod yaml_tests {
         );
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn gas_limit_schedule() {
         let spec_contents = r#"
@@ -3950,22 +3975,25 @@ mod yaml_tests {
 
     #[test]
     fn apply_to_spec() {
-        let mut spec = ChainSpec::minimal();
-        let yamlconfig = Config::from_chain_spec(&spec);
+        let mut spec = Spec::default_spec();
+        let mut yamlconfig = Config::from_chain_spec(&spec);
 
         // modifying the original spec
         spec.min_genesis_active_validator_count += 1;
         spec.deposit_chain_id += 1;
         spec.deposit_network_id += 1;
-        // Applying a yaml config with incorrect EthSpec should fail
+        // Applying a yaml config with incorrect preset_base should fail
+        let correct_preset = yamlconfig.preset_base.clone();
+        yamlconfig.preset_base = "wrong_preset".to_string();
         let res = yamlconfig.apply_to_chain_spec(&spec);
         assert_eq!(res, None);
 
-        // Applying a yaml config with correct EthSpec should NOT fail
+        // Applying a yaml config with correct preset_base should NOT fail
+        yamlconfig.preset_base = correct_preset;
         let new_spec = yamlconfig
             .apply_to_chain_spec(&spec)
             .expect("should have applied spec");
-        assert_eq!(new_spec, ChainSpec::minimal());
+        assert_eq!(new_spec, Spec::default_spec());
     }
 
     #[test]
@@ -4192,27 +4220,31 @@ mod yaml_tests {
 
     #[test]
     fn test_slot_component_duration_calculations() {
-        let spec = ChainSpec::mainnet().compute_derived_values();
+        let spec = Spec::default_spec().compute_derived_values();
+        let slot_ms = spec.slot_duration_ms;
 
-        // Test unaggregated attestation (3333 bps = 33.33% of 12s = 4s)
+        // Test unaggregated attestation (3333 bps = 33.33% of slot)
         let unagg_due = spec.unaggregated_attestation_due;
-        assert_eq!(unagg_due, Duration::from_millis(3999)); // 12000 * 3333 / 10000
+        assert_eq!(unagg_due, Duration::from_millis(slot_ms * 3333 / 10000));
 
-        // Test aggregate attestation (6667 bps = 66.67% of 12s = 8s)
+        // Test aggregate attestation (6667 bps = 66.67% of slot)
         let agg_due = spec.get_aggregate_attestation_due(Slot::new(0));
-        assert_eq!(agg_due, Duration::from_millis(8000)); // 12000 * 6667 / 10000
+        assert_eq!(agg_due, Duration::from_millis(slot_ms * 6667 / 10000));
 
-        // Test sync message (3333 bps = 33.33% of 12s = 4s)
+        // Test sync message (3333 bps = 33.33% of slot)
         let sync_msg_due = spec.get_sync_message_due(Slot::new(0));
-        assert_eq!(sync_msg_due, Duration::from_millis(3999)); // 12000 * 3333 / 10000
+        assert_eq!(sync_msg_due, Duration::from_millis(slot_ms * 3333 / 10000));
 
-        // Test contribution message (6667 bps = 66.67% of 12s = 8s)
+        // Test contribution message (6667 bps = 66.67% of slot)
         let contribution_due = spec.get_contribution_message_due(Slot::new(0));
-        assert_eq!(contribution_due, Duration::from_millis(8000)); // 12000 * 6667 / 10000
+        assert_eq!(
+            contribution_due,
+            Duration::from_millis(slot_ms * 6667 / 10000)
+        );
 
         // Test slot duration
         let slot_duration = spec.get_slot_duration();
-        assert_eq!(slot_duration, Duration::from_millis(12000));
+        assert_eq!(slot_duration, Duration::from_millis(slot_ms));
 
         // Test edge cases with custom spec
         let mut custom_spec = spec.clone();
@@ -4228,14 +4260,14 @@ mod yaml_tests {
         custom_spec.attestation_due_bps = 10_000;
         let custom_spec = custom_spec.compute_derived_values();
         let full_due = custom_spec.unaggregated_attestation_due;
-        assert_eq!(full_due, Duration::from_millis(12000));
+        assert_eq!(full_due, Duration::from_millis(slot_ms));
 
         // Edge case: 5000 bps (50%) should give half slot duration
         let mut custom_spec = custom_spec;
         custom_spec.attestation_due_bps = 5_000;
         let custom_spec = custom_spec.compute_derived_values();
         let half_due = custom_spec.unaggregated_attestation_due;
-        assert_eq!(half_due, Duration::from_millis(6000));
+        assert_eq!(half_due, Duration::from_millis(slot_ms / 2));
 
         // Test with different slot duration (Gnosis: 5s slots)
         let mut custom_spec = custom_spec;
@@ -4541,7 +4573,7 @@ mod yaml_tests {
     #[test]
     #[should_panic(expected = "exceeds slot duration")]
     fn test_compute_derived_values_panics_on_invalid_bps_values() {
-        let mut spec = ChainSpec::mainnet();
+        let mut spec = Spec::default_spec();
         // 15000 bps = 150% of slot duration, which is invalid
         spec.attestation_due_bps = 15000;
         spec.compute_derived_values();
