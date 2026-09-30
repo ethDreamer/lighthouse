@@ -468,7 +468,7 @@ impl Environment {
         }
     }
 
-    pub fn eth_spec_instance(&self) -> &E {
+    pub fn eth_spec_instance(&self) -> &Spec {
         &self.eth_spec_instance
     }
 
