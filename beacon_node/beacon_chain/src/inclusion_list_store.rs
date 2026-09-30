@@ -6,11 +6,11 @@
 //! keyed by `(slot, dependent_root)`, which pins an inclusion list to the committee it was produced
 //! against.
 
+use typenum::U;
 use ssz_types::{BitVector, ProgressiveVariableList};
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 use tree_hash::TreeHash;
-use types::{ChainSpec, EthSpec, Hash256, InclusionListCommittee, SignedInclusionList, Slot};
+use types::{ChainSpec, Spec, Hash256, InclusionListCommittee, SignedInclusionList, Slot};
 
 /// The shuffling `dependent_root` an inclusion list was produced against.
 pub type DependentRoot = Hash256;
@@ -279,12 +279,12 @@ impl InclusionListStore {
 
 #[cfg(test)]
 mod tests {
+    use typenum::U;
     use super::{DependentRoot, InclusionListStore, InsertOutcome};
     use bls::Signature;
     use ssz_types::{BitVector, FixedVector, ProgressiveVariableList};
     use types::{
-        Epoch, EthSpec, Hash256, InclusionList, InclusionListCommittee, MinimalEthSpec,
-        SignedInclusionList, Slot,
+        Epoch, Spec, Hash256, InclusionList, InclusionListCommittee, SignedInclusionList, Slot,
     };
 
 

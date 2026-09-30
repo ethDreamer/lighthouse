@@ -4,7 +4,7 @@ use lru::LruCache;
 use parking_lot::Mutex;
 use tracing::{debug, instrument};
 use tree_hash::{Hash256, TreeHash};
-use types::{BeaconState, ChainSpec, DepositData, EthSpec, PendingDeposit, new_non_zero_usize};
+use types::{BeaconState, ChainSpec, DepositData, PendingDeposit, new_non_zero_usize};
 
 use std::num::NonZeroUsize;
 
@@ -220,10 +220,11 @@ fn pending_deposits_to_verify(state: &BeaconState) -> Vec<&PendingDeposit> {
 
 #[cfg(all(test, not(feature = "fake_crypto")))]
 mod tests {
+    use types::Spec;
     use super::*;
     use bls::{Keypair, SignatureBytes};
     use std::sync::LazyLock;
-    use types::{ForkName, MainnetEthSpec, Slot};
+    use types::{ForkName, Slot};
 
     static KEYPAIRS: LazyLock<Vec<Keypair>> =
         LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(10));
@@ -452,7 +453,7 @@ mod tests {
         use super::*;
         use beacon_chain::test_utils::BeaconChainHarness;
         use std::sync::Arc;
-        use types::{Epoch, MinimalEthSpec};
+        use types::{Epoch};
 
         /// A Fulu state (gloas scheduled) at the given slot, as `add_new_pending_deposits`
         /// sees it after a block import.

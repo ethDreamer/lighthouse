@@ -14,8 +14,7 @@ use maplit::hashset;
 use std::sync::{Arc, Mutex};
 use task_executor::test_utils::TestRuntime;
 use types::{
-    BeaconBlock, BeaconBlockFulu, EmptyBlock, EthSpec, ForkName, Hash256, MainnetEthSpec,
-    SignedBeaconBlock, SignedBeaconBlockFulu,
+    BeaconBlock, BeaconBlockFulu, EmptyBlock, Spec, ForkName, Hash256, SignedBeaconBlock, SignedBeaconBlockFulu,
 };
 
 type T = EphemeralHarnessType;

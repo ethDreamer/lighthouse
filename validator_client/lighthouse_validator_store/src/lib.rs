@@ -14,14 +14,13 @@ use slashing_protection::{
     CheckSlashability, InterchangeError, NotSafe, Safe, SlashingDatabase, interchange::Interchange,
 };
 use slot_clock::SlotClock;
-use std::marker::PhantomData;
 use std::path::Path;
 use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tracing::{Instrument, debug, error, info, info_span, instrument, warn};
 use types::{
     AbstractExecPayload, Address, AggregateAndProof, Attestation, AttestationData, BeaconBlock,
-    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, EthSpec,
+    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, Spec,
     ExecutionPayloadEnvelope, Fork, FullPayload, Graffiti, Hash256, PayloadAttestationData,
     PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
     SignedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
@@ -1560,7 +1559,7 @@ mod tests {
     use std::time::Duration;
     use task_executor::test_utils::TestRuntime;
     use tempfile::{TempDir, tempdir};
-    use types::{Epoch, GasLimitSchedule, GasLimitScheduleEntry, MainnetEthSpec};
+    use types::{Epoch, GasLimitSchedule, GasLimitScheduleEntry};
 
 
     const GLOAS_FORK_EPOCH: u64 = 4;

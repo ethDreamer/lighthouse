@@ -12,7 +12,7 @@ use bls::{AggregateSignature, Keypair};
 use slot_clock::SlotClock;
 use std::sync::{Arc, LazyLock};
 use tree_hash::TreeHash;
-use types::{Attestation, EthSpec, ForkName, MainnetEthSpec, RelativeEpoch, Slot};
+use types::{Attestation, Spec, ForkName, RelativeEpoch, Slot};
 
 pub const VALIDATOR_COUNT: usize = 32;
 

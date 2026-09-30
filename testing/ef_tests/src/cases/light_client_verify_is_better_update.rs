@@ -1,3 +1,4 @@
+use types::Spec;
 use super::*;
 use decode::ssz_decode_light_client_update;
 use serde::Deserialize;

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::str::from_utf8;
 use tempfile::TempDir;
-use types::{ChainSpec, Config, EthSpec};
+use types::{ChainSpec, Config};
 
 pub trait CommandLineTestExec {
     type Config: DeserializeOwned;

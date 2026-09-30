@@ -54,7 +54,7 @@ use system_health::observe_system_health_vc;
 use task_executor::TaskExecutor;
 use tokio_stream::{StreamExt, wrappers::BroadcastStream};
 use tracing::{error, info, warn};
-use types::{ChainSpec, ConfigAndPreset, EthSpec};
+use types::{ChainSpec, ConfigAndPreset};
 use validator_dir::Builder as ValidatorDirBuilder;
 use validator_services::block_service::BlockService;
 use validator_store::ValidatorStore;

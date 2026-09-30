@@ -1,3 +1,5 @@
+use types::Spec;
+use typenum::U;
 use super::*;
 use alloy_rlp::RlpEncodable;
 use serde::{Deserialize, Serialize};
@@ -1507,7 +1509,7 @@ mod tests {
     use ssz::Encode;
     use types::{
         BuilderDepositRequest, BuilderExitRequest, ConsolidationRequest, DepositRequest,
-        MainnetEthSpec, RequestType, WithdrawalRequest,
+        RequestType, WithdrawalRequest,
     };
 
     use super::*;

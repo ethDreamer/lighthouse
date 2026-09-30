@@ -57,7 +57,7 @@ use lru_cache::LRUTimeCache;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, trace, warn};
-use types::{Epoch, EthSpec, Hash256};
+use types::{Epoch, Spec, Hash256};
 
 /// For how long we store failed finalized chains to prevent retries.
 const FAILED_CHAINS_EXPIRY_SECONDS: u64 = 30;

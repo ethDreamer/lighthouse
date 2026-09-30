@@ -7,7 +7,6 @@ use logging::{
 use std::process;
 
 use tracing_subscriber::filter::LevelFilter;
-use types::EthSpec;
 
 /// Constructs all logging layers including both Lighthouse-specific and
 /// dependency logging.

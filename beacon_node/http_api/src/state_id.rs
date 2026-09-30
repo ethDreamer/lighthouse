@@ -4,7 +4,7 @@ use beacon_chain::{BeaconChain, BeaconChainError, BeaconChainTypes};
 use eth2::types::StateId as CoreStateId;
 use std::fmt;
 use std::str::FromStr;
-use types::{BeaconState, Checkpoint, EthSpec, Fork, Hash256, Slot};
+use types::{BeaconState, Checkpoint, Spec, Fork, Hash256, Slot};
 
 /// Wraps `eth2::types::StateId` and provides common state-access functionality. E.g., reading
 /// states or parts of states from the database.

@@ -8,7 +8,7 @@
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
-use types::{ChainSpec, EthSpecId};
+use types::{ChainSpec, SpecId};
 
 pub use paste::paste;
 

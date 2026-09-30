@@ -6,7 +6,7 @@ use educe::Educe;
 use std::fs::{self, DirEntry};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use types::{BeaconState, EthSpec, ForkName};
+use types::{BeaconState, Spec, ForkName};
 
 pub trait Handler {
     type Case: Case + LoadCase;

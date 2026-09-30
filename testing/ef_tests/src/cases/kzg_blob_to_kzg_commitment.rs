@@ -3,7 +3,6 @@ use crate::case_result::compare_result;
 use beacon_chain::kzg_utils::blob_to_kzg_commitment;
 use kzg::KzgCommitment;
 use serde::Deserialize;
-use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

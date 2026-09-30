@@ -1,4 +1,4 @@
-use crate::{EthSpec, ForkName, Hash256, ProgressiveTransactions, SignedRoot, Slot};
+use crate::{Spec, ForkName, Hash256, ProgressiveTransactions, SignedRoot, Slot};
 use context_deserialize::context_deserialize;
 use educe::Educe;
 use serde::{Deserialize, Serialize};

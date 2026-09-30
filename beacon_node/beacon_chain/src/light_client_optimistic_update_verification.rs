@@ -1,5 +1,4 @@
 use crate::{BeaconChain, BeaconChainTypes};
-use educe::Educe;
 use eth2::types::Hash256;
 use slot_clock::SlotClock;
 use std::time::Duration;

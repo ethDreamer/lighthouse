@@ -4,6 +4,7 @@
 //! This crate only provides useful functionality for "The Merge", it does not provide any of the
 //! deposit-contract functionality that the `beacon_node/eth1` crate already provides.
 
+use types::Spec;
 use crate::json_structures::{
     BlobAndProofV2, BlobAndProofV3, CustodyColumnsBitArray, GetBlobsV4List,
 };
@@ -2207,7 +2208,6 @@ mod test {
     use super::*;
     use crate::test_utils::{Block, MockExecutionLayer as GenericMockExecutionLayer};
     use task_executor::test_utils::TestRuntime;
-    use types::MainnetEthSpec;
 
     type MockExecutionLayer = GenericMockExecutionLayer;
 

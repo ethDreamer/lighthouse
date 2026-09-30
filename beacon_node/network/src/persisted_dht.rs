@@ -1,7 +1,7 @@
 use lighthouse_network::Enr;
 use std::sync::Arc;
 use store::{DBColumn, Error as StoreError, HotColdDB, ItemStore, StoreItem};
-use types::{EthSpec, Hash256};
+use types::{Hash256};
 
 /// 32-byte key for accessing the `DhtEnrs`. All zero because `DhtEnrs` has its own column.
 pub const DHT_DB_KEY: Hash256 = Hash256::ZERO;
@@ -68,11 +68,11 @@ impl StoreItem for PersistedDht {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
     use std::str::FromStr;
     use store::MemoryStore;
     use store::config::StoreConfig;
-    use types::MinimalEthSpec;
     #[test]
     fn test_persisted_dht() {
         let store: HotColdDB<MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(

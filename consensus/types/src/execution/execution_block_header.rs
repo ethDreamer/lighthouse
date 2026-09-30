@@ -22,7 +22,7 @@ use fixed_bytes::Uint256;
 use metastruct::metastruct;
 
 use crate::{
-    core::{Address, EthSpec, Hash64, Hash256},
+    core::{Address, Hash64, Hash256},
     execution::ExecutionPayloadRef,
 };
 

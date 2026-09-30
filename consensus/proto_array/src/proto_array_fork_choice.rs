@@ -17,7 +17,7 @@ use std::{
     time::Duration,
 };
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, EthSpec, ExecutionBlockHash, Hash256,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
     Slot,
 };
 
@@ -1504,7 +1504,6 @@ fn compute_deltas(
 mod test_compute_deltas {
     use super::*;
     use fixed_bytes::FixedBytesExtended;
-    use types::MainnetEthSpec;
 
     /// Gives a hash that is not the zero hash (unless i is `usize::MAX)`.
     fn hash_from_index(i: usize) -> Hash256 {
@@ -2460,7 +2459,6 @@ mod test_compute_deltas {
 #[cfg(test)]
 mod test_find_head {
     use super::*;
-    use types::MainnetEthSpec;
 
     #[test]
     fn justified_balances_updates() {

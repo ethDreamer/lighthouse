@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tracing::debug;
 use tree_hash::TreeHash;
 use types::{
-    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, EthSpec, ForkName, Hash256,
+    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Spec, ForkName, Hash256,
     LightClientBootstrap, LightClientFinalityUpdate, LightClientOptimisticUpdate,
     LightClientUpdate, MerkleProof, Slot, SyncAggregate, SyncCommittee,
 };

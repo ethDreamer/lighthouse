@@ -15,7 +15,7 @@ use store::metadata::DataColumnInfo;
 use store::{AnchorInfo, BlobInfo, DBColumn, Error as StoreError, KeyValueStore, KeyValueStoreOp};
 use strum::IntoStaticStr;
 use tracing::{debug, debug_span, instrument};
-use types::{EthSpec, Hash256, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD};
+use types::{Spec, Hash256, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD};
 
 /// Use a longer timeout on the pubkey cache.
 ///

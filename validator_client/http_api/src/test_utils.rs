@@ -1,3 +1,4 @@
+use types::Spec;
 use crate::api_secret::PK_FILENAME;
 use crate::{ApiSecret, Config as HttpConfig, Context};
 use account_utils::validator_definitions::ValidatorDefinitions;

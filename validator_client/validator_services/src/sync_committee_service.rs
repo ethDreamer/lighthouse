@@ -17,7 +17,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use types::{
-    ChainSpec, EthSpec, Hash256, Slot, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
+    ChainSpec, Spec, Hash256, Slot, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
     SyncSelectionProof, SyncSubnetId,
 };
 use validator_store::{ContributionToSign, SyncMessageToSign, ValidatorStore};
@@ -683,7 +683,7 @@ mod tests {
     };
     use bls::FixedBytesExtended;
     use slot_clock::ManualSlotClock;
-    use types::{Epoch, MainnetEthSpec, SignedContributionAndProof, SyncCommitteeContribution};
+    use types::{Epoch, SignedContributionAndProof, SyncCommitteeContribution};
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
 
 

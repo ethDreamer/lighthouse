@@ -4,7 +4,6 @@ use beacon_chain::kzg_utils::validate_blob;
 use kzg::trusted_setup::get_trusted_setup;
 use kzg::{Cell, Error as KzgError, Kzg, KzgCommitment, KzgProof};
 use serde::Deserialize;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use types::Blob;

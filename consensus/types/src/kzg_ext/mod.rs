@@ -1,8 +1,9 @@
 pub mod consts;
 
+use typenum::U;
 pub use kzg::{Error as KzgError, Kzg, KzgCommitment, KzgProof};
 
-use crate::core::EthSpec;
+use crate::core::Spec;
 use crate::{BeaconStateError, Hash256};
 use merkle_proof::{MerkleTree, MerkleTreeError};
 use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};

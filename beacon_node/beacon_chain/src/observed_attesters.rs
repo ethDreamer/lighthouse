@@ -19,9 +19,8 @@ use bitvec::vec::BitVec;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::marker::PhantomData;
-use typenum::Unsigned;
 use types::SlotData;
-use types::{Epoch, EthSpec, Hash256, Slot};
+use types::{Epoch, Spec, Hash256, Slot};
 
 /// The maximum capacity of the `AutoPruningEpochContainer`.
 ///

@@ -3,7 +3,7 @@ use crate::per_epoch_processing::{
     JustificationAndFinalizationState, weigh_justification_and_finalization,
 };
 use safe_arith::SafeArith;
-use types::{BeaconState, EthSpec};
+use types::{BeaconState, Spec};
 
 /// Process justification and finalization using the progressive balances cache.
 pub fn process_justification_and_finalization(

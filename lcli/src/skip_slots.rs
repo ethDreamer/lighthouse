@@ -58,7 +58,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use tracing::info;
-use types::{BeaconState, EthSpec, Hash256};
+use types::{BeaconState, Spec, Hash256};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 

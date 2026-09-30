@@ -1,3 +1,4 @@
+use typenum::U;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
@@ -18,7 +19,7 @@ use crate::{
         AttestationData, Checkpoint, IndexedAttestation, IndexedAttestationBase,
         IndexedAttestationElectra, IndexedAttestationGloas,
     },
-    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot, SlotData},
+    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot, SlotData},
     fork::{Fork, ForkName},
 };
 

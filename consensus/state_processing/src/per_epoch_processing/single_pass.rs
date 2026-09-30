@@ -14,10 +14,9 @@ use std::cmp::{max, min};
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 use tracing::instrument;
-use typenum::Unsigned;
 use types::{
     ActivationQueue, BeaconState, BeaconStateError, BuilderPendingPayment, ChainSpec, Checkpoint,
-    CommitteeCache, DepositData, Epoch, EthSpec, ExitCache, ForkName, ParticipationFlags,
+    CommitteeCache, DepositData, Epoch, Spec, ExitCache, ForkName, ParticipationFlags,
     PendingDeposit, ProgressiveBalancesCache, RelativeEpoch, Validator,
     consts::altair::{
         NUM_FLAG_INDICES, PARTICIPATION_FLAG_WEIGHTS, TIMELY_HEAD_FLAG_INDEX,

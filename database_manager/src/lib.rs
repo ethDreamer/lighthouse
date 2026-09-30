@@ -23,7 +23,7 @@ use store::{
 };
 use strum::{EnumString, VariantNames};
 use tracing::{info, warn};
-use types::{BeaconState, EthSpec, Slot};
+use types::{BeaconState, Slot};
 
 fn parse_client_config(
     cli_args: &ArgMatches,

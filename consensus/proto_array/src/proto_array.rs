@@ -14,7 +14,7 @@ use std::time::Duration;
 use superstruct::superstruct;
 use typenum::U512;
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, EthSpec, ExecutionBlockHash, Hash256,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
     Slot,
 };
 

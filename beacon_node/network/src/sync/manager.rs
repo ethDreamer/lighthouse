@@ -72,7 +72,7 @@ use strum::IntoStaticStr;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace};
 use types::{
-    BlobSidecar, DataColumnSidecar, EthSpec, ExecutionBlockHash, ForkContext, Hash256,
+    BlobSidecar, DataColumnSidecar, Spec, ExecutionBlockHash, ForkContext, Hash256,
     SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
 };
 

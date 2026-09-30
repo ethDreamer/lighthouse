@@ -28,7 +28,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use tracing::{info, warn};
 use types::graffiti::GraffitiString;
-use types::{Checkpoint, Epoch, EthSpec, Hash256};
+use types::{Checkpoint, Epoch, Spec, Hash256};
 
 const PURGE_DB_CONFIRMATION: &str = "confirm";
 

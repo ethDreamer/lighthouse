@@ -26,10 +26,9 @@ use state_processing::per_slot_processing;
 use std::sync::{Arc, LazyLock};
 use tempfile::tempdir;
 use tree_hash::TreeHash;
-use typenum::Unsigned;
 use types::{
-    Address, Attestation, AttestationRef, ChainSpec, Epoch, EthSpec, ForkName, Hash256,
-    MainnetEthSpec, SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot, SubnetId,
+    Address, Attestation, AttestationRef, ChainSpec, Epoch, Spec, ForkName, Hash256,
+    SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot, SubnetId,
     attestation::SignedAggregateAndProofRefMut, test_utils::generate_deterministic_keypair,
 };
 

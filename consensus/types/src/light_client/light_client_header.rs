@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 
 use context_deserialize::{ContextDeserialize, context_deserialize};
 use educe::Educe;
@@ -11,7 +10,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     block::{BeaconBlockBody, BeaconBlockHeader, SignedBlindedBeaconBlock},
-    core::{ChainSpec, EthSpec, Hash256},
+    core::{ChainSpec, Hash256},
     execution::{
         ExecutionPayloadHeader, ExecutionPayloadHeaderCapella, ExecutionPayloadHeaderDeneb,
         ExecutionPayloadHeaderElectra, ExecutionPayloadHeaderFulu,
@@ -365,31 +364,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientHeaderAltair, MainnetEthSpec};
+        use crate::{LightClientHeaderAltair};
         ssz_tests!(LightClientHeaderAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientHeaderCapella, MainnetEthSpec};
+        use crate::{LightClientHeaderCapella};
         ssz_tests!(LightClientHeaderCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientHeaderDeneb, MainnetEthSpec};
+        use crate::{LightClientHeaderDeneb};
         ssz_tests!(LightClientHeaderDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientHeaderElectra, MainnetEthSpec};
+        use crate::{LightClientHeaderElectra};
         ssz_tests!(LightClientHeaderElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientHeaderFulu, MainnetEthSpec};
+        use crate::{LightClientHeaderFulu};
         ssz_tests!(LightClientHeaderFulu);
     }
 }

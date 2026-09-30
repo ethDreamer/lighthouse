@@ -13,13 +13,12 @@ use state_processing::{
 };
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::marker::PhantomData;
 use std::time::Duration;
 use superstruct::superstruct;
 use tracing::{debug, instrument, warn};
 use types::{
     AbstractExecPayload, AttestationData, AttestationShufflingId, AttesterSlashingRef,
-    BeaconBlockRef, BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, EthSpec,
+    BeaconBlockRef, BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, Spec,
     ExecPayload, ExecutionBlockHash, Hash256, IndexedAttestationRef, IndexedPayloadAttestation,
     RelativeEpoch, SignedBeaconBlock, Slot,
 };
@@ -2106,7 +2105,6 @@ impl From<PersistedForkChoiceV29> for PersistedForkChoiceV28 {
 
 #[cfg(test)]
 mod tests {
-    use types::MainnetEthSpec;
 
     use super::*;
 

@@ -25,7 +25,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{debug, error, trace, warn};
 use types::{
-    BlobSidecar, DataColumnSidecar, EthSpec, ForkContext, PartialDataColumn, SignedBeaconBlock,
+    BlobSidecar, DataColumnSidecar, ForkContext, PartialDataColumn, SignedBeaconBlock,
     SignedExecutionPayloadEnvelope,
 };
 

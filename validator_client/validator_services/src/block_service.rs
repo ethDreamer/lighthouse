@@ -22,7 +22,7 @@ use tokio::sync::mpsc;
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use tree_hash::TreeHash;
 use types::{
-    BeaconBlock, BlobsList, BlockType, ChainSpec, EthSpec, ExecutionPayloadEnvelope, ForkName,
+    BeaconBlock, BlobsList, BlockType, ChainSpec, Spec, ExecutionPayloadEnvelope, ForkName,
     Graffiti, Hash256, KzgProofs, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use validator_store::{Error as ValidatorStoreError, SignedBlock, UnsignedBlock, ValidatorStore};
@@ -1189,7 +1189,7 @@ mod tests {
     use beacon_node_fallback::{CandidateBeaconNode, Config as BeaconNodeConfig};
     use slot_clock::ManualSlotClock;
     use std::time::Duration;
-    use types::{Blob, KzgProof, MainnetEthSpec};
+    use types::{Blob, KzgProof};
     use validator_test_rig::mock_beacon_node::MockBeaconNode;
     use validator_test_rig::recording_validator_store::RecordingValidatorStore;
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};

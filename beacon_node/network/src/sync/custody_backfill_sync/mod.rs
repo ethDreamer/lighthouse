@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashSet, btree_map::Entry},
-    marker::PhantomData,
     sync::Arc,
 };
 
@@ -14,7 +13,7 @@ use logging::crit;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, info_span, warn};
-use types::{DataColumnSidecarList, Epoch, EthSpec};
+use types::{DataColumnSidecarList, Epoch, Spec};
 
 use crate::metrics;
 use crate::sync::{

@@ -9,7 +9,7 @@ use slot_clock::SlotClock;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, EthSpec, Slot, SyncDuty, SyncSelectionProof, SyncSubnetId};
+use types::{ChainSpec, Spec, Slot, SyncDuty, SyncSelectionProof, SyncSubnetId};
 use validator_store::{DoppelgangerStatus, Error as ValidatorStoreError, ValidatorStore};
 
 /// Top-level data-structure containing sync duty information.

@@ -14,7 +14,6 @@ use std::sync::{Arc, LazyLock};
 use strum::AsRefStr;
 use strum::IntoEnumIterator;
 use types::DataColumnSubnetId;
-use types::EthSpec;
 
 #[derive(Debug, AsRefStr)]
 pub(crate) enum BlockSource {

@@ -11,7 +11,7 @@ use store::{Error, ItemStore, Split, StoreOp};
 pub use store::{HotColdDB, MemoryStore};
 use tracing::{debug, error, info, warn};
 use types::{
-    BeaconState, BeaconStateHash, Checkpoint, Epoch, EthSpec, Hash256, SignedBlindedBeaconBlock,
+    BeaconState, BeaconStateHash, Checkpoint, Epoch, Spec, Hash256, SignedBlindedBeaconBlock,
     Slot,
 };
 

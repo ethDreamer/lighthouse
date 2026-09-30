@@ -4,7 +4,7 @@ use beacon_chain::test_utils::{
 use beacon_chain::validator_monitor::{MISSED_BLOCK_LAG_SLOTS, ValidatorMonitorConfig};
 use bls::{Keypair, PublicKeyBytes};
 use std::sync::LazyLock;
-use types::{Epoch, EthSpec, Hash256, MainnetEthSpec, Slot};
+use types::{Epoch, Spec, Hash256, Slot};
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;

@@ -6,7 +6,7 @@ use superstruct::superstruct;
 
 use crate::core::{
     AltairPreset, BasePreset, BellatrixPreset, CapellaPreset, ChainSpec, Config, DenebPreset,
-    ElectraPreset, EthSpec, FuluPreset, GloasPreset, HezePreset, consts,
+    ElectraPreset, FuluPreset, GloasPreset, HezePreset, consts,
 };
 
 /// Fusion of a runtime-config with the compile-time preset values.
@@ -182,7 +182,7 @@ pub fn get_extra_fields(spec: &ChainSpec) -> HashMap<String, Value> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Epoch, GasLimitSchedule, GasLimitScheduleEntry, MainnetEthSpec};
+    use crate::{Epoch, GasLimitSchedule, GasLimitScheduleEntry};
     use std::fs::File;
     use tempfile::NamedTempFile;
 

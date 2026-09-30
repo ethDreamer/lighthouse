@@ -21,7 +21,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info};
-use types::EthSpec;
+use types::Spec;
 use validator_services::duties_service::DutiesService;
 
 #[derive(Debug, thiserror::Error)]

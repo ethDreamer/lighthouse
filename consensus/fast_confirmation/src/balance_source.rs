@@ -2,7 +2,7 @@
 
 use crate::Error;
 use safe_arith::SafeArith;
-use types::{BeaconState, Epoch, EthSpec, Hash256};
+use types::{BeaconState, Epoch, Spec, Hash256};
 
 /// Cache key identifying the validator-set view a `BalanceSourceData` was built from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

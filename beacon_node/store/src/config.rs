@@ -7,7 +7,6 @@ use std::io::{Read, Write};
 use std::num::NonZeroUsize;
 use strum::{Display, EnumString, VariantNames};
 use superstruct::superstruct;
-use types::EthSpec;
 use types::new_non_zero_usize;
 use zstd::{Decoder, Encoder};
 

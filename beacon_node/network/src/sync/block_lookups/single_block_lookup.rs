@@ -10,7 +10,6 @@ use crate::sync::network_context::{
 };
 use beacon_chain::BeaconChainTypes;
 use beacon_chain::block_verification_types::AsBlock;
-use educe::Educe;
 use lighthouse_network::service::api_types::{CustodyRequester, Id, SingleLookupReqId};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
@@ -20,7 +19,7 @@ use store::Hash256;
 use strum::IntoStaticStr;
 use tracing::{Span, debug_span};
 use types::{
-    DataColumnSidecarList, EthSpec, ExecutionBlockHash, SignedBeaconBlock,
+    DataColumnSidecarList, Spec, ExecutionBlockHash, SignedBeaconBlock,
     SignedExecutionPayloadEnvelope, Slot,
 };
 

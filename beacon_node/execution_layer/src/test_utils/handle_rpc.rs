@@ -1,3 +1,4 @@
+use types::Spec;
 use super::Context;
 use crate::engine_api::{http::*, *};
 use crate::json_structures::*;

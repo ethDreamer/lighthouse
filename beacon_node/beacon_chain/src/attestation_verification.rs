@@ -62,7 +62,7 @@ use tracing::{debug, error};
 use tree_hash::TreeHash;
 use types::{
     Attestation, AttestationData, AttestationRef, BeaconCommittee,
-    BeaconStateError::NoCommitteeFound, ChainSpec, CommitteeIndex, Epoch, EthSpec, ForkName,
+    BeaconStateError::NoCommitteeFound, ChainSpec, CommitteeIndex, Epoch, Spec, ForkName,
     Hash256, IndexedAttestation, SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot,
     SubnetId,
 };

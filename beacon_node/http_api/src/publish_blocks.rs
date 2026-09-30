@@ -21,7 +21,6 @@ use rand::prelude::SliceRandom;
 use reqwest::StatusCode;
 use sensitive_url::SensitiveUrl;
 use slot_clock::SlotClock;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -29,7 +28,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Span, debug, error, field, info, instrument, warn};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, BeaconBlockRef, BlobsList, BlockImportSource, DataColumnSubnetId, EthSpec,
+    AbstractExecPayload, BeaconBlockRef, BlobsList, BlockImportSource, DataColumnSubnetId, Spec,
     ExecPayload, ExecutionBlockHash, ForkName, FullPayload, FullPayloadBellatrix, Hash256,
     KzgProofs, PartialDataColumn, SignedBeaconBlock, SignedBlindedBeaconBlock,
 };

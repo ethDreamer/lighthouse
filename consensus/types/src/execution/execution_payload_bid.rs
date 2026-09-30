@@ -1,5 +1,5 @@
 use crate::kzg_ext::ProgressiveKzgCommitments;
-use crate::{Address, EthSpec, ExecutionBlockHash, ForkName, Hash256, SignedRoot, Slot};
+use crate::{Address, ExecutionBlockHash, ForkName, Hash256, SignedRoot, Slot};
 use context_deserialize::context_deserialize;
 use educe::Educe;
 use serde::{Deserialize, Serialize};
@@ -44,7 +44,6 @@ impl SignedRoot for ExecutionPayloadBid {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(ExecutionPayloadBid);
 }

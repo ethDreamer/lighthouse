@@ -12,7 +12,7 @@ use genesis::{InteropGenesisBuilder, bls_withdrawal_credentials};
 use http_api::test_utils::*;
 use std::collections::HashSet;
 use types::{
-    Address, ChainSpec, Epoch, EthSpec, Hash256, MinimalEthSpec, Slot,
+    Address, ChainSpec, Epoch, Spec, Hash256, Slot,
     test_utils::{generate_deterministic_keypair, generate_deterministic_keypairs},
 };
 

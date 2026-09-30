@@ -5,7 +5,6 @@ pub mod wallet;
 use clap::ArgMatches;
 use clap::Command;
 use environment::Environment;
-use types::EthSpec;
 
 pub const CMD: &str = "account_manager";
 pub const SECRETS_DIR_FLAG: &str = "secrets-dir";

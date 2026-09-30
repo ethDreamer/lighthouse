@@ -6,7 +6,6 @@ use eth2::lighthouse_vc::types as api_types;
 use lighthouse_validator_store::LighthouseValidatorStore;
 use slot_clock::SlotClock;
 use std::sync::Arc;
-use types::EthSpec;
 
 pub fn get<T: 'static + SlotClock + Clone>(
     validator_pubkey: PublicKey,

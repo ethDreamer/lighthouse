@@ -6,7 +6,7 @@ use itertools::Itertools;
 use lighthouse_network::PeerId;
 use lighthouse_network::service::api_types::DataColumnsByRangeRequestId;
 use std::sync::Arc;
-use types::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, EthSpec, Slot};
+use types::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Spec, Slot};
 
 pub struct RangeDataColumnBatchRequest<T: BeaconChainTypes> {
     requests: HashMap<
@@ -313,7 +313,7 @@ mod tests {
     use lighthouse_network::service::api_types::{
         CustodyBackFillBatchRequestId, CustodyBackfillBatchId, DataColumnsByRangeRequester,
     };
-    use types::{ForkName, MinimalEthSpec};
+    use types::{ForkName};
 
 
     #[tokio::test]

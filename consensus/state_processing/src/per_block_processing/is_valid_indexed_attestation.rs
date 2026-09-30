@@ -2,7 +2,6 @@ use super::errors::{BlockOperationError, IndexedAttestationInvalid as Invalid};
 use super::signature_sets::{get_pubkey_from_state, indexed_attestation_signature_set};
 use crate::VerifySignatures;
 use itertools::Itertools;
-use typenum::Unsigned;
 use types::*;
 
 type Result<T> = std::result::Result<T, BlockOperationError<Invalid>>;

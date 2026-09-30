@@ -13,10 +13,9 @@ use educe::Educe;
 use smallvec::{SmallVec, smallvec};
 use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
-use std::marker::PhantomData;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingOnDisk, AttesterSlashingRefOnDisk,
-    BeaconState, ChainSpec, Epoch, EthSpec, Fork, ForkVersion, ProposerSlashing,
+    BeaconState, ChainSpec, Epoch, Spec, Fork, ForkVersion, ProposerSlashing,
     SignedBlsToExecutionChange, SignedVoluntaryExit,
 };
 
@@ -418,7 +417,6 @@ impl TransformPersist for SignedBlsToExecutionChange {
 #[cfg(all(test, not(debug_assertions)))]
 mod test {
     use super::*;
-    use types::MainnetEthSpec;
 
 
     fn roundtrip_test<'a, T>()

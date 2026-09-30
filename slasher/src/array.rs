@@ -9,7 +9,7 @@ use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 use std::io::Read;
 use std::sync::Arc;
-use types::{AttesterSlashing, Epoch, EthSpec, IndexedAttestation};
+use types::{AttesterSlashing, Epoch, IndexedAttestation};
 
 pub const MAX_DISTANCE: u16 = u16::MAX;
 

@@ -1,7 +1,7 @@
+use types::Spec;
 use super::*;
 use alloy_primitives::U256;
 use serde::Deserialize;
-use std::marker::PhantomData;
 use types::data::get_custody_groups;
 
 #[derive(Debug, Clone, Deserialize)]

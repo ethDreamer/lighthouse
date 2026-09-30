@@ -8,7 +8,7 @@ use crate::per_epoch_processing::{
 pub use justification_and_finalization::process_justification_and_finalization;
 pub use participation_record_updates::process_participation_record_updates;
 pub use rewards_and_penalties::process_rewards_and_penalties;
-use types::{BeaconState, ChainSpec, EthSpec, RelativeEpoch};
+use types::{BeaconState, ChainSpec, RelativeEpoch};
 pub use validator_statuses::{TotalBalances, ValidatorStatus, ValidatorStatuses};
 
 pub mod justification_and_finalization;

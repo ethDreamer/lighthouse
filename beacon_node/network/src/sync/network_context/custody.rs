@@ -8,10 +8,10 @@ use parking_lot::RwLock;
 use std::collections::HashSet;
 use std::hash::{BuildHasher, RandomState};
 use std::time::{Duration, Instant};
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tracing::{Span, debug, debug_span, warn};
 use types::{DataColumnSidecar, Hash256, Slot, data::ColumnIndex};
-use types::{DataColumnSidecarList, EthSpec};
+use types::{DataColumnSidecarList};
 
 use super::{
     ActiveRequestsPerPeer, LookupRequestResult, PeerGroup, RpcResponseResult, SyncNetworkContext,

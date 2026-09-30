@@ -4,7 +4,7 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
-use types::{ChainSpec, EthSpec};
+use types::{ChainSpec, Spec};
 use validator_metrics::set_gauge;
 use validator_store::ValidatorStore;
 

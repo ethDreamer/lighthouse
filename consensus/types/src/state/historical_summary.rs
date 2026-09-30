@@ -6,7 +6,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{EthSpec, Hash256},
+    core::{Hash256},
     fork::ForkName,
     state::BeaconState,
 };

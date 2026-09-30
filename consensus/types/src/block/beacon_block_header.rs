@@ -7,7 +7,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     block::SignedBeaconBlockHeader,
-    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot},
+    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot},
     fork::{Fork, ForkName},
 };
 

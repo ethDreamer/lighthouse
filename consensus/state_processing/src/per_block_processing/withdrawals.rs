@@ -8,7 +8,7 @@ use milhouse::ProgressiveList;
 use safe_arith::{SafeArith, SafeArithIter};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, EthSpec, ExecPayload,
+    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, Spec, ExecPayload,
     ExpectedWithdrawals, ExpectedWithdrawalsCapella, ExpectedWithdrawalsElectra,
     ExpectedWithdrawalsGloas, Validator, Withdrawal, Withdrawals,
 };

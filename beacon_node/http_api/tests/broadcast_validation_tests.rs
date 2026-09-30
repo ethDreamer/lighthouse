@@ -11,7 +11,7 @@ use http_api::{Config, ProvenancedBlock, publish_blinded_block, publish_block, r
 use reqwest::{Response, StatusCode};
 use std::collections::HashSet;
 use std::sync::Arc;
-use types::{ColumnIndex, Epoch, EthSpec, ForkName, Hash256, MainnetEthSpec, Slot};
+use types::{ColumnIndex, Epoch, Spec, ForkName, Hash256, Slot};
 use warp::Rejection;
 use warp_utils::reject::CustomBadRequest;
 

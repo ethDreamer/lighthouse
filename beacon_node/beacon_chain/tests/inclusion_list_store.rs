@@ -8,7 +8,7 @@ use beacon_chain::{BeaconChainError, WhenSlotSkipped};
 use bls::Signature;
 use ssz_types::ProgressiveVariableList;
 use types::{
-    EthSpec, Hash256, InclusionList, MinimalEthSpec, RelativeEpoch, SignedInclusionList, Slot,
+    Spec, Hash256, InclusionList, RelativeEpoch, SignedInclusionList, Slot,
 };
 
 

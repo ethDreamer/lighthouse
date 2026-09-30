@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use store::hot_cold_store::HotColdDB;
 use store::{DBColumn, Error as StoreError, KeyValueStore, KeyValueStoreOp};
 use tracing::warn;
-use types::EthSpec;
+use types::Spec;
 
 /// Upgrade from schema v28 to v29.
 ///

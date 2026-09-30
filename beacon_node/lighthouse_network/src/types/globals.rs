@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::{debug, error};
 use types::data::{compute_subnets_from_custody_group, get_custody_groups};
-use types::{ChainSpec, ColumnIndex, DataColumnSubnetId, EthSpec, Slot};
+use types::{ChainSpec, ColumnIndex, DataColumnSubnetId, Slot};
 
 pub struct NetworkGlobals {
     /// The current local ENR.
@@ -274,7 +274,7 @@ impl NetworkGlobals {
 mod test {
     use super::*;
     use logging::create_test_tracing_subscriber;
-    use types::{Epoch, EthSpec, MainnetEthSpec as E};
+    use types::{Epoch, Spec, MainnetEthSpec as E};
 
     #[test]
     fn test_sampling_subnets() {

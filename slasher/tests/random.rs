@@ -11,7 +11,7 @@ use slasher::{
 use std::cmp::max;
 use std::sync::Arc;
 use tempfile::{TempDir, tempdir};
-use types::{Epoch, EthSpec};
+use types::{Epoch, Spec};
 
 #[derive(Debug)]
 struct TestConfig {

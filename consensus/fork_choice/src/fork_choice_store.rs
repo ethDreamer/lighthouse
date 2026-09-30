@@ -1,7 +1,7 @@
 use proto_array::JustifiedBalances;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
-use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, Checkpoint, EthSpec, Hash256, Slot};
+use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, Checkpoint, Hash256, Slot};
 
 /// Approximates the `Store` in "Ethereum 2.0 Phase 0 -- Beacon Chain Fork Choice":
 ///

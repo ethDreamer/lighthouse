@@ -1,5 +1,5 @@
 use crate::task_spawner::TaskSpawner;
-use beacon_chain::{BeaconChain, BeaconChainTypes};
+use beacon_chain::{BeaconChain};
 use eth2::types::EndpointVersion;
 use lighthouse_network::PubsubMessage;
 use lighthouse_network::rpc::methods::MetaData;
@@ -7,7 +7,7 @@ use network::{NetworkMessage, ValidatorSubscriptionMessage};
 use parking_lot::RwLock;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
-use types::{ChainSpec, EthSpec, ForkName};
+use types::{ChainSpec, ForkName};
 use warp::Rejection;
 use warp::filters::BoxedFilter;
 

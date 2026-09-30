@@ -2,9 +2,8 @@ use libp2p::gossipsub::{IdentTopic as Topic, TopicHash};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use strum::AsRefStr;
-use typenum::Unsigned;
 use types::{
-    ChainSpec, EthSpec,
+    ChainSpec, Spec,
     attestation::SubnetId,
     data::{DataColumnSubnetId, all_data_column_sidecar_subnets_from_spec},
     fork::ForkName,

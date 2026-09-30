@@ -5,7 +5,7 @@ use slasher::{
     test_utils::{E, block as test_block, chain_spec},
 };
 use tempfile::tempdir;
-use types::{Epoch, EthSpec};
+use types::{Epoch, Spec};
 
 #[test]
 fn empty_pruning() {

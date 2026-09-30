@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
-use types::{BlockImportSource, EthSpec, ForkName, KzgProofs, SignedExecutionPayloadEnvelope};
+use types::{BlockImportSource, Spec, ForkName, KzgProofs, SignedExecutionPayloadEnvelope};
 use warp::{
     Filter, Rejection,
     http::response::Builder,

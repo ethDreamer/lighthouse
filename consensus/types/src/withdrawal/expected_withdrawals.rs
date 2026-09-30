@@ -1,4 +1,4 @@
-use crate::{EthSpec, Withdrawals};
+use crate::{Withdrawals};
 use superstruct::superstruct;
 
 #[superstruct(

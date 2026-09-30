@@ -11,7 +11,7 @@ use proto_array::ExecutionStatus;
 use std::sync::Arc;
 use types::execution::{ExecutionProof, ProofData, PublicInput, SignedExecutionProof};
 use types::{
-    Address, BlockImportSource, Epoch, ExecPayload, ForkName, Hash256, MinimalEthSpec, Slot,
+    Address, BlockImportSource, Epoch, ExecPayload, ForkName, Hash256, Slot,
     WithdrawalRequest,
 };
 

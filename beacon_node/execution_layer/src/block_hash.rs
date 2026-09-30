@@ -6,7 +6,7 @@ use alloy_rlp::Encodable;
 use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use triehash::ordered_trie_root;
 use types::{
-    EncodableExecutionBlockHeader, EthSpec, ExecutionBlockHash, ExecutionBlockHeader,
+    EncodableExecutionBlockHeader, ExecutionBlockHash, ExecutionBlockHeader,
     ExecutionPayloadRef, ExecutionRequestsRef, Hash256,
 };
 

@@ -10,7 +10,6 @@ use signature_sets::{
 };
 use std::borrow::Cow;
 use tree_hash::TreeHash;
-use typenum::Unsigned;
 use types::{
     consts::gloas::{BUILDER_INDEX_SELF_BUILD, PAYLOAD_BUILDER_VERSION},
     *,

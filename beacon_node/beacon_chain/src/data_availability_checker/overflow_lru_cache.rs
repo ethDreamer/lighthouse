@@ -17,7 +17,7 @@ use types::data::BlobIdentifier;
 use types::kzg_ext::KzgCommitments;
 use types::{
     BlobSidecar, BlockImportSource, ChainSpec, ColumnIndex, DataColumnSidecar,
-    DataColumnSidecarList, Epoch, EthSpec, Hash256, SignedBeaconBlock,
+    DataColumnSidecarList, Epoch, Spec, Hash256, SignedBeaconBlock,
 };
 
 pub enum CachedBlock {
@@ -763,7 +763,7 @@ mod test {
     use store::{HotColdDB, ItemStore, StoreConfig, database::interface::BeaconNodeBackend};
     use tempfile::{TempDir, tempdir};
     use tracing::info;
-    use types::{DataColumnSubnetId, MinimalEthSpec};
+    use types::{DataColumnSubnetId};
 
     const LOW_VALIDATOR_COUNT: usize = 32;
 
@@ -1081,7 +1081,7 @@ mod pending_components_tests {
     use fork_choice::PayloadVerificationStatus;
     use kzg::KzgCommitment;
     use state_processing::ConsensusContext;
-    use types::{BeaconState, ForkName, MainnetEthSpec, SignedBeaconBlock, Slot};
+    use types::{BeaconState, ForkName, SignedBeaconBlock, Slot};
 
 
     type Setup = (

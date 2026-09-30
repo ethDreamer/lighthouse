@@ -7,7 +7,6 @@ use ssz::Encode;
 use ssz_derive::{Decode, Encode};
 use ssz_types::{RuntimeVariableList, VariableList, typenum::U256};
 use std::fmt::Display;
-use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 use strum::IntoStaticStr;
@@ -16,7 +15,7 @@ use types::data::BlobIdentifier;
 use types::light_client::consts::MAX_REQUEST_LIGHT_CLIENT_UPDATES;
 use types::{
     BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnsByRootIdentifier, Epoch,
-    EthSpec, ForkContext, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
+    Spec, ForkContext, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, LightClientUpdate, SignedBeaconBlock,
     SignedExecutionPayloadEnvelope, Slot,
 };

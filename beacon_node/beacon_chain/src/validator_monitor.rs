@@ -17,7 +17,6 @@ use state_processing::per_epoch_processing::{
 };
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,7 +27,7 @@ use types::consts::altair::{
 };
 use types::{
     Attestation, AttestationData, AttesterSlashingRef, BeaconBlockRef, BeaconState,
-    BeaconStateError, ChainSpec, Epoch, EthSpec, Hash256, IndexedAttestation,
+    BeaconStateError, ChainSpec, Epoch, Spec, Hash256, IndexedAttestation,
     IndexedAttestationRef, ProposerSlashing, SignedAggregateAndProof, SignedContributionAndProof,
     Slot, SyncCommitteeMessage, VoluntaryExit,
 };
@@ -2168,7 +2167,7 @@ mod tests {
     use super::*;
     use execution_layer::test_utils::generate_genesis_header;
     use genesis::InteropGenesisBuilder;
-    use types::{ForkName, MinimalEthSpec, test_utils::generate_deterministic_keypairs};
+    use types::{ForkName, test_utils::generate_deterministic_keypairs};
 
     #[test]
     fn registry_indices_across_growth_and_shorter_forks() {

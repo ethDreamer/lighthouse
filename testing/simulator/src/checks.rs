@@ -1,8 +1,7 @@
 use crate::local_network::LocalNetwork;
 use node_test_rig::eth2::types::{BlockId, FinalityCheckpointsData, StateId};
 use std::time::Duration;
-use typenum::Unsigned;
-use types::{Epoch, EthSpec, ExecPayload, ExecutionBlockHash, Slot};
+use types::{Epoch, Spec, ExecPayload, ExecutionBlockHash, Slot};
 
 /// Checks that all of the validators have on-boarded by the start of the second eth1 voting
 /// period.

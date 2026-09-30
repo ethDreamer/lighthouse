@@ -1,7 +1,6 @@
 use std::mem;
 use types::{
-    BeaconState, BeaconStateBellatrix, BeaconStateError as Error, ChainSpec, EpochCache, EthSpec,
-    ExecutionPayloadHeaderBellatrix, Fork,
+    BeaconState, BeaconStateBellatrix, BeaconStateError as Error, ChainSpec, EpochCache, ExecutionPayloadHeaderBellatrix, Fork,
 };
 
 /// Transform a `Altair` state into an `Bellatrix` state.

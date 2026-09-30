@@ -12,13 +12,12 @@ use proto_array::JustifiedBalances;
 use safe_arith::ArithError;
 use ssz_derive::{Decode, Encode};
 use std::collections::BTreeSet;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use store::{Error as StoreError, HotColdDB, ItemStore};
 use superstruct::superstruct;
 use tracing::debug;
 use types::{
-    AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Checkpoint, Epoch, EthSpec,
+    AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Checkpoint, Epoch, Spec,
     Hash256, Slot,
 };
 
@@ -405,7 +404,7 @@ pub struct PersistedForkChoiceStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{MinimalEthSpec, Validator};
+    use types::{Validator};
 
 
     #[test]

@@ -32,7 +32,7 @@ use task_executor::TaskExecutor;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio_util::time::delay_queue::{DelayQueue, Key as DelayKey};
 use tracing::{debug, error, trace, warn};
-use types::{EthSpec, Hash256, Slot};
+use types::{Hash256, Slot};
 
 const TASK_NAME: &str = "beacon_processor_reprocess_queue";
 const GOSSIP_BLOCKS: &str = "gossip_blocks";

@@ -2,7 +2,7 @@ use bls::PublicKey;
 use lighthouse_validator_store::LighthouseValidatorStore;
 use slot_clock::SlotClock;
 use std::sync::Arc;
-use types::{EthSpec, Graffiti, graffiti::GraffitiString};
+use types::{Graffiti, graffiti::GraffitiString};
 
 pub fn get_graffiti<T: 'static + SlotClock + Clone>(
     validator_pubkey: PublicKey,

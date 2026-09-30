@@ -23,8 +23,8 @@ use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use types::execution::BlockProductionVersion;
 use types::{
-    Address, ChainSpec, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader,
-    ForkName, Hash256, MainnetEthSpec, Slot, Uint256,
+    Address, ChainSpec, Spec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader,
+    ForkName, Hash256, Slot, Uint256,
 };
 
 const EXECUTION_ENGINE_START_TIMEOUT: Duration = Duration::from_secs(60);

@@ -6,7 +6,7 @@ use eth2::{BeaconNodeHttpClient, SensitiveUrl, Timeouts};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
-use types::{ChainSpec, EthSpec};
+use types::{ChainSpec, Spec};
 
 use crate::exit_validators::get_current_epoch;
 use crate::{DumpConfig, common::vc_http_client};
@@ -225,7 +225,6 @@ mod test {
     use crate::{
         common::ValidatorSpecification, import_validators::tests::TestBuilder as ImportTestBuilder,
     };
-    use types::MainnetEthSpec;
     use validator_http_api::{Config as HttpConfig, test_utils::ApiTester};
 
     struct TestBuilder {

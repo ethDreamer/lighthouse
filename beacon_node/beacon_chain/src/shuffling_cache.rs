@@ -8,7 +8,7 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
 use tracing::debug;
 use types::{
-    AttestationShufflingId, BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec, Hash256, PTC,
+    AttestationShufflingId, BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, Hash256, PTC,
     RelativeEpoch, Slot, state::CommitteeCache,
 };
 

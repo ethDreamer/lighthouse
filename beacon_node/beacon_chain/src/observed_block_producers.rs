@@ -3,9 +3,7 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
-use typenum::Unsigned;
-use types::{BeaconBlockRef, Epoch, EthSpec, Hash256, Slot};
+use types::{BeaconBlockRef, Epoch, Spec, Hash256, Slot};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -204,7 +202,7 @@ impl ObservedBlockProducers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{BeaconBlock, MainnetEthSpec};
+    use types::{BeaconBlock};
 
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock {

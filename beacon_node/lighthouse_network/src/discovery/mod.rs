@@ -45,7 +45,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace, warn};
-use types::{ChainSpec, EnrForkId, EthSpec};
+use types::{ChainSpec, EnrForkId};
 
 mod subnet_predicate;
 use crate::discovery::enr::{NEXT_FORK_DIGEST_ENR_KEY, PEERDAS_CUSTODY_GROUP_COUNT_ENR_KEY};
@@ -1247,7 +1247,7 @@ mod tests {
     use crate::rpc::methods::{MetaData, MetaDataV3};
     use libp2p::identity::secp256k1;
     use ssz_types::BitVector;
-    use types::{MinimalEthSpec, SubnetId};
+    use types::{SubnetId};
 
 
     async fn build_discovery() -> Discovery {

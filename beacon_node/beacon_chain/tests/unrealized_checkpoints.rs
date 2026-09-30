@@ -15,8 +15,7 @@ use beacon_chain::{
 use state_processing::per_epoch_processing::{self, base::ValidatorStatuses};
 use std::sync::Arc;
 use types::{
-    BeaconState, ChainSpec, Checkpoint, Epoch, EthSpec, MinimalEthSpec,
-    consts::altair::TIMELY_TARGET_FLAG_INDEX,
+    BeaconState, ChainSpec, Checkpoint, Epoch, Spec, consts::altair::TIMELY_TARGET_FLAG_INDEX,
 };
 
 

@@ -10,7 +10,7 @@ use eth2::types::{
 };
 use ssz::Encode;
 use std::sync::Arc;
-use types::{EthSpec, ForkName, Hash256, LightClientBootstrap};
+use types::{Spec, ForkName, Hash256, LightClientBootstrap};
 use warp::{
     Rejection,
     http::response::Builder,

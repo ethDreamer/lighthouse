@@ -6,7 +6,7 @@ use milhouse::List;
 use std::mem;
 use std::sync::Arc;
 use types::{
-    BeaconState, BeaconStateAltair, BeaconStateError as Error, ChainSpec, EpochCache, EthSpec,
+    BeaconState, BeaconStateAltair, BeaconStateError as Error, ChainSpec, EpochCache, Spec,
     Fork, ParticipationFlags, PendingAttestation, RelativeEpoch, SyncCommittee,
 };
 

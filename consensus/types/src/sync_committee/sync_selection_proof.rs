@@ -5,11 +5,10 @@ use ethereum_hashing::hash;
 use safe_arith::{ArithError, SafeArith};
 use serde::{Deserialize, Serialize};
 use ssz::Encode;
-use typenum::Unsigned;
 
 use crate::{
     core::{
-        ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot,
+        ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot,
         consts::altair::{SYNC_COMMITTEE_SUBNET_COUNT, TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE},
     },
     fork::Fork,
@@ -112,7 +111,6 @@ impl From<Signature> for SyncSelectionProof {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::MainnetEthSpec;
     use eth2_interop_keypairs::keypair;
     use fixed_bytes::FixedBytesExtended;
 

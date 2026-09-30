@@ -8,7 +8,7 @@ use crate::beacon_chain::{BeaconChainTypes, FORK_CHOICE_DB_KEY};
 use crate::persisted_fork_choice::PersistedForkChoice;
 use store::invariants::{InvariantCheckResult, InvariantContext};
 use store::{DBColumn, KeyValueStore};
-use types::EthSpec;
+use types::Spec;
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
     /// Run all database invariant checks.

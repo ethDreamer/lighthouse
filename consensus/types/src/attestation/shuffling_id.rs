@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 
 use crate::{
-    core::{Epoch, EthSpec, Hash256, RelativeEpoch},
+    core::{Epoch, Hash256, RelativeEpoch},
     state::{BeaconState, BeaconStateError},
 };
 

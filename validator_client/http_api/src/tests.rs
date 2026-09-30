@@ -3,6 +3,7 @@
 
 mod keystores;
 
+use types::Spec;
 use doppelganger_service::DoppelgangerService;
 use initialized_validators::{Config as InitializedValidatorsConfig, InitializedValidators};
 

@@ -17,7 +17,7 @@ use std::{
 };
 use tokio_util::time::DelayQueue;
 use tracing::debug;
-use types::{EthSpec, ForkContext};
+use types::{ForkContext};
 
 /// A request that was rate limited or waiting on rate limited requests for the same peer and
 /// protocol.
@@ -337,7 +337,7 @@ mod tests {
     use logging::create_test_tracing_subscriber;
     use std::num::NonZeroU64;
     use std::time::Duration;
-    use types::{EthSpec, ForkContext, Hash256, MainnetEthSpec, Slot};
+    use types::{Spec, ForkContext, Hash256, Slot};
 
     /// Test that `next_peer_request_ready` correctly maintains the queue.
     #[tokio::test]

@@ -17,12 +17,11 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, LazyLock};
 use tokio::{runtime, sync::oneshot};
 use tracing::info;
-use types::{EthSpec, ExecutionBlockHash, Uint256};
+use types::{ExecutionBlockHash, Uint256};
 use warp::{Filter, Rejection, http::StatusCode};
 
 use crate::EngineCapabilities;

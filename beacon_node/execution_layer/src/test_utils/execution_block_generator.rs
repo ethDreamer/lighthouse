@@ -1,3 +1,4 @@
+use typenum::U;
 use crate::engines::ForkchoiceState;
 use crate::{
     calculate_execution_block_hash,
@@ -28,7 +29,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 use types::data::Cell;
 use types::{
-    Blob, ChainSpec, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadBellatrix,
+    Blob, ChainSpec, Spec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadBellatrix,
     ExecutionPayloadCapella, ExecutionPayloadDeneb, ExecutionPayloadElectra, ExecutionPayloadFulu,
     ExecutionPayloadGloas, ExecutionPayloadHeader, ExecutionPayloadHeze, ExecutionRequests,
     ExecutionRequestsRef, ForkName, Hash256, KzgProofs, ProgressiveTransactions, Transaction,
@@ -1196,7 +1197,6 @@ pub fn generate_pow_block(
 mod test {
     use super::*;
     use kzg::{CellRef, KzgBlobRef, trusted_setup::get_trusted_setup};
-    use types::{MainnetEthSpec, MinimalEthSpec};
 
     #[test]
     fn valid_test_blobs_bundle_v1() {

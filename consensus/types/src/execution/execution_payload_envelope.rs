@@ -1,7 +1,6 @@
 use crate::execution::{ExecutionPayloadGloas, ExecutionRequestsGloas};
-use crate::{EthSpec, ForkName, Hash256, SignedRoot, Slot};
+use crate::{Spec, ForkName, Hash256, SignedRoot, Slot};
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Serialize};
 use ssz::{BYTES_PER_LENGTH_OFFSET, Encode as SszEncode};
@@ -74,7 +73,6 @@ impl SignedRoot for ExecutionPayloadEnvelope {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(ExecutionPayloadEnvelope);
 }

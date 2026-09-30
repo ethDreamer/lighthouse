@@ -17,7 +17,7 @@ use store::{HotColdDB, MemoryStore};
 use task_executor::test_utils::TestRuntime;
 use tracing_subscriber::EnvFilter;
 use types::{
-    CommitteeIndex, Epoch, EthSpec, Hash256, MainnetEthSpec, Slot, SubnetId,
+    CommitteeIndex, Epoch, Spec, Hash256, Slot, SubnetId,
     SyncCommitteeSubscription, SyncSubnetId, ValidatorSubscription,
 };
 

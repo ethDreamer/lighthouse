@@ -27,8 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use types::{
-    Address, BeaconBlockRef, EthSpec, ExecutionBlockHash, ForkName, Hash256, MinimalEthSpec,
-    ProposerPreparationData, Slot,
+    Address, BeaconBlockRef, Spec, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData, Slot,
 };
 
 

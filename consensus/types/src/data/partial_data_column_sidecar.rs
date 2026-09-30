@@ -1,12 +1,12 @@
+use typenum::U;
 use crate::{
     block::{BLOB_KZG_COMMITMENTS_INDEX, SignedBeaconBlock, SignedBeaconBlockHeader},
-    core::{EthSpec, Hash256, ListRef, Slot},
+    core::{Spec, Hash256, ListRef, Slot},
     data::{Cell, ColumnIndex, DataColumnSidecar, DataColumnSidecarFulu},
     execution::AbstractExecPayload,
     kzg_ext::KzgCommitments,
     state::BeaconStateError,
 };
-use educe::Educe;
 use kzg::KzgProof;
 use merkle_proof::verify_merkle_proof;
 use ssz::BitList;
@@ -423,7 +423,6 @@ impl<'a> PartialDataColumnRef<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MinimalEthSpec;
     use bls::Signature;
     use fixed_bytes::FixedBytesExtended;
     use kzg::KzgCommitment;

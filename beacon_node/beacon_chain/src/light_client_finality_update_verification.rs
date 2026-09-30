@@ -1,5 +1,4 @@
 use crate::{BeaconChain, BeaconChainTypes};
-use educe::Educe;
 use slot_clock::SlotClock;
 use std::time::Duration;
 use strum::AsRefStr;

@@ -3,7 +3,7 @@ use crate::per_epoch_processing::single_pass::{SinglePassConfig, process_epoch_s
 use safe_arith::SafeArith;
 use types::core::ChainSpec;
 use types::state::BeaconState;
-use types::{BeaconStateError, EthSpec};
+use types::{BeaconStateError};
 
 /// This implementation is now only used in phase0. Later hard forks use single-pass.
 pub fn process_effective_balance_updates(

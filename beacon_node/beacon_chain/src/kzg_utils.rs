@@ -14,7 +14,7 @@ use types::data::{
 use types::kzg_ext::KzgCommitments;
 use types::{
     Blob, BlobSidecar, BlobSidecarList, ChainSpec, DataColumnSidecar, DataColumnSidecarFulu,
-    DataColumnSidecarGloas, DataColumnSidecarList, EthSpec, Hash256, KzgCommitment, KzgProof,
+    DataColumnSidecarGloas, DataColumnSidecarList, Spec, Hash256, KzgCommitment, KzgProof,
     SignedBeaconBlock, SignedBeaconBlockHeader, SignedBlindedBeaconBlock, Slot,
 };
 
@@ -956,8 +956,8 @@ mod test {
     use execution_layer::test_utils::generate_blobs;
     use kzg::{Kzg, KzgCommitment, trusted_setup::get_trusted_setup};
     use types::{
-        BeaconBlock, BeaconBlockFulu, BlobsList, ChainSpec, EmptyBlock, EthSpec, ForkName,
-        FullPayload, Hash256, KzgProofs, MainnetEthSpec, SignedBeaconBlock, Slot,
+        BeaconBlock, BeaconBlockFulu, BlobsList, ChainSpec, EmptyBlock, Spec, ForkName,
+        FullPayload, Hash256, KzgProofs, SignedBeaconBlock, Slot,
         kzg_ext::KzgCommitments,
     };
 

@@ -13,7 +13,7 @@ use lighthouse_network::{Enr, GossipTopic};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use types::{Epoch, EthSpec, MinimalEthSpec, SubnetId};
+use types::{Epoch, Spec, SubnetId};
 
 impl<T: BeaconChainTypes> NetworkService<T> {
     fn get_topic_params(&self, topic: GossipTopic) -> Option<&gossipsub::TopicScoreParams> {

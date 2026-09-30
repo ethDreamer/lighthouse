@@ -9,7 +9,7 @@ use beacon_chain::{
 use execution_layer::{PayloadStatusV1, PayloadStatusV1Status};
 use http_api::test_utils::InteractiveTester;
 use reqwest::StatusCode;
-use types::{EthSpec, ExecPayload, MinimalEthSpec, Slot, Uint256};
+use types::{Spec, ExecPayload, Slot, Uint256};
 
 
 /// Create a new test environment that is post-merge with `chain_depth` blocks.

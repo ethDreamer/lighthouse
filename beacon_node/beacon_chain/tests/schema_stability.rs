@@ -17,7 +17,7 @@ use store::{
 };
 use strum::IntoEnumIterator;
 use tempfile::{TempDir, tempdir};
-use types::{ChainSpec, Hash256, MainnetEthSpec, Slot};
+use types::{ChainSpec, Hash256, Slot};
 
 type Store = Arc<HotColdDB<BeaconNodeBackend, BeaconNodeBackend>>;
 type TestHarness = BeaconChainHarness<DiskHarnessType>;

@@ -3,7 +3,6 @@ use crate::case_result::compare_result;
 use beacon_chain::kzg_utils::compute_kzg_proof;
 use kzg::KzgProof;
 use serde::Deserialize;
-use std::marker::PhantomData;
 use std::str::FromStr;
 use types::Hash256;
 

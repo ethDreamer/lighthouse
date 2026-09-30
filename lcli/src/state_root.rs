@@ -7,7 +7,7 @@ use eth2_network_config::Eth2NetworkConfig;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use tracing::info;
-use types::{BeaconState, EthSpec};
+use types::{BeaconState, Spec};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 

@@ -7,7 +7,7 @@ use hashlink::lru_cache::LruCache;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroUsize;
 use tracing::instrument;
-use types::{BeaconState, ChainSpec, Epoch, EthSpec, Hash256, Slot};
+use types::{BeaconState, ChainSpec, Epoch, Spec, Hash256, Slot};
 
 /// Fraction of the LRU cache to leave intact during culling.
 const CULL_EXEMPT_NUMERATOR: usize = 1;

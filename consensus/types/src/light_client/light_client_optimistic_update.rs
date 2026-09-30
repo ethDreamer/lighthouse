@@ -9,7 +9,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, EthSpec, Slot},
+    core::{ChainSpec, Slot},
     fork::ForkName,
     light_client::{
         LightClientError, LightClientHeader, LightClientHeaderAltair, LightClientHeaderCapella,
@@ -257,31 +257,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientOptimisticUpdateAltair, MainnetEthSpec};
+        use crate::{LightClientOptimisticUpdateAltair};
         ssz_tests!(LightClientOptimisticUpdateAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientOptimisticUpdateCapella, MainnetEthSpec};
+        use crate::{LightClientOptimisticUpdateCapella};
         ssz_tests!(LightClientOptimisticUpdateCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientOptimisticUpdateDeneb, MainnetEthSpec};
+        use crate::{LightClientOptimisticUpdateDeneb};
         ssz_tests!(LightClientOptimisticUpdateDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientOptimisticUpdateElectra, MainnetEthSpec};
+        use crate::{LightClientOptimisticUpdateElectra};
         ssz_tests!(LightClientOptimisticUpdateElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientOptimisticUpdateFulu, MainnetEthSpec};
+        use crate::{LightClientOptimisticUpdateFulu};
         ssz_tests!(LightClientOptimisticUpdateFulu);
     }
 }

@@ -1,3 +1,4 @@
+use typenum::U;
 use std::{
     hash::{Hash, Hasher},
     slice::Iter,
@@ -13,7 +14,7 @@ use ssz_types::{ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
 
-use crate::{attestation::AttestationData, core::EthSpec, fork::ForkName};
+use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
 
 /// Details an attestation that can be slashable.
 ///
@@ -250,7 +251,7 @@ impl Hash for IndexedAttestation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Epoch, MainnetEthSpec};
+    use crate::core::{Epoch};
     use arbitrary::Arbitrary;
 
     #[test]

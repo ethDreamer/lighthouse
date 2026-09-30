@@ -19,8 +19,7 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
 use std::sync::Arc;
 use tracing::{debug, instrument};
-use typenum::Unsigned;
-use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec, Fork, Hash256, Slot};
+use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, Fork, Hash256, Slot};
 
 /// The number of sets of proposer indices that should be cached.
 const CACHE_SIZE: usize = 16;

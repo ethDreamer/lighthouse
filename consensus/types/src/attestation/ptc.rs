@@ -1,4 +1,4 @@
-use crate::EthSpec;
+use crate::Spec;
 use ssz_types::FixedVector;
 
 #[derive(Clone, Debug, PartialEq)]

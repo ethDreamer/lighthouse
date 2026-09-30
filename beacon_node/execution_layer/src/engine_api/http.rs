@@ -198,7 +198,7 @@ pub mod deposit_log {
     #[cfg(test)]
     pub mod tests {
         use super::*;
-        use types::{EthSpec, MainnetEthSpec};
+        use types::{Spec};
 
         /// The data from a deposit event, using the v0.8.3 version of the deposit contract.
         pub const EXAMPLE_LOG: &[u8] = &[
@@ -1658,6 +1658,7 @@ impl HttpJsonRpc {
 
 #[cfg(test)]
 mod test {
+    use types::Spec;
     use super::auth::JwtKey;
     use super::*;
     use crate::test_utils::{DEFAULT_JWT_SECRET, MockServer};
@@ -1666,8 +1667,6 @@ mod test {
     use std::future::Future;
     use std::str::FromStr;
     use std::sync::Arc;
-    use typenum::Unsigned;
-    use types::MainnetEthSpec;
 
     struct Tester {
         server: MockServer,

@@ -5,7 +5,6 @@ use safe_arith::ArithError;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    core::EthSpec,
     sync_committee::{SyncCommittee, SyncSubnetId},
 };
 

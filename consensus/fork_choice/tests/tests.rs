@@ -22,8 +22,8 @@ use std::time::Duration;
 use store::MemoryStore;
 use types::SingleAttestation;
 use types::{
-    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Epoch, EthSpec, ForkName, Hash256,
-    IndexedAttestation, IndexedPayloadAttestation, MainnetEthSpec, PayloadAttestationData,
+    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Epoch, Spec, ForkName, Hash256,
+    IndexedAttestation, IndexedPayloadAttestation, PayloadAttestationData,
     RelativeEpoch, SignedBeaconBlock, Slot, SubnetId, test_utils::generate_deterministic_keypair,
 };
 

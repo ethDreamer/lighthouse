@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use parking_lot::RwLock;
 
 use crate::{
-    core::{ChainSpec, Epoch, EthSpec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
     fork::ForkName,
 };
 
@@ -157,7 +157,7 @@ impl ForkContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{BlobParameters, BlobSchedule, MainnetEthSpec};
+    use crate::core::{BlobParameters, BlobSchedule};
 
 
     fn make_chain_spec() -> ChainSpec {

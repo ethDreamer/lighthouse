@@ -1,7 +1,7 @@
 use crate::OpPoolError;
 use bitvec::vec::BitVec;
 use fixed_bytes::FixedBytesExtended;
-use types::{BeaconState, BeaconStateError, Epoch, EthSpec, Hash256, ParticipationFlags};
+use types::{BeaconState, BeaconStateError, Epoch, Hash256, ParticipationFlags};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Initialization {

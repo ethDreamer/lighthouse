@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::process;
 use std::str::FromStr;
 use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use types::{EthSpec, EthSpecId};
+use types::{SpecId};
 
 fn main() {
     let matches = Command::new("Lighthouse CLI Tool")

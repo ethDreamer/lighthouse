@@ -4,7 +4,6 @@ use common::write_to_json_file;
 use environment::Environment;
 use serde::Serialize;
 use std::path::PathBuf;
-use types::EthSpec;
 
 pub mod common;
 pub mod create_validators;

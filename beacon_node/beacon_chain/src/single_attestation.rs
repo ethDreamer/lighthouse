@@ -2,7 +2,7 @@ use crate::attestation_verification::Error;
 use ssz::ProgressiveBitList;
 use ssz_types::{BitList, BitVector};
 use types::{
-    Attestation, AttestationBase, AttestationElectra, AttestationGloas, EthSpec, ForkName,
+    Attestation, AttestationBase, AttestationElectra, AttestationGloas, Spec, ForkName,
     SingleAttestation,
 };
 

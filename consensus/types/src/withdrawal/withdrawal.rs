@@ -5,7 +5,7 @@ use ssz_types::VariableList;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Address, EthSpec},
+    core::{Address, Spec},
     fork::ForkName,
 };
 

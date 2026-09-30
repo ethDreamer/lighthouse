@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::{Stream, wrappers::UnboundedReceiverStream};
 use tracing::{debug, error};
 use types::{
-    ChainSpec, EthSpec, ExecPayload, ExecutionBlockHash, ForkName, Hash256, SignedBeaconBlock,
+    ChainSpec, ExecPayload, ExecutionBlockHash, ForkName, Hash256, SignedBeaconBlock,
     SignedBlindedBeaconBlock,
 };
 use types::{
@@ -364,7 +364,7 @@ mod tests {
     use std::sync::Arc;
     use std::sync::LazyLock;
     use tokio::sync::mpsc;
-    use types::{ChainSpec, Epoch, EthSpec, Hash256, MinimalEthSpec, Slot};
+    use types::{ChainSpec, Epoch, Spec, Hash256, Slot};
 
     const VALIDATOR_COUNT: usize = 48;
 

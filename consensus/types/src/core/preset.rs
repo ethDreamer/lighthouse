@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use typenum::Unsigned;
 
-use crate::core::{ChainSpec, Epoch, EthSpec};
+use crate::core::{ChainSpec, Epoch, Spec};
 
 /// Value-level representation of an Ethereum consensus "preset".
 ///
@@ -384,7 +383,6 @@ impl HezePreset {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{GnosisEthSpec, MainnetEthSpec, MinimalEthSpec};
     use serde::de::DeserializeOwned;
     use std::env;
     use std::fs::File;

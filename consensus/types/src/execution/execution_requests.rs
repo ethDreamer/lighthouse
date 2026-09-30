@@ -1,6 +1,6 @@
+use typenum::U;
 use alloy_primitives::Bytes;
 use context_deserialize::{ContextDeserialize, context_deserialize};
-use educe::Educe;
 use ethereum_hashing::{DynamicContext, Sha256Context};
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz::{Decode, Encode};
@@ -12,7 +12,7 @@ use tree_hash_derive::TreeHash;
 use crate::{
     builder::{BuilderDepositRequest, BuilderExitRequest},
     consolidation::ConsolidationRequest,
-    core::{EthSpec, Hash256},
+    core::{Spec, Hash256},
     deposit::DepositRequest,
     fork::{ForkName, ForkVersionDecode},
     state::BeaconStateError,
@@ -301,7 +301,6 @@ impl RequestType {
 #[cfg(test)]
 mod electra_tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(ExecutionRequestsElectra);
 }
@@ -309,7 +308,6 @@ mod electra_tests {
 #[cfg(test)]
 mod gloas_tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(ExecutionRequestsGloas);
 }

@@ -5,9 +5,8 @@ use libp2p::gossipsub::{
 };
 use std::cmp::max;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::time::Duration;
-use types::{ChainSpec, EnrForkId, EthSpec, Slot, SubnetId};
+use types::{ChainSpec, EnrForkId, Spec, Slot, SubnetId};
 
 const MAX_IN_MESH_SCORE: f64 = 10.0;
 const MAX_FIRST_MESSAGE_DELIVERIES_SCORE: f64 = 40.0;

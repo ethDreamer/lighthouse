@@ -1,4 +1,4 @@
-use crate::{EthSpec, ForkName, PayloadAttestationData};
+use crate::{Spec, ForkName, PayloadAttestationData};
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,6 @@ pub struct IndexedPayloadAttestation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(IndexedPayloadAttestation);
 }

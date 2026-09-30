@@ -2,7 +2,6 @@ use beacon_processor::{BeaconProcessorSend, BlockingOrAsync, Work, WorkEvent};
 use serde::Serialize;
 use std::future::Future;
 use tokio::sync::{mpsc::error::TrySendError, oneshot};
-use types::EthSpec;
 use warp::reply::{Reply, Response};
 use warp_utils::reject::convert_rejection;
 

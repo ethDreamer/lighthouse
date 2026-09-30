@@ -16,7 +16,6 @@ use metrics::set_gauge_vec;
 use network_utils::discovery_metrics::NAT_OPEN;
 use network_utils::enr_ext::EnrExt;
 use tracing::{debug, error, trace};
-use types::EthSpec;
 
 use crate::types::SyncState;
 use crate::{ClearDialError, metrics};

@@ -6,7 +6,7 @@ use eth2::types::{self as api_types};
 use slot_clock::SlotClock;
 use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
-use types::{AttestationDuty, BeaconState, ChainSpec, Epoch, EthSpec, Hash256, RelativeEpoch};
+use types::{AttestationDuty, BeaconState, ChainSpec, Epoch, Spec, Hash256, RelativeEpoch};
 
 /// The struct that is returned to the requesting HTTP client.
 type ApiDuties = api_types::DutiesResponse<Vec<api_types::AttesterData>>;

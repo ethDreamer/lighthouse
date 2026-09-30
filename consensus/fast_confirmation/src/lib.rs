@@ -51,7 +51,7 @@ use proto_array::core::{ProtoArray, ProtoNode, VoteTracker};
 use safe_arith::{ArithError, SafeArith};
 use std::collections::BTreeSet;
 use tracing::{debug, debug_span};
-use types::{BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, EthSpec, Hash256, Slot};
+use types::{BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, Spec, Hash256, Slot};
 
 #[derive(Debug, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
@@ -1487,7 +1487,6 @@ fn estimate_committee_weight_between_slots(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::MainnetEthSpec;
 
 
     #[test]

@@ -4,7 +4,7 @@ use safe_arith::SafeArith;
 use std::mem;
 use types::{
     BeaconState, BeaconStateElectra, BeaconStateError as Error, ChainSpec, Epoch, EpochCache,
-    EthSpec, Fork, PendingDeposit,
+    Fork, PendingDeposit,
 };
 
 /// Transform a `Deneb` state into an `Electra` state.

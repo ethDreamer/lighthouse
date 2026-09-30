@@ -1,5 +1,6 @@
 //! Helper functions and an extension trait for Ethereum 2 ENRs.
 
+use typenum::U;
 pub use discv5::enr::CombinedKey;
 
 use super::ENR_FILENAME;
@@ -17,7 +18,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
 use tracing::{debug, warn};
-use types::{ChainSpec, EnrForkId, EthSpec};
+use types::{ChainSpec, EnrForkId, Spec};
 
 /// The ENR field specifying the fork id.
 pub const ETH2_ENR_KEY: &str = "eth2";
@@ -364,7 +365,7 @@ pub fn save_enr_to_disk(dir: &Path, enr: &Enr) {
 mod test {
     use super::*;
     use crate::config::Config as NetworkConfig;
-    use types::{Epoch, MainnetEthSpec};
+    use types::{Epoch};
 
     const TEST_NFD: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
 

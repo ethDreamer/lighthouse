@@ -5,7 +5,7 @@ use ssz_derive::{Decode, Encode};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::instrument;
-use types::{BlobSidecar, EthSpec};
+use types::{BlobSidecar};
 
 /// Wrapper over a `BlobSidecar` for which we have completed kzg verification.
 /// i.e. `verify_blob_kzg_proof(blob, commitment, proof) == true`.

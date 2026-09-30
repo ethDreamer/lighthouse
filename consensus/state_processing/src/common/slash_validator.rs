@@ -6,7 +6,6 @@ use crate::{
 };
 use safe_arith::SafeArith;
 use std::cmp;
-use typenum::Unsigned;
 use types::{
     consts::altair::{PROPOSER_WEIGHT, WEIGHT_DENOMINATOR},
     *,

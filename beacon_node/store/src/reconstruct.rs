@@ -10,7 +10,7 @@ use state_processing::{
 };
 use std::sync::Arc;
 use tracing::{debug, info};
-use types::{EthSpec, Slot};
+use types::{Slot};
 
 impl<Hot, Cold> HotColdDB<Hot, Cold>
 where

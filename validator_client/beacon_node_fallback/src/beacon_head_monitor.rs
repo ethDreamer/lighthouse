@@ -8,7 +8,6 @@ use std::time::Duration;
 use tokio::sync::{RwLock, broadcast};
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
-use types::EthSpec;
 
 type CacheHashMap = HashMap<usize, SseHead>;
 

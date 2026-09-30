@@ -1,7 +1,7 @@
 use crate::hdiff::{Error, HDiffBuffer};
 use crate::metrics;
 use hashlink::lru_cache::LruCache;
-use types::{BeaconState, ChainSpec, EthSpec, Slot};
+use types::{BeaconState, ChainSpec, Slot};
 
 /// Holds a combination of finalized states in two formats:
 /// - `hdiff_buffers`: Format close to an SSZ serialized state for rapid application of diffs on top

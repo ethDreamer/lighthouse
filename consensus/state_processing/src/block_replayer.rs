@@ -7,7 +7,7 @@ use itertools::Itertools;
 use std::iter::Peekable;
 use std::marker::PhantomData;
 use types::{
-    BeaconState, BeaconStateError, BlindedPayload, ChainSpec, EthSpec, Hash256, SignedBeaconBlock,
+    BeaconState, BeaconStateError, BlindedPayload, ChainSpec, Hash256, SignedBeaconBlock,
     Slot,
 };
 

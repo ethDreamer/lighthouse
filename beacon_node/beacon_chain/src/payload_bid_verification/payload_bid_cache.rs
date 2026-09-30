@@ -1,5 +1,4 @@
 use crate::payload_bid_verification::gossip_verified_bid::GossipVerifiedPayloadBid;
-use educe::Educe;
 use parking_lot::RwLock;
 use std::{
     collections::hash_map,
@@ -7,7 +6,7 @@ use std::{
     sync::Arc,
 };
 use types::{
-    BuilderIndex, EthSpec, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
+    BuilderIndex, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
     SignedExecutionPayloadBid, Slot,
 };
 
@@ -143,8 +142,7 @@ mod tests {
 
     use bls::Signature;
     use types::{
-        ExecutionBlockHash, ExecutionPayloadBid, Hash256, MinimalEthSpec,
-        SignedExecutionPayloadBid, Slot,
+        ExecutionBlockHash, ExecutionPayloadBid, Hash256, SignedExecutionPayloadBid, Slot,
     };
 
     use super::{BidParent, GossipVerifiedPayloadBidCache};

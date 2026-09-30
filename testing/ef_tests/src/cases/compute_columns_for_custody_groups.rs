@@ -1,6 +1,6 @@
+use types::Spec;
 use super::*;
 use serde::Deserialize;
-use std::marker::PhantomData;
 use types::data::{CustodyIndex, compute_columns_for_custody_group};
 
 #[derive(Debug, Clone, Deserialize)]

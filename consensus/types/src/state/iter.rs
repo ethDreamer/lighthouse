@@ -1,5 +1,5 @@
 use crate::{
-    core::{EthSpec, Hash256, Slot},
+    core::{Hash256, Slot},
     state::{BeaconState, BeaconStateError},
 };
 

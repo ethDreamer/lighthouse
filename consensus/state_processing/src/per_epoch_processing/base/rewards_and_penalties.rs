@@ -7,7 +7,7 @@ use crate::per_epoch_processing::{
     base::{TotalBalances, ValidatorStatus, ValidatorStatuses},
 };
 use safe_arith::SafeArith;
-use types::{BeaconState, ChainSpec, EthSpec};
+use types::{BeaconState, ChainSpec, Spec};
 
 /// Combination of several deltas for different components of an attestation reward.
 ///

@@ -20,7 +20,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
-use types::EthSpec;
+use types::Spec;
 use types::{Epoch, Hash256, Slot};
 
 /// The number of head syncing chains to sync at a time.

@@ -2,7 +2,7 @@ use state_processing::SigVerifiedOp;
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::sync::Arc;
 use types::{
-    AbstractExecPayload, BeaconState, ChainSpec, EthSpec, SignedBeaconBlock,
+    AbstractExecPayload, BeaconState, ChainSpec, SignedBeaconBlock,
     SignedBlsToExecutionChange,
 };
 

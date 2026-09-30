@@ -3,7 +3,7 @@ use parking_lot::Mutex;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Weak};
 use tracing::warn;
-use types::{EthSpec, Hash256, IndexedAttestation};
+use types::{Hash256, IndexedAttestation};
 
 /// Hard cap on validator indices accepted by the slasher.
 ///

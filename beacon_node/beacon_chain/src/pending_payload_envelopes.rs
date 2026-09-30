@@ -6,7 +6,7 @@
 //!  signs, and publishes the envelope.
 use std::collections::HashMap;
 use std::sync::Arc;
-use types::{BlobsList, EthSpec, ExecutionPayloadEnvelope, Hash256, Slot};
+use types::{BlobsList, ExecutionPayloadEnvelope, Hash256, Slot};
 
 pub struct PendingEnvelopeData {
     pub envelope: Arc<ExecutionPayloadEnvelope>,
@@ -97,7 +97,7 @@ impl PendingPayloadEnvelopes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{ExecutionPayloadGloas, ExecutionRequestsGloas, Hash256, MainnetEthSpec};
+    use types::{ExecutionPayloadGloas, ExecutionRequestsGloas, Hash256};
 
 
     fn make_envelope(slot: Slot, beacon_block_root: Hash256) -> PendingEnvelopeData {

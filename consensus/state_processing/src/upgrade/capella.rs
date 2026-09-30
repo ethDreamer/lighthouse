@@ -1,8 +1,7 @@
 use milhouse::List;
 use std::mem;
 use types::{
-    BeaconState, BeaconStateCapella, BeaconStateError as Error, ChainSpec, EpochCache, EthSpec,
-    Fork,
+    BeaconState, BeaconStateCapella, BeaconStateError as Error, ChainSpec, EpochCache, Fork,
 };
 
 /// Transform a `Bellatrix` state into an `Capella` state.

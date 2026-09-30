@@ -7,7 +7,6 @@ use crate::data_availability_checker::overflow_lru_cache::{
 };
 use crate::partial_data_column_assembler::{AssemblyColumn, PartialDataColumnAssembler};
 use crate::{BeaconChain, BeaconChainTypes, BlockProcessStatus, CustodyContext, metrics};
-use educe::Educe;
 use kzg::Kzg;
 use slot_clock::SlotClock;
 use std::collections::HashSet;
@@ -20,7 +19,7 @@ use tracing::{debug, error, instrument};
 use types::data::{BlobIdentifier, FixedBlobSidecarList, PartialDataColumnRef};
 use types::{
     BlobSidecar, BlobSidecarList, BlockImportSource, ChainSpec, DataColumnSidecar,
-    DataColumnSidecarList, EthSpec, Hash256, PartialDataColumnSidecarError, PartialDataColumnView,
+    DataColumnSidecarList, Spec, Hash256, PartialDataColumnSidecarError, PartialDataColumnView,
     SignedBeaconBlock, Slot,
 };
 
@@ -1026,8 +1025,7 @@ mod test {
     use std::time::Duration;
     use types::data::DataColumn;
     use types::{
-        ChainSpec, ColumnIndex, DataColumnSidecarFulu, Epoch, EthSpec, ForkName, MainnetEthSpec,
-        Slot,
+        ChainSpec, ColumnIndex, DataColumnSidecarFulu, Epoch, ForkName, Slot,
     };
 
     type T = EphemeralHarnessType;

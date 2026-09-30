@@ -18,8 +18,7 @@ use state_processing::{per_slot_processing, per_slot_processing::Error as SlotPr
 use std::sync::{Arc, LazyLock};
 use types::{
     BeaconState, BeaconStateError, BlockImportSource, ChainSpec, Checkpoint,
-    DEFAULT_PRE_ELECTRA_WS_PERIOD, EthSpec, ForkName, Hash256, MainnetEthSpec, MinimalEthSpec,
-    RelativeEpoch, Slot,
+    DEFAULT_PRE_ELECTRA_WS_PERIOD, Spec, ForkName, Hash256, RelativeEpoch, Slot,
 };
 
 

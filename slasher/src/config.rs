@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use strum::{Display, EnumString, VariantNames};
 use types::new_non_zero_usize;
-use types::{Epoch, EthSpec, IndexedAttestation};
+use types::{Epoch, IndexedAttestation};
 
 pub const DEFAULT_CHUNK_SIZE: usize = 16;
 pub const DEFAULT_VALIDATOR_CHUNK_SIZE: usize = 256;

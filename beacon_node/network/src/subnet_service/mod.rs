@@ -17,7 +17,7 @@ use lighthouse_network::{NetworkConfig, Subnet, SubnetDiscovery, discv5::enr::No
 use slot_clock::SlotClock;
 use tracing::{debug, error, info, warn};
 use types::{
-    AttestationData, EthSpec, Slot, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
+    AttestationData, Spec, Slot, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
     ValidatorSubscription,
 };
 

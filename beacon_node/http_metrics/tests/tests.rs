@@ -6,7 +6,6 @@ use reqwest::header::HeaderValue;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use tokio::sync::oneshot;
-use types::MainnetEthSpec;
 
 type Context = http_metrics::Context<EphemeralHarnessType>;
 

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use safe_arith::{ArithError, SafeArith};
-use types::{BeaconState, EthSpec};
+use types::{BeaconState};
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct JustifiedBalances {
@@ -75,8 +75,9 @@ impl JustifiedBalances {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
-    use types::{ChainSpec, Epoch, MinimalEthSpec, Validator};
+    use types::{ChainSpec, Epoch, Validator};
 
 
     fn push_validator(

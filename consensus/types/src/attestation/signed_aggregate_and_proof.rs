@@ -10,7 +10,7 @@ use crate::{
         AggregateAndProof, AggregateAndProofBase, AggregateAndProofElectra, AggregateAndProofGloas,
         AggregateAndProofRef, Attestation, AttestationRef, SelectionProof,
     },
-    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot},
+    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot},
     fork::{Fork, ForkName},
 };
 

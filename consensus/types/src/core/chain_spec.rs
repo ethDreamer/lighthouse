@@ -15,8 +15,8 @@ use tree_hash::TreeHash;
 use crate::{
     consts::bellatrix::BASIS_POINTS,
     core::{
-        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch, EthSpec,
-        EthSpecId, ExecutionBlockHash, Hash256, MainnetEthSpec, Slot, Uint256,
+        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch, Spec,
+        SpecId, ExecutionBlockHash, Hash256, Slot, Uint256,
     },
     fork::{Fork, ForkData, ForkName},
 };
@@ -3467,7 +3467,6 @@ mod tests {
 #[cfg(test)]
 mod yaml_tests {
     use super::*;
-    use crate::core::MinimalEthSpec;
     use paste::paste;
     use std::collections::BTreeSet;
     use std::env;

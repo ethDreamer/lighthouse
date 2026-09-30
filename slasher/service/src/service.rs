@@ -21,7 +21,7 @@ use task_executor::TaskExecutor;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::{Duration, Instant, interval_at};
 use tracing::{debug, error, info, trace, warn};
-use types::{AttesterSlashing, Epoch, EthSpec, ProposerSlashing};
+use types::{AttesterSlashing, Epoch, Spec, ProposerSlashing};
 
 pub struct SlasherService<T: BeaconChainTypes> {
     beacon_chain: Arc<BeaconChain<T>>,

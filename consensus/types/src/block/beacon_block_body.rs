@@ -1,3 +1,4 @@
+use typenum::U;
 use std::marker::PhantomData;
 
 use bls::Signature;
@@ -19,7 +20,7 @@ use crate::{
         PayloadAttestation,
     },
     complete_kzg_commitment_merkle_proof,
-    core::{EthSpec, Graffiti, Hash256},
+    core::{Spec, Graffiti, Hash256},
     deposit::Deposit,
     execution::{
         AbstractExecPayload, BlindedPayload, BlindedPayloadBellatrix, BlindedPayloadCapella,
@@ -1575,18 +1576,17 @@ impl<'de, Payload: AbstractExecPayload> ContextDeserialize<'de, ForkName>
 mod tests {
     mod base {
         use super::super::*;
-        use crate::core::MainnetEthSpec;
         ssz_and_tree_hash_tests!(BeaconBlockBodyBase);
     }
     mod altair {
         use super::super::*;
-        use crate::core::MainnetEthSpec;
         ssz_and_tree_hash_tests!(BeaconBlockBodyAltair);
     }
     mod gloas {
+        use crate::core::Spec;
         use super::super::*;
         use crate::block::BeaconBlock;
-        use crate::core::{ChainSpec, MainnetEthSpec};
+        use crate::core::{ChainSpec};
 
         /// Check the derived Gloas body root against a manual computation from its 13 field
         /// roots, so an incorrect `active_fields` list would change the result (EIP-7688).

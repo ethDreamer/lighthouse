@@ -17,12 +17,11 @@ use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{ProgressiveVariableList, VariableList};
 use std::borrow::{Borrow, Cow};
-use std::marker::PhantomData;
 use std::sync::Arc;
 use tracing::info;
 use tree_hash::TreeHash;
 use types::{
-    AttestationData, ChainSpec, Epoch, EthSpec, Hash256, IndexedAttestation,
+    AttestationData, ChainSpec, Epoch, Spec, Hash256, IndexedAttestation,
     IndexedAttestationBase, IndexedAttestationElectra, IndexedAttestationGloas, ProposerSlashing,
     SignedBeaconBlockHeader, Slot,
 };
@@ -868,8 +867,7 @@ impl SlasherDB {
 #[cfg(test)]
 mod test {
     use super::*;
-    use typenum::Unsigned;
-    use types::{Checkpoint, ForkName, MainnetEthSpec};
+    use types::{Checkpoint, ForkName};
 
 
     fn indexed_attestation_on_disk_roundtrip_test(

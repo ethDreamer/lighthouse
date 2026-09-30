@@ -31,11 +31,10 @@ use std::collections::{
     btree_map::{BTreeMap, Entry},
 };
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info, warn};
-use types::{Epoch, EthSpec};
+use types::{Epoch, Spec};
 
 /// Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
 /// blocks per batch are requested _at most_. A batch may request less blocks to account for
@@ -1156,7 +1155,6 @@ mod tests {
     use lighthouse_network::{NetworkConfig, SyncInfo, SyncStatus};
     use rand_08::SeedableRng;
     use rand_08::prelude::StdRng;
-    use types::MinimalEthSpec;
 
     #[test]
     fn request_batches_should_not_loop_infinitely() {

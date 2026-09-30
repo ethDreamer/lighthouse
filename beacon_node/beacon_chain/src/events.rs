@@ -2,7 +2,6 @@ pub use eth2::types::{EventKind, SseBlock, SseFinalizedCheckpoint, SseHead};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::{Receiver, Sender, error::SendError};
 use tracing::trace;
-use types::EthSpec;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 16;
 

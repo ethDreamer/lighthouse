@@ -22,7 +22,7 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitEx
 use logging::build_workspace_filter;
 use tokio::time::sleep;
 use tracing::Level;
-use types::{Epoch, EthSpec, MinimalEthSpec};
+use types::{Epoch, Spec};
 
 const END_EPOCH: u64 = 16;
 const GENESIS_DELAY: u64 = 38;

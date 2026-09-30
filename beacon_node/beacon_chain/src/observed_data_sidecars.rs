@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::Arc;
-use types::{BlobSidecar, ChainSpec, DataColumnSidecar, EthSpec, Hash256, Slot};
+use types::{BlobSidecar, ChainSpec, DataColumnSidecar, Spec, Hash256, Slot};
 
 type ValidatorIndex = u64;
 type BeaconBlockRoot = Hash256;
@@ -249,8 +249,7 @@ mod tests {
     use bls::{FixedBytesExtended, Signature};
     use std::sync::Arc;
     use types::{
-        BeaconBlockHeader, DataColumnSidecarFulu, DataColumnSidecarGloas, ForkName, MainnetEthSpec,
-        SignedBeaconBlockHeader,
+        BeaconBlockHeader, DataColumnSidecarFulu, DataColumnSidecarGloas, ForkName, SignedBeaconBlockHeader,
     };
 
 

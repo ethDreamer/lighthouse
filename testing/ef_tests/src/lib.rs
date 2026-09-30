@@ -12,7 +12,7 @@ pub use decode::log_file_access;
 pub use error::Error;
 pub use handler::*;
 pub use type_name::TypeName;
-use types::{ChainSpec, EthSpec, ForkName};
+use types::{ChainSpec, Spec, ForkName};
 
 mod bls_setting;
 mod case_result;

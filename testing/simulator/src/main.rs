@@ -19,7 +19,6 @@ mod retry;
 
 use cli::cli_app;
 use local_network::LocalNetwork;
-use types::MinimalEthSpec;
 
 
 fn main() {

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use types::data::FixedBlobSidecarList;
 use types::{
     Address, BlobSidecar, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas, Domain,
-    EthSpec, MinimalEthSpec, PayloadAttestationData, PayloadAttestationMessage,
+    Spec, PayloadAttestationData, PayloadAttestationMessage,
     ProposerPreferences, SignedExecutionPayloadBid, SignedProposerPreferences, SignedRoot, Slot,
 };
 

@@ -15,7 +15,7 @@ use typenum::{U4, U5, U6, U7};
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, Epoch, EthSpec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
     fork::ForkName,
     light_client::{
         LightClientError, LightClientHeader, LightClientHeaderAltair, LightClientHeaderCapella,
@@ -548,35 +548,30 @@ mod tests {
     #[cfg(test)]
     mod altair {
         use super::*;
-        use crate::MainnetEthSpec;
         ssz_tests!(LightClientUpdateAltair);
     }
 
     #[cfg(test)]
     mod capella {
         use super::*;
-        use crate::MainnetEthSpec;
         ssz_tests!(LightClientUpdateCapella);
     }
 
     #[cfg(test)]
     mod deneb {
         use super::*;
-        use crate::MainnetEthSpec;
         ssz_tests!(LightClientUpdateDeneb);
     }
 
     #[cfg(test)]
     mod electra {
         use super::*;
-        use crate::MainnetEthSpec;
         ssz_tests!(LightClientUpdateElectra);
     }
 
     #[cfg(test)]
     mod fulu {
         use super::*;
-        use crate::MainnetEthSpec;
         ssz_tests!(LightClientUpdateFulu);
     }
 

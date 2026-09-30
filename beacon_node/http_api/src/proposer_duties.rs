@@ -11,7 +11,7 @@ use eth2::types::{self as api_types};
 use safe_arith::SafeArith;
 use slot_clock::SlotClock;
 use tracing::debug;
-use types::{Epoch, EthSpec, Hash256, Slot};
+use types::{Epoch, Spec, Hash256, Slot};
 
 /// Selects which dependent root to return in the API response.
 ///

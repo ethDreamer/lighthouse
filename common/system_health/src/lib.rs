@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use sysinfo::{CpuExt, DiskExt, NetworkExt, NetworksExt, System, SystemExt};
-use types::EthSpec;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SystemHealth {

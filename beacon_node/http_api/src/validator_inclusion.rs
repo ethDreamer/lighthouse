@@ -5,7 +5,7 @@ use eth2::{
     types::ValidatorId,
 };
 use state_processing::per_epoch_processing::{EpochProcessingSummary, process_epoch};
-use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec};
+use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Spec};
 
 /// Returns the state in the last slot of `epoch`.
 fn end_of_epoch_state<T: BeaconChainTypes>(

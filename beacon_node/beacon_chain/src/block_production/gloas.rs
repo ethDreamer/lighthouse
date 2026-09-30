@@ -30,7 +30,7 @@ use types::consts::gloas::BUILDER_INDEX_SELF_BUILD;
 use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
     BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
-    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, EthSpec, ExecutionBlockHash,
+    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, Spec, ExecutionBlockHash,
     ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionRequestsGloas, FullPayload, Graffiti,
     Hash256, IndexedAttestation, KzgProofs, PayloadAttestation, ProgressiveTransactions,
     ProposerSlashing, RelativeEpoch, SignedBeaconBlock, SignedBlsToExecutionChange,
@@ -1447,7 +1447,7 @@ fn filter_voluntary_exits_for_parent_execution_requests(
 mod tests {
     use super::*;
     use ssz_types::ProgressiveVariableList;
-    use types::{ConsolidationRequest, Epoch, MainnetEthSpec, VoluntaryExit, WithdrawalRequest};
+    use types::{ConsolidationRequest, Epoch, VoluntaryExit, WithdrawalRequest};
 
 
     fn pubkey(byte: u8) -> PublicKeyBytes {

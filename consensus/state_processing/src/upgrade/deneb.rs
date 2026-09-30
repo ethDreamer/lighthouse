@@ -1,6 +1,6 @@
 use std::mem;
 use types::{
-    BeaconState, BeaconStateDeneb, BeaconStateError as Error, ChainSpec, EpochCache, EthSpec, Fork,
+    BeaconState, BeaconStateDeneb, BeaconStateError as Error, ChainSpec, EpochCache, Fork,
 };
 
 /// Transform a `Capella` state into an `Deneb` state.

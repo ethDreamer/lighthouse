@@ -42,7 +42,7 @@ use std::sync::Arc;
 use task_executor::ShutdownReason;
 use tokio::time::sleep;
 use tracing::{error, info};
-use types::{Epoch, EthSpec, Slot};
+use types::{Epoch, Spec, Slot};
 use validator_store::{DoppelgangerStatus, ValidatorStore};
 
 struct LivenessResponses {
@@ -601,7 +601,6 @@ mod test {
     use slot_clock::TestingSlotClock;
     use std::future;
     use std::time::Duration;
-    use types::MainnetEthSpec;
     use validator_store::DoppelgangerStatus;
 
     const DEFAULT_VALIDATORS: usize = 8;

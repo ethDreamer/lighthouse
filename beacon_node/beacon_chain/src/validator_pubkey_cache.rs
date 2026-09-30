@@ -8,7 +8,6 @@ use smallvec::SmallVec;
 use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use store::{DBColumn, Error as StoreError, StoreItem, StoreOp};
 use tracing::instrument;
 use types::{BeaconState, Hash256};
@@ -247,7 +246,7 @@ mod test {
     use logging::create_test_tracing_subscriber;
     use std::sync::Arc;
     use store::HotColdDB;
-    use types::{EthSpec, MainnetEthSpec};
+    use types::{Spec};
 
     type T = EphemeralHarnessType;
 

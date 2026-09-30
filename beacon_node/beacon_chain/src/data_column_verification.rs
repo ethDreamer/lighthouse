@@ -1,3 +1,4 @@
+use typenum::U;
 use crate::block_verification::{
     BlockSlashInfo, get_validator_pubkey_cache, process_block_slash_info,
 };
@@ -32,7 +33,7 @@ use types::data::{
     PartialDataColumnSidecarFulu, PartialDataColumnSidecarRef,
 };
 use types::{
-    BeaconStateError, ChainSpec, DataColumnSidecar, DataColumnSubnetId, EthSpec, Hash256,
+    BeaconStateError, ChainSpec, DataColumnSidecar, DataColumnSubnetId, Spec, Hash256,
     KzgCommitment, PartialDataColumnView, SignedBeaconBlockHeader, SignedExecutionPayloadBid, Slot,
 };
 
@@ -1870,6 +1871,7 @@ pub fn observe_gossip_data_column<T: BeaconChainTypes>(
 
 #[cfg(test)]
 mod test {
+    use typenum::U;
     use crate::ChainConfig;
     use crate::data_column_verification::{
         GossipDataColumnError, GossipPartialDataColumnError, GossipVerifiedDataColumn,
@@ -1891,8 +1893,8 @@ mod test {
     use std::sync::Arc;
     use std::time::UNIX_EPOCH;
     use types::{
-        Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSubnetId, EthSpec,
-        ForkName, Hash256, MainnetEthSpec, PartialDataColumn, PartialDataColumnFulu,
+        Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSubnetId, Spec,
+        ForkName, Hash256, PartialDataColumn, PartialDataColumnFulu,
         PartialDataColumnGloas, PartialDataColumnHeader, PartialDataColumnSidecarFulu,
         PartialDataColumnSidecarGloas, SignedExecutionPayloadBid, Slot,
         test_utils::test_unstructured,

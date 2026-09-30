@@ -1,4 +1,3 @@
-use crate::BeaconChainTypes;
 use crate::payload_envelope_verification::gossip_verified_envelope::GossipVerifiedEnvelope;
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashSet};
@@ -65,8 +64,8 @@ mod tests {
     use bls::Signature;
     use std::sync::Arc;
     use types::{
-        BeaconBlock, BuilderIndex, EthSpec, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
-        ExecutionRequestsGloas, Hash256, MinimalEthSpec, SignedBeaconBlock,
+        BeaconBlock, BuilderIndex, Spec, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
+        ExecutionRequestsGloas, Hash256, SignedBeaconBlock,
         SignedExecutionPayloadEnvelope, Slot,
     };
 

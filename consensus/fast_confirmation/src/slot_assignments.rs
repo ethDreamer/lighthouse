@@ -5,7 +5,7 @@ use crate::Error;
 use safe_arith::SafeArith;
 use std::sync::Arc;
 use types::{
-    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, EthSpec, Hash256,
+    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, Spec, Hash256,
     RelativeEpoch, Slot,
 };
 
@@ -202,7 +202,7 @@ fn assigned_slot(
 mod tests {
     use super::*;
     use state_processing::{GloasVerificationContext, per_slot_processing};
-    use types::{MinimalEthSpec, Validator};
+    use types::{Validator};
 
 
     fn genesis_state(n: usize) -> (BeaconState, types::ChainSpec) {

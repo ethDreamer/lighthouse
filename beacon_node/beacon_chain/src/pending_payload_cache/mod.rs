@@ -24,7 +24,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Span, debug, error, instrument};
 use types::{
-    ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, EthSpec, Hash256,
+    ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Spec, Hash256,
     PartialDataColumnRef, PartialDataColumnView,
 };
 
@@ -697,7 +697,7 @@ mod data_availability_checker_tests {
     use types::execution::{ExecutionProof, ProofData, ProofType, PublicInput};
     use types::{
         Cell, CellBitmap, ExecutionPayloadEnvelope, ExecutionPayloadGloas, ExecutionRequestsGloas,
-        ForkName, MinimalEthSpec, PartialDataColumnGloas, PartialDataColumnSidecarGloas,
+        ForkName, PartialDataColumnGloas, PartialDataColumnSidecarGloas,
         SignedExecutionPayloadEnvelope, Slot, test_utils::test_unstructured,
     };
 

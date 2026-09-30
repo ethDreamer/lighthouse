@@ -1,3 +1,4 @@
+use types::Spec;
 use super::*;
 use beacon_chain::test_utils::test_spec;
 use state_processing::{

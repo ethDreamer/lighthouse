@@ -35,12 +35,10 @@ use state_processing::per_block_processing::{
 };
 use state_processing::{SigVerifiedOp, VerifyOperation};
 use std::collections::{HashMap, HashSet, hash_map::Entry};
-use std::marker::PhantomData;
 use std::ptr;
-use typenum::Unsigned;
 use types::{
     AbstractExecPayload, Attestation, AttestationData, AttesterSlashing, BeaconState,
-    BeaconStateError, ChainSpec, Epoch, EthSpec, Hash256, PayloadAttestation,
+    BeaconStateError, ChainSpec, Epoch, Spec, Hash256, PayloadAttestation,
     PayloadAttestationData, PayloadAttestationMessage, ProposerSlashing, SignedBeaconBlock,
     SignedBlsToExecutionChange, SignedVoluntaryExit, Slot, SyncAggregate, SyncAggregateError,
     SyncCommitteeContribution, Validator,

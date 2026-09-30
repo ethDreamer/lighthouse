@@ -1,6 +1,7 @@
 //! Provides an `ObservedAggregates` struct which allows us to reject aggregated attestations or
 //! sync committee contributions if we've already seen them.
 
+use typenum::U;
 use crate::sync_committee_verification::SyncCommitteeData;
 use ssz::ProgressiveBitList;
 use ssz_types::{BitList, BitVector};
@@ -13,7 +14,7 @@ use types::consts::altair::{
     SYNC_COMMITTEE_SUBNET_COUNT, TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE,
 };
 use types::{
-    Attestation, AttestationData, AttestationRef, EthSpec, Hash256, Slot, SyncCommitteeContribution,
+    Attestation, AttestationData, AttestationRef, Spec, Hash256, Slot, SyncCommitteeContribution,
 };
 
 pub type ObservedSyncContributions = ObservedAggregates<

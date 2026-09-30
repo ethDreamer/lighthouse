@@ -1,7 +1,7 @@
 use milhouse::Vector;
 use safe_arith::SafeArith;
 use std::mem;
-use types::{BeaconState, BeaconStateError as Error, BeaconStateFulu, ChainSpec, EthSpec, Fork};
+use types::{BeaconState, BeaconStateError as Error, BeaconStateFulu, ChainSpec, Spec, Fork};
 
 /// Transform a `Electra` state into an `Fulu` state.
 pub fn upgrade_to_fulu(

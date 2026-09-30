@@ -1,6 +1,6 @@
 use crate::common::attesting_indices_base::get_attesting_indices;
 use safe_arith::SafeArith;
-use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec, PendingAttestation};
+use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, PendingAttestation};
 
 #[cfg(feature = "arbitrary")]
 use arbitrary::Arbitrary;

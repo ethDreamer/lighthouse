@@ -1,5 +1,4 @@
 use crate::{Error, SlasherDB, database::CURRENT_SCHEMA_VERSION};
-use types::EthSpec;
 
 impl SlasherDB {
     /// If the database exists, and has a schema, attempt to migrate it to the current version.

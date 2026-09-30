@@ -5,8 +5,7 @@ use futures::{Stream, stream};
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, MainnetEthSpec,
-    PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
+    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
     SignedAggregateAndProof, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
     SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
     SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,

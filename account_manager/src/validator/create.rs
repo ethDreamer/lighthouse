@@ -14,7 +14,6 @@ use std::ffi::OsStr;
 use std::fs;
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
-use types::EthSpec;
 use validator_dir::Builder as ValidatorDirBuilder;
 
 pub const CMD: &str = "create";

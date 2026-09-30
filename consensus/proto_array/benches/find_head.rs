@@ -4,8 +4,8 @@ use proto_array::{Block, ExecutionStatus, JustifiedBalances, ProtoArrayForkChoic
 use std::collections::BTreeSet;
 use std::time::Duration;
 use types::{
-    AttestationShufflingId, Checkpoint, Epoch, EthSpec, ExecutionBlockHash, Hash256,
-    MainnetEthSpec, Slot,
+    AttestationShufflingId, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
+    Slot,
 };
 
 fn get_root(i: u64) -> Hash256 {

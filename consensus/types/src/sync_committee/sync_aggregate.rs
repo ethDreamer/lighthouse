@@ -1,6 +1,5 @@
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use safe_arith::{ArithError, SafeArith};
 use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
@@ -8,7 +7,7 @@ use ssz_types::BitVector;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{EthSpec, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT},
+    core::{Spec, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT},
     fork::ForkName,
     sync_committee::SyncCommitteeContribution,
 };

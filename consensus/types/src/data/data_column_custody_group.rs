@@ -5,7 +5,6 @@ use itertools::Itertools;
 use safe_arith::{ArithError, SafeArith};
 
 use crate::{
-    EthSpec,
     core::ChainSpec,
     data::{ColumnIndex, DataColumnSubnetId},
 };
@@ -158,8 +157,8 @@ pub fn compute_subnets_from_custody_group(
 
 #[cfg(test)]
 mod test {
+    use crate::core::Spec;
     use super::*;
-    use crate::MainnetEthSpec;
 
 
     #[test]

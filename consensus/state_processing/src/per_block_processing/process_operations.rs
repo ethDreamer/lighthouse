@@ -1,3 +1,4 @@
+use types::Spec;
 use super::*;
 use crate::VerifySignatures;
 use crate::common::{

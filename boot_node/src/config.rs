@@ -13,9 +13,8 @@ use serde::{Deserialize, Serialize};
 use ssz::Encode;
 use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
-use std::{marker::PhantomData, path::PathBuf};
+use std::{path::PathBuf};
 use tracing::{info, warn};
-use types::EthSpec;
 
 /// A set of configuration parameters for the bootnode, established from CLI arguments.
 pub struct BootNodeConfig {

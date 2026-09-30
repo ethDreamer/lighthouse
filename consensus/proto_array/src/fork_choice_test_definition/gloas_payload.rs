@@ -1,3 +1,4 @@
+use types::Spec;
 use super::*;
 
 fn gloas_spec() -> ChainSpec {

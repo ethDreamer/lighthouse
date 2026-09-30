@@ -32,7 +32,7 @@ use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, warn};
 use types::{
-    BeaconState, Epoch, EthSpec, ForkName, ProposerPreparationData, SignedAggregateAndProof,
+    BeaconState, Epoch, Spec, ForkName, ProposerPreparationData, SignedAggregateAndProof,
     SignedContributionAndProof, SignedProposerPreferences, SignedValidatorRegistrationData, Slot,
     SyncContributionData, ValidatorSubscription,
 };

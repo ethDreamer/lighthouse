@@ -6,7 +6,7 @@ use crate::{
 };
 use store::{Error as StoreError, KeyValueStore};
 use tracing::{Span, debug, instrument};
-use types::{ColumnIndex, DataColumnSidecarList, Epoch, EthSpec, Hash256, Slot};
+use types::{ColumnIndex, DataColumnSidecarList, Epoch, Spec, Hash256, Slot};
 
 #[derive(Debug)]
 pub enum HistoricalDataColumnError {

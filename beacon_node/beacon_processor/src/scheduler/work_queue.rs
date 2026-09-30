@@ -2,7 +2,7 @@ use crate::Work;
 use logging::TimeLatch;
 use std::collections::VecDeque;
 use tracing::error;
-use types::{BeaconState, ChainSpec, EthSpec, RelativeEpoch};
+use types::{BeaconState, ChainSpec, Spec, RelativeEpoch};
 
 /// Over-provision queues based on active validator count by some factor. The beacon chain has
 /// strict churns that prevent the validator set size from changing rapidly. By over-provisioning
@@ -454,7 +454,7 @@ impl WorkQueues {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{BeaconState, Eth1Data, ForkName, MainnetEthSpec};
+    use types::{BeaconState, Eth1Data, ForkName};
 
     #[test]
     fn min_queue_len() {

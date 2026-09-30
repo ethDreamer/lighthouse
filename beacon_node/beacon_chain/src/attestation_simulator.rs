@@ -5,7 +5,7 @@ use std::time::Duration;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
-use types::{ChainSpec, EthSpec, Slot};
+use types::{ChainSpec, Spec, Slot};
 
 /// Don't run the attestation simulator if the head slot is this many epochs
 /// behind the wall-clock slot.

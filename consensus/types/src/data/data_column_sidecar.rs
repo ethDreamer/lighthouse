@@ -1,8 +1,8 @@
+use typenum::U;
 use std::sync::Arc;
 
 use bls::Signature;
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use kzg::{KzgCommitment, KzgProof};
 use merkle_proof::verify_merkle_proof;
 use safe_arith::ArithError;
@@ -22,7 +22,7 @@ use crate::data::partial_data_column_sidecar::{
 use crate::{
     ListRef,
     block::{BLOB_KZG_COMMITMENTS_INDEX, BeaconBlockHeader, SignedBeaconBlockHeader},
-    core::{Epoch, EthSpec, Hash256, Slot},
+    core::{Epoch, Spec, Hash256, Slot},
     data::{
         CellBitmap, PartialDataColumn, PartialDataColumnHeader, PartialDataColumnSidecarError,
         PartialDataColumnView,
@@ -398,7 +398,7 @@ impl From<SszError> for DataColumnSidecarError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{MainnetEthSpec, max_data_columns_by_root_request_common};
+    use crate::core::{max_data_columns_by_root_request_common};
     use fixed_bytes::FixedBytesExtended;
     use ssz_types::RuntimeVariableList;
 

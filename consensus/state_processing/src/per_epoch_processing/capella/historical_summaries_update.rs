@@ -1,7 +1,7 @@
 use crate::EpochProcessingError;
 use safe_arith::SafeArith;
 use types::state::HistoricalSummary;
-use types::{BeaconState, EthSpec};
+use types::{BeaconState, Spec};
 
 pub fn process_historical_summaries_update(
     state: &mut BeaconState,

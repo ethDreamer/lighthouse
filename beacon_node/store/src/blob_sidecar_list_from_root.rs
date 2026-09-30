@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use types::{BlobSidecar, BlobSidecarList, EthSpec};
+use types::{BlobSidecar, BlobSidecarList};
 
 #[derive(Debug, Clone)]
 pub enum BlobSidecarListFromRoot {

@@ -1,8 +1,8 @@
+use types::Spec;
 use super::*;
 use crate::case_result::compare_result;
 use crate::decode::yaml_decode_file;
 use serde::Deserialize;
-use std::marker::PhantomData;
 use swap_or_not_shuffle::{compute_shuffled_index, shuffle_list};
 
 #[derive(Debug, Clone, Deserialize)]

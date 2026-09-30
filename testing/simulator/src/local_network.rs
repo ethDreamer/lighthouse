@@ -16,7 +16,7 @@ use std::{
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use types::{ChainSpec, Epoch, EthSpec};
+use types::{ChainSpec, Epoch, Spec};
 
 const BOOTNODE_PORT: u16 = 42424;
 const QUIC_PORT: u16 = 43424;

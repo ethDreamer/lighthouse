@@ -4,9 +4,7 @@
 use crate::observed_block_producers::Error;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
-use typenum::Unsigned;
-use types::{EthSpec, Hash256, Slot};
+use types::{Spec, Hash256, Slot};
 
 #[derive(Eq, Hash, PartialEq, Debug, Default)]
 pub struct ProposalKey {
@@ -146,7 +144,7 @@ impl ObservedSlashable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{BeaconBlock, Graffiti, MainnetEthSpec};
+    use types::{BeaconBlock, Graffiti};
 
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock {

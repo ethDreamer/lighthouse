@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tracing::{debug, error, trace, warn};
-use types::{DataColumnSubnetId, EthSpec, SubnetId, SyncSubnetId};
+use types::{DataColumnSubnetId, SubnetId, SyncSubnetId};
 
 pub use libp2p::core::Multiaddr;
 pub use libp2p::identity::Keypair;
@@ -1725,6 +1725,7 @@ enum ConnectingType {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
     use crate::NetworkConfig;
     use crate::rpc::MetaDataV3;
@@ -3022,9 +3023,8 @@ mod tests {
         use proptest::prelude::*;
         use std::collections::HashSet;
         use tokio::runtime::Runtime;
-        use typenum::Unsigned;
         use types::DataColumnSubnetId;
-        use types::{EthSpec, MainnetEthSpec as E};
+        use types::{Spec, MainnetEthSpec as E};
 
         #[derive(Clone, Debug)]
         struct PeerCondition {

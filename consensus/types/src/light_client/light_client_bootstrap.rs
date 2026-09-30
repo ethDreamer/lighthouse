@@ -11,7 +11,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, EthSpec, Hash256, Slot},
+    core::{ChainSpec, Hash256, Slot},
     fork::ForkName,
     light_client::{
         CurrentSyncCommitteeProofLen, CurrentSyncCommitteeProofLenElectra, LightClientError,
@@ -293,31 +293,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientBootstrapAltair, MainnetEthSpec};
+        use crate::{LightClientBootstrapAltair};
         ssz_tests!(LightClientBootstrapAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientBootstrapCapella, MainnetEthSpec};
+        use crate::{LightClientBootstrapCapella};
         ssz_tests!(LightClientBootstrapCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientBootstrapDeneb, MainnetEthSpec};
+        use crate::{LightClientBootstrapDeneb};
         ssz_tests!(LightClientBootstrapDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientBootstrapElectra, MainnetEthSpec};
+        use crate::{LightClientBootstrapElectra};
         ssz_tests!(LightClientBootstrapElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientBootstrapFulu, MainnetEthSpec};
+        use crate::{LightClientBootstrapFulu};
         ssz_tests!(LightClientBootstrapFulu);
     }
 }

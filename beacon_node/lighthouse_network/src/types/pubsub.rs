@@ -9,7 +9,7 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
-    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ForkContext, ForkName, Hash256,
+    CellBitmap, DataColumnSidecar, DataColumnSubnetId, Spec, ForkContext, ForkName, Hash256,
     LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
     PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
     PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
@@ -719,7 +719,7 @@ mod tests {
     use crate::types::OutgoingPartialColumnGloas;
     use libp2p::gossipsub::partial_messages::Partial;
     use types::data::{CellBitmap, PartialDataColumnSidecarGloas};
-    use types::{Epoch, EthSpec, MainnetEthSpec, Slot, data::DataColumnSubnetId};
+    use types::{Epoch, Slot, data::DataColumnSubnetId};
 
 
     fn gloas_fork_context() -> ForkContext {

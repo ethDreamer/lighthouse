@@ -1,12 +1,11 @@
 use crate::{
-    Address, BeaconState, BeaconStateError, BlockAccessList, ChainSpec, Domain, Epoch, EthSpec,
+    Address, BeaconState, BeaconStateError, BlockAccessList, ChainSpec, Domain, Epoch, Spec,
     ExecutionBlockHash, ExecutionPayloadEnvelope, ExecutionPayloadGloas, ExecutionRequestsGloas,
     Fork, ForkName, Hash256, ProgressiveTransactions, ProgressiveWithdrawals, SignedRoot, Slot,
     Uint256, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use bls::{PublicKey, Signature};
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use serde::{Deserialize, Serialize};
 use ssz::Encode;
 use ssz_derive::{Decode, Encode};
@@ -301,7 +300,6 @@ impl SignedExecutionPayloadEnvelopeSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(SignedExecutionPayloadEnvelope);
 }

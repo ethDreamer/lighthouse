@@ -11,7 +11,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use types::data::BlobIdentifier;
 use types::{
-    BeaconBlockRef, BeaconState, BlindedPayload, Epoch, EthSpec, Hash256, SignedBeaconBlock,
+    BeaconBlockRef, BeaconState, BlindedPayload, Epoch, Hash256, SignedBeaconBlock,
     SignedBeaconBlockHeader, Slot,
 };
 
@@ -547,11 +547,12 @@ impl AsBlock for LookupBlock {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
     use crate::custody_context::NodeCustodyType;
     use crate::test_utils::test_custody_context;
     use bls::Signature;
-    use types::{BeaconBlockGloas, EmptyBlock, MainnetEthSpec};
+    use types::{BeaconBlockGloas, EmptyBlock};
 
 
     /// Test that calling the pre-gloas constructor `RangeSyncBlock::new` with a gloas block

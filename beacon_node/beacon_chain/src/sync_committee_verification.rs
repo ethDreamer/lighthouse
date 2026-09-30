@@ -32,7 +32,6 @@ use crate::{
 };
 use bls::AggregateSignature;
 use bls::{PublicKeyBytes, verify_signature_sets};
-use educe::Educe;
 use safe_arith::ArithError;
 use slot_clock::SlotClock;
 use ssz_derive::{Decode, Encode};
@@ -52,7 +51,7 @@ use types::SlotData;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
 use types::sync_committee::SyncCommitteeError;
 use types::{
-    BeaconStateError, EthSpec, Hash256, SignedContributionAndProof, Slot,
+    BeaconStateError, Spec, Hash256, SignedContributionAndProof, Slot,
     SyncCommitteeContribution, SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId,
     sync_committee::SyncCommitteeContributionError as ContributionError,
 };

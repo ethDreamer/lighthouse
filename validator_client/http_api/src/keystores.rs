@@ -19,7 +19,6 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::runtime::Handle;
 use tracing::{info, warn};
-use types::EthSpec;
 use validator_dir::{Builder as ValidatorDirBuilder, keystore_password_path};
 use warp::Rejection;
 use warp_utils::reject::{custom_bad_request, custom_server_error};

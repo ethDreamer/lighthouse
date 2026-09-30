@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use bls::Signature;
 use context_deserialize::context_deserialize;
-use educe::Educe;
 use kzg::{BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT, Kzg, KzgCommitment, KzgProof};
 use merkle_proof::{MerkleTreeError, merkle_root_from_branch, verify_merkle_proof};
 use rand::Rng;
@@ -19,7 +18,7 @@ use crate::{
         BLOB_KZG_COMMITMENTS_INDEX, BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
     },
     complete_kzg_commitment_merkle_proof,
-    core::{ChainSpec, Epoch, EthSpec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
     data::{Blob, PartialDataColumnHeader},
     fork::ForkName,
     kzg_ext::KzgProofs,

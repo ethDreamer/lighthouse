@@ -41,7 +41,7 @@ use types::data::{
     PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
 };
 use types::{
-    AbstractExecPayload, BeaconStateError, EthSpec, Hash256, KzgCommitment, ListRef,
+    AbstractExecPayload, BeaconStateError, Spec, Hash256, KzgCommitment, ListRef,
     SignedBeaconBlock, SignedExecutionPayloadBid, Slot, VersionedHash,
 };
 

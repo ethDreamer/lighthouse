@@ -1,5 +1,4 @@
 use context_deserialize::{ContextDeserialize, context_deserialize};
-use educe::Educe;
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz_derive::{Decode, Encode};
 use superstruct::superstruct;
@@ -10,7 +9,6 @@ use crate::{
         IndexedAttestationBase, IndexedAttestationElectra, IndexedAttestationGloas,
         IndexedAttestationRef,
     },
-    core::EthSpec,
     fork::ForkName,
 };
 

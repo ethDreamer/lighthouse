@@ -1,3 +1,4 @@
+use typenum::U;
 use std::{fmt, hash::Hash, mem, sync::Arc};
 
 use bls::{AggregatePublicKey, PublicKeyBytes, Signature};
@@ -20,7 +21,6 @@ use swap_or_not_shuffle::compute_shuffled_index;
 use tracing::instrument;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
-use typenum::Unsigned;
 
 use crate::{
     ExecutionBlockHash, ExecutionPayloadBid, Withdrawal,
@@ -31,7 +31,7 @@ use crate::{
     block::{BeaconBlock, BeaconBlockHeader, SignedBeaconBlockHash},
     builder::{Builder, BuilderIndex, BuilderPendingPayment, BuilderPendingWithdrawal},
     consolidation::PendingConsolidation,
-    core::{ChainSpec, Domain, Epoch, EthSpec, Hash256, RelativeEpoch, RelativeEpochError, Slot},
+    core::{ChainSpec, Domain, Epoch, Spec, Hash256, RelativeEpoch, RelativeEpochError, Slot},
     deposit::PendingDeposit,
     execution::{
         Eth1Data, ExecutionPayloadHeaderBellatrix, ExecutionPayloadHeaderCapella,
@@ -4090,7 +4090,7 @@ pub fn compute_weak_subjectivity_period_gloas(
 #[cfg(test)]
 mod weak_subjectivity_tests {
     use crate::state::beacon_state::compute_weak_subjectivity_period_electra;
-    use crate::{ChainSpec, Epoch, EthSpec, MainnetEthSpec};
+    use crate::{ChainSpec, Epoch, Spec};
 
     const GWEI_PER_ETH: u64 = 1_000_000_000;
 

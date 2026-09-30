@@ -43,7 +43,7 @@ impl From<WithdrawalCredentials> for Hash256 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{EthSpec, MainnetEthSpec, test_utils::generate_deterministic_keypair};
+    use crate::{Spec, test_utils::generate_deterministic_keypair};
     use std::str::FromStr;
 
     const ADDRESS: &str = "0x25c4a76E7d118705e7Ea2e9b7d8C59930d8aCD3b";

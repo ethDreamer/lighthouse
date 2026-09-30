@@ -13,7 +13,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::{debug, error, info};
 use types::{
-    AttesterSlashing, ChainSpec, Epoch, EthSpec, IndexedAttestation, ProposerSlashing,
+    AttesterSlashing, ChainSpec, Epoch, IndexedAttestation, ProposerSlashing,
     SignedBeaconBlockHeader,
 };
 

@@ -1,9 +1,10 @@
+use typenum::U;
 use super::base::{TotalBalances, ValidatorStatus, validator_statuses::InclusionInfo};
 use crate::metrics;
 use milhouse::AnyList;
 use std::sync::Arc;
 use types::{
-    BeaconStateError, Epoch, EthSpec, ParticipationFlags, ProgressiveBalancesCache, SyncCommittee,
+    BeaconStateError, Epoch, Spec, ParticipationFlags, ProgressiveBalancesCache, SyncCommittee,
     consts::altair::{TIMELY_HEAD_FLAG_INDEX, TIMELY_SOURCE_FLAG_INDEX, TIMELY_TARGET_FLAG_INDEX},
     state::ValidatorsOwned,
 };

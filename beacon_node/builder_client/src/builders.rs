@@ -2,7 +2,7 @@ use crate::{BuilderHttpClient, Error as BuilderClientError};
 use bls::PublicKeyBytes;
 use eth2::types::{
     BuilderEntry, BuilderPreferenceEntry, BuilderPreferences, BuilderPreferencesRequest,
-    BuilderPubkeys, EthSpec, ExecutionBlockHash, ForkName, Hash256, SignedBeaconBlock,
+    BuilderPubkeys, ExecutionBlockHash, ForkName, Hash256, SignedBeaconBlock,
     SignedExecutionPayloadBid, Slot,
 };
 use futures::future::join_all;
@@ -250,7 +250,7 @@ mod tests {
     use bls::Signature;
     use eth2::types::beacon_response::EmptyMetadata;
     use eth2::types::{
-        ExecutionPayloadBid, ForkName, ForkVersionedResponse, MainnetEthSpec, RequestAuth,
+        ExecutionPayloadBid, ForkName, ForkVersionedResponse, RequestAuth,
         RequestAuthData, SignedExecutionPayloadBid, SignedRequestAuth,
     };
     use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER};

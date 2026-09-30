@@ -4,7 +4,7 @@ use crate::{
 };
 use bls::PublicKeyBytes;
 use eth2::types::{
-    BuilderPreferencesRequest, ContentType, EthSpec, ExecutionBlockHash, ForkName,
+    BuilderPreferencesRequest, ContentType, ExecutionBlockHash, ForkName,
     ForkVersionedResponse, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
     SignedRequestAuth, Slot,
 };
@@ -311,7 +311,7 @@ mod tests {
     use super::*;
     use arbitrary::Arbitrary;
     use eth2::types::beacon_response::EmptyMetadata;
-    use eth2::types::{ForkName, MainnetEthSpec};
+    use eth2::types::{ForkName};
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;
 

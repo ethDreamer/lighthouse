@@ -4,8 +4,7 @@ use crate::per_epoch_processing::{
     single_pass::{SinglePassConfig, process_epoch_single_pass},
 };
 use safe_arith::{SafeArith, SafeArithIter};
-use typenum::Unsigned;
-use types::{BeaconState, ChainSpec, EthSpec};
+use types::{BeaconState, ChainSpec, Spec};
 
 /// Process slashings.
 pub fn process_slashings(

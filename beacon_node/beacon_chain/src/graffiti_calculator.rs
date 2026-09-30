@@ -8,7 +8,7 @@ use slot_clock::SlotClock;
 use std::{fmt::Debug, time::Duration};
 use task_executor::TaskExecutor;
 use tracing::{debug, error, warn};
-use types::{EthSpec, GRAFFITI_BYTES_LEN, Graffiti};
+use types::{Spec, GRAFFITI_BYTES_LEN, Graffiti};
 
 const ENGINE_VERSION_AGE_LIMIT_EPOCH_MULTIPLE: u32 = 6; // 6 epochs
 const ENGINE_VERSION_CACHE_REFRESH_EPOCH_MULTIPLE: u32 = 2; // 2 epochs
@@ -262,7 +262,7 @@ mod tests {
     use std::sync::LazyLock;
     use std::time::Duration;
     use tracing::info;
-    use types::{ChainSpec, GRAFFITI_BYTES_LEN, Graffiti, MinimalEthSpec};
+    use types::{ChainSpec, GRAFFITI_BYTES_LEN, Graffiti};
 
     const VALIDATOR_COUNT: usize = 48;
     /// A cached set of keys.

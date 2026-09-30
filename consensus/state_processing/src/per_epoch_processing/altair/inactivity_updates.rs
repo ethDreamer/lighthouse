@@ -1,6 +1,6 @@
 use crate::EpochProcessingError;
 use crate::per_epoch_processing::single_pass::{SinglePassConfig, process_epoch_single_pass};
-use types::core::{ChainSpec, EthSpec};
+use types::core::{ChainSpec};
 use types::state::BeaconState;
 
 /// Slow version of `process_inactivity_updates` that runs a subset of single-pass processing.

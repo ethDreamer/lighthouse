@@ -4,7 +4,7 @@ use state_processing::{SigVerifiedOp, TransformPersist, VerifyOperation, VerifyO
 use std::collections::HashSet;
 use std::marker::PhantomData;
 use types::{
-    AttesterSlashing, BeaconState, ChainSpec, Epoch, EthSpec, ForkName, ProposerSlashing,
+    AttesterSlashing, BeaconState, ChainSpec, Epoch, ForkName, ProposerSlashing,
     SignedBlsToExecutionChange, SignedVoluntaryExit, Slot,
 };
 

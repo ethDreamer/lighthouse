@@ -12,7 +12,7 @@ use std::time::Duration;
 use task_executor::test_utils::TestRuntime;
 use tempfile::{TempDir, tempdir};
 use types::{
-    ChainSpec, Epoch, EthSpec, Hash256, MainnetEthSpec, Slot,
+    ChainSpec, Epoch, Spec, Hash256, Slot,
     test_utils::generate_deterministic_keypair,
 };
 use validator_store::ValidatorStore;

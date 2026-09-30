@@ -22,7 +22,7 @@
 use sensitive_url::SensitiveUrl;
 use std::sync::Arc;
 use types::{
-    EthSpec, ExecutionPayloadGloas, ExecutionRequestsGloas, SignedExecutionPayloadBid, Slot,
+    ExecutionPayloadGloas, ExecutionRequestsGloas, SignedExecutionPayloadBid, Slot,
     Uint256,
 };
 
@@ -252,7 +252,7 @@ mod tests {
     use super::*;
     use bls::Signature;
     use ssz_types::VariableList;
-    use types::{ExecutionPayloadBid, MainnetEthSpec};
+    use types::{ExecutionPayloadBid};
 
 
     const GOSSIP_BUILDER: u64 = 111;

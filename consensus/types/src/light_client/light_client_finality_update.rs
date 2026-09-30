@@ -10,7 +10,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, EthSpec, Hash256, Slot},
+    core::{ChainSpec, Hash256, Slot},
     fork::ForkName,
     light_client::{
         FinalizedRootProofLen, FinalizedRootProofLenElectra, LightClientError, LightClientHeader,
@@ -310,31 +310,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientFinalityUpdateAltair, MainnetEthSpec};
+        use crate::{LightClientFinalityUpdateAltair};
         ssz_tests!(LightClientFinalityUpdateAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientFinalityUpdateCapella, MainnetEthSpec};
+        use crate::{LightClientFinalityUpdateCapella};
         ssz_tests!(LightClientFinalityUpdateCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientFinalityUpdateDeneb, MainnetEthSpec};
+        use crate::{LightClientFinalityUpdateDeneb};
         ssz_tests!(LightClientFinalityUpdateDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientFinalityUpdateElectra, MainnetEthSpec};
+        use crate::{LightClientFinalityUpdateElectra};
         ssz_tests!(LightClientFinalityUpdateElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientFinalityUpdateFulu, MainnetEthSpec};
+        use crate::{LightClientFinalityUpdateFulu};
         ssz_tests!(LightClientFinalityUpdateFulu);
     }
 }

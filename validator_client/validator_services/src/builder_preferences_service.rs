@@ -13,7 +13,7 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
-use types::{ChainSpec, EthSpec, ForkName, Slot};
+use types::{ChainSpec, Spec, ForkName, Slot};
 use validator_store::ValidatorStore;
 
 /// Identifies a builder preference within one proposal slot.

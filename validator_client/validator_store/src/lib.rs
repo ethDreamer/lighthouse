@@ -7,8 +7,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, EthSpec,
-    ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
+    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
     ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedBlindedBeaconBlock,
     SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
     SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeContribution,

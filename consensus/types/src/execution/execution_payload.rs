@@ -1,5 +1,5 @@
+use typenum::U;
 use context_deserialize::{ContextDeserialize, context_deserialize};
-use educe::Educe;
 use fixed_bytes::Uint256;
 use serde::{Deserialize, Deserializer, Serialize};
 use ssz::{Decode, Encode};
@@ -10,7 +10,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     ListRef,
-    core::{Address, EthSpec, ExecutionBlockHash, Hash256, Slot},
+    core::{Address, Spec, ExecutionBlockHash, Hash256, Slot},
     fork::{ForkName, ForkVersionDecode},
     state::BeaconStateError,
     withdrawal::{Withdrawal, Withdrawals},

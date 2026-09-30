@@ -1,7 +1,7 @@
 use super::{ActiveRequestItems, LookupVerifyError};
 use lighthouse_network::rpc::methods::PayloadEnvelopesByRangeRequest;
 use std::sync::Arc;
-use types::{EthSpec, SignedExecutionPayloadEnvelope};
+use types::{SignedExecutionPayloadEnvelope};
 
 /// Accumulates results of a payload_envelopes_by_range request. Only returns items after
 /// receiving the stream termination.

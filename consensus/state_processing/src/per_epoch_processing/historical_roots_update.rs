@@ -1,8 +1,7 @@
 use super::errors::EpochProcessingError;
 use safe_arith::SafeArith;
 use tree_hash::TreeHash;
-use typenum::Unsigned;
-use types::core::EthSpec;
+use types::core::Spec;
 use types::state::BeaconState;
 
 pub fn process_historical_roots_update(

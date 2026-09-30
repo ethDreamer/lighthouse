@@ -23,8 +23,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use types::{
-    Address, Epoch, EthSpec, ExecPayload, ExecutionBlockHash, ForkName, Hash256, MainnetEthSpec,
-    MinimalEthSpec, ProposerPreparationData, Slot,
+    Address, Epoch, Spec, ExecPayload, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData, Slot,
 };
 
 

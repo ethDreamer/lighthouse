@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::{info, warn};
-use types::{BeaconState, ChainSpec, Config, EthSpec, EthSpecId, Hash256};
+use types::{BeaconState, ChainSpec, Config, Spec, SpecId, Hash256};
 use url::Url;
 
 pub use eth2_config::GenesisStateSource;
@@ -477,7 +477,7 @@ mod tests {
     use fixed_bytes::FixedBytesExtended;
     use ssz::Encode;
     use tempfile::Builder as TempBuilder;
-    use types::{Eth1Data, GnosisEthSpec, MainnetEthSpec};
+    use types::{Eth1Data};
 
 
     #[test]

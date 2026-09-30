@@ -11,7 +11,6 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use directory::{DEFAULT_VALIDATOR_DIR, parse_path_or_default_with_flag};
 use environment::Environment;
 use std::path::PathBuf;
-use types::EthSpec;
 
 pub const CMD: &str = "validator";
 

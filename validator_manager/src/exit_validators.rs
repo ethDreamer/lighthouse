@@ -11,7 +11,7 @@ use slot_clock::{SlotClock, SystemTimeSlotClock};
 use std::fs::write;
 use std::path::PathBuf;
 use std::time::Duration;
-use types::{ChainSpec, EthSpec};
+use types::{ChainSpec, Spec};
 
 pub const CMD: &str = "exit";
 pub const BEACON_URL_FLAG: &str = "beacon-node";
@@ -301,7 +301,7 @@ mod test {
         io::Write,
         sync::Arc,
     };
-    use types::{ChainSpec, MainnetEthSpec};
+    use types::{ChainSpec};
     use validator_http_api::{Config as HttpConfig, test_utils::ApiTester};
     use zeroize::Zeroizing;
 

@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{error, trace};
 use types::PartialDataColumnSidecarError;
-use types::core::{EthSpec, Hash256};
+use types::core::{Hash256};
 use types::data::{
     CellBitmap, PartialDataColumnFulu, PartialDataColumnHeader, PartialDataColumnPartsMetadata,
     PartialDataColumnSidecar, PartialDataColumnViewFulu,
@@ -345,6 +345,7 @@ impl Partial for OutgoingPartialColumnGloas {
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
     use bls::Signature;
     use fixed_bytes::FixedBytesExtended;
@@ -352,7 +353,7 @@ mod tests {
     use ssz_types::FixedVector;
     use types::CellBitmap;
     use types::block::{BeaconBlockHeader, SignedBeaconBlockHeader};
-    use types::core::{MinimalEthSpec, Slot};
+    use types::core::{Slot};
     use types::data::PartialDataColumnHeader;
     use types::data::PartialDataColumnSidecarFulu;
     use types::data::PartialDataColumnSidecarGloas;

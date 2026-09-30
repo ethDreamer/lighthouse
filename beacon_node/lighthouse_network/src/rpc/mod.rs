@@ -13,11 +13,10 @@ use libp2p::swarm::{
 };
 use libp2p::swarm::{ConnectionClosed, FromSwarm, SubstreamProtocol, THandlerInEvent};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tracing::{debug, trace};
-use types::{EthSpec, ForkContext};
+use types::{ForkContext};
 
 pub(crate) use handler::{HandlerErr, HandlerEvent};
 pub(crate) use methods::{MetaData, MetaDataV2, MetaDataV3, Ping, RpcResponse, RpcSuccessResponse};

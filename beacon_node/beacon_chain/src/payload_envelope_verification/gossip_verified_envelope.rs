@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use educe::Educe;
 use eth2::types::{EventKind, SseExecutionPayloadGossip};
 use parking_lot::{Mutex, RwLock};
 use store::DatabaseBlock;
 use tracing::debug;
 use tree_hash::TreeHash;
 use types::{
-    ChainSpec, EthSpec, ExecutionPayloadBid, ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
+    ChainSpec, Spec, ExecutionPayloadBid, ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
     SignedExecutionPayloadEnvelope, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 
@@ -419,9 +418,9 @@ mod tests {
     use ssz_types::ProgressiveVariableList;
     use types::{
         Address, BeaconBlock, BeaconBlockBodyGloas, BeaconBlockGloas, BuilderDepositRequest,
-        BuilderExitRequest, ConsolidationRequest, Eth1Data, EthSpec, ExecutionBlockHash,
+        BuilderExitRequest, ConsolidationRequest, Eth1Data, Spec, ExecutionBlockHash,
         ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
-        ExecutionRequestsGloas, Graffiti, Hash256, MinimalEthSpec, SignedBeaconBlock,
+        ExecutionRequestsGloas, Graffiti, Hash256, SignedBeaconBlock,
         SignedExecutionPayloadBid, Slot, SyncAggregate, Withdrawal, WithdrawalRequest,
     };
 

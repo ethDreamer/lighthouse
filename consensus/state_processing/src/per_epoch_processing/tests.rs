@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::per_epoch_processing::process_epoch;
 use beacon_chain::test_utils::BeaconChainHarness;
-use beacon_chain::types::{EthSpec, MinimalEthSpec};
+use beacon_chain::types::{Spec};
 use types::Slot;
 
 #[tokio::test]
@@ -42,7 +42,7 @@ mod release_tests {
     };
     use beacon_chain::test_utils::{AttestationStrategy, BlockStrategy};
     use std::sync::Arc;
-    use types::{Epoch, ForkName, InconsistentFork, MainnetEthSpec};
+    use types::{Epoch, ForkName, InconsistentFork};
 
     #[tokio::test]
     async fn altair_state_on_base_fork() {

@@ -11,7 +11,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use types::{
-    BlobSidecarList, DataColumnSidecar, DataColumnSidecarList, EthSpec, ForkName, Hash256,
+    BlobSidecarList, DataColumnSidecar, DataColumnSidecarList, Spec, ForkName, Hash256,
     SignedBeaconBlock, SignedBlindedBeaconBlock, Slot,
 };
 use warp::Rejection;
@@ -558,7 +558,6 @@ mod tests {
         },
     };
     use std::time::Duration;
-    use types::MinimalEthSpec;
 
     type TestHarness = BeaconChainHarness<EphemeralHarnessType>;
 

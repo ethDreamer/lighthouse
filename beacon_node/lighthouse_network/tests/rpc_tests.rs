@@ -23,8 +23,8 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockBellatrix, BeaconBlockHeader,
     BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas,
-    DataColumnsByRootIdentifier, EmptyBlock, Epoch, EthSpec, ForkName, Hash256, KzgCommitment,
-    KzgProof, LightClientUpdate, LightClientUpdateCapella, MinimalEthSpec, SignedBeaconBlock,
+    DataColumnsByRootIdentifier, EmptyBlock, Epoch, Spec, ForkName, Hash256, KzgCommitment,
+    KzgProof, LightClientUpdate, LightClientUpdateCapella, SignedBeaconBlock,
     SignedBeaconBlockHeader, Slot, SyncAggregate, SyncCommittee,
 };
 

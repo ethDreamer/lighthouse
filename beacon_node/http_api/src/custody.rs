@@ -1,7 +1,7 @@
 use beacon_chain::{BeaconChain, BeaconChainTypes};
 use eth2::lighthouse::CustodyInfo;
 use std::sync::Arc;
-use types::EthSpec;
+use types::Spec;
 use warp_utils::reject::{custom_bad_request, custom_server_error};
 
 pub fn info<T: BeaconChainTypes>(

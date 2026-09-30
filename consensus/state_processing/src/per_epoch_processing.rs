@@ -6,7 +6,7 @@ use errors::EpochProcessingError as Error;
 pub use justification_and_finalization_state::JustificationAndFinalizationState;
 use safe_arith::SafeArith;
 use tracing::instrument;
-use types::{BeaconState, ChainSpec, EthSpec};
+use types::{BeaconState, ChainSpec};
 
 pub use registry_updates::{process_registry_updates, process_registry_updates_slow};
 pub use slashings::{process_slashings, process_slashings_slow};

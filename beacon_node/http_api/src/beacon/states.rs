@@ -15,7 +15,7 @@ use eth2::types::{
 use ssz::Encode;
 use std::sync::Arc;
 use types::{
-    AttestationShufflingId, BeaconStateError, CommitteeCache, EthSpec, RelativeEpoch,
+    AttestationShufflingId, BeaconStateError, CommitteeCache, Spec, RelativeEpoch,
     RelativeEpochError,
 };
 use warp::{Filter, Reply, filters::BoxedFilter, http::response::Builder};

@@ -1,6 +1,7 @@
 use types::*;
 
 pub mod attesting_indices_base {
+    use typenum::U;
     use crate::per_block_processing::errors::{AttestationInvalid as Invalid, BlockOperationError};
     use ssz_types::{BitList, VariableList};
     use types::*;
@@ -45,6 +46,7 @@ pub mod attesting_indices_base {
 }
 
 pub mod attesting_indices_electra {
+    use typenum::U;
     use crate::per_block_processing::errors::{AttestationInvalid as Invalid, BlockOperationError};
     use safe_arith::SafeArith;
     use ssz_types::{BitVector, VariableList};

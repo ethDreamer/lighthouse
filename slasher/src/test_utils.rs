@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use types::{
     AttestationData, AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra,
-    AttesterSlashingGloas, BeaconBlockHeader, ChainSpec, Checkpoint, Epoch, EthSpec, Hash256,
-    IndexedAttestation, MainnetEthSpec, SignedBeaconBlockHeader, Slot,
+    AttesterSlashingGloas, BeaconBlockHeader, ChainSpec, Checkpoint, Epoch, Spec, Hash256,
+    IndexedAttestation, SignedBeaconBlockHeader, Slot,
     attestation::{IndexedAttestationBase, IndexedAttestationElectra},
 };
 

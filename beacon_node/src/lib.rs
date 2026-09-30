@@ -16,7 +16,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use store::database::interface::BeaconNodeBackend;
 use tracing::{info, warn};
-use types::{ChainSpec, Epoch, EthSpec, ForkName};
+use types::{ChainSpec, Epoch, ForkName};
 
 /// A type-alias to the tighten the definition of a production-intended `Client`.
 pub type ProductionClient =
@@ -196,8 +196,8 @@ impl lighthouse_network::discv5::Executor for Discv5Executor {
 
 #[cfg(test)]
 mod test {
+    use types::Spec;
     use super::*;
-    use types::MainnetEthSpec;
 
     #[test]
     fn test_validator_fork_epoch_alignments() {

@@ -4,7 +4,7 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::BitList;
 use tree_hash_derive::TreeHash;
 
-use crate::{attestation::AttestationData, core::EthSpec, fork::ForkName};
+use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
 
 /// An attestation that has been included in the state but not yet fully processed.
 ///

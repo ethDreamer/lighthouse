@@ -6,7 +6,7 @@ use fixed_bytes::FixedBytesExtended;
 use safe_arith::SafeArith;
 use tracing::instrument;
 use types::state::{EpochCache, EpochCacheError, EpochCacheKey};
-use types::{ActivationQueue, BeaconState, ChainSpec, EthSpec, ForkName, Hash256};
+use types::{ActivationQueue, BeaconState, ChainSpec, ForkName, Hash256};
 
 /// Precursor to an `EpochCache`.
 pub struct PreEpochCache {
@@ -186,8 +186,9 @@ pub fn initialize_epoch_cache(
 
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
-    use types::{Epoch, MinimalEthSpec};
+    use types::{Epoch};
 
     /// Regression test for division-by-zero when all validators have zero effective balance.
     ///

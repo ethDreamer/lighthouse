@@ -11,7 +11,7 @@ use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 use types::{
-    Address, ChainSpec, EthSpec, ProposerPreparationData, SignedValidatorRegistrationData, Slot,
+    Address, ChainSpec, Spec, ProposerPreparationData, SignedValidatorRegistrationData, Slot,
     ValidatorRegistrationData,
 };
 use validator_store::{
@@ -481,7 +481,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> PreparationService<S, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{Epoch, MainnetEthSpec, Slot};
+    use types::{Epoch, Slot};
 
     #[test]
     fn validator_registrations_stop_at_gloas() {

@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use std::net::IpAddr;
 use std::time::Instant;
 use strum::AsRefStr;
-use types::{DataColumnSubnetId, EthSpec, Slot};
+use types::{DataColumnSubnetId, Slot};
 
 /// Information about a given connected peer.
 #[derive(Clone, Debug, Serialize)]
@@ -683,7 +683,7 @@ impl From<PeerConnectionStatus> for PeerState {
 mod tests {
     use super::*;
     use crate::types::Subnet;
-    use types::{DataColumnSubnetId, MainnetEthSpec};
+    use types::{DataColumnSubnetId};
 
 
     fn create_test_peer_info() -> PeerInfo {

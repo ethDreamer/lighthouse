@@ -7,7 +7,7 @@ use state_processing::signature_sets::{
     execution_payload_bid_signature_set, get_builder_pubkey_from_state,
 };
 use types::{
-    BeaconState, ChainSpec, EthSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
+    BeaconState, ChainSpec, Spec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
     SignedProposerPreferences, Slot,
 };
 
@@ -121,7 +121,7 @@ pub fn verify_direct_bid(
 mod tests {
     use super::*;
     use bls::Signature;
-    use types::{Address, ExecutionPayloadBid, MinimalEthSpec, ProposerPreferences};
+    use types::{Address, ExecutionPayloadBid, ProposerPreferences};
 
 
     /// Gas limit of the executed ancestor's payload; equal to the proposer's target in `preferences()`.

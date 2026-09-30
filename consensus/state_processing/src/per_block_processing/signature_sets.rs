@@ -6,10 +6,9 @@ use bls::{AggregateSignature, PublicKey, PublicKeyBytes, Signature, SignatureSet
 use ssz::DecodeError;
 use std::borrow::Cow;
 use tree_hash::TreeHash;
-use typenum::Unsigned;
 use types::{
     AbstractExecPayload, AttesterSlashingRef, BeaconBlockRef, BeaconState, BeaconStateError,
-    BuilderIndex, ChainSpec, DepositData, Domain, Epoch, EthSpec, Fork, Hash256, InconsistentFork,
+    BuilderIndex, ChainSpec, DepositData, Domain, Epoch, Spec, Fork, Hash256, InconsistentFork,
     IndexedAttestation, IndexedAttestationRef, IndexedPayloadAttestation, ProposerSlashing,
     SignedAggregateAndProof, SignedBeaconBlock, SignedBeaconBlockHeader,
     SignedBlsToExecutionChange, SignedContributionAndProof, SignedExecutionPayloadBid,
@@ -833,7 +832,7 @@ mod inclusion_list_signature_tests {
     use super::{get_pubkey_from_state, inclusion_list_signature_set};
     use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
     use types::{
-        Domain, EthSpec, Hash256, InclusionList, MinimalEthSpec, SignedInclusionList, SignedRoot,
+        Domain, Spec, Hash256, InclusionList, SignedInclusionList, SignedRoot,
     };
 
     const VALIDATOR_COUNT: usize = 16;

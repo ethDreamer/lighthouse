@@ -12,7 +12,7 @@ use std::time::Duration;
 use std::time::Instant;
 use strum::{Display, EnumIter, IntoStaticStr};
 use types::Slot;
-use types::{DataColumnSidecarList, Epoch, EthSpec};
+use types::{DataColumnSidecarList, Epoch, Spec};
 
 /// Batch states used as metrics labels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter, IntoStaticStr)]
@@ -551,7 +551,6 @@ impl<D: Hash> BatchState<D> {
 mod tests {
     use super::*;
     use crate::sync::range_sync::RangeSyncBatchConfig;
-    use types::MinimalEthSpec;
 
     type Cfg = RangeSyncBatchConfig;
     type TestBatch = BatchInfo<Cfg, Vec<u64>>;

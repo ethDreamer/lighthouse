@@ -195,7 +195,7 @@ mod fork_version_response_tests {
     use crate::beacon_response::ExecutionOptimisticFinalizedMetadata;
     use crate::{
         ExecutionPayload, ExecutionPayloadBellatrix, ForkName, ForkVersionedResponse,
-        MainnetEthSpec, UnversionedResponse,
+        UnversionedResponse,
     };
     use serde_json::json;
 

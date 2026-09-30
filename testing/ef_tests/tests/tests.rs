@@ -1,7 +1,6 @@
 #![cfg(feature = "ef_tests")]
 
 use ef_tests::*;
-use typenum::Unsigned;
 use types::*;
 
 // Check that the hand-computed multiplications on EthSpec are correctly computed.

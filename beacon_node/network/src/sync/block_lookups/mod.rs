@@ -43,7 +43,7 @@ use std::time::Duration;
 use store::Hash256;
 use tracing::{debug, error, warn};
 use types::{
-    DataColumnSidecarList, EthSpec, ExecutionBlockHash, SignedBeaconBlock,
+    DataColumnSidecarList, ExecutionBlockHash, SignedBeaconBlock,
     SignedExecutionPayloadEnvelope,
 };
 

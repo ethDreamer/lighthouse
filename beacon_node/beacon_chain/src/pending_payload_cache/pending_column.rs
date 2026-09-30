@@ -2,7 +2,7 @@ use kzg::KzgProof;
 use ssz_types::ProgressiveVariableList;
 use std::sync::Arc;
 use types::data::{CellBitmap, PartialDataColumnGloas, PartialDataColumnSidecarGloas};
-use types::{Cell, ColumnIndex, DataColumnSidecar, DataColumnSidecarGloas, EthSpec, Hash256, Slot};
+use types::{Cell, ColumnIndex, DataColumnSidecar, DataColumnSidecarGloas, Hash256, Slot};
 
 #[derive(Clone)]
 pub struct PendingColumn {

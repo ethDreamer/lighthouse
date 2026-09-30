@@ -8,13 +8,12 @@ use regex::Regex;
 use reqwest::StatusCode;
 use sensitive_url::SensitiveUrl;
 use ssz::{Decode, Encode};
-use std::marker::PhantomData;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::info;
 use types::{
-    ChainSpec, ConfigAndPreset, Epoch, EthSpec, ExecutionPayloadEnvelope, ForkName, Hash256,
+    ChainSpec, ConfigAndPreset, Epoch, ExecutionPayloadEnvelope, ForkName, Hash256,
     PayloadAttestationData, PayloadAttestationMessage, SignedBlindedBeaconBlock,
     SignedContributionAndProof, SignedExecutionPayloadEnvelope, Slot, SyncCommitteeContribution,
     SyncCommitteeMessage, SyncDuty,

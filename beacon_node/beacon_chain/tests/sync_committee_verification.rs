@@ -13,10 +13,9 @@ use state_processing::{
 use std::sync::LazyLock;
 use store::{SignedContributionAndProof, SyncCommitteeMessage};
 use tree_hash::TreeHash;
-use typenum::Unsigned;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
 use types::{
-    Epoch, EthSpec, Hash256, MainnetEthSpec, Slot, SyncContributionData, SyncSelectionProof,
+    Epoch, Spec, Hash256, Slot, SyncContributionData, SyncSelectionProof,
     SyncSubnetId,
 };
 

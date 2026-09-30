@@ -8,7 +8,7 @@ use types::SlotData;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
 use types::sync_committee::SyncContributionData;
 use types::{
-    Attestation, AttestationData, AttestationRef, CommitteeIndex, EthSpec, Hash256, Slot,
+    Attestation, AttestationData, AttestationRef, CommitteeIndex, Spec, Hash256, Slot,
     SyncCommitteeContribution,
 };
 

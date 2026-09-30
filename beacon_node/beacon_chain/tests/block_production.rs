@@ -4,7 +4,7 @@ use beacon_chain::{
 };
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, MinimalEthSpec, Slot,
+    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, Slot,
     WithdrawalRequest,
 };
 

@@ -8,8 +8,8 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use bls::Signature;
 use kzg::{KzgCommitment, KzgProof};
 use types::{
-    BeaconBlock, BeaconBlockFulu, Blob, BlobsList, ChainSpec, EmptyBlock, EthSpec, KzgProofs,
-    MainnetEthSpec, SignedBeaconBlock, kzg_ext::KzgCommitments,
+    BeaconBlock, BeaconBlockFulu, Blob, BlobsList, ChainSpec, EmptyBlock, Spec, KzgProofs,
+    SignedBeaconBlock, kzg_ext::KzgCommitments,
 };
 
 fn create_test_block_and_blobs(

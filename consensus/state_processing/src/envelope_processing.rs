@@ -3,7 +3,7 @@ use crate::per_block_processing::compute_timestamp_at_slot;
 use safe_arith::ArithError;
 use tree_hash::TreeHash;
 use types::{
-    BeaconState, BeaconStateError, BuilderIndex, ChainSpec, EthSpec, ExecutionBlockHash, Hash256,
+    BeaconState, BeaconStateError, BuilderIndex, ChainSpec, ExecutionBlockHash, Hash256,
     SignedExecutionPayloadEnvelope, Slot,
 };
 
@@ -236,12 +236,13 @@ pub fn verify_execution_payload_envelope(
 #[cfg(not(debug_assertions))]
 #[cfg(test)]
 mod tests {
+    use types::Spec;
     use super::*;
     use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
     use fixed_bytes::FixedBytesExtended;
     use std::sync::LazyLock;
     use types::test_utils::generate_deterministic_keypairs;
-    use types::{ForkName, MainnetEthSpec};
+    use types::{ForkName};
 
 
     const VALIDATOR_COUNT: usize = 32;

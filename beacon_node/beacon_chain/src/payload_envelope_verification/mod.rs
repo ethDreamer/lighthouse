@@ -29,8 +29,7 @@ use store::Error as DBError;
 use strum::AsRefStr;
 use tracing::{instrument, warn};
 use types::{
-    BeaconState, BeaconStateError, BuilderIndex, DataColumnSidecarList, EthSpec,
-    ExecutionBlockHash, ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBid,
+    BeaconState, BeaconStateError, BuilderIndex, DataColumnSidecarList, ExecutionBlockHash, ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBid,
     SignedExecutionPayloadEnvelope, Slot,
 };
 
@@ -452,7 +451,7 @@ mod payload_hash_tests {
     use types::{
         BeaconBlock, BeaconBlockBodyGloas, BeaconBlockGloas, Eth1Data, ExecutionPayloadEnvelope,
         ExecutionPayloadGloas, ExecutionPayloadRef, ExecutionRequestsGloas, ExecutionRequestsRef,
-        Graffiti, Hash256, MinimalEthSpec, SignedBeaconBlock, SignedExecutionPayloadBid,
+        Graffiti, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
         SignedExecutionPayloadEnvelope, Slot, SyncAggregate,
     };
 

@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tracing::{Span, debug, debug_span};
 use types::DataColumnSidecar;
 use types::execution::{ProofType, SignedExecutionProof};
-use types::{ColumnIndex, EthSpec, Hash256, SignedExecutionPayloadBid};
+use types::{ColumnIndex, Hash256, SignedExecutionPayloadBid};
 
 /// This represents the components of a payload pending data availability.
 ///

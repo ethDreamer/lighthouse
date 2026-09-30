@@ -1,5 +1,5 @@
 use ssz::{Decode, Encode};
-use types::{EthSpec, SignedExecutionPayloadEnvelopeSummary};
+use types::{SignedExecutionPayloadEnvelopeSummary};
 
 use crate::{DBColumn, Error, StoreItem};
 

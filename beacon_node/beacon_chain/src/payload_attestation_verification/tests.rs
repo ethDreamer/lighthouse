@@ -4,7 +4,7 @@ use std::time::Duration;
 use bls::Signature;
 use slot_clock::{SlotClock, TestingSlotClock};
 use types::{
-    Domain, Epoch, EthSpec, ForkName, Hash256, MinimalEthSpec, PayloadAttestationData,
+    Domain, Epoch, Spec, ForkName, Hash256, PayloadAttestationData,
     PayloadAttestationMessage, SignedRoot, Slot,
 };
 

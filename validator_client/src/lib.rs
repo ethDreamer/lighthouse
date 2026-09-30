@@ -39,7 +39,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 use tracing::{debug, error, info, warn};
-use types::{EthSpec, Hash256};
+use types::{Spec, Hash256};
 use validator_http_api::ApiSecret;
 use validator_services::notifier_service::spawn_notifier;
 use validator_services::{

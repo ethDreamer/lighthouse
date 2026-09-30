@@ -8,7 +8,7 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::FixedVector;
 use tree_hash_derive::TreeHash;
 
-use crate::{core::EthSpec, fork::ForkName, sync_committee::SyncSubnetId};
+use crate::{core::Spec, fork::ForkName, sync_committee::SyncSubnetId};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {

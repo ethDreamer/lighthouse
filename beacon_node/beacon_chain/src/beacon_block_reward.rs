@@ -19,7 +19,7 @@ use store::{
     consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR},
 };
 use tracing::error;
-use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, EthSpec};
+use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Spec};
 
 type BeaconBlockSubRewardValue = u64;
 

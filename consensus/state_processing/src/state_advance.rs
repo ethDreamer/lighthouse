@@ -8,7 +8,7 @@ use crate::builder_deposits_cache::OnboardBuildersCache;
 use crate::*;
 use fixed_bytes::FixedBytesExtended;
 use tracing::instrument;
-use types::{BeaconState, ChainSpec, EthSpec, Hash256, Slot};
+use types::{BeaconState, ChainSpec, Hash256, Slot};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {

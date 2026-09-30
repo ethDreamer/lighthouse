@@ -7,7 +7,7 @@ use state_processing::common::{
 };
 use std::collections::HashMap;
 use types::{
-    Attestation, BeaconState, ChainSpec, EthSpec,
+    Attestation, BeaconState, ChainSpec, Spec,
     consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR},
     state::BeaconStateBase,
 };

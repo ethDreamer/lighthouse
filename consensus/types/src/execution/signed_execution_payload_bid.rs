@@ -1,5 +1,5 @@
 use crate::execution::ExecutionPayloadBid;
-use crate::{EthSpec, ForkName};
+use crate::{Spec, ForkName};
 use bls::Signature;
 use context_deserialize::context_deserialize;
 use educe::Educe;
@@ -44,7 +44,6 @@ impl SignedExecutionPayloadBid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
     ssz_and_tree_hash_tests!(SignedExecutionPayloadBid);
 }

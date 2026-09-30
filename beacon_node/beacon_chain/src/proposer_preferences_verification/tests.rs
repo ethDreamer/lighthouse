@@ -9,8 +9,7 @@ use slot_clock::{SlotClock, TestingSlotClock};
 use state_processing::AllCaches;
 use store::{HotColdDB, MemoryStore, StoreConfig};
 use types::{
-    Address, BeaconBlock, ChainSpec, Epoch, EthSpec, ForkName, Hash256, MinimalEthSpec,
-    ProposerPreferences, SignedBeaconBlock, SignedProposerPreferences, Slot,
+    Address, BeaconBlock, ChainSpec, Epoch, Spec, ForkName, Hash256, ProposerPreferences, SignedBeaconBlock, SignedProposerPreferences, Slot,
 };
 
 use crate::{

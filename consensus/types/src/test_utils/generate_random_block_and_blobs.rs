@@ -3,7 +3,6 @@ use kzg::{KzgCommitment, KzgProof};
 
 use crate::{
     block::{BeaconBlock, SignedBeaconBlock},
-    core::{EthSpec, MainnetEthSpec},
     data::{Blob, BlobSidecar, BlobsList},
     execution::FullPayload,
     fork::{ForkName, map_fork_name},

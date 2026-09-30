@@ -10,7 +10,6 @@ use crate::{
     },
     proposer_preferences_verification::proposer_preference_cache::GossipVerifiedProposerPreferenceCache,
 };
-use educe::Educe;
 use eth2::types::{EventKind, ForkVersionedResponse};
 use proto_array::{Block as ProtoBlock, PayloadBlockHash};
 use slot_clock::SlotClock;
@@ -19,7 +18,7 @@ use state_processing::signature_sets::{
 };
 use tracing::debug;
 use types::{
-    BeaconState, Builder, ChainSpec, EthSpec, ExecutionPayloadBid, ExecutionRequestsGloas,
+    BeaconState, Builder, ChainSpec, Spec, ExecutionPayloadBid, ExecutionRequestsGloas,
     SignedExecutionPayloadBid, SignedProposerPreferences, Slot,
     consts::gloas::PAYLOAD_BUILDER_VERSION,
 };

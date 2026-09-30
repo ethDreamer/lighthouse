@@ -1,10 +1,8 @@
 use crate::errors::HandleUnavailable;
 use crate::{Error, HotColdDB, ItemStore};
 use std::borrow::Cow;
-use std::marker::PhantomData;
-use typenum::Unsigned;
 use types::{
-    BeaconState, BeaconStateError, BlindedPayload, EthSpec, Hash256, SignedBeaconBlock, Slot,
+    BeaconState, BeaconStateError, BlindedPayload, Spec, Hash256, SignedBeaconBlock, Slot,
 };
 
 /// Implemented for types that have ancestors (e.g., blocks, states) that may be iterated over.
@@ -360,7 +358,6 @@ mod test {
     use super::*;
     use crate::{MemoryStore, StoreConfig as Config};
     use beacon_chain::test_utils::BeaconChainHarness;
-    use beacon_chain::types::MainnetEthSpec;
     use fixed_bytes::FixedBytesExtended;
     use std::sync::Arc;
 

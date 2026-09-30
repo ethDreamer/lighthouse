@@ -8,9 +8,8 @@ use std::{
 
 use safe_arith::{ArithError, SafeArith};
 use serde::{Deserialize, Serialize};
-use typenum::Unsigned;
 
-use crate::core::{EthSpec, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT};
+use crate::core::{Spec, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT};
 
 static SYNC_SUBNET_ID_TO_STRING: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut v = Vec::with_capacity(SYNC_COMMITTEE_SUBNET_COUNT as usize);

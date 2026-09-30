@@ -24,7 +24,7 @@ use std::string::ToString;
 use std::time::Duration;
 use tempfile::TempDir;
 use types::new_non_zero_usize;
-use types::{Address, Checkpoint, Epoch, Hash256, MainnetEthSpec};
+use types::{Address, Checkpoint, Epoch, Hash256};
 
 const DEFAULT_EXECUTION_ENDPOINT: &str = "http://localhost:8551/";
 const DEFAULT_EXECUTION_JWT_SECRET_KEY: &str =

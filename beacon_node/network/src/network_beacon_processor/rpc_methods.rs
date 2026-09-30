@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tokio_stream::StreamExt;
 use tracing::{Span, debug, error, field, instrument, trace, warn};
 use types::data::BlobIdentifier;
-use types::{ColumnIndex, Epoch, EthSpec, Hash256, Slot};
+use types::{ColumnIndex, Epoch, Spec, Hash256, Slot};
 
 fn payload_envelope_unavailable(error: &BeaconChainError) -> bool {
     matches!(

@@ -2,7 +2,7 @@ use integer_sqrt::IntegerSquareRoot;
 use safe_arith::SafeArith;
 use smallvec::SmallVec;
 use types::{
-    AttestationData, BeaconState, BeaconStateError as Error, ChainSpec, EthSpec, Slot,
+    AttestationData, BeaconState, BeaconStateError as Error, ChainSpec, Spec, Slot,
     consts::altair::{
         NUM_FLAG_INDICES, TIMELY_HEAD_FLAG_INDEX, TIMELY_SOURCE_FLAG_INDEX,
         TIMELY_TARGET_FLAG_INDEX,

@@ -3,7 +3,7 @@ use crate::{Error, testing_spec};
 use ssz::Encode;
 use std::fmt::Debug;
 use std::path::Path;
-use types::{ChainSpec, Config, EthSpec, ForkName};
+use types::{ChainSpec, Config, ForkName};
 
 pub(super) fn load_config(path: &Path) -> Result<Option<Config>, Error> {
     let config_path = path.join("config.yaml");

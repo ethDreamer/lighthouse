@@ -1,5 +1,4 @@
 use crate::EpochProcessingError;
-use types::core::EthSpec;
 use types::state::BeaconState;
 
 pub fn process_participation_record_updates(

@@ -11,7 +11,7 @@ use std::{
 };
 use tracing::{debug, warn};
 use types::{
-    ChainSpec, ColumnIndex, Epoch, EthSpec, SignedBeaconBlock, SignedExecutionPayloadBid, Slot,
+    ChainSpec, ColumnIndex, Epoch, Spec, SignedBeaconBlock, SignedExecutionPayloadBid, Slot,
 };
 
 /// A delay before making the CGC change effective to the data availability checker.
@@ -650,7 +650,6 @@ mod tests {
     use crate::test_utils::{EphemeralHarnessType, generate_data_column_indices_rand_order};
     use slot_clock::{SlotClock, TestingSlotClock};
     use std::time::Duration;
-    use types::MainnetEthSpec;
 
     type T = EphemeralHarnessType;
 

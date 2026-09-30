@@ -14,7 +14,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, error, info, info_span, instrument, warn};
 use tree_hash::TreeHash;
-use types::{AttestationData, ChainSpec, CommitteeIndex, EthSpec, Hash256, Slot};
+use types::{AttestationData, ChainSpec, CommitteeIndex, Spec, Hash256, Slot};
 use validator_store::{AggregateToSign, AttestationToSign, ValidatorStore};
 
 /// Builds an `AttestationService`.
@@ -829,7 +829,7 @@ mod tests {
     use futures::future::FutureExt;
     use parking_lot::RwLock;
     use slot_clock::ManualSlotClock;
-    use types::{Epoch, MainnetEthSpec};
+    use types::{Epoch};
 
     #[test]
     fn duration_to_attestation_deadline_is_fork_aware() {

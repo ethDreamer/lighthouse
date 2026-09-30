@@ -12,9 +12,9 @@ use ssz_types::ProgressiveVariableList;
 use state_processing::genesis::genesis_block;
 use store::{HotColdDB, StoreConfig, StoreOp};
 use types::{
-    Address, BuilderExitRequest, ChainSpec, Checkpoint, Domain, Epoch, EthSpec, ExecutionBlockHash,
+    Address, BuilderExitRequest, ChainSpec, Checkpoint, Domain, Epoch, Spec, ExecutionBlockHash,
     ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionPayloadHeader,
-    ExecutionPayloadHeaderFulu, Hash256, MinimalEthSpec, ProposerPreferences, SignedBeaconBlock,
+    ExecutionPayloadHeaderFulu, Hash256, ProposerPreferences, SignedBeaconBlock,
     SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
     SignedRoot, Slot, consts::gloas::PAYLOAD_BUILDER_VERSION,
 };

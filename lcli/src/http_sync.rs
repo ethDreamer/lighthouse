@@ -13,7 +13,6 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use types::EthSpec;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(3600);
 const DEFAULT_CACHE_DIR: &str = "./cache";

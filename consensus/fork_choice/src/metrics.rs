@@ -1,6 +1,5 @@
 pub use metrics::*;
 use std::sync::LazyLock;
-use types::EthSpec;
 
 use crate::{ForkChoice, ForkChoiceStore};
 

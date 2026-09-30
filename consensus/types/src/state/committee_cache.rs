@@ -9,7 +9,7 @@ use swap_or_not_shuffle::shuffle_list;
 
 use crate::{
     attestation::{AttestationDuty, BeaconCommittee, CommitteeIndex},
-    core::{ChainSpec, Domain, Epoch, EthSpec, Slot},
+    core::{ChainSpec, Domain, Epoch, Spec, Slot},
     state::{BeaconState, BeaconStateError},
     validator::Validator,
 };

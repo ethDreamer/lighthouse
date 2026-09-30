@@ -11,7 +11,6 @@ use ssz_types::{BitList, BitVector, FixedVector, ProgressiveVariableList, Variab
 use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
-use typenum::Unsigned;
 
 use crate::{
     KzgCommitment, SignedExecutionPayloadBid,
@@ -22,7 +21,7 @@ use crate::{
         BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
         BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
     },
-    core::{ChainSpec, Domain, Epoch, EthSpec, Graffiti, Hash256, SignedRoot, Slot},
+    core::{ChainSpec, Domain, Epoch, Spec, Graffiti, Hash256, SignedRoot, Slot},
     deposit::{Deposit, DepositData},
     execution::{
         AbstractExecPayload, BlindedPayload, Eth1Data, ExecutionPayload, ExecutionRequestsElectra,
@@ -1005,7 +1004,7 @@ impl fmt::Display for BlockImportSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{core::MainnetEthSpec, test_utils::test_ssz_tree_hash_pair_with};
+    use crate::{test_utils::test_ssz_tree_hash_pair_with};
     use arbitrary::Arbitrary;
     use ssz::Encode;
 

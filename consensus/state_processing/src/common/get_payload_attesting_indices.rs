@@ -3,7 +3,7 @@ use crate::per_block_processing::errors::{
 };
 use ssz_types::VariableList;
 use types::{
-    BeaconState, BeaconStateError, ChainSpec, EthSpec, IndexedPayloadAttestation,
+    BeaconState, BeaconStateError, ChainSpec, IndexedPayloadAttestation,
     PayloadAttestation,
 };
 

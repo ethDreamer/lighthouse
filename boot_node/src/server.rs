@@ -10,7 +10,6 @@ use lighthouse_network::{
 };
 use network_utils::enr_ext::EnrExt;
 use tracing::{info, warn};
-use types::EthSpec;
 
 pub async fn run(
     lh_matches: &ArgMatches,

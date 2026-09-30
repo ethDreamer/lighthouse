@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::error;
-use types::core::{Epoch, EthSpec, Hash256};
+use types::core::{Epoch, Spec, Hash256};
 use types::data::{ColumnIndex, PartialDataColumnGloas, PartialDataColumnHeader};
 
 /// Assembles partial data columns into complete columns
@@ -287,7 +287,7 @@ mod tests {
     use kzg::{KzgCommitment, KzgProof};
     use ssz_types::{FixedVector, VariableList};
     use types::block::{BeaconBlockHeader, SignedBeaconBlockHeader};
-    use types::core::{EthSpec, Hash256, MinimalEthSpec, Slot};
+    use types::core::{Hash256, Slot};
     use types::data::{
         Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, PartialDataColumn,
         PartialDataColumnFulu, PartialDataColumnSidecarFulu,

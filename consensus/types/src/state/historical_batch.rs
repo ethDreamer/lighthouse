@@ -5,7 +5,7 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{EthSpec, Hash256},
+    core::{Spec, Hash256},
     fork::ForkName,
 };
 
@@ -28,7 +28,6 @@ pub struct HistoricalBatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::MainnetEthSpec;
 
     pub type FoundationHistoricalBatch = HistoricalBatch;
 

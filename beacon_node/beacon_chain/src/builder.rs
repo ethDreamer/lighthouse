@@ -50,7 +50,7 @@ use tracing::{debug, error, info, warn};
 use tree_hash::TreeHash;
 use types::data::CustodyIndex;
 use types::{
-    BeaconState, BlobSidecarList, ChainSpec, ColumnIndex, DataColumnSidecarList, EthSpec, Hash256,
+    BeaconState, BlobSidecarList, ChainSpec, ColumnIndex, DataColumnSidecarList, Spec, Hash256,
     SignedBeaconBlock, Slot,
 };
 
@@ -1585,7 +1585,7 @@ mod test {
     use store::config::StoreConfig;
     use store::{HotColdDB, MemoryStore};
     use task_executor::test_utils::TestRuntime;
-    use types::{EthSpec, MinimalEthSpec, Slot};
+    use types::{Slot};
 
     type Builder = BeaconChainBuilder<EphemeralHarnessType>;
 

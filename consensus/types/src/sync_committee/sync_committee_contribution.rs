@@ -6,7 +6,7 @@ use ssz_types::BitVector;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{EthSpec, Hash256, SignedRoot, Slot, SlotData},
+    core::{Spec, Hash256, SignedRoot, Slot, SlotData},
     fork::ForkName,
     sync_committee::SyncCommitteeMessage,
 };

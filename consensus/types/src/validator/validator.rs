@@ -7,7 +7,7 @@ use tree_hash_derive::TreeHash;
 
 use crate::{
     attestation::Checkpoint,
-    core::{Address, ChainSpec, Epoch, EthSpec, Hash256},
+    core::{Address, ChainSpec, Epoch, Hash256},
     fork::ForkName,
     state::BeaconState,
 };

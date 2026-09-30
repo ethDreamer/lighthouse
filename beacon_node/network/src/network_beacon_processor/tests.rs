@@ -41,8 +41,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use types::{
-    AttesterSlashing, ChainSpec, DataColumnSidecarList, DataColumnSubnetId, Domain, Epoch, EthSpec,
-    Hash256, MainnetEthSpec, PayloadAttestationData, PayloadAttestationMessage, ProposerSlashing,
+    AttesterSlashing, ChainSpec, DataColumnSidecarList, DataColumnSubnetId, Domain, Epoch, Spec,
+    Hash256, PayloadAttestationData, PayloadAttestationMessage, ProposerSlashing,
     SignedAggregateAndProof, SignedBeaconBlock, SignedExecutionPayloadEnvelope, SignedRoot,
     SignedVoluntaryExit, SingleAttestation, Slot, SubnetId, data::BlobIdentifier,
 };

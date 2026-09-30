@@ -6,7 +6,7 @@ use eth2_network_config::{DEFAULT_HARDCODED_NETWORK, Eth2NetworkConfig};
 use ssz::Decode;
 use std::path::PathBuf;
 use std::str::FromStr;
-use types::{ChainSpec, Config, EthSpec};
+use types::{ChainSpec, Config};
 
 pub mod flags;
 

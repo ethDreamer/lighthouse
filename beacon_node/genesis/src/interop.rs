@@ -4,7 +4,7 @@ use ethereum_hashing::hash;
 use rayon::prelude::*;
 use ssz::Encode;
 use state_processing::initialize_beacon_state_from_eth1;
-use types::{BeaconState, ChainSpec, DepositData, EthSpec, ExecutionPayloadHeader, Hash256};
+use types::{BeaconState, ChainSpec, DepositData, ExecutionPayloadHeader, Hash256};
 
 pub const DEFAULT_ETH1_BLOCK_HASH: &[u8] = &[0x42; 32];
 
@@ -191,8 +191,9 @@ pub fn interop_genesis_state_with_eth1(
 
 #[cfg(test)]
 mod test {
+    use types::Spec;
     use super::*;
-    use types::{MinimalEthSpec, test_utils::generate_deterministic_keypairs};
+    use types::{test_utils::generate_deterministic_keypairs};
 
 
     #[test]

@@ -6,7 +6,7 @@ use eth2::types::{self as api_types, PtcDuty};
 use slot_clock::SlotClock;
 use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
-use types::{BeaconState, ChainSpec, Epoch, EthSpec, Hash256};
+use types::{BeaconState, ChainSpec, Epoch, Spec, Hash256};
 
 type ApiDuties = api_types::DutiesResponse<Vec<PtcDuty>>;
 

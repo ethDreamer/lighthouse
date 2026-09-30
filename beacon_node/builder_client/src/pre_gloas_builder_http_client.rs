@@ -10,7 +10,7 @@ use eth2::Error;
 use eth2::types::beacon_response::EmptyMetadata;
 use eth2::types::builder::SignedBuilderBid;
 use eth2::types::{
-    ContentType, EthSpec, ExecutionBlockHash, ForkName, ForkVersionDecode, ForkVersionedResponse,
+    ContentType, ExecutionBlockHash, ForkName, ForkVersionDecode, ForkVersionedResponse,
     SignedValidatorRegistrationData, Slot,
 };
 use eth2::types::{FullPayloadContents, SignedBlindedBeaconBlock};
@@ -515,7 +515,6 @@ mod tests {
     use super::*;
     use arbitrary::Arbitrary;
     use bls::Signature;
-    use eth2::types::MainnetEthSpec;
     use eth2::types::builder::{BuilderBid, BuilderBidFulu};
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;

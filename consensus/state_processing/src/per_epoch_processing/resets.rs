@@ -1,8 +1,7 @@
 use super::errors::EpochProcessingError;
 use milhouse::List;
 use safe_arith::SafeArith;
-use typenum::Unsigned;
-use types::core::EthSpec;
+use types::core::Spec;
 use types::state::BeaconState;
 
 pub fn process_eth1_data_reset(

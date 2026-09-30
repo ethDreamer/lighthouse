@@ -32,7 +32,7 @@ use tracing::error;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
 };
-use types::{EthSpec, IndexedAttestation, ProposerSlashing};
+use types::{IndexedAttestation, ProposerSlashing};
 
 #[derive(Debug, PartialEq)]
 pub enum AttesterSlashingStatus {

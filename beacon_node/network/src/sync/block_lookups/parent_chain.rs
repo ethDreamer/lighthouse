@@ -1,5 +1,4 @@
 use super::single_block_lookup::SingleBlockLookup;
-use beacon_chain::BeaconChainTypes;
 use std::collections::{HashMap, HashSet};
 use types::Hash256;
 

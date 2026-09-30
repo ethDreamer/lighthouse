@@ -29,7 +29,7 @@ use std::{
 use tokio::time::{Sleep, sleep};
 use tokio_util::time::{DelayQueue, delay_queue};
 use tracing::{debug, trace};
-use types::{EthSpec, ForkContext, Slot};
+use types::{Spec, ForkContext, Slot};
 
 /// The number of times to retry an outbound upgrade in the case of IO errors.
 const IO_ERROR_RETRIES: u8 = 3;

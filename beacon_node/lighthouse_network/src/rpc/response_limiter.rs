@@ -13,7 +13,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio_util::time::DelayQueue;
 use tracing::debug;
-use types::{EthSpec, ForkContext};
+use types::{ForkContext};
 
 /// A response that was rate limited or waiting on rate limited responses for the same peer and
 /// protocol.

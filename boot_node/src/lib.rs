@@ -8,7 +8,7 @@ mod server;
 pub use cli::cli_app;
 use config::BootNodeConfig;
 use tracing_subscriber::EnvFilter;
-use types::{EthSpec, EthSpecId};
+use types::{SpecId};
 
 /// Run the bootnode given the CLI configuration.
 pub fn run(

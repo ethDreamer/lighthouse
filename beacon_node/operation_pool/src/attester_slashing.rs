@@ -1,7 +1,7 @@
 use crate::max_cover::MaxCover;
 use state_processing::per_block_processing::get_slashable_indices_modular;
 use std::collections::{HashMap, HashSet};
-use types::{AttesterSlashing, AttesterSlashingRef, BeaconState, EthSpec};
+use types::{AttesterSlashing, AttesterSlashingRef, BeaconState};
 
 #[derive(Debug, Clone)]
 pub struct AttesterSlashingMaxCover<'a> {

@@ -13,8 +13,8 @@ use ssz::BitVector;
 use std::collections::BTreeSet;
 use std::time::Duration;
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, EthSpec, ExecutionBlockHash, Hash256,
-    MainnetEthSpec, Slot,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
+    Slot,
 };
 
 pub use execution_status::*;

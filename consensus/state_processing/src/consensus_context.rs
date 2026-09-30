@@ -9,7 +9,7 @@ use crate::per_block_processing::errors::{
 use std::collections::{HashMap, hash_map::Entry};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, AttestationRef, BeaconState, BeaconStateError, ChainSpec, Epoch, EthSpec,
+    AbstractExecPayload, AttestationRef, BeaconState, BeaconStateError, ChainSpec, Epoch, Spec,
     Hash256, IndexedAttestation, IndexedAttestationRef, IndexedPayloadAttestation,
     PayloadAttestation, SignedBeaconBlock, Slot,
 };

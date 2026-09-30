@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use ssz::Encode;
 
 use crate::{
-    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot},
+    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot},
     fork::Fork,
 };
 
