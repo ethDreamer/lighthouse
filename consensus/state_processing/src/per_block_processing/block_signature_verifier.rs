@@ -82,7 +82,6 @@ impl From<BlockOperationError<PayloadAttestationInvalid>> for Error {
 /// `Self::verify_entire_block(..)` function).
 pub struct BlockSignatureVerifier<'a, E, F, D>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>> + Clone,
     D: Fn(&'a PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {
@@ -106,7 +105,6 @@ impl<'a> From<Vec<SignatureSet<'a>>> for ParallelSignatureSets<'a> {
 
 impl<'a, E, F, D> BlockSignatureVerifier<'a, E, F, D>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>> + Clone,
     D: Fn(&'a PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {

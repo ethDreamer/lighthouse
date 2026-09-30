@@ -65,8 +65,7 @@ impl<TSlotClock, E, THotStore, TColdStore> BeaconChainTypes
 where
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
-    TSlotClock: SlotClock + 'static,
-    E: EthSpec + 'static,
+    TSlotClock: SlotClock + 'static
 {
     type HotStore = THotStore;
     type ColdStore = TColdStore;
@@ -122,8 +121,7 @@ impl<TSlotClock, E, THotStore, TColdStore>
 where
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
-    TSlotClock: SlotClock + 'static,
-    E: EthSpec + 'static,
+    TSlotClock: SlotClock + 'static
 {
     /// Returns a new builder.
     ///
@@ -1222,8 +1220,7 @@ impl<E, THotStore, TColdStore>
     BeaconChainBuilder<Witness<TestingSlotClock, E, THotStore, TColdStore>>
 where
     THotStore: ItemStore + 'static,
-    TColdStore: ItemStore + 'static,
-    E: EthSpec + 'static,
+    TColdStore: ItemStore + 'static
 {
     /// Sets the `BeaconChain` slot clock to `TestingSlotClock`.
     ///
@@ -1245,8 +1242,7 @@ where
 
 #[cfg(any(test, feature = "ef_tests"))]
 impl<E> BeaconChainBuilder<crate::test_utils::EphemeralHarnessType<E>>
-where
-    E: EthSpec + 'static,
+
 {
     /// Start an ephemeral test chain from an existing block and its post-state.
     ///

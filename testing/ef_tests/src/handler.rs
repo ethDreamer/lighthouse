@@ -395,8 +395,7 @@ where
         + for<'de> ContextDeserialize<'de, ForkName>
         + tree_hash::TreeHash
         + ssz::Decode
-        + TypeName,
-    E: TypeName,
+        + TypeName
 {
     type Case = cases::SszStatic<T>;
 
@@ -418,8 +417,7 @@ where
 }
 
 impl<E> Handler for SszStaticTHCHandler<BeaconState<E>, E>
-where
-    E: EthSpec + TypeName,
+
 {
     type Case = cases::SszStaticTHC<BeaconState<E>>;
 
@@ -439,7 +437,6 @@ where
 impl<T, E> Handler for SszStaticWithSpecHandler<T, E>
 where
     T: TypeName,
-    E: EthSpec + TypeName,
     cases::SszStaticWithSpec<T>: Case + LoadCase,
 {
     type Case = cases::SszStaticWithSpec<T>;

@@ -44,11 +44,11 @@ pub trait TransformPersist {
 #[educe(
     PartialEq,
     Eq,
-    Hash(bound(T: TransformPersist + std::hash::Hash, E: EthSpec))
+    Hash(bound(T: TransformPersist + std::hash::Hash))
 )]
 #[cfg_attr(
     feature = "arbitrary",
-    arbitrary(bound = "T: TransformPersist + Arbitrary<'arbitrary>, E: EthSpec")
+    arbitrary(bound = "T: TransformPersist + Arbitrary<'arbitrary>")
 )]
 pub struct SigVerifiedOp<T: TransformPersist, E: EthSpec> {
     op: T,
@@ -145,8 +145,7 @@ pub struct VerifiedAgainst {
 
 impl<T, E> SigVerifiedOp<T, E>
 where
-    T: VerifyOperation<E>,
-    E: EthSpec,
+    T: VerifyOperation<E>
 {
     /// This function must be private because it assumes that `op` has already been verified.
     fn new(op: T, state: &BeaconState<E>) -> Self {

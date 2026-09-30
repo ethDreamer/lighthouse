@@ -182,7 +182,6 @@ pub fn with_proposer_cache<Spec, V, Err>(
     spec: &ChainSpec,
 ) -> Result<V, Err>
 where
-    Spec: EthSpec,
     Err: From<BeaconChainError> + From<BeaconStateError>,
 {
     let cache_entry = beacon_proposer_cache

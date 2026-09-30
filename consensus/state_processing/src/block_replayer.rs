@@ -73,7 +73,6 @@ impl From<BeaconStateError> for BlockReplayError {
 
 impl<'a, E, Error, StateRootIter> BlockReplayer<'a, E, Error, StateRootIter>
 where
-    E: EthSpec,
     StateRootIter: Iterator<Item = Result<(Hash256, Slot), Error>>,
     Error: From<BlockReplayError>,
 {
@@ -314,7 +313,6 @@ where
 
 impl<E, Error> BlockReplayer<'_, E, Error, StateRootIterDefault<Error>>
 where
-    E: EthSpec,
     Error: From<BlockReplayError>,
 {
     /// If type inference fails to infer the state root iterator type you can use this method

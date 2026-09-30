@@ -379,7 +379,6 @@ impl<T: Consts + AsReference, E: EthSpec, I> Default for ObservedAggregates<T, E
 impl<T, E, I> ObservedAggregates<T, E, I>
 where
     T: Consts + AsReference,
-    E: EthSpec,
     for<'a> T::Reference<'a>: SubsetItem<Item = I> + SlotData,
 {
     /// Store `item` in `self` keyed at `root`.

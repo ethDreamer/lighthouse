@@ -131,8 +131,7 @@ pub type SubscriptionFilter =
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Behaviour<E>
-where
-    E: EthSpec,
+
 {
     // NOTE: The order of the following list of behaviours has meaning,
     // `NetworkBehaviour::handle_{pending, established}_{inbound, outbound}` methods

@@ -390,8 +390,7 @@ pub struct ForkChoice<T, E> {
 
 impl<T, E> PartialEq for ForkChoice<T, E>
 where
-    T: ForkChoiceStore<E> + PartialEq,
-    E: EthSpec,
+    T: ForkChoiceStore<E> + PartialEq
 {
     fn eq(&self, other: &Self) -> bool {
         self.fc_store == other.fc_store
@@ -402,8 +401,7 @@ where
 
 impl<T, E> ForkChoice<T, E>
 where
-    T: ForkChoiceStore<E>,
-    E: EthSpec,
+    T: ForkChoiceStore<E>
 {
     /// Instantiates `Self` from an anchor (genesis or another finalized checkpoint).
     pub fn from_anchor(
@@ -523,8 +521,7 @@ where
         ancestor_slot: Slot,
     ) -> Result<Option<Hash256>, Error<T::Error>>
     where
-        T: ForkChoiceStore<E>,
-        E: EthSpec,
+        T: ForkChoiceStore<E>
     {
         let block = self
             .proto_array

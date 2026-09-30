@@ -424,7 +424,6 @@ impl<E: EthSpec> Builder<DiskHarnessType<E>> {
 
 impl<E, Hot, Cold> Builder<BaseHarnessType<E, Hot, Cold>>
 where
-    E: EthSpec,
     Hot: ItemStore,
     Cold: ItemStore,
 {
@@ -823,7 +822,6 @@ fn pack_payload_attestation_vote(
 
 impl<E, Hot, Cold> BeaconChainHarness<BaseHarnessType<E, Hot, Cold>>
 where
-    E: EthSpec,
     Hot: ItemStore,
     Cold: ItemStore,
 {

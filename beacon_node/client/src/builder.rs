@@ -98,7 +98,6 @@ impl<TSlotClock, E, THotStore, TColdStore>
     ClientBuilder<Witness<TSlotClock, E, THotStore, TColdStore>>
 where
     TSlotClock: SlotClock + Clone + 'static,
-    E: EthSpec + 'static,
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
 {
@@ -850,7 +849,6 @@ impl<TSlotClock, E, THotStore, TColdStore>
     ClientBuilder<Witness<TSlotClock, E, THotStore, TColdStore>>
 where
     TSlotClock: SlotClock + Clone + 'static,
-    E: EthSpec + 'static,
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
 {
@@ -885,8 +883,7 @@ where
 
 impl<TSlotClock, E> ClientBuilder<Witness<TSlotClock, E, BeaconNodeBackend, BeaconNodeBackend>>
 where
-    TSlotClock: SlotClock + 'static,
-    E: EthSpec + 'static,
+    TSlotClock: SlotClock + 'static
 {
     /// Specifies that the `Client` should use a `HotColdDB` database.
     pub fn disk_store(
@@ -923,7 +920,6 @@ where
 
 impl<E, THotStore, TColdStore> ClientBuilder<Witness<SystemTimeSlotClock, E, THotStore, TColdStore>>
 where
-    E: EthSpec + 'static,
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
 {

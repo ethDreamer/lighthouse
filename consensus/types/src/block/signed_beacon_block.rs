@@ -77,11 +77,11 @@ impl From<SignedBeaconBlockHash> for Hash256 {
             Educe,
         ),
         educe(PartialEq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec, Payload: AbstractExecPayload<E>"),
+        serde(bound = "Payload: AbstractExecPayload<E>"),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>"),
+            arbitrary(bound = "Payload: AbstractExecPayload<E>"),
         ),
     ),
     map_into(BeaconBlock),
@@ -91,12 +91,12 @@ impl From<SignedBeaconBlockHash> for Hash256 {
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")
+    arbitrary(bound = "Payload: AbstractExecPayload<E>")
 )]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")]
+#[serde(bound = "Payload: AbstractExecPayload<E>")]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct SignedBeaconBlock<E: EthSpec, Payload: AbstractExecPayload<E> = FullPayload<E>> {

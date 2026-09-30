@@ -765,8 +765,7 @@ pub type InboundFramed<TSocket, E> =
 
 impl<TSocket, E> InboundUpgrade<TSocket> for RPCProtocol<E>
 where
-    TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    E: EthSpec,
+    TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static
 {
     type Output = InboundOutput<TSocket, E>;
     type Error = (Protocol, RPCError);

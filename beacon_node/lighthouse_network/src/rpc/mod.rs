@@ -301,7 +301,6 @@ impl<Id: ReqId, E: EthSpec> RPC<Id, E> {
 
 impl<Id, E> NetworkBehaviour for RPC<Id, E>
 where
-    E: EthSpec,
     Id: ReqId,
 {
     type ConnectionHandler = RPCHandler<Id, E>;

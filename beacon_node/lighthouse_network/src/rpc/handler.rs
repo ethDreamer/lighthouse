@@ -91,8 +91,7 @@ pub enum HandlerErr<Id> {
 
 /// Implementation of `ConnectionHandler` for the RPC protocol.
 pub struct RPCHandler<Id, E>
-where
-    E: EthSpec,
+
 {
     /// The PeerId matching this `ConnectionHandler`.
     peer_id: PeerId,
@@ -219,8 +218,7 @@ pub enum OutboundSubstreamState<E: EthSpec> {
 }
 
 impl<Id, E> RPCHandler<Id, E>
-where
-    E: EthSpec,
+
 {
     pub fn new(
         listen_protocol: SubstreamProtocol<RPCProtocol<E>, ()>,
@@ -338,7 +336,6 @@ where
 
 impl<Id, E> ConnectionHandler for RPCHandler<Id, E>
 where
-    E: EthSpec,
     Id: ReqId,
 {
     type FromBehaviour = RPCSend<Id, E>;
@@ -909,8 +906,7 @@ where
 
 impl<Id, E: EthSpec> RPCHandler<Id, E>
 where
-    Id: ReqId,
-    E: EthSpec,
+    Id: ReqId
 {
     fn on_fully_negotiated_inbound(&mut self, substream: InboundOutput<Stream, E>) {
         // only accept new peer requests when active

@@ -14,7 +14,6 @@ use types::{EthSpec, Slot};
 
 impl<E, Hot, Cold> HotColdDB<E, Hot, Cold>
 where
-    E: EthSpec,
     Hot: ItemStore,
     Cold: ItemStore,
 {

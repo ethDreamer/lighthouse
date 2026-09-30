@@ -49,15 +49,15 @@ use crate::{
             TreeHash,
             Educe,
         ),
-        educe(PartialEq, Hash(bound(E: EthSpec, Payload: AbstractExecPayload<E>))),
+        educe(PartialEq, Hash(bound(Payload: AbstractExecPayload<E>))),
         serde(
-            bound = "E: EthSpec, Payload: AbstractExecPayload<E>",
+            bound = "Payload: AbstractExecPayload<E>",
             deny_unknown_fields
         ),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")
+            arbitrary(bound = "Payload: AbstractExecPayload<E>")
         )
     ),
     ref_attributes(
@@ -70,12 +70,12 @@ use crate::{
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")
+    arbitrary(bound = "Payload: AbstractExecPayload<E>")
 )]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, Educe)]
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")]
+#[serde(bound = "Payload: AbstractExecPayload<E>")]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct BeaconBlock<E: EthSpec, Payload: AbstractExecPayload<E> = FullPayload<E>> {

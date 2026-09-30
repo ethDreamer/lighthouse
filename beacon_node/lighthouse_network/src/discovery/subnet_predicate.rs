@@ -11,8 +11,7 @@ pub fn subnet_predicate<E>(
     subnets: Vec<Subnet>,
     spec: Arc<ChainSpec>,
 ) -> impl Fn(&Enr) -> bool + Send
-where
-    E: EthSpec,
+
 {
     move |enr: &Enr| {
         let attestation_bitfield: EnrAttestationBitfield<E> = match enr.attestation_bitfield::<E>()

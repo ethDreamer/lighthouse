@@ -217,7 +217,6 @@ impl DoppelgangerService {
         slot_clock: T,
     ) -> Result<(), String>
     where
-        E: EthSpec,
         T: 'static + SlotClock,
         V: ValidatorStore<E = E> + Send + Sync + 'static,
     {
@@ -363,7 +362,6 @@ impl DoppelgangerService {
         shutdown_func: &mut S,
     ) -> Result<(), String>
     where
-        E: EthSpec,
         I: Fn(PublicKeyBytes) -> Option<u64>,
         L: Fn(Epoch, Vec<u64>) -> F,
         F: Future<Output = LivenessResponses>,

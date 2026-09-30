@@ -146,8 +146,7 @@ pub fn check_dump_configs<S, E>(
     spec: &ChainSpec,
 ) -> Result<(), String>
 where
-    S: serde::Serialize,
-    E: EthSpec,
+    S: serde::Serialize
 {
     if let Some(dump_path) = parse_optional::<PathBuf>(matches, "dump-config")? {
         let mut file = std::fs::File::create(dump_path)

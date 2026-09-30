@@ -68,15 +68,15 @@ pub const BLOB_KZG_COMMITMENTS_INDEX: usize = 11;
             TreeHash,
             Educe,
         ),
-        educe(PartialEq, Hash(bound(E: EthSpec, Payload: AbstractExecPayload<E>))),
+        educe(PartialEq, Hash(bound(Payload: AbstractExecPayload<E>))),
         serde(
-            bound = "E: EthSpec, Payload: AbstractExecPayload<E>",
+            bound = "Payload: AbstractExecPayload<E>",
             deny_unknown_fields
         ),
         cfg_attr(
             feature = "arbitrary",
             derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>"),
+            arbitrary(bound = "Payload: AbstractExecPayload<E>"),
         ),
         context_deserialize(ForkName),
     ),
@@ -115,12 +115,12 @@ pub const BLOB_KZG_COMMITMENTS_INDEX: usize = 11;
 #[cfg_attr(
     feature = "arbitrary",
     derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")
+    arbitrary(bound = "Payload: AbstractExecPayload<E>")
 )]
 #[derive(Debug, Clone, Serialize, Deserialize, Educe, TreeHash)]
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[serde(untagged)]
-#[serde(bound = "E: EthSpec, Payload: AbstractExecPayload<E>")]
+#[serde(bound = "Payload: AbstractExecPayload<E>")]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPayload<E>> {
     pub randao_reveal: Signature,

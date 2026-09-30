@@ -62,8 +62,7 @@ pub fn get_pubkey_from_state<E>(
     state: &BeaconState<E>,
     validator_index: usize,
 ) -> Option<Cow<'_, PublicKey>>
-where
-    E: EthSpec,
+
 {
     state
         .validators()
@@ -80,8 +79,7 @@ pub fn get_builder_pubkey_from_state<E>(
     state: &BeaconState<E>,
     builder_index: BuilderIndex,
 ) -> Option<Cow<'_, PublicKey>>
-where
-    E: EthSpec,
+
 {
     state
         .builders()
@@ -104,7 +102,6 @@ pub fn block_proposal_signature_set<'a, E, F, Payload: AbstractExecPayload<E>>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let block = signed_block.message();
@@ -147,7 +144,6 @@ pub fn block_proposal_signature_set_from_parts<'a, E, F, Payload: AbstractExecPa
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     // Verify that the `SignedBeaconBlock` instantiation matches the fork at `signed_block.slot()`.
@@ -215,7 +211,6 @@ pub fn randao_signature_set<'a, E, F, Payload: AbstractExecPayload<E>>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let proposer_index = if let Some(proposer_index) = verified_proposer_index {
@@ -251,7 +246,6 @@ pub fn proposer_slashing_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<(SignatureSet<'a>, SignatureSet<'a>)>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let proposer_index = proposer_slashing.signed_header_1.message.proposer_index as usize;
@@ -300,7 +294,6 @@ pub fn indexed_attestation_signature_set<'a, 'b, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let mut pubkeys = Vec::with_capacity(indexed_attestation.attesting_indices_len());
@@ -333,7 +326,6 @@ pub fn indexed_attestation_signature_set_from_pubkeys<'a, 'b, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let mut pubkeys = Vec::with_capacity(indexed_attestation.attesting_indices_len());
@@ -363,7 +355,6 @@ pub fn indexed_payload_attestation_signature_set<'a, 'b, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     indexed_payload_attestation_signature_set_from_pubkeys(
@@ -383,7 +374,6 @@ pub fn indexed_payload_attestation_signature_set_from_pubkeys<'a, 'b, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let mut pubkeys = Vec::with_capacity(indexed_payload_attestation.attesting_indices.len());
@@ -412,7 +402,6 @@ pub fn proposer_preferences_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let preferences = &signed_proposer_preferences.message;
@@ -443,7 +432,6 @@ pub fn execution_payload_bid_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<Option<SignatureSet<'a>>>
 where
-    E: EthSpec,
     F: Fn(BuilderIndex) -> Option<Cow<'a, PublicKey>>,
 {
     let execution_payload_bid = &signed_execution_payload_bid.message;
@@ -488,7 +476,6 @@ pub fn inclusion_list_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let message = &signed_inclusion_list.message;
@@ -520,7 +507,6 @@ pub fn attester_slashing_signature_sets<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<(SignatureSet<'a>, SignatureSet<'a>)>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>> + Clone,
 {
     Ok((
@@ -565,7 +551,6 @@ pub fn exit_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let exit = &signed_exit.message;
@@ -607,7 +592,6 @@ pub fn signed_aggregate_selection_proof_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let slot = signed_aggregate_and_proof.message().aggregate().data().slot;
@@ -636,7 +620,6 @@ pub fn signed_aggregate_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let target_epoch = signed_aggregate_and_proof
@@ -671,7 +654,6 @@ pub fn signed_sync_aggregate_selection_proof_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let slot = signed_contribution_and_proof.message.contribution.slot;
@@ -708,7 +690,6 @@ pub fn signed_sync_aggregate_signature_set<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(usize) -> Option<Cow<'a, PublicKey>>,
 {
     let epoch = signed_contribution_and_proof
@@ -746,7 +727,6 @@ pub fn sync_committee_contribution_signature_set_from_pubkeys<'a, E, F>(
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
 where
-    E: EthSpec,
     F: Fn(&PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {
     let mut pubkeys = Vec::with_capacity(Spec::SYNC_SUBCOMMITTEE_SIZE);
@@ -770,8 +750,7 @@ pub fn sync_committee_message_set_from_pubkeys<'a, E>(
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
 ) -> Result<SignatureSet<'a>>
-where
-    E: EthSpec,
+
 {
     let domain = spec.get_domain(epoch, Domain::SyncCommittee, fork, genesis_validators_root);
 
@@ -800,7 +779,6 @@ pub fn sync_aggregate_signature_set<'a, E, D>(
     spec: &ChainSpec,
 ) -> Result<Option<SignatureSet<'a>>>
 where
-    E: EthSpec,
     D: Fn(&'a PublicKeyBytes) -> Option<Cow<'a, PublicKey>>,
 {
     // Allow the point at infinity to count as a signature for 0 validators as per

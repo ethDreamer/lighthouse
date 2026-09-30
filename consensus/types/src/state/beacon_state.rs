@@ -487,8 +487,7 @@ impl From<BeaconStateHash> for Hash256 {
 #[serde(bound = "E: EthSpec")]
 #[ssz(enum_behaviour = "transparent")]
 pub struct BeaconState<E>
-where
-    E: EthSpec,
+
 {
     // Versioning
     #[superstruct(getter(copy))]

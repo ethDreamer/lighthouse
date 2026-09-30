@@ -43,7 +43,6 @@ pub type OutboundFramed<TSocket, E> = Framed<Compat<TSocket>, SSZSnappyOutboundC
 
 impl<TSocket, E> OutboundUpgrade<TSocket> for OutboundRequestContainer<E>
 where
-    E: EthSpec + Send + 'static,
     TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Output = OutboundFramed<TSocket, E>;

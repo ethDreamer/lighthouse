@@ -833,7 +833,6 @@ mod test {
         Vec<GossipVerifiedDataColumn<BaseHarnessType<E, Hot, Cold>>>,
     )
     where
-        E: EthSpec,
         Hot: ItemStore,
         Cold: ItemStore,
     {
@@ -916,7 +915,6 @@ mod test {
         TempDir,
     )
     where
-        E: EthSpec,
         T: BeaconChainTypes<
                 HotStore = BeaconNodeBackend,
                 ColdStore = BeaconNodeBackend,
