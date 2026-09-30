@@ -1489,7 +1489,6 @@ mod tests {
     use super::*;
     use types::MainnetEthSpec;
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn test_is_start_slot_at_epoch() {
@@ -1582,7 +1581,6 @@ mod tests {
     fn head_balance_source_rebuilt_after_intra_epoch_slashing() {
         use state_processing::{GloasVerificationContext, per_slot_processing};
         use types::MinimalEthSpec;
-        type E = MinimalEthSpec;
 
         let spec = E::default_spec();
         let mut state: BeaconState<E> = BeaconState::new(0, Default::default(), &spec);

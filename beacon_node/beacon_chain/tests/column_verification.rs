@@ -14,7 +14,6 @@ use logging::create_test_tracing_subscriber;
 use std::sync::{Arc, LazyLock};
 use types::*;
 
-type E = MainnetEthSpec;
 
 // >= 32 validators required for Gloas genesis with MainnetEthSpec (32 slots/epoch).
 const VALIDATOR_COUNT: usize = 32;
@@ -29,7 +28,7 @@ fn get_harness(
     node_custody_type: NodeCustodyType,
 ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
     create_test_tracing_subscriber();
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .chain_config(ChainConfig {
             archive: true,

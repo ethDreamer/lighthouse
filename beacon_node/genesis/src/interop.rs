@@ -194,7 +194,6 @@ mod test {
     use super::*;
     use types::{MinimalEthSpec, test_utils::generate_deterministic_keypairs};
 
-    type TestEthSpec = MinimalEthSpec;
 
     #[test]
     fn interop_state() {

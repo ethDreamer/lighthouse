@@ -159,7 +159,6 @@ mod tests {
     use super::*;
     use crate::core::{BlobParameters, BlobSchedule, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     fn make_chain_spec() -> ChainSpec {
         let blob_parameters = vec![

@@ -37,7 +37,6 @@ fn create_test_block_and_blobs<E: EthSpec>(
 }
 
 fn all_benches(c: &mut Criterion) {
-    type E = MainnetEthSpec;
     let spec = Arc::new(E::default_spec());
 
     let kzg = get_kzg(&spec);

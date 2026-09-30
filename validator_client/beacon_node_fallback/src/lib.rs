@@ -924,7 +924,6 @@ mod tests {
     use types::{EmptyBlock, SignedBeaconBlockDeneb, SignedBlindedBeaconBlock};
     use validator_test_rig::mock_beacon_node::MockBeaconNode;
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn api_topic_all() {

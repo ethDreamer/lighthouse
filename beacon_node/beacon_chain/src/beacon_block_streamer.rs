@@ -376,7 +376,7 @@ mod tests {
         validator_count: usize,
         spec: Arc<ChainSpec>,
     ) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
-        let harness = BeaconChainHarness::builder(MinimalEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec)
             .keypairs(KEYPAIRS[0..validator_count].to_vec())
             .fresh_ephemeral_store()

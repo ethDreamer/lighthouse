@@ -366,7 +366,6 @@ mod test {
     use crate::config::Config as NetworkConfig;
     use types::{Epoch, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
     const TEST_NFD: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
 
     fn make_fulu_spec() -> ChainSpec {

@@ -36,7 +36,6 @@ use tempfile::tempdir;
 use types::ExecutionBlockHash;
 use types::{test_utils::generate_deterministic_keypair, *};
 
-type E = MainnetEthSpec;
 
 // Gloas requires >= 1 validator per slot for PTC committee computation, so >= 32 for MainnetEthSpec.
 const VALIDATOR_COUNT: usize = 32;
@@ -141,7 +140,7 @@ fn get_harness(
     validator_count: usize,
     node_custody_type: NodeCustodyType,
 ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(ChainConfig {
             archive: true,
@@ -1642,7 +1641,7 @@ async fn verify_block_for_gossip_slashing_detection() {
     );
 
     let inner_slasher = slasher.clone();
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS.to_vec())
         .fresh_ephemeral_store()
@@ -1773,7 +1772,7 @@ async fn add_base_block_to_altair_chain() {
     // The Altair fork happens at epoch 1.
     spec.altair_fork_epoch = Some(Epoch::new(1));
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -1927,7 +1926,7 @@ async fn add_altair_block_to_base_chain() {
     // Altair never happens.
     spec.altair_fork_epoch = None;
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -2085,7 +2084,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone().into())
         .chain_config(ChainConfig {
             archive: true,
@@ -2228,7 +2227,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
 // https://github.com/sigp/lighthouse/issues/4332#issuecomment-1565092279
 #[tokio::test]
 async fn import_duplicate_block_unrealized_justification() {
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -2368,7 +2367,7 @@ async fn make_gloas_range_sync_block_inputs() -> Option<(
         return None;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Supernode)
@@ -2546,7 +2545,7 @@ async fn process_chain_segment_imports_missing_envelope_for_duplicate_gloas_bloc
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Supernode)
@@ -2629,7 +2628,7 @@ async fn process_chain_segment_ignores_duplicate_gloas_block_when_payload_receiv
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Supernode)
@@ -2685,7 +2684,7 @@ async fn filter_chain_segment_keeps_checkpoint_gloas_block_by_split_root() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Supernode)
@@ -2791,7 +2790,7 @@ async fn range_sync_block_construction_fails_with_wrong_blob_count() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Fullnode)
@@ -2866,7 +2865,7 @@ async fn range_sync_block_rejects_missing_custody_columns() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Fullnode)
@@ -2946,7 +2945,7 @@ async fn rpc_block_allows_construction_past_da_boundary() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Fullnode)
@@ -3028,7 +3027,7 @@ async fn process_chain_segment_rejects_envelope_with_invalid_signature() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .node_custody_type(NodeCustodyType::Supernode)

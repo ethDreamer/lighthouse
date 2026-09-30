@@ -479,7 +479,6 @@ mod tests {
     use tempfile::Builder as TempBuilder;
     use types::{Eth1Data, GnosisEthSpec, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn default_network_exists() {

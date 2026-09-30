@@ -1120,7 +1120,6 @@ mod tests {
 
     #[test]
     fn decode_base_and_altair() {
-        type E = MainnetEthSpec;
         let mut spec = E::default_spec();
 
         let mut u = crate::test_utils::test_unstructured();

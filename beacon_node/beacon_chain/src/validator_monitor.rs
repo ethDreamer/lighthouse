@@ -2174,7 +2174,6 @@ mod tests {
 
     #[test]
     fn registry_indices_across_growth_and_shorter_forks() {
-        type E = MinimalEthSpec;
         let keypairs = generate_deterministic_keypairs(33);
 
         for fork in [ForkName::Base, ForkName::Gloas] {

@@ -59,7 +59,6 @@ use types::{
     consts::gloas::{BUILDER_INDEX_SELF_BUILD, PAYLOAD_BUILDER_VERSION},
 };
 
-type E = MainnetEthSpec;
 
 const SLOT_DURATION_MS: u64 = 12_000;
 const SLOTS_PER_EPOCH: u64 = 32;
@@ -146,7 +145,7 @@ impl ApiTester {
     pub async fn new_from_config(config: ApiTesterConfig) -> Self {
         let spec = Arc::new(config.spec);
 
-        let mut harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let mut harness = BeaconChainHarness::builder()
             .spec(spec.clone())
             .chain_config(ChainConfig {
                 archive: config.retain_historic_states,
@@ -354,7 +353,7 @@ impl ApiTester {
 
     pub async fn new_from_genesis() -> Self {
         let harness = Arc::new(
-            BeaconChainHarness::builder(MainnetEthSpec)
+            BeaconChainHarness::builder()
                 .default_spec()
                 .deterministic_keypairs(VALIDATOR_COUNT)
                 .deterministic_withdrawal_keypairs(VALIDATOR_COUNT)

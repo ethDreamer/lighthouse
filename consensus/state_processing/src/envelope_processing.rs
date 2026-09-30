@@ -243,7 +243,6 @@ mod tests {
     use types::test_utils::generate_deterministic_keypairs;
     use types::{ForkName, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     const VALIDATOR_COUNT: usize = 32;
 
@@ -252,7 +251,7 @@ mod tests {
 
     fn get_harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
         let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
-        BeaconChainHarness::builder(E::default())
+        BeaconChainHarness::builder()
             .spec(spec.into())
             .keypairs(KEYPAIRS.to_vec())
             .fresh_ephemeral_store()

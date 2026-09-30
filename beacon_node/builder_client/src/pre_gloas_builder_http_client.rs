@@ -520,7 +520,6 @@ mod tests {
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn test_headers_no_panic() {

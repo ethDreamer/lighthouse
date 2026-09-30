@@ -357,7 +357,6 @@ mod tests {
     use types::data::PartialDataColumnSidecarFulu;
     use types::data::PartialDataColumnSidecarGloas;
 
-    type E = MinimalEthSpec;
 
     fn make_cell(marker: u8) -> types::Cell<E> {
         let mut cell = types::Cell::<E>::default();

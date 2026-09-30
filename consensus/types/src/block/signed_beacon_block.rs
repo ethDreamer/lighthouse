@@ -770,7 +770,6 @@ mod test {
 
     #[test]
     fn add_remove_payload_roundtrip() {
-        type E = MainnetEthSpec;
 
         let spec = &E::default_spec();
         let sig = Signature::empty();
@@ -827,7 +826,6 @@ mod test {
 
     #[test]
     fn test_ssz_tagged_signed_beacon_block() {
-        type E = MainnetEthSpec;
 
         let spec = &spec_with_all_forks_enabled::<E>();
         let sig = Signature::empty();

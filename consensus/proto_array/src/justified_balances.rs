@@ -78,7 +78,6 @@ mod tests {
     use super::*;
     use types::{ChainSpec, Epoch, MinimalEthSpec, Validator};
 
-    type E = MinimalEthSpec;
 
     fn push_validator(
         state: &mut BeaconState<E>,

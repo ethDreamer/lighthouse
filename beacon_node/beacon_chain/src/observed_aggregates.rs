@@ -503,7 +503,6 @@ mod tests {
     use fixed_bytes::FixedBytesExtended;
     use types::{AttestationBase, Hash256, test_utils::test_arbitrary_instance};
 
-    type E = types::MainnetEthSpec;
 
     fn get_attestation(slot: Slot, beacon_block_root: u64) -> Attestation<E> {
         let a: AttestationBase<E> = test_arbitrary_instance();

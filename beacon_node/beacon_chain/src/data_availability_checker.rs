@@ -1031,7 +1031,6 @@ mod test {
         Slot,
     };
 
-    type E = MainnetEthSpec;
     type T = EphemeralHarnessType<E>;
 
     /// Test to verify any extra RPC columns received that are not part of the "effective" CGC for

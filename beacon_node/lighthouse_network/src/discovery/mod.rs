@@ -1249,7 +1249,6 @@ mod tests {
     use ssz_types::BitVector;
     use types::{MinimalEthSpec, SubnetId};
 
-    type E = MinimalEthSpec;
 
     async fn build_discovery() -> Discovery<E> {
         let spec = Arc::new(ChainSpec::default());

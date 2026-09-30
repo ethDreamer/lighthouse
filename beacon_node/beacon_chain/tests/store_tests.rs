@@ -74,7 +74,6 @@ pub const CACHE_STATE_IN_TESTS: bool = true;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(HIGH_VALIDATOR_COUNT));
 
-type E = MinimalEthSpec;
 type TestHarness = BeaconChainHarness<DiskHarnessType<E>>;
 
 /// Retrieve or reconstruct blobs for a given block root. This uses the block's epoch to determine
@@ -184,7 +183,7 @@ fn get_harness_generic(
     chain_config: ChainConfig,
     node_custody_type: NodeCustodyType,
 ) -> TestHarness {
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .spec(store.get_chain_spec().clone())
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_disk_store(store)
@@ -513,7 +512,7 @@ async fn fcr_restarts_after_finalization_without_head_change() {
     drop(harness);
     drop(store);
 
-    let resumed = TestHarness::builder(MinimalEthSpec)
+    let resumed = TestHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..LOW_VALIDATOR_COUNT].to_vec())
         .resumed_disk_store(get_store(&db_path))
@@ -1169,7 +1168,7 @@ async fn multi_epoch_fork_valid_blocks_test(
     let store = get_store(&db_path);
     let validators_keypairs =
         types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .default_spec()
         .keypairs(validators_keypairs)
         .fresh_disk_store(store)
@@ -1519,7 +1518,7 @@ async fn proposer_shuffling_root_consistency_test(
     let store = get_store_generic(&db_path, Default::default(), spec.clone());
     let validators_keypairs =
         types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .spec(spec.into())
         .keypairs(validators_keypairs)
         .fresh_disk_store(store)
@@ -1665,7 +1664,7 @@ async fn proposer_shuffling_changing_with_lookahead() {
     let store = get_store_generic(&db_path, Default::default(), spec.clone());
     let validators_keypairs =
         types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .spec(spec.into())
         .keypairs(validators_keypairs)
         .fresh_disk_store(store)
@@ -1839,7 +1838,7 @@ async fn proposer_duties_from_head_fulu() {
     let store = get_store_generic(&db_path, Default::default(), spec.clone());
     let validators_keypairs =
         types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .spec(spec.into())
         .keypairs(validators_keypairs)
         .fresh_disk_store(store)
@@ -2081,7 +2080,7 @@ async fn heze_block_production_across_boundary() {
     let store = get_store_generic(&db_path, Default::default(), spec.clone());
     let validators_keypairs =
         types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-    let harness = TestHarness::builder(E::default())
+    let harness = TestHarness::builder()
         .spec(spec.into())
         .keypairs(validators_keypairs)
         .fresh_disk_store(store)
@@ -2528,7 +2527,7 @@ async fn payload_attribute_withdrawals_use_head_summary_after_restart() {
     rig.chain.persist_fork_choice().unwrap();
     rig.chain.persist_op_pool().unwrap();
 
-    let resumed = TestHarness::builder(MinimalEthSpec)
+    let resumed = TestHarness::builder()
         .spec(store.get_chain_spec().clone())
         .keypairs(KEYPAIRS[0..LOW_VALIDATOR_COUNT].to_vec())
         .resumed_disk_store(store)
@@ -4015,7 +4014,7 @@ async fn reproduction_unaligned_checkpoint_sync_pruned_payload() {
 
     // Attempt to build the BeaconChain.
     // If the bug is present, this will panic with `MissingFullBlockExecutionPayloadPruned`.
-    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(MinimalEthSpec, trusted_setup)
+    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(trusted_setup)
         .chain_config(chain_config)
         .store(store.clone())
         .custom_spec(spec.clone().into())
@@ -4247,7 +4246,7 @@ async fn weak_subjectivity_sync_test(
         ..ChainConfig::default()
     };
 
-    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(MinimalEthSpec, kzg)
+    let beacon_chain = BeaconChainBuilder::<DiskHarnessType<E>>::new(kzg)
         .chain_config(chain_config)
         .store(store.clone())
         .custom_spec(test_spec::<E>().into())
@@ -5224,7 +5223,7 @@ async fn finalizes_after_resuming_from_db() {
     let db_path = tempdir().unwrap();
     let store = get_store(&db_path);
 
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_disk_store(store.clone())
@@ -5265,7 +5264,7 @@ async fn finalizes_after_resuming_from_db() {
 
     let original_chain = harness.chain;
 
-    let resumed_harness = BeaconChainHarness::<DiskHarnessType<E>>::builder(MinimalEthSpec)
+    let resumed_harness = BeaconChainHarness::<DiskHarnessType<E>>::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .resumed_disk_store(store)
@@ -5373,7 +5372,7 @@ async fn schema_downgrade_to_min_version(store_config: StoreConfig, archive: boo
         .expect("schema upgrade from minimum version should work");
 
     // Recreate the harness.
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(chain_config)
         .keypairs(KEYPAIRS[0..LOW_VALIDATOR_COUNT].to_vec())
@@ -7032,7 +7031,7 @@ async fn test_missing_columns_after_cgc_change() {
 
     let num_epochs_before_increase = 4;
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone().into())
         .deterministic_keypairs(num_validators)
         .fresh_ephemeral_store()
@@ -7103,7 +7102,7 @@ async fn test_safely_backfill_data_column_custody_info() {
 
     let start_epochs = 4;
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone().into())
         .deterministic_keypairs(num_validators)
         .fresh_ephemeral_store()
@@ -7729,7 +7728,7 @@ async fn bellatrix_produce_and_store_payloads() {
         archive: true,
         ..ChainConfig::default()
     };
-    let harness = TestHarness::builder(MinimalEthSpec)
+    let harness = TestHarness::builder()
         .spec(store.get_chain_spec().clone())
         .keypairs(keypairs.clone())
         .fresh_disk_store(store.clone())

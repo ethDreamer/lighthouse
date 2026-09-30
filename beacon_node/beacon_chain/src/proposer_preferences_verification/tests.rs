@@ -31,7 +31,6 @@ use crate::{
     validator_pubkey_cache::ValidatorPubkeyCache,
 };
 
-type E = MinimalEthSpec;
 type T = EphemeralHarnessType<E>;
 
 const NUM_VALIDATORS: usize = 64;

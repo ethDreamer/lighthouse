@@ -289,7 +289,6 @@ mod tests {
         SignedInclusionList, Slot,
     };
 
-    type E = MinimalEthSpec;
 
     fn new_store() -> InclusionListStore<E> {
         InclusionListStore::new(&E::default_spec())

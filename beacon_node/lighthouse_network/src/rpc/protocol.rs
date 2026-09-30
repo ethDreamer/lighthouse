@@ -1188,7 +1188,6 @@ mod tests {
     use strum::IntoEnumIterator;
     use types::{Hash256, Slot};
 
-    type E = MainnetEthSpec;
 
     /// Whether this protocol should appear in `currently_supported()` for the given context.
     ///

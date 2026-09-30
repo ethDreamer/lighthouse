@@ -961,7 +961,6 @@ mod test {
         kzg_ext::KzgCommitments,
     };
 
-    type E = MainnetEthSpec;
 
     // Loading and initializing PeerDAS KZG is expensive and slow, so we group the tests together
     // only load it once.

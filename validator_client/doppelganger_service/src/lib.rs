@@ -611,7 +611,6 @@ mod test {
     const GENESIS_TIME: Duration = Duration::from_secs(42);
     const SLOT_DURATION: Duration = Duration::from_secs(1);
 
-    type E = MainnetEthSpec;
 
     fn genesis_epoch() -> Epoch {
         E::default_spec().genesis_slot.epoch(E::slots_per_epoch())

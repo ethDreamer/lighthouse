@@ -35,7 +35,6 @@ use zeroize::Zeroizing;
 pub const PASSWORD_BYTES: &[u8] = &[42, 50, 37];
 pub const TEST_DEFAULT_FEE_RECIPIENT: Address = Address::repeat_byte(42);
 
-type E = MainnetEthSpec;
 
 pub struct HdValidatorScenario {
     pub count: usize,

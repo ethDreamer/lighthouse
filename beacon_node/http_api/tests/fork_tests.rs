@@ -16,7 +16,6 @@ use types::{
     test_utils::{generate_deterministic_keypair, generate_deterministic_keypairs},
 };
 
-type E = MinimalEthSpec;
 
 fn altair_spec(altair_fork_epoch: Epoch) -> ChainSpec {
     let mut spec = E::default_spec();

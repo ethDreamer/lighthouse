@@ -652,7 +652,6 @@ mod tests {
     use std::time::Duration;
     use types::MainnetEthSpec;
 
-    type E = MainnetEthSpec;
     type T = EphemeralHarnessType<E>;
 
     fn testing_slot_clock(spec: &ChainSpec) -> TestingSlotClock {

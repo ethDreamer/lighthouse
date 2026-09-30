@@ -23,7 +23,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
 
 #[test]
 fn test_dht_persistence() {
-    let beacon_chain = BeaconChainHarness::builder(MinimalEthSpec)
+    let beacon_chain = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -97,7 +97,7 @@ fn test_removing_topic_weight_on_old_topics() {
     spec.capella_fork_epoch = Some(Epoch::new(1));
 
     // Build beacon chain.
-    let beacon_chain = BeaconChainHarness::builder(MinimalEthSpec)
+    let beacon_chain = BeaconChainHarness::builder()
         .spec(spec.clone().into())
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()

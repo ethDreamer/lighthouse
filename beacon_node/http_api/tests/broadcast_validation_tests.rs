@@ -15,7 +15,6 @@ use types::{ColumnIndex, Epoch, EthSpec, ForkName, Hash256, MainnetEthSpec, Slot
 use warp::Rejection;
 use warp_utils::reject::CustomBadRequest;
 
-type E = MainnetEthSpec;
 
 /*
  * We have the following test cases, which are duplicated for the blinded variant of the route:

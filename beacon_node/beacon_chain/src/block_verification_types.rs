@@ -553,7 +553,6 @@ mod tests {
     use bls::Signature;
     use types::{BeaconBlockGloas, EmptyBlock, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     /// Test that calling the pre-gloas constructor `RangeSyncBlock::new` with a gloas block
     /// is rejected, because gloas blocks need to use `RangeSyncBlock::new_gloas``.

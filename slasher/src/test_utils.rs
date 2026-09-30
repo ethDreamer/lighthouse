@@ -9,7 +9,6 @@ use types::{
     attestation::{IndexedAttestationBase, IndexedAttestationElectra},
 };
 
-pub type E = MainnetEthSpec;
 
 pub fn indexed_att_electra(
     attesting_indices: impl AsRef<[u64]>,

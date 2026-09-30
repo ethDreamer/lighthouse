@@ -833,7 +833,6 @@ mod tests {
 
     #[test]
     fn duration_to_attestation_deadline_is_fork_aware() {
-        type E = MainnetEthSpec;
 
         let mut spec = E::default_spec();
         let gloas_fork_epoch = Epoch::new(1);

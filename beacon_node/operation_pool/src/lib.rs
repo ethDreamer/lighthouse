@@ -925,7 +925,7 @@ mod release_tests {
         validator_count: usize,
         spec: Option<ChainSpec>,
     ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec_or_default(spec.map(Arc::new))
             .keypairs(KEYPAIRS[0..validator_count].to_vec())
             .fresh_ephemeral_store()

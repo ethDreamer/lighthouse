@@ -703,7 +703,6 @@ mod data_availability_checker_tests {
         SignedExecutionPayloadEnvelope, Slot, test_utils::test_unstructured,
     };
 
-    type E = MinimalEthSpec;
     type T = DiskHarnessType<E>;
 
     const NUM_BLOBS: usize = 1;

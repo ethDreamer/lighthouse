@@ -456,7 +456,6 @@ mod payload_hash_tests {
         SignedExecutionPayloadEnvelope, Slot, SyncAggregate,
     };
 
-    type E = MinimalEthSpec;
 
     fn make_block(slot: Slot) -> SignedBeaconBlock<E> {
         let block = BeaconBlock::Gloas(BeaconBlockGloas {

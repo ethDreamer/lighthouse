@@ -33,7 +33,6 @@ use types::{
     attestation::SignedAggregateAndProofRefMut, test_utils::generate_deterministic_keypair,
 };
 
-pub type E = MainnetEthSpec;
 
 /// The validator count needs to be relatively high compared to other tests to ensure that we can
 /// have committees where _some_ validators are aggregators but not _all_.
@@ -57,7 +56,7 @@ fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessTyp
     spec.target_aggregators_per_committee = 4;
     let spec = Arc::new(spec);
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .chain_config(ChainConfig {
             archive: true,
@@ -96,7 +95,7 @@ fn get_harness_capella_spec(
     )
     .unwrap();
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .chain_config(ChainConfig {
             archive: true,
@@ -2280,7 +2279,7 @@ async fn unaggregated_attestation_bogus_attester_index_not_sent_to_slasher() {
     );
 
     let inner_slasher = slasher.clone();
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .keypairs(KEYPAIRS[0..VALIDATOR_COUNT].to_vec())
         .fresh_ephemeral_store()

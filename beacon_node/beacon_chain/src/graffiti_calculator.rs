@@ -274,7 +274,7 @@ mod tests {
         spec: Arc<ChainSpec>,
         chain_config: Option<ChainConfig>,
     ) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
-        let harness = BeaconChainHarness::builder(MinimalEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec)
             .chain_config(chain_config.unwrap_or_default())
             .keypairs(KEYPAIRS[0..validator_count].to_vec())

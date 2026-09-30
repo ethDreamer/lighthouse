@@ -1449,7 +1449,6 @@ mod tests {
     use ssz_types::ProgressiveVariableList;
     use types::{ConsolidationRequest, Epoch, MainnetEthSpec, VoluntaryExit, WithdrawalRequest};
 
-    type TestSpec = MainnetEthSpec;
 
     fn pubkey(byte: u8) -> PublicKeyBytes {
         PublicKeyBytes::deserialize(&[byte; 48]).expect("valid pubkey byte length")

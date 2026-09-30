@@ -161,7 +161,6 @@ mod test {
     use super::*;
     use crate::MainnetEthSpec;
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn test_compute_columns_for_custody_group() {

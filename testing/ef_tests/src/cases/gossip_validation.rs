@@ -239,7 +239,7 @@ impl<E: EthSpec> GossipTester<E> {
         };
 
         let harness_builder = || {
-            BeaconChainHarness::<EphemeralHarnessType<E>>::builder(E::default())
+            BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
                 .spec(spec.clone())
                 .keypairs(vec![])
                 .mock_execution_layer()

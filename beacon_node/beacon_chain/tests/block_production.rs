@@ -8,7 +8,6 @@ use types::{
     WithdrawalRequest,
 };
 
-type E = MinimalEthSpec;
 
 /// Parent partial withdrawals must be accounted for when packing voluntary exits.
 /// https://github.com/sigp/lighthouse/issues/9981
@@ -26,7 +25,7 @@ async fn gloas_block_production_filters_exits_with_parent_partial_withdrawals() 
     let withdrawal_amount = spec.effective_balance_increment;
     let withdrawal_address = Address::repeat_byte(0xaa);
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(64)
         .with_genesis_state_builder(|builder| {

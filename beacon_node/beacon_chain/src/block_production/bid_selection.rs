@@ -254,7 +254,6 @@ mod tests {
     use ssz_types::VariableList;
     use types::{ExecutionPayloadBid, MainnetEthSpec};
 
-    type TestSpec = MainnetEthSpec;
 
     const GOSSIP_BUILDER: u64 = 111;
     const DIRECT_BUILDER: u64 = 222;

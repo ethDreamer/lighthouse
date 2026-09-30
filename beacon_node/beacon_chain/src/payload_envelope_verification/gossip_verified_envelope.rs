@@ -430,7 +430,6 @@ mod tests {
     use crate::payload_envelope_verification::EnvelopeError;
     use tree_hash::TreeHash;
 
-    type E = MinimalEthSpec;
 
     fn make_envelope(
         slot: Slot,

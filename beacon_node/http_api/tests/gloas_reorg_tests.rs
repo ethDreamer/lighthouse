@@ -31,7 +31,6 @@ use types::{
     ProposerPreparationData, Slot,
 };
 
-type E = MinimalEthSpec;
 
 // Must be at least PTC size to simplify PTC reasoning (unique PTC members per slot).
 const ATTESTERS_PER_SLOT: usize = 20;

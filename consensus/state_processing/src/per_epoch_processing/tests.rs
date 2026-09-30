@@ -6,7 +6,7 @@ use types::Slot;
 
 #[tokio::test]
 async fn runs_without_error() {
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -52,7 +52,7 @@ mod release_tests {
         spec.altair_fork_epoch = Some(Epoch::new(1));
 
         let altair_state = {
-            let harness = BeaconChainHarness::builder(MainnetEthSpec)
+            let harness = BeaconChainHarness::builder()
                 .spec(Arc::new(spec.clone()))
                 .deterministic_keypairs(8)
                 .fresh_ephemeral_store()
@@ -122,7 +122,7 @@ mod release_tests {
         spec.altair_fork_epoch = None;
 
         let base_state = {
-            let harness = BeaconChainHarness::builder(MainnetEthSpec)
+            let harness = BeaconChainHarness::builder()
                 .spec(Arc::new(spec.clone()))
                 .deterministic_keypairs(8)
                 .fresh_ephemeral_store()

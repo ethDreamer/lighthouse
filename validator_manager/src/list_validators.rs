@@ -227,7 +227,6 @@ mod test {
     };
     use types::MainnetEthSpec;
     use validator_http_api::{Config as HttpConfig, test_utils::ApiTester};
-    type E = MainnetEthSpec;
 
     struct TestBuilder {
         list_config: Option<ListConfig>,

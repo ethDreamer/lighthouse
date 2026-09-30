@@ -329,7 +329,6 @@ mod tests {
         test_utils::generate_deterministic_keypairs,
     };
 
-    type E = MinimalEthSpec;
 
     fn validator_count() -> usize {
         E::slots_per_epoch() as usize
@@ -396,7 +395,7 @@ mod tests {
         spec.gloas_fork_epoch = Some(Epoch::new(1024));
         let spec = Arc::new(spec);
 
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec.clone())
             .deterministic_keypairs(validator_count())
             .fresh_ephemeral_store()

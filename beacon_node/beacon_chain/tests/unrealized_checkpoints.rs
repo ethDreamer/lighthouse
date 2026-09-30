@@ -19,7 +19,6 @@ use types::{
     consts::altair::TIMELY_TARGET_FLAG_INDEX,
 };
 
-type E = MinimalEthSpec;
 
 // Proposer slashings are limited to MaxProposerSlashings (16) per block. With 32 validators,
 // dropping below the 2/3 justification threshold requires only ~11 slashes, which fits.
@@ -160,7 +159,7 @@ where
     let spec = test_spec::<E>();
 
     let harness: BeaconChainHarness<EphemeralHarnessType<E>> =
-        BeaconChainHarness::builder(E::default())
+        BeaconChainHarness::builder()
             .spec(Arc::new(spec))
             .deterministic_keypairs(validator_count)
             .fresh_ephemeral_store()

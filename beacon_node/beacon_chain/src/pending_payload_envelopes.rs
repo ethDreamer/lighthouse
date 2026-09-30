@@ -99,7 +99,6 @@ mod tests {
     use super::*;
     use types::{ExecutionPayloadGloas, ExecutionRequestsGloas, Hash256, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     fn make_envelope(slot: Slot, beacon_block_root: Hash256) -> PendingEnvelopeData<E> {
         PendingEnvelopeData {

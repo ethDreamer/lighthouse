@@ -258,7 +258,7 @@ impl TestRig {
         );
 
         // Gloas genesis needs enough validators for proposer lookahead.
-        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder(E)
+        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
             .spec(spec.clone())
             .deterministic_keypairs(TEST_RIG_VALIDATOR_COUNT)
             .fresh_ephemeral_store()
@@ -1015,7 +1015,7 @@ impl TestRig {
 
     fn get_external_harness_with_genesis(&mut self) -> BeaconChainHarness<EphemeralHarnessType<E>> {
         // Initialise a new beacon chain
-        let external_harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder(E)
+        let external_harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
             .spec(self.harness.spec.clone())
             .deterministic_keypairs(TEST_RIG_VALIDATOR_COUNT)
             .fresh_ephemeral_store()

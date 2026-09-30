@@ -22,7 +22,6 @@ use types::{
     RelativeEpoch, Slot,
 };
 
-type E = MinimalEthSpec;
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;
@@ -49,7 +48,7 @@ fn get_harness_with_spec(
         archive: true,
         ..Default::default()
     };
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone().into())
         .chain_config(chain_config)
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
@@ -66,7 +65,7 @@ fn get_harness_with_config(
     validator_count: usize,
     chain_config: ChainConfig,
 ) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(chain_config)
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
@@ -84,7 +83,7 @@ fn get_harness_with_config(
 fn get_harness_semi_supernode(
     validator_count: usize,
 ) -> BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>> {
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(ChainConfig {
             archive: true,
@@ -539,7 +538,7 @@ async fn does_not_finalize_without_attestation() {
 #[tokio::test]
 async fn gloas_packs_attestations_voting_for_available_payload() {
     let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS.to_vec())
         .fresh_ephemeral_store()
@@ -1232,7 +1231,6 @@ async fn pseudo_finalize_with_lagging_split_update() {
 
 #[tokio::test]
 async fn test_compute_weak_subjectivity_period() {
-    type E = MainnetEthSpec;
     let expected_ws_period_pre_electra = DEFAULT_PRE_ELECTRA_WS_PERIOD;
     let expected_ws_period_post_electra = 256;
 

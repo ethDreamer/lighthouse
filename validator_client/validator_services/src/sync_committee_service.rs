@@ -686,7 +686,6 @@ mod tests {
     use types::{Epoch, MainnetEthSpec, SignedContributionAndProof, SyncCommitteeContribution};
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
 
-    type E = MainnetEthSpec;
 
     struct TestHarness {
         harness: ValidatorClientHarness,

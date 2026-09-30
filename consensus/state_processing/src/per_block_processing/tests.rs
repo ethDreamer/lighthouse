@@ -40,7 +40,7 @@ async fn get_harness<E: EthSpec>(
         (MainnetEthSpec::genesis_epoch() + epoch_offset).end_slot(E::slots_per_epoch());
     // Use Electra spec to ensure blocks are created at the same fork as the state
     let spec = Arc::new(ForkName::Electra.make_genesis_spec(E::default_spec()));
-    let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder(E::default())
+    let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
         .spec(spec.clone())
         .keypairs(KEYPAIRS[0..num_validators].to_vec())
         .fresh_ephemeral_store()

@@ -152,7 +152,6 @@ mod tests {
     use super::{BidParent, GossipVerifiedPayloadBidCache};
     use crate::payload_bid_verification::gossip_verified_bid::GossipVerifiedPayloadBid;
 
-    type E = MinimalEthSpec;
 
     fn make_gossip_verified(
         slot: Slot,

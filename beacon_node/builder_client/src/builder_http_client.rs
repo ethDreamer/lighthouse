@@ -315,7 +315,6 @@ mod tests {
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;
 
-    type E = MainnetEthSpec;
 
     fn client_for() -> BuilderHttpClient {
         BuilderHttpClient::new(None, false).unwrap()

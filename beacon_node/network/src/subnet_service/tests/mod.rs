@@ -49,7 +49,7 @@ impl TestBeaconChain {
         let test_runtime = TestRuntime::default();
 
         let chain = Arc::new(
-            BeaconChainBuilder::new(MainnetEthSpec, kzg.clone())
+            BeaconChainBuilder::new(kzg.clone())
                 .custom_spec(spec.clone())
                 .store(Arc::new(store))
                 .task_executor(test_runtime.task_executor.clone())

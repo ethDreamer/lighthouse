@@ -811,7 +811,7 @@ mod test {
         let chain_store = get_store_with_spec::<E>(db_path, spec.clone());
         let validators_keypairs =
             types::test_utils::generate_deterministic_keypairs(LOW_VALIDATOR_COUNT);
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec.clone())
             .keypairs(validators_keypairs)
             .fresh_disk_store(chain_store)
@@ -947,7 +947,6 @@ mod test {
 
     #[tokio::test]
     async fn overflow_cache_test_insert_components() {
-        type E = MinimalEthSpec;
         type T = DiskHarnessType<E>;
         let capacity = 4;
         let (harness, cache, _path) = setup_harness_and_cache::<E, T>(capacity).await;
@@ -1087,7 +1086,6 @@ mod pending_components_tests {
     use state_processing::ConsensusContext;
     use types::{BeaconState, ForkName, MainnetEthSpec, SignedBeaconBlock, Slot};
 
-    type E = MainnetEthSpec;
 
     type Setup<E> = (
         SignedBeaconBlock<E>,

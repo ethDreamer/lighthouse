@@ -304,7 +304,6 @@ mod test {
     use types::{ChainSpec, MainnetEthSpec};
     use validator_http_api::{Config as HttpConfig, test_utils::ApiTester};
     use zeroize::Zeroizing;
-    type E = MainnetEthSpec;
 
     struct TestBuilder {
         exit_config: Option<ExitConfig>,

@@ -721,7 +721,6 @@ mod tests {
     use types::data::{CellBitmap, PartialDataColumnSidecarGloas};
     use types::{Epoch, EthSpec, MainnetEthSpec, Slot, data::DataColumnSubnetId};
 
-    type E = MainnetEthSpec;
 
     fn gloas_fork_context() -> ForkContext {
         let mut spec = E::default_spec();

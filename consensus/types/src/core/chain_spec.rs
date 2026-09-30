@@ -3433,7 +3433,6 @@ mod tests {
     // Test that `next_fork_epoch` is consistent with the other functions.
     #[test]
     fn next_fork_epoch_consistency() {
-        type E = MainnetEthSpec;
         let spec = ChainSpec::mainnet();
 
         let mut last_fork_slot = Slot::new(0);
@@ -4098,7 +4097,6 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_deneb() {
-        type E = MainnetEthSpec;
         let spec = Arc::new(ForkName::Deneb.make_genesis_spec(E::default_spec()));
         let blob_retention_epochs = spec.min_epochs_for_blob_sidecars_requests;
 
@@ -4118,7 +4116,6 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_fulu() {
-        type E = MainnetEthSpec;
         let spec = {
             let mut spec = ForkName::Deneb.make_genesis_spec(E::default_spec());
             // 4096 * 2 = 8192
@@ -4161,7 +4158,6 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_fulu_genesis() {
-        type E = MainnetEthSpec;
         let spec = {
             // fulu active at genesis
             let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
@@ -4194,7 +4190,6 @@ mod yaml_tests {
 
     #[test]
     fn proposer_shuffling_decision_root_around_epoch_boundary() {
-        type E = MainnetEthSpec;
         let fulu_fork_epoch = 5;
         let gloas_fork_epoch = 10;
         let spec = {
@@ -4344,7 +4339,6 @@ mod yaml_tests {
 
     #[test]
     fn test_attestation_due_is_fork_aware() {
-        type E = MainnetEthSpec;
 
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
@@ -4368,7 +4362,6 @@ mod yaml_tests {
 
     #[test]
     fn test_aggregate_attestation_due_is_fork_aware() {
-        type E = MainnetEthSpec;
 
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
@@ -4392,7 +4385,6 @@ mod yaml_tests {
 
     #[test]
     fn test_sync_message_due_is_fork_aware() {
-        type E = MainnetEthSpec;
 
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
@@ -4416,7 +4408,6 @@ mod yaml_tests {
 
     #[test]
     fn test_contribution_message_due_is_fork_aware() {
-        type E = MainnetEthSpec;
 
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();

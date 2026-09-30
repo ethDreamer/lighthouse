@@ -20,7 +20,6 @@ use types::{
     SyncSubnetId,
 };
 
-pub type E = MainnetEthSpec;
 
 pub const VALIDATOR_COUNT: usize = 256;
 
@@ -35,7 +34,7 @@ static KEYPAIRS: LazyLock<Vec<Keypair>> =
 fn get_harness(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType<E>> {
     let mut spec = E::default_spec();
     spec.altair_fork_epoch = Some(Epoch::new(0));
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(spec.into())
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_ephemeral_store()

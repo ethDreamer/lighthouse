@@ -252,11 +252,10 @@ mod test {
     use store::HotColdDB;
     use types::{EthSpec, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
     type T = EphemeralHarnessType<E>;
 
     fn get_state(validator_count: usize) -> (BeaconState<E>, Vec<Keypair>) {
-        let harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let harness = BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(validator_count)
             .fresh_ephemeral_store()

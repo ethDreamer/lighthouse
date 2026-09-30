@@ -20,7 +20,6 @@ use validator_store::ValidatorStore;
 use crate::mock_beacon_node::MockBeaconNode;
 
 pub type S = LighthouseValidatorStore<ManualSlotClock, E>;
-type E = MainnetEthSpec;
 
 pub struct ValidatorClientHarness {
     pub mock_beacon_node_1: MockBeaconNode<E>,

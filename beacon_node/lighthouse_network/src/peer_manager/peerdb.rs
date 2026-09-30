@@ -1488,7 +1488,6 @@ mod tests {
     use std::net::{Ipv4Addr, Ipv6Addr};
     use types::MinimalEthSpec;
 
-    type M = MinimalEthSpec;
 
     fn add_score<E: EthSpec>(db: &mut PeerDB<E>, peer_id: &PeerId, score: f64) {
         if let Some(info) = db.peer_info_mut(peer_id) {

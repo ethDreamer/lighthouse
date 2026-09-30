@@ -563,7 +563,7 @@ mod tests {
     type TestHarness = BeaconChainHarness<EphemeralHarnessType<MinimalEthSpec>>;
 
     fn harness() -> TestHarness {
-        BeaconChainHarness::builder(MinimalEthSpec)
+        BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(8)
             .fresh_ephemeral_store()
@@ -572,7 +572,7 @@ mod tests {
     }
 
     fn gloas_supernode_harness() -> TestHarness {
-        BeaconChainHarness::builder(MinimalEthSpec)
+        BeaconChainHarness::builder()
             .spec(Arc::new(
                 ForkName::Gloas.make_genesis_spec(MinimalEthSpec::default_spec()),
             ))

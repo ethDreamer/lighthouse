@@ -253,7 +253,6 @@ mod tests {
         SignedBeaconBlockHeader,
     };
 
-    type E = MainnetEthSpec;
 
     /// Creates a Fulu DataColumnSidecar for testing.
     /// Keyed by (proposer_index, slot) in the observation cache.

@@ -1592,7 +1592,6 @@ mod test {
     use task_executor::test_utils::TestRuntime;
     use types::{EthSpec, MinimalEthSpec, Slot};
 
-    type TestEthSpec = MinimalEthSpec;
     type Builder = BeaconChainBuilder<EphemeralHarnessType<TestEthSpec>>;
 
     #[test]
@@ -1621,7 +1620,7 @@ mod test {
 
         let kzg = get_kzg(&spec);
 
-        let chain = Builder::new(MinimalEthSpec, kzg)
+        let chain = Builder::new(kzg)
             .store(Arc::new(store))
             .task_executor(runtime.task_executor.clone())
             .genesis_state(genesis_state)

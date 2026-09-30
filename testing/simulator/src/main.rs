@@ -21,7 +21,6 @@ use cli::cli_app;
 use local_network::LocalNetwork;
 use types::MinimalEthSpec;
 
-pub type E = MinimalEthSpec;
 
 fn main() {
     let matches = cli_app().get_matches();

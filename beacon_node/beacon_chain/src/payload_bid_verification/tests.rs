@@ -43,7 +43,6 @@ use crate::{
     test_utils::{EphemeralHarnessType, fork_name_from_env, test_spec},
 };
 
-type E = MinimalEthSpec;
 type T = EphemeralHarnessType<E>;
 
 /// Number of regular validators (must be >= min_genesis_active_validator_count for MinimalEthSpec).

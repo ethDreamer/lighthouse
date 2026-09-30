@@ -25,7 +25,6 @@ use types::*;
 
 const VALIDATOR_COUNT: usize = 32;
 
-type E = MainnetEthSpec;
 
 #[derive(PartialEq, Clone, Copy)]
 enum Payload {
@@ -49,7 +48,7 @@ impl InvalidPayloadRig {
     }
 
     fn new_with_spec(spec: ChainSpec) -> Self {
-        let harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .chain_config(ChainConfig {
                 archive: true,
@@ -1468,7 +1467,7 @@ async fn recover_from_invalid_head_after_persist_and_reboot() {
     // Forcefully persist fork choice.
     rig.harness.chain.persist_fork_choice().unwrap();
 
-    let resumed = BeaconChainHarness::builder(MainnetEthSpec)
+    let resumed = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(VALIDATOR_COUNT)
         .resumed_ephemeral_store(rig.harness.chain.store.clone())

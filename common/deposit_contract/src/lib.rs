@@ -130,7 +130,6 @@ mod tests {
     use bls::{Keypair, Signature};
     use types::{ChainSpec, EthSpec, MinimalEthSpec, test_utils::generate_deterministic_keypair};
 
-    type E = MinimalEthSpec;
 
     fn get_deposit(keypair: Keypair, spec: &ChainSpec) -> DepositData {
         let mut deposit_data = DepositData {

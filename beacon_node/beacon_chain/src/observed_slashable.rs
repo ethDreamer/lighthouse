@@ -150,7 +150,6 @@ mod tests {
     use super::*;
     use types::{BeaconBlock, Graffiti, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock<E> {
         let mut block = BeaconBlock::empty(&E::default_spec());

@@ -1004,7 +1004,6 @@ mod tests {
     };
     use types::{BlobSidecar, DataColumnSidecarFulu};
 
-    type Spec = types::MainnetEthSpec;
 
     fn spec_with_all_forks_enabled() -> ChainSpec {
         let mut chain_spec = Spec::default_spec();

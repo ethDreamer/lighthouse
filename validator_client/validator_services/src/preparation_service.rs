@@ -485,7 +485,6 @@ mod tests {
 
     #[test]
     fn validator_registrations_stop_at_gloas() {
-        type E = MainnetEthSpec;
 
         let mut spec = E::default_spec();
         let gloas_fork_epoch = Epoch::new(1);
@@ -505,7 +504,6 @@ mod tests {
 
     #[test]
     fn validator_registrations_continue_without_gloas() {
-        type E = MainnetEthSpec;
 
         let mut spec = E::default_spec();
         spec.gloas_fork_epoch = None;

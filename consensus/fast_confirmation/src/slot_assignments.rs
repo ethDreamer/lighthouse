@@ -204,7 +204,6 @@ mod tests {
     use state_processing::{GloasVerificationContext, per_slot_processing};
     use types::{MinimalEthSpec, Validator};
 
-    type E = MinimalEthSpec;
 
     fn genesis_state(n: usize) -> (BeaconState<E>, types::ChainSpec) {
         let spec = E::default_spec();

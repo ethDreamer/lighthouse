@@ -77,7 +77,6 @@ mod test {
     use alloy_consensus::TxLegacy;
     use alloy_primitives::TxKind;
 
-    type E = types::MainnetEthSpec;
 
     #[test]
     fn test_decode_static_transaction() {

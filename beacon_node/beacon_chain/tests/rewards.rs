@@ -22,7 +22,6 @@ pub const VALIDATOR_COUNT: usize = 64;
 // When set to true, cache any states fetched from the db.
 pub const CACHE_STATE_IN_TESTS: bool = true;
 
-type E = MinimalEthSpec;
 
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
@@ -33,7 +32,7 @@ fn get_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessType<E>> {
         ..Default::default()
     };
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS.to_vec())
         .fresh_ephemeral_store()
@@ -54,7 +53,7 @@ fn get_electra_harness(spec: ChainSpec) -> BeaconChainHarness<EphemeralHarnessTy
 
     let spec = Arc::new(spec);
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .keypairs(KEYPAIRS.to_vec())
         .with_genesis_state_builder(|builder| {

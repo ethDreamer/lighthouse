@@ -18,7 +18,6 @@ use types::{
     SignedBeaconBlock, SignedBeaconBlockFulu,
 };
 
-type E = MainnetEthSpec;
 type T = EphemeralHarnessType<E>;
 
 mod get_blobs_v2 {

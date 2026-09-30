@@ -873,7 +873,6 @@ mod test {
     use typenum::Unsigned;
     use types::{Checkpoint, ForkName, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     fn indexed_attestation_on_disk_roundtrip_test(
         spec: &ChainSpec,

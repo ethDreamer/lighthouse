@@ -15,7 +15,6 @@ use types::{
     WithdrawalRequest,
 };
 
-type E = MinimalEthSpec;
 
 #[tokio::test]
 async fn pre_gloas_block_import_records_payload_gas_limit() {
@@ -25,7 +24,7 @@ async fn pre_gloas_block_import_records_payload_gas_limit() {
 
     let mut spec = test_spec::<E>();
     spec.gloas_fork_epoch = Some(Epoch::new(1));
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -54,7 +53,7 @@ async fn pre_gloas_block_import_skips_cache_without_scheduled_gloas() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -83,7 +82,7 @@ async fn startup_seeds_gloas_genesis_parent_payload() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -112,7 +111,7 @@ async fn lookup_imports_gloas_payload_after_restart() {
     }
 
     let spec = Arc::new(test_spec::<E>());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -146,7 +145,7 @@ async fn lookup_imports_gloas_payload_after_restart() {
     let store = harness.chain.store.clone();
     let slot_clock = harness.chain.slot_clock.clone();
     drop(harness);
-    let resumed = BeaconChainHarness::builder(E::default())
+    let resumed = BeaconChainHarness::builder()
         .spec(spec)
         .deterministic_keypairs(64)
         .resumed_ephemeral_store(store)
@@ -227,7 +226,7 @@ async fn gossip_rejects_execution_requests_root_mismatch() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -284,7 +283,7 @@ async fn gossip_verified_envelope_records_payload_gas_limit() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -337,7 +336,7 @@ async fn gossip_ignores_subsequent_envelope_from_same_builder() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -383,7 +382,7 @@ async fn gossip_ignores_subsequent_envelope_with_modified_slot() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -433,7 +432,7 @@ async fn http_envelope_bypasses_deduplication_but_marks_seen() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -488,7 +487,7 @@ async fn rpc_envelope_bypasses_deduplication_but_marks_seen() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -543,7 +542,7 @@ async fn gossip_seen_envelope_can_be_reverified_via_non_gossip() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -611,7 +610,7 @@ async fn gossip_seen_envelope_can_be_reverified_via_non_gossip() {
 
 /// Helper: build a Gloas harness with a mock execution layer.
 fn gloas_harness() -> BeaconChainHarness<beacon_chain::test_utils::EphemeralHarnessType<E>> {
-    BeaconChainHarness::builder(E::default())
+    BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()

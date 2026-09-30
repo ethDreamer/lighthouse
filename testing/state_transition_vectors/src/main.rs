@@ -14,7 +14,6 @@ use std::sync::LazyLock;
 use types::{BeaconState, EthSpec, SignedBeaconBlock, test_utils::generate_deterministic_keypairs};
 use types::{MainnetEthSpec, Slot};
 
-type E = MainnetEthSpec;
 
 pub const VALIDATOR_COUNT: usize = 64;
 
@@ -52,7 +51,7 @@ async fn get_harness<E: EthSpec>(
     slot: Slot,
     validator_count: usize,
 ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_ephemeral_store()

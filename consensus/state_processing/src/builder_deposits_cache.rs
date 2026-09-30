@@ -461,7 +461,7 @@ mod tests {
             deposits: Vec<PendingDeposit>,
             spec: &Arc<ChainSpec>,
         ) -> types::BeaconState<MinimalEthSpec> {
-            let harness = BeaconChainHarness::builder(MinimalEthSpec)
+            let harness = BeaconChainHarness::builder()
                 .spec(spec.clone())
                 .deterministic_keypairs(4)
                 .fresh_ephemeral_store()

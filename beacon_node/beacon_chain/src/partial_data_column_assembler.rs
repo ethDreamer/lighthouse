@@ -293,7 +293,6 @@ mod tests {
         PartialDataColumnFulu, PartialDataColumnSidecarFulu,
     };
 
-    type E = MinimalEthSpec;
 
     fn make_cell(marker: u8) -> Cell<E> {
         let mut cell = Cell::<E>::default();

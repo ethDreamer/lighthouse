@@ -1864,7 +1864,6 @@ mod tests {
 
     #[test]
     fn ssz_signed_block_contents_pre_deneb() {
-        type E = MainnetEthSpec;
         let spec = ForkName::Capella.make_genesis_spec(E::default_spec());
 
         let block: PublishBlockRequest<E> = Arc::new(SignedBeaconBlock::from_block(
@@ -1882,7 +1881,6 @@ mod tests {
 
     #[test]
     fn ssz_signed_block_contents_with_blobs() {
-        type E = MainnetEthSpec;
         let spec = ForkName::Deneb.make_genesis_spec(E::default_spec());
 
         let block = SignedBeaconBlock::from_block(

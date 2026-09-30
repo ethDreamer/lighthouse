@@ -23,7 +23,7 @@ async fn get_harness<E: EthSpec>(
     validator_count: usize,
     slot: Slot,
 ) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_ephemeral_store()
@@ -310,7 +310,6 @@ mod committees {
 
 #[test]
 fn decode_base_and_altair() {
-    type E = MainnetEthSpec;
     let spec = E::default_spec();
 
     let mut u = types::test_utils::test_unstructured();

@@ -435,7 +435,6 @@ mod tests {
     use kzg::KzgCommitment;
     use ssz::Encode;
 
-    type E = MinimalEthSpec;
 
     fn make_cell(marker: u8) -> Cell<E> {
         let mut cell = Cell::<E>::default();

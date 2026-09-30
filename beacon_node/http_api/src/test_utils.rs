@@ -95,7 +95,7 @@ impl<E: EthSpec> InteractiveTester<E> {
         use_mock_builder: bool,
         node_custody_type: NodeCustodyType,
     ) -> Self {
-        let mut harness_builder = BeaconChainHarness::builder(E::default())
+        let mut harness_builder = BeaconChainHarness::builder()
             .spec_or_default(spec.map(Arc::new))
             .mock_execution_layer();
 

@@ -27,7 +27,6 @@ use types::{
     MinimalEthSpec, ProposerPreparationData, Slot,
 };
 
-type E = MainnetEthSpec;
 
 // Test that the deposit_contract endpoint returns the correct chain_id and address.
 // Regression test for https://github.com/sigp/lighthouse/issues/2657
@@ -59,7 +58,6 @@ async fn deposit_contract_custom_network() {
 // present in the hot database, and have had their block pruned from fork choice.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn state_by_root_pruned_from_fork_choice() {
-    type E = MinimalEthSpec;
 
     let validator_count = 24;
     let spec = ForkName::latest().make_genesis_spec(E::default_spec());
@@ -1150,7 +1148,6 @@ async fn proposer_duties_v2_with_gossip_tolerance() {
 // `min_seed_lookahead`), while the legacy v1 root remains at the end of epoch N-1.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn proposer_duties_v2_post_fulu_dependent_root() {
-    type E = MinimalEthSpec;
     let spec = test_spec::<E>();
 
     if !spec.is_fulu_scheduled() {

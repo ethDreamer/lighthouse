@@ -1899,14 +1899,13 @@ mod test {
         test_utils::test_unstructured,
     };
 
-    type E = MainnetEthSpec;
 
     // TODO(gloas) make this generic over gloas/fulu
     #[tokio::test]
     async fn test_validate_data_column_sidecar_for_gossip_fulu() {
         // Setting up harness is slow, we initialise once and use it for all gossip validation tests.
         let spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
             .fresh_ephemeral_store()
@@ -1931,7 +1930,7 @@ mod test {
     async fn test_new_for_block_publishing_fulu() {
         // Setting up harness is slow, we initialise once and use it for all gossip validation tests.
         let spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
             .fresh_ephemeral_store()
@@ -1952,7 +1951,7 @@ mod test {
     #[tokio::test]
     async fn test_load_gloas_payload_bid_disk_fallback() {
         let spec = ForkName::Gloas.make_genesis_spec(E::default_spec());
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .deterministic_keypairs(64)
             .fresh_ephemeral_store()
@@ -2107,7 +2106,7 @@ mod test {
             enable_partial_columns: true,
             ..Default::default()
         };
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec)
             .deterministic_keypairs(64)
             .fresh_ephemeral_store()
@@ -2362,7 +2361,7 @@ mod test {
     #[tokio::test]
     async fn test_partial_message_verification_gloas() {
         let spec = Arc::new(ForkName::Gloas.make_genesis_spec(E::default_spec()));
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .spec(spec)
             .deterministic_keypairs(64)
             .fresh_ephemeral_store()

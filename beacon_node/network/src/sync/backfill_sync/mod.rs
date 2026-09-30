@@ -1162,7 +1162,7 @@ mod tests {
 
     #[test]
     fn request_batches_should_not_loop_infinitely() {
-        let harness = BeaconChainHarness::builder(MinimalEthSpec)
+        let harness = BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(8)
             .fresh_ephemeral_store()

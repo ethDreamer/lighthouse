@@ -412,7 +412,6 @@ mod tests {
     use super::*;
     use types::{MinimalEthSpec, Validator};
 
-    type E = MinimalEthSpec;
 
     #[test]
     fn balances_cache_hit_matches_justified_state() {

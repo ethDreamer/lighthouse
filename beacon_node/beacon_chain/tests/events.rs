@@ -13,7 +13,6 @@ use types::{
     ProposerPreferences, SignedExecutionPayloadBid, SignedProposerPreferences, SignedRoot, Slot,
 };
 
-type E = MinimalEthSpec;
 
 /// Verifies that a data column event is emitted when a gossip verified data column is received via gossip or the publish block API.
 #[tokio::test]
@@ -23,7 +22,7 @@ async fn data_column_sidecar_event_on_process_gossip_data_column() {
     };
 
     let spec = Arc::new(test_spec::<E>());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -96,7 +95,7 @@ async fn blob_sidecar_event_on_process_rpc_blobs() {
     };
 
     let spec = Arc::new(test_spec::<E>());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -154,7 +153,7 @@ async fn data_column_sidecar_event_on_process_rpc_columns() {
     };
 
     let spec = Arc::new(test_spec::<E>());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -197,7 +196,7 @@ async fn data_column_sidecar_event_on_process_rpc_columns() {
 #[tokio::test]
 async fn head_event_on_block_import() {
     let spec = Arc::new(test_spec::<E>());
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(8)
         .fresh_ephemeral_store()
@@ -243,7 +242,7 @@ async fn execution_payload_envelope_events() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -345,7 +344,7 @@ async fn payload_attestation_message_event_on_gossip_verification() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()
@@ -417,7 +416,7 @@ async fn proposer_preferences_event_on_gossip_verification() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(64)
         .fresh_ephemeral_store()

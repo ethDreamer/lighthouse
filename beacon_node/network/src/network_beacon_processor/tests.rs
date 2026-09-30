@@ -47,7 +47,6 @@ use types::{
     SignedVoluntaryExit, SingleAttestation, Slot, SubnetId, data::BlobIdentifier,
 };
 
-type E = MainnetEthSpec;
 type T = EphemeralHarnessType<E>;
 
 const SLOTS_PER_EPOCH: u64 = 32;
@@ -140,7 +139,7 @@ impl TestRig {
     ) -> Self {
         let spec = Arc::new(spec);
         let beacon_processor_config = BeaconProcessorConfig::default();
-        let harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec.clone())
             .deterministic_keypairs(VALIDATOR_COUNT)
             .fresh_ephemeral_store()
@@ -187,7 +186,7 @@ impl TestRig {
         } = params;
 
         let spec = Arc::new(spec);
-        let harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec.clone())
             .deterministic_keypairs(VALIDATOR_COUNT)
             .fresh_ephemeral_store()

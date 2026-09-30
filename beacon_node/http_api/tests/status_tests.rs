@@ -11,7 +11,6 @@ use http_api::test_utils::InteractiveTester;
 use reqwest::StatusCode;
 use types::{EthSpec, ExecPayload, MinimalEthSpec, Slot, Uint256};
 
-type E = MinimalEthSpec;
 
 /// Create a new test environment that is post-merge with `chain_depth` blocks.
 async fn post_merge_tester(chain_depth: u64, validator_count: u64) -> InteractiveTester<E> {

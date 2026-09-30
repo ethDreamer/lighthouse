@@ -28,7 +28,6 @@ use types::{
     SignedBeaconBlockHeader, Slot, SyncAggregate, SyncCommittee,
 };
 
-type E = MinimalEthSpec;
 
 /// Bellatrix block with length < max_rpc_size.
 fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock<E> {

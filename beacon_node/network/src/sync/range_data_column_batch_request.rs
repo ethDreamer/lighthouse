@@ -315,12 +315,11 @@ mod tests {
     };
     use types::{ForkName, MinimalEthSpec};
 
-    type E = MinimalEthSpec;
 
     #[tokio::test]
     async fn valid_gloas_batch_completes_without_peer_failure() {
         let spec = Arc::new(ForkName::Gloas.make_genesis_spec(E::default_spec()));
-        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder(MinimalEthSpec)
+        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder()
             .spec(spec)
             .deterministic_keypairs(8)
             .fresh_ephemeral_store()

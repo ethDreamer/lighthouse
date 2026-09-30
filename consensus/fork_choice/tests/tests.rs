@@ -27,7 +27,6 @@ use types::{
     RelativeEpoch, SignedBeaconBlock, Slot, SubnetId, test_utils::generate_deterministic_keypair,
 };
 
-pub type E = MainnetEthSpec;
 
 pub const VALIDATOR_COUNT: usize = 64;
 
@@ -66,7 +65,7 @@ impl ForkChoiceTest {
         // feature is enabled, otherwise against the latest stable fork.
         let fork_name = fork_name_from_env().unwrap_or_else(ForkName::latest_stable);
         let spec = fork_name.make_genesis_spec(ChainSpec::default());
-        let harness = BeaconChainHarness::builder(MainnetEthSpec)
+        let harness = BeaconChainHarness::builder()
             .spec(spec.into())
             .chain_config(chain_config)
             .deterministic_keypairs(VALIDATOR_COUNT)

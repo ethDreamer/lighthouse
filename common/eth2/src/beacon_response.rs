@@ -201,7 +201,6 @@ mod fork_version_response_tests {
 
     #[test]
     fn fork_versioned_response_deserialize_correct_fork() {
-        type E = MainnetEthSpec;
 
         let response_json =
             serde_json::to_string(&json!(ForkVersionedResponse::<ExecutionPayload<E>> {
@@ -219,7 +218,6 @@ mod fork_version_response_tests {
 
     #[test]
     fn fork_versioned_response_deserialize_incorrect_fork() {
-        type E = MainnetEthSpec;
 
         let response_json =
             serde_json::to_string(&json!(ForkVersionedResponse::<ExecutionPayload<E>> {

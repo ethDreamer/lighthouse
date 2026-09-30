@@ -70,7 +70,6 @@ mod tests {
         SignedExecutionPayloadEnvelope, Slot,
     };
 
-    type E = MinimalEthSpec;
 
     fn make_verified_envelope(
         slot: Slot,

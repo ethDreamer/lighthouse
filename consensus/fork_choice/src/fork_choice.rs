@@ -2116,7 +2116,6 @@ mod tests {
 
     use super::*;
 
-    type E = MainnetEthSpec;
 
     #[test]
     fn slots_since_epoch_start() {

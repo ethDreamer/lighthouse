@@ -858,11 +858,10 @@ mod inclusion_list_signature_tests {
         Domain, EthSpec, Hash256, InclusionList, MinimalEthSpec, SignedInclusionList, SignedRoot,
     };
 
-    type E = MinimalEthSpec;
     const VALIDATOR_COUNT: usize = 16;
 
     fn harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
-        BeaconChainHarness::builder(E::default())
+        BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(VALIDATOR_COUNT)
             .fresh_ephemeral_store()

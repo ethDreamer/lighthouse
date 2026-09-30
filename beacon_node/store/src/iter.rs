@@ -367,7 +367,7 @@ mod test {
     use std::sync::Arc;
 
     fn get_state<E: EthSpec>() -> BeaconState<E> {
-        let harness = BeaconChainHarness::builder(E::default())
+        let harness = BeaconChainHarness::builder()
             .default_spec()
             .deterministic_keypairs(1)
             .fresh_ephemeral_store()
@@ -386,7 +386,7 @@ mod test {
             .unwrap();
         // Write a state with state root 0 which is the base `put_state` below tries to diff from
         {
-            let harness = BeaconChainHarness::builder(E::default())
+            let harness = BeaconChainHarness::builder()
                 .default_spec()
                 .deterministic_keypairs(1)
                 .fresh_ephemeral_store()

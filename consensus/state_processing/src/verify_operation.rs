@@ -426,7 +426,6 @@ mod test {
     use super::*;
     use types::MainnetEthSpec;
 
-    type E = MainnetEthSpec;
 
     fn roundtrip_test<'a, T>()
     where

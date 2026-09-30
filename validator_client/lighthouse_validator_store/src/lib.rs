@@ -1565,7 +1565,6 @@ mod tests {
     use tempfile::{TempDir, tempdir};
     use types::{Epoch, GasLimitSchedule, GasLimitScheduleEntry, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     const GLOAS_FORK_EPOCH: u64 = 4;
     const SCHEDULED_GAS_LIMIT: u64 = 70_000_000;

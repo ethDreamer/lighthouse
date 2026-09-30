@@ -14,7 +14,6 @@ use types::{
     Slot,
 };
 
-type E = MinimalEthSpec;
 type T = EphemeralHarnessType<E>;
 
 struct SlotEntry {

@@ -686,7 +686,6 @@ mod tests {
     use crate::types::Subnet;
     use types::{DataColumnSubnetId, MainnetEthSpec};
 
-    type E = MainnetEthSpec;
 
     fn create_test_peer_info() -> PeerInfo<E> {
         PeerInfo::default()

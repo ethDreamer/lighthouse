@@ -27,7 +27,7 @@ async fn produces_attestations_from_attestation_simulator_service() {
     // Produce 2 epochs, or 64 blocks
     let num_blocks_produced = MainnetEthSpec::slots_per_epoch() * 2;
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -110,7 +110,7 @@ async fn produces_attestations_from_attestation_simulator_service() {
 #[tokio::test]
 async fn gloas_attestation_simulator_head_hit_on_skipped_slot() {
     let spec = ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec());
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -172,7 +172,7 @@ async fn gloas_attestation_simulator_head_hit_on_skipped_slot() {
 #[tokio::test]
 async fn gloas_attestation_simulator_head_hit_on_skipped_slot_without_payload() {
     let spec = ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec());
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .spec(Arc::new(spec))
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -261,7 +261,7 @@ async fn produces_attestations() {
     let num_blocks_produced = MainnetEthSpec::slots_per_epoch() * 4;
     let additional_slots_tested = MainnetEthSpec::slots_per_epoch() * 3;
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -425,7 +425,7 @@ async fn produces_attestations() {
 /// the one requested.
 #[tokio::test]
 async fn early_attester_cache_old_request() {
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -497,7 +497,7 @@ async fn gloas_attestation_index_payload_present() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -549,7 +549,7 @@ async fn gloas_attestation_index_payload_absent() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -614,7 +614,7 @@ async fn gloas_payload_attestation_seen_but_data_unavailable() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
@@ -678,7 +678,7 @@ async fn gloas_payload_attestation_blob_data_available_without_payload() {
         return;
     }
 
-    let harness = BeaconChainHarness::builder(MainnetEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[..].to_vec())
         .fresh_ephemeral_store()
