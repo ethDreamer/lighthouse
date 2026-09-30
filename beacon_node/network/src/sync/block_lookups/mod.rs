@@ -43,8 +43,7 @@ use std::time::Duration;
 use store::Hash256;
 use tracing::{debug, error, warn};
 use types::{
-    DataColumnSidecarList, ExecutionBlockHash, SignedBeaconBlock,
-    SignedExecutionPayloadEnvelope,
+    DataColumnSidecarList, ExecutionBlockHash, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
 };
 
 pub mod parent_chain;
@@ -77,8 +76,7 @@ const LOOKUP_MAX_DURATION_NO_PEERS_SECS: u64 = 10;
 const MAX_LOOKUPS: usize = 200;
 
 type BlockDownloadResponse = Result<DownloadResult<Arc<SignedBeaconBlock>>, RpcResponseError>;
-type CustodyDownloadResponse =
-    Result<DownloadResult<DataColumnSidecarList>, RpcResponseError>;
+type CustodyDownloadResponse = Result<DownloadResult<DataColumnSidecarList>, RpcResponseError>;
 type PayloadDownloadResponse =
     Result<DownloadResult<Arc<SignedExecutionPayloadEnvelope>>, RpcResponseError>;
 

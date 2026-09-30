@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 use std::hash::{Hash, Hasher};
 use strum::IntoStaticStr;
 use tracing::{Span, debug, error, instrument, warn};
-use types::{Epoch, Spec, Hash256, Slot};
+use types::{Epoch, Hash256, Slot, Spec};
 
 /// Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
 /// blocks per batch are requested _at most_. A batch may request less blocks to account for
@@ -258,8 +258,7 @@ impl SyncingChain {
     fn current_processed_slot(&self) -> Slot {
         // the last slot we processed was included in the previous batch, and corresponds to the
         // first slot of the current target epoch
-        self.processing_target
-            .start_slot(Spec::slots_per_epoch())
+        self.processing_target.start_slot(Spec::slots_per_epoch())
     }
 
     /// A block has been received for a batch on this chain.
@@ -689,7 +688,11 @@ impl SyncingChain {
     /// If a previous batch has been validated and it had been re-processed, penalize the original
     /// peer.
     #[allow(clippy::modulo_one)]
-    fn advance_chain<T: BeaconChainTypes>(&mut self, network: &mut SyncNetworkContext<T>, validating_epoch: Epoch) {
+    fn advance_chain<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+        validating_epoch: Epoch,
+    ) {
         // make sure this epoch produces an advancement
         if validating_epoch <= self.start_epoch {
             return;
@@ -1118,7 +1121,10 @@ impl SyncingChain {
 
     /// Attempts to request the next required batches from the peer pool if the chain is syncing. It will exhaust the peer
     /// pool and left over batches until the batch buffer is reached or all peers are exhausted.
-    fn request_batches<T: BeaconChainTypes>(&mut self, network: &mut SyncNetworkContext<T>) -> ProcessingResult {
+    fn request_batches<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+    ) -> ProcessingResult {
         if !matches!(self.state, ChainSyncingState::Syncing) {
             return Ok(KeepChain);
         }
@@ -1182,13 +1188,12 @@ impl SyncingChain {
 
     /// Creates the next required batch from the chain. If there are no more batches required,
     /// `false` is returned.
-    fn include_next_batch<T: BeaconChainTypes>(&mut self, network: &mut SyncNetworkContext<T>) -> Option<BatchId> {
+    fn include_next_batch<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+    ) -> Option<BatchId> {
         // don't request batches beyond the target head slot
-        if self
-            .to_be_downloaded
-            .start_slot(Spec::slots_per_epoch())
-            >= self.target_head_slot
-        {
+        if self.to_be_downloaded.start_slot(Spec::slots_per_epoch()) >= self.target_head_slot {
             return None;
         }
 

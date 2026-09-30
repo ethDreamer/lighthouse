@@ -1,5 +1,5 @@
-use types::Spec;
 use super::*;
+use types::Spec;
 
 fn gloas_spec() -> ChainSpec {
     let mut spec = Spec::default_spec();

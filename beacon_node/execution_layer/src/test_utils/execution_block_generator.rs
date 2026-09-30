@@ -1,4 +1,3 @@
-use typenum::U;
 use crate::engines::ForkchoiceState;
 use crate::{
     calculate_execution_block_hash,
@@ -27,12 +26,13 @@ use std::sync::Arc;
 use tracing::warn;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 use types::data::Cell;
 use types::{
-    Blob, ChainSpec, Spec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadBellatrix,
+    Blob, ChainSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadBellatrix,
     ExecutionPayloadCapella, ExecutionPayloadDeneb, ExecutionPayloadElectra, ExecutionPayloadFulu,
     ExecutionPayloadGloas, ExecutionPayloadHeader, ExecutionPayloadHeze, ExecutionRequests,
-    ExecutionRequestsRef, ForkName, Hash256, KzgProofs, ProgressiveTransactions, Transaction,
+    ExecutionRequestsRef, ForkName, Hash256, KzgProofs, ProgressiveTransactions, Spec, Transaction,
     Transactions, Uint256,
 };
 
@@ -314,10 +314,7 @@ impl ExecutionBlockGenerator {
         self.blocks.get(&hash).cloned()
     }
 
-    pub fn execution_payload_by_hash(
-        &self,
-        hash: ExecutionBlockHash,
-    ) -> Option<ExecutionPayload> {
+    pub fn execution_payload_by_hash(&self, hash: ExecutionBlockHash) -> Option<ExecutionPayload> {
         self.block_by_hash(hash)
             .and_then(|block| block.as_execution_payload())
     }
@@ -965,8 +962,7 @@ impl ExecutionBlockGenerator {
     }
 }
 
-pub fn load_test_blobs_bundle_v1() -> Result<(KzgCommitment, KzgProof, Blob), String>
-{
+pub fn load_test_blobs_bundle_v1() -> Result<(KzgCommitment, KzgProof, Blob), String> {
     let BlobsBundle {
         commitments,
         proofs,
@@ -990,8 +986,7 @@ pub fn load_test_blobs_bundle_v1() -> Result<(KzgCommitment, KzgProof, Blob), St
     ))
 }
 
-pub fn load_test_blobs_bundle_v2()
--> Result<(KzgCommitment, KzgProofs, Blob), String> {
+pub fn load_test_blobs_bundle_v2() -> Result<(KzgCommitment, KzgProofs, Blob), String> {
     let BlobsBundle {
         commitments,
         proofs,
@@ -1026,8 +1021,8 @@ pub fn generate_blobs(
     n_blobs: usize,
     fork_name: ForkName,
 ) -> Result<(BlobsBundle, Transactions), String> {
-    let tx = static_valid_tx()
-        .map_err(|e| format!("error creating valid tx SSZ bytes: {:?}", e))?;
+    let tx =
+        static_valid_tx().map_err(|e| format!("error creating valid tx SSZ bytes: {:?}", e))?;
     let transactions = vec![tx; n_blobs];
 
     let bundle = if fork_name.fulu_enabled() {

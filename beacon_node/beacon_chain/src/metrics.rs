@@ -5,7 +5,7 @@ use bls::FixedBytesExtended;
 pub use metrics::*;
 use slot_clock::SlotClock;
 use std::sync::LazyLock;
-use types::{BeaconState, Epoch, Spec, Hash256, Slot};
+use types::{BeaconState, Epoch, Hash256, Slot, Spec};
 
 // Attestation simulator metrics
 pub const VALIDATOR_MONITOR_ATTESTATION_SIMULATOR_HEAD_ATTESTER_HIT_TOTAL: &str =

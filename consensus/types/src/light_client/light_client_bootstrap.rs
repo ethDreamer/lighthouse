@@ -30,17 +30,11 @@ use crate::{
         derive(Debug, Clone, Serialize, Deserialize, Educe, Decode, Encode, TreeHash,),
         educe(PartialEq),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         context_deserialize(ForkName),
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, Deserialize, PartialEq)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -293,31 +287,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientBootstrapAltair};
+        use crate::LightClientBootstrapAltair;
         ssz_tests!(LightClientBootstrapAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientBootstrapCapella};
+        use crate::LightClientBootstrapCapella;
         ssz_tests!(LightClientBootstrapCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientBootstrapDeneb};
+        use crate::LightClientBootstrapDeneb;
         ssz_tests!(LightClientBootstrapDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientBootstrapElectra};
+        use crate::LightClientBootstrapElectra;
         ssz_tests!(LightClientBootstrapElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientBootstrapFulu};
+        use crate::LightClientBootstrapFulu;
         ssz_tests!(LightClientBootstrapFulu);
     }
 }

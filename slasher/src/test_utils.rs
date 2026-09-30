@@ -4,11 +4,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use types::{
     AttestationData, AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra,
-    AttesterSlashingGloas, BeaconBlockHeader, ChainSpec, Checkpoint, Epoch, Spec, Hash256,
-    IndexedAttestation, SignedBeaconBlockHeader, Slot,
+    AttesterSlashingGloas, BeaconBlockHeader, ChainSpec, Checkpoint, Epoch, Hash256,
+    IndexedAttestation, SignedBeaconBlockHeader, Slot, Spec,
     attestation::{IndexedAttestationBase, IndexedAttestationElectra},
 };
-
 
 pub fn indexed_att_electra(
     attesting_indices: impl AsRef<[u64]>,
@@ -118,9 +117,7 @@ pub fn slashed_validators_from_slashings(slashings: &HashSet<AttesterSlashing>) 
         .collect()
 }
 
-pub fn slashed_validators_from_attestations(
-    attestations: &[IndexedAttestation],
-) -> HashSet<u64> {
+pub fn slashed_validators_from_attestations(attestations: &[IndexedAttestation]) -> HashSet<u64> {
     let mut slashed_validators = HashSet::new();
     // O(n^2) code, watch out.
     for att1 in attestations {

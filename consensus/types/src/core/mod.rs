@@ -42,8 +42,8 @@ pub use preset::{
 pub use relative_epoch::{Error as RelativeEpochError, RelativeEpoch};
 pub use signing_data::{SignedRoot, SigningData};
 pub use slot_data::SlotData;
-pub use spec::{GnosisSpec, MainnetSpec, MinimalSpec, Spec, SpecId};
 pub use slot_epoch::{Epoch, Slot};
+pub use spec::{GnosisSpec, MainnetSpec, MinimalSpec, Spec, SpecId};
 
 #[cfg(test)]
 pub(crate) use chain_spec::{

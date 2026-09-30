@@ -9,7 +9,8 @@ use slot_clock::{SlotClock, TestingSlotClock};
 use state_processing::AllCaches;
 use store::{HotColdDB, MemoryStore, StoreConfig};
 use types::{
-    Address, BeaconBlock, ChainSpec, Epoch, Spec, ForkName, Hash256, ProposerPreferences, SignedBeaconBlock, SignedProposerPreferences, Slot,
+    Address, BeaconBlock, ChainSpec, Epoch, ForkName, Hash256, ProposerPreferences,
+    SignedBeaconBlock, SignedProposerPreferences, Slot, Spec,
 };
 
 use crate::{
@@ -559,7 +560,11 @@ fn dependent_root_valid_via_boundary_crossing_child() {
     let parent_root = Hash256::repeat_byte(0xee);
     let child_root = Hash256::repeat_byte(0xef);
     ctx.add_block(ctx.head_block_root, parent_root, Slot::new(4));
-    ctx.add_block(parent_root, child_root, Slot::new(Spec::slots_per_epoch() + 4));
+    ctx.add_block(
+        parent_root,
+        child_root,
+        Slot::new(Spec::slots_per_epoch() + 4),
+    );
 
     let proposal_slot = Slot::new(2 * Spec::slots_per_epoch() + 1);
     let prefs = make_signed_preferences(proposal_slot, 0, parent_root);

@@ -5,11 +5,7 @@ use ssz_derive::{Decode, Encode};
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
-use crate::{
-    core::{Hash256},
-    fork::ForkName,
-    state::BeaconState,
-};
+use crate::{core::Hash256, fork::ForkName, state::BeaconState};
 
 /// `HistoricalSummary` matches the components of the phase0 `HistoricalBatch`
 /// making the two hash_tree_root-compatible. This struct is introduced into the beacon state

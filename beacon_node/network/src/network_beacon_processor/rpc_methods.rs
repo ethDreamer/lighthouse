@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tokio_stream::StreamExt;
 use tracing::{Span, debug, error, field, instrument, trace, warn};
 use types::data::BlobIdentifier;
-use types::{ColumnIndex, Epoch, Spec, Hash256, Slot};
+use types::{ColumnIndex, Epoch, Hash256, Slot, Spec};
 
 fn payload_envelope_unavailable(error: &BeaconChainError) -> bool {
     matches!(
@@ -1428,10 +1428,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         );
 
         let request_start_slot = Slot::from(req_start_slot);
-        let fork_name = self
-            .chain
-            .spec
-            .fork_name_at_slot(request_start_slot);
+        let fork_name = self.chain.spec.fork_name_at_slot(request_start_slot);
 
         if !fork_name.gloas_enabled() {
             return Err((

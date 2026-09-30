@@ -16,7 +16,9 @@ use crate::{
     variants(Base, Electra, Gloas),
     variant_attributes(
         derive(
-            PartialEq, Eq, Hash,
+            PartialEq,
+            Eq,
+            Hash,
             Debug,
             Clone,
             Serialize,
@@ -26,17 +28,11 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     ref_attributes(derive(Debug))
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, Deserialize, TreeHash, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]

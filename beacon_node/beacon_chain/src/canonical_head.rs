@@ -546,9 +546,7 @@ impl<T: BeaconChainTypes> CanonicalHead<T> {
     /// This will only return `Err` in the scenario where `self.fork_choice` has advanced
     /// significantly past the cached `head_snapshot`. In such a scenario it is likely prudent to
     /// run `BeaconChain::recompute_head` to update the cached values.
-    pub fn head_and_execution_status(
-        &self,
-    ) -> Result<(CachedHead, ExecutionVerdict), Error> {
+    pub fn head_and_execution_status(&self) -> Result<(CachedHead, ExecutionVerdict), Error> {
         let head = self.cached_head();
         let execution_status = self
             .fork_choice_read_lock()
@@ -652,10 +650,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// This method is a relic from an old implementation where the canonical head was not behind
     /// an `Arc` and the canonical head lock had to be held whenever it was read. This method is
     /// fine to be left here, it just seems a bit weird.
-    pub fn with_head<U, E>(
-        &self,
-        f: impl FnOnce(&BeaconSnapshot) -> Result<U, E>,
-    ) -> Result<U, E>
+    pub fn with_head<U, E>(&self, f: impl FnOnce(&BeaconSnapshot) -> Result<U, E>) -> Result<U, E>
     where
         E: From<Error>,
     {

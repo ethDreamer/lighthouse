@@ -14,7 +14,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, error, info, info_span, instrument, warn};
 use tree_hash::TreeHash;
-use types::{AttestationData, ChainSpec, CommitteeIndex, Spec, Hash256, Slot};
+use types::{AttestationData, ChainSpec, CommitteeIndex, Hash256, Slot, Spec};
 use validator_store::{AggregateToSign, AttestationToSign, ValidatorStore};
 
 /// Builds an `AttestationService`.
@@ -312,8 +312,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
                 .slot_clock
                 .duration_to_slot(slot + 1)
                 .and_then(|duration_to_next_slot| {
-                    duration_to_next_slot
-                        .checked_add(self.chain_spec.get_attestation_due(slot))
+                    duration_to_next_slot.checked_add(self.chain_spec.get_attestation_due(slot))
                 })
                 .map(|next_slot_deadline| {
                     next_slot_deadline.saturating_sub(self.chain_spec.get_slot_duration())
@@ -554,9 +553,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
         let attestation_stream = self.validator_store.sign_attestations(attestations_to_sign);
         tokio::pin!(attestation_stream);
 
-        let fork_name = self
-            .chain_spec
-            .fork_name_at_slot(attestation_data.slot);
+        let fork_name = self.chain_spec.fork_name_at_slot(attestation_data.slot);
 
         // Publish each batch as it arrives from the stream.
         let mut received_non_empty_batch = false;
@@ -651,9 +648,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> AttestationService<S, 
             return Ok(());
         }
 
-        let fork_name = self
-            .chain_spec
-            .fork_name_at_slot(attestation_data.slot);
+        let fork_name = self.chain_spec.fork_name_at_slot(attestation_data.slot);
 
         let aggregated_attestation = &self
             .beacon_nodes
@@ -829,11 +824,10 @@ mod tests {
     use futures::future::FutureExt;
     use parking_lot::RwLock;
     use slot_clock::ManualSlotClock;
-    use types::{Epoch};
+    use types::Epoch;
 
     #[test]
     fn duration_to_attestation_deadline_is_fork_aware() {
-
         let mut spec = Spec::default_spec();
         let gloas_fork_epoch = Epoch::new(1);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);

@@ -1,5 +1,5 @@
-use typenum::U;
 use std::marker::PhantomData;
+use typenum::U;
 
 use bls::Signature;
 use context_deserialize::{ContextDeserialize, context_deserialize};
@@ -20,7 +20,7 @@ use crate::{
         PayloadAttestation,
     },
     complete_kzg_commitment_merkle_proof,
-    core::{Spec, Graffiti, Hash256},
+    core::{Graffiti, Hash256, Spec},
     deposit::Deposit,
     execution::{
         AbstractExecPayload, BlindedPayload, BlindedPayloadBellatrix, BlindedPayloadCapella,
@@ -135,7 +135,8 @@ pub struct BeaconBlockBody<Payload: AbstractExecPayload = FullPayload> {
         only(Gloas, Heze),
         partial_getter(rename = "proposer_slashings_progressive")
     )]
-    pub proposer_slashings: ProgressiveVariableList<ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>>,
+    pub proposer_slashings:
+        ProgressiveVariableList<ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb),
         partial_getter(rename = "attester_slashings_base")
@@ -158,7 +159,8 @@ pub struct BeaconBlockBody<Payload: AbstractExecPayload = FullPayload> {
     #[superstruct(only(Electra, Fulu), partial_getter(rename = "attestations_electra"))]
     pub attestations: VariableList<AttestationElectra, U<{ Spec::MAX_ATTESTATIONS_ELECTRA }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "attestations_gloas"))]
-    pub attestations: ProgressiveVariableList<AttestationGloas, U<{ Spec::MAX_ATTESTATIONS_ELECTRA }>>,
+    pub attestations:
+        ProgressiveVariableList<AttestationGloas, U<{ Spec::MAX_ATTESTATIONS_ELECTRA }>>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "deposits_basic")
@@ -175,7 +177,8 @@ pub struct BeaconBlockBody<Payload: AbstractExecPayload = FullPayload> {
         only(Gloas, Heze),
         partial_getter(rename = "voluntary_exits_progressive")
     )]
-    pub voluntary_exits: ProgressiveVariableList<SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>>,
+    pub voluntary_exits:
+        ProgressiveVariableList<SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>>,
     #[superstruct(only(Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     pub sync_aggregate: SyncAggregate,
     // We flatten the execution payload so that serde can use the name of the inner type,
@@ -209,8 +212,10 @@ pub struct BeaconBlockBody<Payload: AbstractExecPayload = FullPayload> {
         only(Gloas, Heze),
         partial_getter(rename = "bls_to_execution_changes_progressive")
     )]
-    pub bls_to_execution_changes:
-        ProgressiveVariableList<SignedBlsToExecutionChange, U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>>,
+    pub bls_to_execution_changes: ProgressiveVariableList<
+        SignedBlsToExecutionChange,
+        U<{ Spec::MAX_BLS_TO_EXECUTION_CHANGES }>,
+    >,
     #[superstruct(only(Deneb, Electra, Fulu))]
     pub blob_kzg_commitments: KzgCommitments,
     #[superstruct(only(Electra, Fulu))]
@@ -236,7 +241,9 @@ impl<Payload: AbstractExecPayload> BeaconBlockBody<Payload> {
         self.to_ref().execution_payload()
     }
 
-    pub fn proposer_slashings(&self) -> ListRef<'_, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
+    pub fn proposer_slashings(
+        &self,
+    ) -> ListRef<'_, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
         self.to_ref().proposer_slashings()
     }
 
@@ -244,7 +251,9 @@ impl<Payload: AbstractExecPayload> BeaconBlockBody<Payload> {
         self.to_ref().deposits()
     }
 
-    pub fn voluntary_exits(&self) -> ListRef<'_, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
+    pub fn voluntary_exits(
+        &self,
+    ) -> ListRef<'_, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
         self.to_ref().voluntary_exits()
     }
 
@@ -327,7 +336,10 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
     pub fn kzg_commitment_merkle_proof(
         &self,
         index: usize,
-    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
+    ) -> Result<
+        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
+        BeaconStateError,
+    > {
         let kzg_commitments_proof = self.kzg_commitments_merkle_proof()?;
         let proof = self.complete_kzg_commitment_merkle_proof(index, &kzg_commitments_proof)?;
         Ok(proof)
@@ -340,7 +352,10 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
         &self,
         index: usize,
         kzg_commitments_proof: &[Hash256],
-    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
+    ) -> Result<
+        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
+        BeaconStateError,
+    > {
         match self {
             Self::Base(_)
             | Self::Altair(_)
@@ -361,7 +376,10 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
     /// Produces the proof of inclusion for `self.blob_kzg_commitments`.
     pub fn kzg_commitments_merkle_proof(
         &self,
-    ) -> Result<FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>, BeaconStateError> {
+    ) -> Result<
+        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+        BeaconStateError,
+    > {
         // [Modified in Gloas:EIP7688] the body is a progressive container with different
         // generalized indices, which are not implemented yet. The body also no longer contains
         // `blob_kzg_commitments`, which moved to the execution payload bid (EIP-7732).
@@ -433,7 +451,9 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
         })
     }
 
-    pub fn proposer_slashings(&self) -> ListRef<'a, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
+    pub fn proposer_slashings(
+        &self,
+    ) -> ListRef<'a, ProposerSlashing, U<{ Spec::MAX_PROPOSER_SLASHINGS }>> {
         match self {
             Self::Base(body) => ListRef::Basic(&body.proposer_slashings),
             Self::Altair(body) => ListRef::Basic(&body.proposer_slashings),
@@ -461,7 +481,9 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
         }
     }
 
-    pub fn voluntary_exits(&self) -> ListRef<'a, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
+    pub fn voluntary_exits(
+        &self,
+    ) -> ListRef<'a, SignedVoluntaryExit, U<{ Spec::MAX_VOLUNTARY_EXITS }>> {
         match self {
             Self::Base(body) => ListRef::Basic(&body.voluntary_exits),
             Self::Altair(body) => ListRef::Basic(&body.voluntary_exits),
@@ -560,9 +582,7 @@ impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRef<'a, Payload> {
 }
 
 impl<'a, Payload: AbstractExecPayload> BeaconBlockBodyRefMut<'a, Payload> {
-    pub fn attestations_mut(
-        &'a mut self,
-    ) -> Box<dyn Iterator<Item = AttestationRefMut<'a>> + 'a> {
+    pub fn attestations_mut(&'a mut self) -> Box<dyn Iterator<Item = AttestationRefMut<'a>> + 'a> {
         match self {
             Self::Base(body) => Box::new(body.attestations.iter_mut().map(AttestationRefMut::Base)),
             Self::Altair(body) => {
@@ -804,9 +824,7 @@ impl<Payload: AbstractExecPayload> BeaconBlockBodyRef<'_, Payload> {
 }
 
 // We can convert pre-Bellatrix block bodies without payloads into block bodies "with" payloads.
-impl From<BeaconBlockBodyBase<BlindedPayload>>
-    for BeaconBlockBodyBase<FullPayload>
-{
+impl From<BeaconBlockBodyBase<BlindedPayload>> for BeaconBlockBodyBase<FullPayload> {
     fn from(body: BeaconBlockBodyBase<BlindedPayload>) -> Self {
         let BeaconBlockBodyBase {
             randao_reveal,
@@ -834,9 +852,7 @@ impl From<BeaconBlockBodyBase<BlindedPayload>>
     }
 }
 
-impl From<BeaconBlockBodyAltair<BlindedPayload>>
-    for BeaconBlockBodyAltair<FullPayload>
-{
+impl From<BeaconBlockBodyAltair<BlindedPayload>> for BeaconBlockBodyAltair<FullPayload> {
     fn from(body: BeaconBlockBodyAltair<BlindedPayload>) -> Self {
         let BeaconBlockBodyAltair {
             randao_reveal,
@@ -868,9 +884,7 @@ impl From<BeaconBlockBodyAltair<BlindedPayload>>
 
 // Post-Fulu block bodies without payloads can be converted into block bodies with payloads
 // TODO(EIP-7732) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<BeaconBlockBodyGloas<BlindedPayload>>
-    for BeaconBlockBodyGloas<FullPayload>
-{
+impl From<BeaconBlockBodyGloas<BlindedPayload>> for BeaconBlockBodyGloas<FullPayload> {
     fn from(body: BeaconBlockBodyGloas<BlindedPayload>) -> Self {
         let BeaconBlockBodyGloas {
             randao_reveal,
@@ -910,9 +924,7 @@ impl From<BeaconBlockBodyGloas<BlindedPayload>>
 
 // Post-Fulu block bodies without payloads can be converted into block bodies with payloads
 // TODO(heze) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<BeaconBlockBodyHeze<BlindedPayload>>
-    for BeaconBlockBodyHeze<FullPayload>
-{
+impl From<BeaconBlockBodyHeze<BlindedPayload>> for BeaconBlockBodyHeze<FullPayload> {
     fn from(body: BeaconBlockBodyHeze<BlindedPayload>) -> Self {
         let BeaconBlockBodyHeze {
             randao_reveal,
@@ -1543,10 +1555,7 @@ impl BeaconBlockBodyHeze<FullPayload> {
 }
 
 impl From<BeaconBlockBody<FullPayload>>
-    for (
-        BeaconBlockBody<BlindedPayload>,
-        Option<ExecutionPayload>,
-    )
+    for (BeaconBlockBody<BlindedPayload>, Option<ExecutionPayload>)
 {
     #[allow(clippy::useless_conversion)] // Not a useless conversion
     fn from(body: BeaconBlockBody<FullPayload>) -> Self {
@@ -1583,10 +1592,10 @@ mod tests {
         ssz_and_tree_hash_tests!(BeaconBlockBodyAltair);
     }
     mod gloas {
-        use crate::core::Spec;
         use super::super::*;
         use crate::block::BeaconBlock;
-        use crate::core::{ChainSpec};
+        use crate::core::ChainSpec;
+        use crate::core::Spec;
 
         /// Check the derived Gloas body root against a manual computation from its 13 field
         /// roots, so an incorrect `active_fields` list would change the result (EIP-7688).

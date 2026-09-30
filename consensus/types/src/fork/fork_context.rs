@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use parking_lot::RwLock;
 
 use crate::{
-    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Hash256, Slot, Spec},
     fork::ForkName,
 };
 
@@ -46,11 +46,7 @@ impl ForkContext {
     /// fork digest.
     ///
     /// A fork is disabled in the `ChainSpec` if the activation slot corresponding to that fork is `None`.
-    pub fn new(
-        current_slot: Slot,
-        genesis_validators_root: Hash256,
-        spec: &ChainSpec,
-    ) -> Self {
+    pub fn new(current_slot: Slot, genesis_validators_root: Hash256, spec: &ChainSpec) -> Self {
         let epoch_to_forks: BTreeMap<_, _> = spec
             .all_digest_epochs()
             .map(|epoch| {
@@ -158,7 +154,6 @@ impl ForkContext {
 mod tests {
     use super::*;
     use crate::core::{BlobParameters, BlobSchedule};
-
 
     fn make_chain_spec() -> ChainSpec {
         let blob_parameters = vec![

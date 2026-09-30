@@ -1,7 +1,7 @@
 use super::{ActiveRequestItems, LookupVerifyError};
 use lighthouse_network::rpc::methods::BlobsByRangeRequest;
 use std::sync::Arc;
-use types::{BlobSidecar};
+use types::BlobSidecar;
 
 /// Accumulates results of a blobs_by_range request. Only returns items after receiving the
 /// stream termination.

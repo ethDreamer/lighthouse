@@ -1,4 +1,4 @@
-use crate::{Spec, ForkName, PayloadAttestationData};
+use crate::{ForkName, PayloadAttestationData, Spec};
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
 use serde::{Deserialize, Serialize};

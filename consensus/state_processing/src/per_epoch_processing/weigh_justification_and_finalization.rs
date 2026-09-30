@@ -1,7 +1,7 @@
 use crate::per_epoch_processing::{Error, JustificationAndFinalizationState};
 use safe_arith::SafeArith;
 use std::ops::Range;
-use types::{Checkpoint};
+use types::Checkpoint;
 
 /// Update the justified and finalized checkpoints for matching target attestations.
 #[allow(clippy::if_same_then_else)] // For readability and consistency with spec.

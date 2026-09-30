@@ -3,15 +3,12 @@ use itertools::Itertools;
 use safe_arith::SafeArith;
 use std::mem;
 use types::{
-    BeaconState, BeaconStateElectra, BeaconStateError as Error, ChainSpec, Epoch, EpochCache,
-    Fork, PendingDeposit,
+    BeaconState, BeaconStateElectra, BeaconStateError as Error, ChainSpec, Epoch, EpochCache, Fork,
+    PendingDeposit,
 };
 
 /// Transform a `Deneb` state into an `Electra` state.
-pub fn upgrade_to_electra(
-    pre_state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn upgrade_to_electra(pre_state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();
 
     let activation_exit_epoch = spec.compute_activation_exit_epoch(epoch)?;

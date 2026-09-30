@@ -15,8 +15,8 @@ use ssz::{Decode, Encode};
 use ssz_derive::{Decode, Encode};
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingOnDisk, AttesterSlashingRefOnDisk,
-    BeaconState, ChainSpec, Epoch, Spec, Fork, ForkVersion, ProposerSlashing,
-    SignedBlsToExecutionChange, SignedVoluntaryExit,
+    BeaconState, ChainSpec, Epoch, Fork, ForkVersion, ProposerSlashing, SignedBlsToExecutionChange,
+    SignedVoluntaryExit, Spec,
 };
 
 const MAX_FORKS_VERIFIED_AGAINST: usize = 2;
@@ -51,7 +51,7 @@ pub trait TransformPersist {
 )]
 pub struct SigVerifiedOp<T: TransformPersist> {
     op: T,
-    verified_against: VerifiedAgainst
+    verified_against: VerifiedAgainst,
 }
 
 impl<T: TransformPersist> Encode for SigVerifiedOp<T> {
@@ -95,7 +95,7 @@ impl<T: TransformPersist> Decode for SigVerifiedOp<T> {
         let on_disk = SigVerifiedOpDecode::<T::Persistable>::from_ssz_bytes(bytes)?;
         Ok(SigVerifiedOp {
             op: T::from_persistable(on_disk.op),
-            verified_against: on_disk.verified_against
+            verified_against: on_disk.verified_against,
         })
     }
 }
@@ -142,7 +142,7 @@ pub struct VerifiedAgainst {
 
 impl<T> SigVerifiedOp<T>
 where
-    T: VerifyOperation
+    T: VerifyOperation,
 {
     /// This function must be private because it assumes that `op` has already been verified.
     fn new(op: T, state: &BeaconState) -> Self {
@@ -156,7 +156,7 @@ where
 
         SigVerifiedOp {
             op,
-            verified_against
+            verified_against,
         }
     }
 
@@ -359,27 +359,23 @@ impl TransformPersist for types::AttesterSlashingBase {
     }
 }
 // TODO: Remove this once we no longer support DB schema version 17
-impl From<SigVerifiedOp<AttesterSlashingBase>>
-    for SigVerifiedOp<AttesterSlashing>
-{
+impl From<SigVerifiedOp<AttesterSlashingBase>> for SigVerifiedOp<AttesterSlashing> {
     fn from(base: SigVerifiedOp<AttesterSlashingBase>) -> Self {
         SigVerifiedOp {
             op: AttesterSlashing::Base(base.op),
-            verified_against: base.verified_against
+            verified_against: base.verified_against,
         }
     }
 }
 // TODO: Remove this once we no longer support DB schema version 17
-impl TryFrom<SigVerifiedOp<AttesterSlashing>>
-    for SigVerifiedOp<AttesterSlashingBase>
-{
+impl TryFrom<SigVerifiedOp<AttesterSlashing>> for SigVerifiedOp<AttesterSlashingBase> {
     type Error = String;
 
     fn try_from(slashing: SigVerifiedOp<AttesterSlashing>) -> Result<Self, Self::Error> {
         match slashing.op {
             AttesterSlashing::Base(base) => Ok(SigVerifiedOp {
                 op: base,
-                verified_against: slashing.verified_against
+                verified_against: slashing.verified_against,
             }),
             AttesterSlashing::Electra(_) | AttesterSlashing::Gloas(_) => {
                 Err("non-base attester slashing".to_string())
@@ -418,7 +414,6 @@ impl TransformPersist for SignedBlsToExecutionChange {
 mod test {
     use super::*;
 
-
     fn roundtrip_test<'a, T>()
     where
         T: arbitrary::Arbitrary<'a> + TransformPersist + PartialEq + std::fmt::Debug,
@@ -433,7 +428,7 @@ mod test {
 
             let verified_op = SigVerifiedOp {
                 op,
-                verified_against
+                verified_against,
             };
 
             let serialized = verified_op.as_ssz_bytes();

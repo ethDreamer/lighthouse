@@ -1,7 +1,7 @@
-use types::Spec;
 use super::*;
 use alloy_primitives::U256;
 use serde::Deserialize;
+use types::Spec;
 use types::data::get_custody_groups;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -12,7 +12,7 @@ pub struct GetCustodyGroups {
     /// The count of custody groups.
     pub custody_group_count: u64,
     /// The list of resulting custody groups.
-    pub result: Vec<u64>
+    pub result: Vec<u64>,
 }
 
 impl LoadCase for GetCustodyGroups {

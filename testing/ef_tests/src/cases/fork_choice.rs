@@ -1,4 +1,3 @@
-use types::Spec;
 use super::common::{load_config, testing_spec_with_config};
 use super::*;
 use crate::decode::{ssz_decode_file, ssz_decode_file_with, ssz_decode_state, yaml_decode_file};
@@ -38,6 +37,7 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
+use types::Spec;
 use types::{
     Attestation, AttestationRef, AttesterSlashing, AttesterSlashingRef, BeaconBlock, BeaconState,
     BlobSidecar, BlobsList, BlockImportSource, Checkpoint, DataColumnSidecar,
@@ -1048,11 +1048,10 @@ impl Tester {
                     attestation.data().target.root
                 ))
             })?;
-        let verified_attestation: ManuallyVerifiedAttestation =
-            ManuallyVerifiedAttestation {
-                attestation,
-                indexed_attestation,
-            };
+        let verified_attestation: ManuallyVerifiedAttestation = ManuallyVerifiedAttestation {
+            attestation,
+            indexed_attestation,
+        };
 
         self.harness
             .chain

@@ -157,9 +157,8 @@ pub fn compute_subnets_from_custody_group(
 
 #[cfg(test)]
 mod test {
-    use crate::core::Spec;
     use super::*;
-
+    use crate::core::Spec;
 
     #[test]
     fn test_compute_columns_for_custody_group() {

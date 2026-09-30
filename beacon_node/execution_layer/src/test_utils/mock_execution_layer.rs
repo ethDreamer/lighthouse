@@ -1,9 +1,9 @@
-use types::Spec;
 use crate::{test_utils::DEFAULT_JWT_SECRET, test_utils::MockServer, *};
 use alloy_primitives::B256 as H256;
 use fixed_bytes::FixedBytesExtended;
 use kzg::Kzg;
 use tempfile::NamedTempFile;
+use types::Spec;
 
 pub struct MockExecutionLayer {
     pub server: MockServer,

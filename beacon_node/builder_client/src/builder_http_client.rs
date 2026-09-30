@@ -4,9 +4,8 @@ use crate::{
 };
 use bls::PublicKeyBytes;
 use eth2::types::{
-    BuilderPreferencesRequest, ContentType, ExecutionBlockHash, ForkName,
-    ForkVersionedResponse, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
-    SignedRequestAuth, Slot,
+    BuilderPreferencesRequest, ContentType, ExecutionBlockHash, ForkName, ForkVersionedResponse,
+    Hash256, SignedBeaconBlock, SignedExecutionPayloadBid, SignedRequestAuth, Slot,
 };
 use eth2::{
     CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER,
@@ -310,11 +309,10 @@ impl BuilderHttpClient {
 mod tests {
     use super::*;
     use arbitrary::Arbitrary;
+    use eth2::types::ForkName;
     use eth2::types::beacon_response::EmptyMetadata;
-    use eth2::types::{ForkName};
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;
-
 
     fn client_for() -> BuilderHttpClient {
         BuilderHttpClient::new(None, false).unwrap()

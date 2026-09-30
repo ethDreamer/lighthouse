@@ -16,9 +16,7 @@ pub struct PreEpochCache {
 }
 
 impl PreEpochCache {
-    pub fn new_for_next_epoch(
-        state: &mut BeaconState,
-    ) -> Result<Self, EpochCacheError> {
+    pub fn new_for_next_epoch(state: &mut BeaconState) -> Result<Self, EpochCacheError> {
         // The decision block root for the next epoch is the latest block root from this epoch.
         let latest_block_header = state.latest_block_header();
 
@@ -123,9 +121,7 @@ impl PreEpochCache {
     }
 }
 
-pub fn is_epoch_cache_initialized(
-    state: &BeaconState,
-) -> Result<bool, EpochCacheError> {
+pub fn is_epoch_cache_initialized(state: &BeaconState) -> Result<bool, EpochCacheError> {
     let current_epoch = state.current_epoch();
     let epoch_cache: &EpochCache = state.epoch_cache();
     let decision_block_root = state
@@ -186,9 +182,9 @@ pub fn initialize_epoch_cache(
 
 #[cfg(test)]
 mod tests {
-    use types::Spec;
     use super::*;
-    use types::{Epoch};
+    use types::Epoch;
+    use types::Spec;
 
     /// Regression test for division-by-zero when all validators have zero effective balance.
     ///

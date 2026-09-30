@@ -2,7 +2,7 @@ use eth2::types::FullPayloadContents;
 use hashlink::lru_cache::LruCache;
 use parking_lot::Mutex;
 use tree_hash::TreeHash;
-use types::{Hash256};
+use types::Hash256;
 
 pub const DEFAULT_PAYLOAD_CACHE_SIZE: usize = 10;
 

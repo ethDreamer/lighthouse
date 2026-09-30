@@ -3,7 +3,7 @@
 use environment::EnvironmentBuilder;
 use eth2_network_config::{DEFAULT_HARDCODED_NETWORK, Eth2NetworkConfig};
 use std::path::PathBuf;
-use types::{Config};
+use types::Config;
 
 fn builder() -> EnvironmentBuilder {
     EnvironmentBuilder::mainnet()

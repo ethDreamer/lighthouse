@@ -42,7 +42,7 @@ use std::sync::Arc;
 use task_executor::ShutdownReason;
 use tokio::time::sleep;
 use tracing::{error, info};
-use types::{Epoch, Spec, Slot};
+use types::{Epoch, Slot, Spec};
 use validator_store::{DoppelgangerStatus, ValidatorStore};
 
 struct LivenessResponses {
@@ -608,9 +608,10 @@ mod test {
     const GENESIS_TIME: Duration = Duration::from_secs(42);
     const SLOT_DURATION: Duration = Duration::from_secs(1);
 
-
     fn genesis_epoch() -> Epoch {
-        Spec::default_spec().genesis_slot.epoch(Spec::slots_per_epoch())
+        Spec::default_spec()
+            .genesis_slot
+            .epoch(Spec::slots_per_epoch())
     }
 
     fn check_detection_indices(detection_indices: &[u64]) {
@@ -1092,8 +1093,8 @@ mod test {
     fn no_doppelgangers_for_adequate_time() {
         let initial_epoch = genesis_epoch() + 42;
         let initial_slot = initial_epoch.start_slot(Spec::slots_per_epoch());
-        let activation_slot =
-            (initial_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(Spec::slots_per_epoch());
+        let activation_slot = (initial_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1)
+            .end_slot(Spec::slots_per_epoch());
 
         let mut scenario = TestBuilder::default()
             .build()
@@ -1306,8 +1307,8 @@ mod test {
     fn staggered_entry() {
         let early_epoch = genesis_epoch() + 42;
         let early_slot = early_epoch.start_slot(Spec::slots_per_epoch());
-        let early_activation_slot =
-            (early_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1).end_slot(Spec::slots_per_epoch());
+        let early_activation_slot = (early_epoch + DEFAULT_REMAINING_DETECTION_EPOCHS + 1)
+            .end_slot(Spec::slots_per_epoch());
 
         let late_epoch = early_epoch + 1;
         let late_slot = late_epoch.start_slot(Spec::slots_per_epoch());

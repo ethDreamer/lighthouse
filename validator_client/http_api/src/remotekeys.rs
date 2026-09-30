@@ -63,12 +63,8 @@ pub fn import<T: SlotClock + 'static>(
     for remotekey in request.remote_keys {
         let status = if let Some(handle) = task_executor.handle() {
             // Import the keystore.
-            match import_single_remotekey(
-                remotekey.pubkey,
-                remotekey.url,
-                &validator_store,
-                handle,
-            ) {
+            match import_single_remotekey(remotekey.pubkey, remotekey.url, &validator_store, handle)
+            {
                 Ok(status) => Status::ok(status),
                 Err(e) => {
                     warn!(

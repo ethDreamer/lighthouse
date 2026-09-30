@@ -62,8 +62,8 @@ use tracing::{debug, error};
 use tree_hash::TreeHash;
 use types::{
     Attestation, AttestationData, AttestationRef, BeaconCommittee,
-    BeaconStateError::NoCommitteeFound, ChainSpec, CommitteeIndex, Epoch, Spec, ForkName,
-    Hash256, IndexedAttestation, SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot,
+    BeaconStateError::NoCommitteeFound, ChainSpec, CommitteeIndex, Epoch, ForkName, Hash256,
+    IndexedAttestation, SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot, Spec,
     SubnetId,
 };
 
@@ -468,9 +468,7 @@ fn process_slash_info<T: BeaconChainTypes>(
                     return err;
                 }
 
-                let fork_name = chain
-                    .spec
-                    .fork_name_at_slot(attestation.data.slot);
+                let fork_name = chain.spec.fork_name_at_slot(attestation.data.slot);
 
                 let indexed_attestation = match attestation.to_indexed(fork_name) {
                     Ok(indexed) => indexed,
@@ -537,15 +535,10 @@ impl<'a> IndexedAggregatedAttestation<'a> {
         // MAXIMUM_GOSSIP_CLOCK_DISPARITY allowance).
         //
         // We do not queue future attestations for later processing.
-        verify_propagation_slot_range(
-            &chain.slot_clock,
-            attestation.data(),
-            &chain.spec,
-        )?;
+        verify_propagation_slot_range(&chain.slot_clock, attestation.data(), &chain.spec)?;
 
         // Check the attestation's epoch matches its target.
-        if attestation.data().slot.epoch(Spec::slots_per_epoch())
-            != attestation.data().target.epoch
+        if attestation.data().slot.epoch(Spec::slots_per_epoch()) != attestation.data().target.epoch
         {
             return Err(Error::InvalidTargetEpoch {
                 slot: attestation.data().slot,
@@ -561,9 +554,7 @@ impl<'a> IndexedAggregatedAttestation<'a> {
         }
         .tree_hash_root();
 
-        let fork_name = chain
-            .spec
-            .fork_name_at_slot(attestation.data().slot);
+        let fork_name = chain.spec.fork_name_at_slot(attestation.data().slot);
 
         // [New in Electra:EIP7549]
         verify_committee_index(attestation, fork_name)?;
@@ -917,15 +908,9 @@ impl<'a> IndexedUnaggregatedAttestation<'a> {
         // MAXIMUM_GOSSIP_CLOCK_DISPARITY allowance).
         //
         // We do not queue future attestations for later processing.
-        verify_propagation_slot_range(
-            &chain.slot_clock,
-            &attestation.data,
-            &chain.spec,
-        )?;
+        verify_propagation_slot_range(&chain.slot_clock, &attestation.data, &chain.spec)?;
 
-        let fork_name = chain
-            .spec
-            .fork_name_at_slot(attestation.data.slot);
+        let fork_name = chain.spec.fork_name_at_slot(attestation.data.slot);
         if fork_name.gloas_enabled() {
             // [New in Gloas]
             if attestation.data.index >= 2 {
@@ -1029,9 +1014,7 @@ impl<'a> IndexedUnaggregatedAttestation<'a> {
             return Err(SignatureNotCheckedSingle(attestation, e));
         }
 
-        let fork_name = chain
-            .spec
-            .fork_name_at_slot(attestation.data.slot);
+        let fork_name = chain.spec.fork_name_at_slot(attestation.data.slot);
 
         let indexed_attestation = attestation
             .to_indexed(fork_name)
@@ -1130,9 +1113,7 @@ impl<'a> VerifiedUnaggregatedAttestation<'a> {
             });
         }
 
-        let fork_name = chain
-            .spec
-            .fork_name_at_slot(attestation.data.slot);
+        let fork_name = chain.spec.fork_name_at_slot(attestation.data.slot);
 
         let unaggregated_attestation =
             single_attestation_to_attestation(attestation, &committee, fork_name)?;

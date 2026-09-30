@@ -27,9 +27,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use types::{
-    Address, BeaconBlockRef, Spec, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData, Slot,
+    Address, BeaconBlockRef, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData, Slot,
+    Spec,
 };
-
 
 // Must be at least PTC size to simplify PTC reasoning (unique PTC members per slot).
 const ATTESTERS_PER_SLOT: usize = 20;

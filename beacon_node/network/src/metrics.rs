@@ -769,10 +769,7 @@ pub(crate) fn register_process_result_metrics(
     }
 }
 
-pub fn update_gossip_metrics(
-    gossipsub: &Gossipsub,
-    network_globals: &Arc<NetworkGlobals>,
-) {
+pub fn update_gossip_metrics(gossipsub: &Gossipsub, network_globals: &Arc<NetworkGlobals>) {
     // Mesh peers per client
     // Reset the gauges
     for client_kind in ClientKind::iter() {

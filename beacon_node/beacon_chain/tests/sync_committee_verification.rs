@@ -14,11 +14,7 @@ use std::sync::LazyLock;
 use store::{SignedContributionAndProof, SyncCommitteeMessage};
 use tree_hash::TreeHash;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
-use types::{
-    Epoch, Spec, Hash256, Slot, SyncContributionData, SyncSelectionProof,
-    SyncSubnetId,
-};
-
+use types::{Epoch, Hash256, Slot, Spec, SyncContributionData, SyncSelectionProof, SyncSubnetId};
 
 pub const VALIDATOR_COUNT: usize = 256;
 
@@ -335,10 +331,7 @@ async fn aggregated_gossip_verification() {
                 let proof: SyncSelectionProof = aggregator_sk
                     .sign(Hash256::from_slice(&int_to_bytes32(i)))
                     .into();
-                if proof
-                    .is_aggregator()
-                    .expect("should determine aggregator")
-                {
+                if proof.is_aggregator().expect("should determine aggregator") {
                     break proof.into();
                 }
             };

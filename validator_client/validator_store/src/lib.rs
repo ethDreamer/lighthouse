@@ -7,11 +7,12 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
-    ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedBlindedBeaconBlock,
-    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, ExecutionPayloadEnvelope,
+    Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences,
+    SelectionProof, SignedAggregateAndProof, SignedBlindedBeaconBlock, SignedContributionAndProof,
+    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedValidatorRegistrationData,
+    SingleAttestation, Slot, SyncCommitteeContribution, SyncCommitteeMessage, SyncSelectionProof,
+    SyncSubnetId, ValidatorRegistrationData,
 };
 
 #[derive(Debug, PartialEq, Clone)]

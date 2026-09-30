@@ -28,16 +28,13 @@ use tokio::sync::mpsc::UnboundedSender;
 use tracing::{Span, debug, error, field, info, instrument, warn};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, BeaconBlockRef, BlobsList, BlockImportSource, DataColumnSubnetId, Spec,
+    AbstractExecPayload, BeaconBlockRef, BlobsList, BlockImportSource, DataColumnSubnetId,
     ExecPayload, ExecutionBlockHash, ForkName, FullPayload, FullPayloadBellatrix, Hash256,
-    KzgProofs, PartialDataColumn, SignedBeaconBlock, SignedBlindedBeaconBlock,
+    KzgProofs, PartialDataColumn, SignedBeaconBlock, SignedBlindedBeaconBlock, Spec,
 };
 use warp::{Rejection, Reply, reply::Response};
 
-pub type UnverifiedBlobs = Option<(
-    KzgProofs,
-    BlobsList,
-)>;
+pub type UnverifiedBlobs = Option<(KzgProofs, BlobsList)>;
 
 pub enum ProvenancedBlock<B: IntoGossipVerifiedBlock> {
     /// The payload was built using a local EE.

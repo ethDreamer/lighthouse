@@ -5,7 +5,7 @@ use ssz::Encode;
 use std::hint::black_box;
 use std::sync::Arc;
 use types::{
-    BeaconState, Epoch, Eth1Data, Spec, Hash256, Validator,
+    BeaconState, Epoch, Eth1Data, Hash256, Spec, Validator,
     test_utils::generate_deterministic_keypair,
 };
 

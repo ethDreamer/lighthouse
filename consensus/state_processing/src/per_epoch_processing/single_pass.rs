@@ -16,8 +16,8 @@ use std::sync::Arc;
 use tracing::instrument;
 use types::{
     ActivationQueue, BeaconState, BeaconStateError, BuilderPendingPayment, ChainSpec, Checkpoint,
-    CommitteeCache, DepositData, Epoch, Spec, ExitCache, ForkName, ParticipationFlags,
-    PendingDeposit, ProgressiveBalancesCache, RelativeEpoch, Validator,
+    CommitteeCache, DepositData, Epoch, ExitCache, ForkName, ParticipationFlags, PendingDeposit,
+    ProgressiveBalancesCache, RelativeEpoch, Spec, Validator,
     consts::altair::{
         NUM_FLAG_INDICES, PARTICIPATION_FLAG_WEIGHTS, TIMELY_HEAD_FLAG_INDEX,
         TIMELY_TARGET_FLAG_INDEX, WEIGHT_DENOMINATOR,
@@ -502,10 +502,7 @@ pub fn process_epoch_single_pass(
 }
 
 // TOOO(EIP-7917): use balances cache
-pub fn process_proposer_lookahead(
-    state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn process_proposer_lookahead(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let mut lookahead = state.proposer_lookahead()?.clone().to_vec();
 
     // Shift out proposers in the first epoch

@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::{info, warn};
-use types::{BeaconState, ChainSpec, Config, Spec, SpecId, Hash256};
+use types::{BeaconState, ChainSpec, Config, Hash256, Spec, SpecId};
 use url::Url;
 
 pub use eth2_config::GenesisStateSource;
@@ -178,14 +178,13 @@ impl Eth2NetworkConfig {
                 .map(Option::Some)
                 .map_err(|e| format!("Unable to parse genesis state root: {:?}", e)),
             GenesisStateSource::IncludedBytes => {
-                self.get_genesis_state_from_bytes()
-                    .and_then(|mut state| {
-                        Ok(Some(
-                            state
-                                .canonical_root()
-                                .map_err(|e| format!("Hashing error: {e:?}"))?,
-                        ))
-                    })
+                self.get_genesis_state_from_bytes().and_then(|mut state| {
+                    Ok(Some(
+                        state
+                            .canonical_root()
+                            .map_err(|e| format!("Hashing error: {e:?}"))?,
+                    ))
+                })
             }
         }
     }
@@ -477,8 +476,7 @@ mod tests {
     use fixed_bytes::FixedBytesExtended;
     use ssz::Encode;
     use tempfile::Builder as TempBuilder;
-    use types::{Eth1Data};
-
+    use types::Eth1Data;
 
     #[test]
     fn default_network_exists() {

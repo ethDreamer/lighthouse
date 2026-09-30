@@ -33,19 +33,10 @@ use warp::filters::BoxedFilter;
 use warp::{Filter, Reply};
 use warp_utils::reject::convert_rejection;
 
-pub type BeaconPoolPathFilter<T> = BoxedFilter<(
-    TaskSpawner,
-    Arc<BeaconChain<T>>,
-)>;
-pub type BeaconPoolPathV2Filter<T> = BoxedFilter<(
-    TaskSpawner,
-    Arc<BeaconChain<T>>,
-)>;
-pub type BeaconPoolPathAnyFilter<T> = BoxedFilter<(
-    EndpointVersion,
-    TaskSpawner,
-    Arc<BeaconChain<T>>,
-)>;
+pub type BeaconPoolPathFilter<T> = BoxedFilter<(TaskSpawner, Arc<BeaconChain<T>>)>;
+pub type BeaconPoolPathV2Filter<T> = BoxedFilter<(TaskSpawner, Arc<BeaconChain<T>>)>;
+pub type BeaconPoolPathAnyFilter<T> =
+    BoxedFilter<(EndpointVersion, TaskSpawner, Arc<BeaconChain<T>>)>;
 
 /// POST beacon/pool/bls_to_execution_changes
 pub fn post_beacon_pool_bls_to_execution_changes<T: BeaconChainTypes>(
@@ -146,14 +137,12 @@ pub fn get_beacon_pool_bls_to_execution_changes<T: BeaconChainTypes>(
         .clone()
         .and(warp::path("bls_to_execution_changes"))
         .and(warp::path::end())
-        .then(
-            |task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
-                task_spawner.blocking_json_task(Priority::P1, move || {
-                    let address_changes = chain.op_pool.get_all_bls_to_execution_changes();
-                    Ok(GenericResponse::from(address_changes))
-                })
-            },
-        )
+        .then(|task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
+            task_spawner.blocking_json_task(Priority::P1, move || {
+                let address_changes = chain.op_pool.get_all_bls_to_execution_changes();
+                Ok(GenericResponse::from(address_changes))
+            })
+        })
         .boxed()
 }
 
@@ -192,14 +181,12 @@ pub fn get_beacon_pool_voluntary_exits<T: BeaconChainTypes>(
         .clone()
         .and(warp::path("voluntary_exits"))
         .and(warp::path::end())
-        .then(
-            |task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
-                task_spawner.blocking_json_task(Priority::P1, move || {
-                    let attestations = chain.op_pool.get_all_voluntary_exits();
-                    Ok(GenericResponse::from(attestations))
-                })
-            },
-        )
+        .then(|task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
+            task_spawner.blocking_json_task(Priority::P1, move || {
+                let attestations = chain.op_pool.get_all_voluntary_exits();
+                Ok(GenericResponse::from(attestations))
+            })
+        })
         .boxed()
 }
 
@@ -259,14 +246,12 @@ pub fn get_beacon_pool_proposer_slashings<T: BeaconChainTypes>(
         .clone()
         .and(warp::path("proposer_slashings"))
         .and(warp::path::end())
-        .then(
-            |task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
-                task_spawner.blocking_json_task(Priority::P1, move || {
-                    let attestations = chain.op_pool.get_all_proposer_slashings();
-                    Ok(GenericResponse::from(attestations))
-                })
-            },
-        )
+        .then(|task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
+            task_spawner.blocking_json_task(Priority::P1, move || {
+                let attestations = chain.op_pool.get_all_proposer_slashings();
+                Ok(GenericResponse::from(attestations))
+            })
+        })
         .boxed()
 }
 
@@ -413,15 +398,12 @@ pub fn post_beacon_pool_attester_slashings<T: BeaconChainTypes>(
                                 )
                             })?,
                     };
-                    let slashing = AttesterSlashing::context_deserialize(
-                        &slashing_json,
-                        fork_name,
-                    )
-                    .map_err(|e| {
-                        warp_utils::reject::custom_bad_request(format!(
-                            "invalid attester slashing: {e:?}"
-                        ))
-                    })?;
+                    let slashing = AttesterSlashing::context_deserialize(&slashing_json, fork_name)
+                        .map_err(|e| {
+                            warp_utils::reject::custom_bad_request(format!(
+                                "invalid attester slashing: {e:?}"
+                            ))
+                        })?;
                     let outcome = chain
                         .verify_attester_slashing_for_gossip(slashing.clone())
                         .map_err(|e| {

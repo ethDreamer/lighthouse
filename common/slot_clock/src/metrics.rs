@@ -1,7 +1,7 @@
 use crate::SlotClock;
 pub use metrics::*;
 use std::sync::LazyLock;
-use types::{Spec, Slot};
+use types::{Slot, Spec};
 
 pub static PRESENT_SLOT: LazyLock<Result<IntGauge>> =
     LazyLock::new(|| try_create_int_gauge("slotclock_present_slot", "The present wall-clock slot"));

@@ -5,10 +5,11 @@ use futures::{Stream, stream};
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
-    SignedAggregateAndProof, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData,
+    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
+    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
+    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeMessage,
+    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -158,9 +159,8 @@ impl ValidatorStore for MockValidatorStore {
     fn sign_sync_committee_contributions(
         self: &Arc<Self>,
         _contributions: Vec<ContributionToSign>,
-    ) -> impl Stream<
-        Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>,
-    > + Send {
+    ) -> impl Stream<Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>> + Send
+    {
         stream::empty()
     }
 

@@ -289,7 +289,8 @@ impl ElectraPreset {
 
             max_deposit_requests_per_payload: Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD as u64,
             max_withdrawal_requests_per_payload: Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD as u64,
-            max_consolidation_requests_per_payload: Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD as u64,
+            max_consolidation_requests_per_payload: Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD
+                as u64,
 
             max_pending_partials_per_withdrawals_sweep: spec
                 .max_pending_partials_per_withdrawals_sweep,
@@ -319,7 +320,8 @@ impl FuluPreset {
         Self {
             field_elements_per_cell: Spec::FIELD_ELEMENTS_PER_CELL as u64,
             field_elements_per_ext_blob: Spec::FIELD_ELEMENTS_PER_EXT_BLOB as u64,
-            kzg_commitments_inclusion_proof_depth: Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH as u64,
+            kzg_commitments_inclusion_proof_depth: Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH
+                as u64,
             cells_per_ext_blob: Spec::cells_per_ext_blob(),
             number_of_columns: Spec::number_of_columns(),
         }
@@ -353,11 +355,14 @@ impl GloasPreset {
             ptc_size: Spec::PTC_SIZE as u64,
             max_payload_attestations: Spec::MAX_PAYLOAD_ATTESTATIONS as u64,
             max_builders_per_withdrawals_sweep: Spec::MAX_BUILDERS_PER_WITHDRAWALS_SWEEP as u64,
-            max_builder_deposit_requests_per_payload: Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD as u64,
-            max_builder_exit_requests_per_payload: Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD as u64,
+            max_builder_deposit_requests_per_payload: Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD
+                as u64,
+            max_builder_exit_requests_per_payload: Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD
+                as u64,
             max_signed_aggregate_and_proof_size: Spec::MAX_SIGNED_AGGREGATE_AND_PROOF_SIZE as u64,
             max_attester_slashing_size: Spec::MAX_ATTESTER_SLASHING_SIZE as u64,
-            max_signed_execution_payload_bid_size: Spec::MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE as u64,
+            max_signed_execution_payload_bid_size: Spec::MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE
+                as u64,
         }
     }
 }

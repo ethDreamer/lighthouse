@@ -13,7 +13,7 @@ pub struct KZGComputeCellsAndKzgProofsInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGComputeCellsAndKZGProofs {
     pub input: KZGComputeCellsAndKzgProofsInput,
-    pub output: Option<(Vec<String>, Vec<String>)>
+    pub output: Option<(Vec<String>, Vec<String>)>,
 }
 
 impl LoadCase for KZGComputeCellsAndKZGProofs {

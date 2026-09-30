@@ -27,11 +27,10 @@ use std::sync::{Arc, LazyLock};
 use tempfile::tempdir;
 use tree_hash::TreeHash;
 use types::{
-    Address, Attestation, AttestationRef, ChainSpec, Epoch, Spec, ForkName, Hash256,
-    SelectionProof, SignedAggregateAndProof, SingleAttestation, Slot, SubnetId,
+    Address, Attestation, AttestationRef, ChainSpec, Epoch, ForkName, Hash256, SelectionProof,
+    SignedAggregateAndProof, SingleAttestation, Slot, Spec, SubnetId,
     attestation::SignedAggregateAndProofRefMut, test_utils::generate_deterministic_keypair,
 };
-
 
 /// The validator count needs to be relatively high compared to other tests to ensure that we can
 /// have committees where _some_ validators are aggregators but not _all_.
@@ -2059,9 +2058,7 @@ async fn gloas_aggregated_attestation_same_slot_index_must_be_zero() {
         .beacon_state
         .get_beacon_committee(current_slot, valid_attestation.committee_index)
         .expect("should get committee");
-    let fork_name = harness
-        .spec
-        .fork_name_at_slot(valid_attestation.data.slot);
+    let fork_name = harness.spec.fork_name_at_slot(valid_attestation.data.slot);
     let aggregate_attestation =
         single_attestation_to_attestation(&valid_attestation, committee.committee, fork_name)
             .unwrap();
@@ -2230,9 +2227,7 @@ async fn gloas_aggregated_attestation_unknown_payload_envelope() {
         .beacon_state
         .get_beacon_committee(current_slot, valid_attestation.committee_index)
         .expect("should get committee");
-    let fork_name = harness
-        .spec
-        .fork_name_at_slot(valid_attestation.data.slot);
+    let fork_name = harness.spec.fork_name_at_slot(valid_attestation.data.slot);
     let aggregate_attestation =
         single_attestation_to_attestation(&valid_attestation, committee.committee, fork_name)
             .unwrap();

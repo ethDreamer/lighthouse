@@ -1,5 +1,5 @@
-use typenum::U;
 use std::{fmt, hash::Hash, mem, sync::Arc};
+use typenum::U;
 
 use bls::{AggregatePublicKey, PublicKeyBytes, Signature};
 use compare_fields::CompareFields;
@@ -31,7 +31,7 @@ use crate::{
     block::{BeaconBlock, BeaconBlockHeader, SignedBeaconBlockHash},
     builder::{Builder, BuilderIndex, BuilderPendingPayment, BuilderPendingWithdrawal},
     consolidation::PendingConsolidation,
-    core::{ChainSpec, Domain, Epoch, Spec, Hash256, RelativeEpoch, RelativeEpochError, Slot},
+    core::{ChainSpec, Domain, Epoch, Hash256, RelativeEpoch, RelativeEpochError, Slot, Spec},
     deposit::PendingDeposit,
     execution::{
         Eth1Data, ExecutionPayloadHeaderBellatrix, ExecutionPayloadHeaderCapella,
@@ -314,10 +314,7 @@ impl From<BeaconStateHash> for Hash256 {
             CompareFields,
         ),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         educe(Clone),
     ),
     specific_variant_attributes(
@@ -476,16 +473,11 @@ impl From<BeaconStateHash> for Hash256 {
     ),
     map_ref_mut_into(BeaconStateRef)
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Encode)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
-pub struct BeaconState
-
-{
+pub struct BeaconState {
     // Versioning
     #[superstruct(getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
@@ -563,7 +555,8 @@ pub struct BeaconState
     // Attestations (genesis fork only)
     #[superstruct(only(Base))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub previous_epoch_attestations: List<PendingAttestation, U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
+    pub previous_epoch_attestations:
+        List<PendingAttestation, U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
     #[superstruct(only(Base))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub current_epoch_attestations: List<PendingAttestation, U<{ Spec::MAX_PENDING_ATTESTATIONS }>>,
@@ -575,7 +568,8 @@ pub struct BeaconState
         partial_getter(rename = "previous_epoch_participation_basic")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub previous_epoch_participation: List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+    pub previous_epoch_participation:
+        List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[superstruct(
         only(Gloas, Heze),
@@ -588,7 +582,8 @@ pub struct BeaconState
         partial_getter(rename = "current_epoch_participation_basic")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
-    pub current_epoch_participation: List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+    pub current_epoch_participation:
+        List<ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
     #[superstruct(
         only(Gloas, Heze),
         partial_getter(rename = "current_epoch_participation_progressive")
@@ -737,7 +732,8 @@ pub struct BeaconState
         only(Electra, Fulu),
         partial_getter(rename = "pending_consolidations_basic")
     )]
-    pub pending_consolidations: List<PendingConsolidation, U<{ Spec::PENDING_CONSOLIDATIONS_LIMIT }>>,
+    pub pending_consolidations:
+        List<PendingConsolidation, U<{ Spec::PENDING_CONSOLIDATIONS_LIMIT }>>,
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(
@@ -771,7 +767,8 @@ pub struct BeaconState
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Gloas, Heze))]
-    pub builder_pending_payments: Vector<BuilderPendingPayment, U<{ Spec::BUILDER_PENDING_PAYMENTS_LIMIT }>>,
+    pub builder_pending_payments:
+        Vector<BuilderPendingPayment, U<{ Spec::BUILDER_PENDING_PAYMENTS_LIMIT }>>,
 
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -1221,8 +1218,8 @@ impl BeaconState {
         slot: Slot,
     ) -> Result<InclusionListCommittee, BeaconStateError> {
         let cache = self.committee_cache_at_slot(slot)?;
-        let committee =
-            cache.get_inclusion_list_committee_at_slot(slot, Spec::INCLUSION_LIST_COMMITTEE_SIZE)?;
+        let committee = cache
+            .get_inclusion_list_committee_at_slot(slot, Spec::INCLUSION_LIST_COMMITTEE_SIZE)?;
         let committee: Vec<u64> = committee.into_iter().map(|index| index as u64).collect();
         Ok(FixedVector::new(committee)?)
     }
@@ -2697,8 +2694,10 @@ impl BeaconState {
         epoch: Epoch,
         previous_epoch: Epoch,
         current_epoch: Epoch,
-    ) -> Result<AnyListMut<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>, BeaconStateError>
-    {
+    ) -> Result<
+        AnyListMut<'_, ParticipationFlags, U<{ Spec::VALIDATOR_REGISTRY_LIMIT }>>,
+        BeaconStateError,
+    > {
         if epoch == current_epoch {
             self.current_epoch_participation_mut()
         } else if epoch == previous_epoch {

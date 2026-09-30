@@ -236,14 +236,13 @@ pub fn verify_execution_payload_envelope(
 #[cfg(not(debug_assertions))]
 #[cfg(test)]
 mod tests {
-    use types::Spec;
     use super::*;
     use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
     use fixed_bytes::FixedBytesExtended;
     use std::sync::LazyLock;
+    use types::ForkName;
+    use types::Spec;
     use types::test_utils::generate_deterministic_keypairs;
-    use types::{ForkName};
-
 
     const VALIDATOR_COUNT: usize = 32;
 

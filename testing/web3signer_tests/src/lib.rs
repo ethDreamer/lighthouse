@@ -70,7 +70,6 @@ mod tests {
 
     static GET_WEB3SIGNER_BIN: OnceCell<()> = OnceCell::const_new();
 
-
     /// This marker trait is implemented for objects that we wish to compare to ensure Web3Signer
     /// and Lighthouse agree on signatures.
     ///

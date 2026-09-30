@@ -38,7 +38,7 @@ use tokio::sync::mpsc;
 use tokio::time::Sleep;
 use tracing::{debug, error, info, trace, warn};
 use types::{
-    Spec, ForkContext, Slot, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
+    ForkContext, Slot, Spec, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
     ValidatorSubscription,
 };
 
@@ -83,9 +83,7 @@ pub enum NetworkMessage {
     /// Publish a list of messages to the gossipsub protocol.
     Publish { messages: Vec<PubsubMessage> },
     /// Publish partial data column sidecars via the partial gossipsub protocol.
-    PublishPartialColumns {
-        messages: Vec<PubsubPartialMessage>,
-    },
+    PublishPartialColumns { messages: Vec<PubsubPartialMessage> },
     /// Validates a received gossipsub message. This will propagate the message on the network.
     ValidationResult {
         /// The peer that sent us the message. We don't send back to this peer.
@@ -225,14 +223,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         libp2p_registry: Option<&'_ mut Registry>,
         beacon_processor_send: BeaconProcessorSend,
         local_keypair: Keypair,
-    ) -> Result<
-        (
-            NetworkService<T>,
-            Arc<NetworkGlobals>,
-            NetworkSenders,
-        ),
-        String,
-    > {
+    ) -> Result<(NetworkService<T>, Arc<NetworkGlobals>, NetworkSenders), String> {
         // build the channels for external comms
         let (network_senders, network_receivers) = NetworkSenders::new();
 

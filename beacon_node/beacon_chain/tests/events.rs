@@ -9,10 +9,9 @@ use std::sync::Arc;
 use types::data::FixedBlobSidecarList;
 use types::{
     Address, BlobSidecar, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas, Domain,
-    Spec, PayloadAttestationData, PayloadAttestationMessage,
-    ProposerPreferences, SignedExecutionPayloadBid, SignedProposerPreferences, SignedRoot, Slot,
+    PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences,
+    SignedExecutionPayloadBid, SignedProposerPreferences, SignedRoot, Slot, Spec,
 };
-
 
 /// Verifies that a data column event is emitted when a gossip verified data column is received via gossip or the publish block API.
 #[tokio::test]

@@ -1,8 +1,8 @@
-use typenum::U;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
+use typenum::U;
 
 use bls::{AggregateSignature, SecretKey, Signature};
 use context_deserialize::{ContextDeserialize, context_deserialize};
@@ -19,7 +19,7 @@ use crate::{
         AttestationData, Checkpoint, IndexedAttestation, IndexedAttestationBase,
         IndexedAttestationElectra, IndexedAttestationGloas,
     },
-    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot, SlotData},
+    core::{ChainSpec, Domain, Hash256, SignedRoot, Slot, SlotData, Spec},
     fork::{Fork, ForkName},
 };
 
@@ -49,27 +49,23 @@ impl From<ssz_types::Error> for Error {
             Deserialize,
             Decode,
             Encode,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
             TreeHash,
         ),
         context_deserialize(ForkName),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        )
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),)
     ),
-    specific_variant_attributes(Gloas(
-        tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1, 1))
-    )),
+    specific_variant_attributes(Gloas(tree_hash(
+        struct_behaviour = "progressive_container",
+        active_fields(1, 1, 1, 1)
+    ))),
     ref_attributes(derive(TreeHash), tree_hash(enum_behaviour = "transparent")),
     cast_error(ty = "Error", expr = "Error::IncorrectStateVariant"),
     partial_getter_error(ty = "Error", expr = "Error::IncorrectStateVariant")
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
 #[educe(PartialEq)]
 #[serde(untagged)]
@@ -117,7 +113,8 @@ impl Attestation {
         spec: &ChainSpec,
     ) -> Result<Self, Error> {
         if spec.fork_name_at_slot(slot).gloas_enabled() {
-            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
+            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> =
+                BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
                 .map_err(|_| Error::InvalidCommitteeIndex)?;
@@ -137,7 +134,8 @@ impl Attestation {
                 signature: AggregateSignature::infinity(),
             }))
         } else if spec.fork_name_at_slot(slot).electra_enabled() {
-            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> = BitVector::default();
+            let mut committee_bits: BitVector<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>> =
+                BitVector::default();
             committee_bits
                 .set(committee_index as usize, true)
                 .map_err(|_| Error::InvalidCommitteeIndex)?;
@@ -661,7 +659,8 @@ impl AttestationBase {
     pub fn extend_aggregation_bits(
         &self,
     ) -> Result<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>, ssz::BitfieldError> {
-        self.aggregation_bits.resize::<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>()
+        self.aggregation_bits
+            .resize::<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>()
     }
 
     pub fn get_aggregation_bits(&self) -> Vec<u64> {
@@ -819,10 +818,7 @@ pub struct SingleAttestation {
 }
 
 impl SingleAttestation {
-    pub fn to_indexed(
-        &self,
-        fork_name: ForkName,
-    ) -> Result<IndexedAttestation, ssz_types::Error> {
+    pub fn to_indexed(&self, fork_name: ForkName) -> Result<IndexedAttestation, ssz_types::Error> {
         if fork_name.gloas_enabled() {
             Ok(IndexedAttestation::Gloas(IndexedAttestationGloas {
                 attesting_indices: vec![self.attester_index].try_into()?,
@@ -859,8 +855,7 @@ mod tests {
     fn size_of_base() {
         use std::mem::size_of;
 
-        let aggregation_bits =
-            size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>>();
+        let aggregation_bits = size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_COMMITTEE }>>>();
         let attestation_data = size_of::<AttestationData>();
         let signature = size_of::<AggregateSignature>();
 
@@ -870,21 +865,16 @@ mod tests {
 
         let attestation_expected = aggregation_bits + attestation_data + signature;
         assert_eq!(attestation_expected, 576);
-        assert_eq!(
-            size_of::<AttestationBase>(),
-            attestation_expected
-        );
+        assert_eq!(size_of::<AttestationBase>(), attestation_expected);
     }
 
     #[test]
     fn size_of_electra() {
         use std::mem::size_of;
 
-        let aggregation_bits =
-            size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>();
+        let aggregation_bits = size_of::<BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>();
         let attestation_data = size_of::<AttestationData>();
-        let committee_bits =
-            size_of::<BitList<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>>();
+        let committee_bits = size_of::<BitList<U<{ Spec::MAX_COMMITTEES_PER_SLOT }>>>();
         let signature = size_of::<AggregateSignature>();
 
         assert_eq!(aggregation_bits, 144);
@@ -894,10 +884,7 @@ mod tests {
 
         let attestation_expected = aggregation_bits + committee_bits + attestation_data + signature;
         assert_eq!(attestation_expected, 720);
-        assert_eq!(
-            size_of::<AttestationElectra>(),
-            attestation_expected
-        );
+        assert_eq!(size_of::<AttestationElectra>(), attestation_expected);
     }
 
     mod base {

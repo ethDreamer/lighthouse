@@ -19,8 +19,8 @@ use tracing::{debug, error, instrument};
 use types::data::{BlobIdentifier, FixedBlobSidecarList, PartialDataColumnRef};
 use types::{
     BlobSidecar, BlobSidecarList, BlockImportSource, ChainSpec, DataColumnSidecar,
-    DataColumnSidecarList, Spec, Hash256, PartialDataColumnSidecarError, PartialDataColumnView,
-    SignedBeaconBlock, Slot,
+    DataColumnSidecarList, Hash256, PartialDataColumnSidecarError, PartialDataColumnView,
+    SignedBeaconBlock, Slot, Spec,
 };
 
 mod error;
@@ -308,10 +308,7 @@ impl<T: BeaconChainTypes> DataAvailabilityChecker<T> {
     }
 
     /// Get data columns for a block from the availability cache.
-    pub fn get_data_columns(
-        &self,
-        block_root: Hash256,
-    ) -> Option<DataColumnSidecarList> {
+    pub fn get_data_columns(&self, block_root: Hash256) -> Option<DataColumnSidecarList> {
         self.availability_cache.peek_data_columns(block_root)
     }
 
@@ -1024,9 +1021,7 @@ mod test {
     use std::sync::Arc;
     use std::time::Duration;
     use types::data::DataColumn;
-    use types::{
-        ChainSpec, ColumnIndex, DataColumnSidecarFulu, Epoch, ForkName, Slot,
-    };
+    use types::{ChainSpec, ColumnIndex, DataColumnSidecarFulu, Epoch, ForkName, Slot};
 
     type T = EphemeralHarnessType;
 

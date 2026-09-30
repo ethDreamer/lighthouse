@@ -12,7 +12,7 @@ use bls::{AggregateSignature, Keypair};
 use slot_clock::SlotClock;
 use std::sync::{Arc, LazyLock};
 use tree_hash::TreeHash;
-use types::{Attestation, Spec, ForkName, RelativeEpoch, Slot};
+use types::{Attestation, ForkName, RelativeEpoch, Slot, Spec};
 
 pub const VALIDATOR_COUNT: usize = 32;
 
@@ -308,9 +308,7 @@ async fn produces_attestations() {
             .make_full_block(&block_root, blinded_block)
             .unwrap();
 
-        let epoch_boundary_slot = state
-            .current_epoch()
-            .start_slot(Spec::slots_per_epoch());
+        let epoch_boundary_slot = state.current_epoch().start_slot(Spec::slots_per_epoch());
         let target_root = if state.slot() == epoch_boundary_slot {
             block_root
         } else {
@@ -360,11 +358,7 @@ async fn produces_attestations() {
                 &AggregateSignature::infinity(),
                 "bad signature"
             );
-            if harness
-                .spec
-                .fork_name_at_slot(data.slot)
-                .gloas_enabled()
-            {
+            if harness.spec.fork_name_at_slot(data.slot).gloas_enabled() {
                 assert!(data.index <= 1, "invalid index");
             } else {
                 assert_eq!(data.index, index, "bad index");
@@ -390,10 +384,7 @@ async fn produces_attestations() {
 
             // For Gloas non-same-slot attestations, the early attester cache returns None.
             let is_same_slot_attestation = slot == block_slot;
-            let is_gloas = harness
-                .spec
-                .fork_name_at_slot(slot)
-                .gloas_enabled();
+            let is_gloas = harness.spec.fork_name_at_slot(slot).gloas_enabled();
             if !is_gloas || is_same_slot_attestation {
                 let early_attestation = {
                     let proto_block = chain

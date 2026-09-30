@@ -21,11 +21,7 @@ pub async fn run(
 
     // Dump configs if `dump-config` or `dump-chain-config` flags are set
     let config_sz = BootNodeConfigSerialization::from_config_ref(&config);
-    clap_utils::check_dump_configs(
-        lh_matches,
-        &config_sz,
-        &eth2_network_config.chain_spec()?,
-    )?;
+    clap_utils::check_dump_configs(lh_matches, &config_sz, &eth2_network_config.chain_spec()?)?;
 
     if lh_matches.get_flag("immediate-shutdown") {
         return Ok(());

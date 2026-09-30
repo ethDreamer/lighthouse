@@ -191,10 +191,9 @@ pub fn interop_genesis_state_with_eth1(
 
 #[cfg(test)]
 mod test {
-    use types::Spec;
     use super::*;
-    use types::{test_utils::generate_deterministic_keypairs};
-
+    use types::Spec;
+    use types::test_utils::generate_deterministic_keypairs;
 
     #[test]
     fn interop_state() {

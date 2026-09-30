@@ -38,8 +38,7 @@ const BACKFILL_BATCH_BUFFER_SIZE: u8 = 5;
 /// bandwidth to do so.
 pub const CUSTODY_BACKFILL_EPOCHS_PER_BATCH: u64 = 1;
 
-type CustodyBackFillBatchInfo =
-    BatchInfo<CustodyBackFillBatchConfig, DataColumnSidecarList>;
+type CustodyBackFillBatchInfo = BatchInfo<CustodyBackFillBatchConfig, DataColumnSidecarList>;
 type CustodyBackFillBatches = BTreeMap<BatchId, CustodyBackFillBatchInfo>;
 
 #[derive(Debug)]
@@ -124,10 +123,7 @@ pub struct CustodyBackFillSync<T: BeaconChainTypes> {
 }
 
 impl<T: BeaconChainTypes> CustodyBackFillSync<T> {
-    pub fn new(
-        beacon_chain: Arc<BeaconChain<T>>,
-        network_globals: Arc<NetworkGlobals>,
-    ) -> Self {
+    pub fn new(beacon_chain: Arc<BeaconChain<T>>, network_globals: Arc<NetworkGlobals>) -> Self {
         Self {
             current_start: Epoch::new(0),
             processing_target: Epoch::new(0),

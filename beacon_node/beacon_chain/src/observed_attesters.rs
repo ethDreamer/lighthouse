@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use types::SlotData;
-use types::{Epoch, Spec, Hash256, Slot};
+use types::{Epoch, Hash256, Slot, Spec};
 
 /// The maximum capacity of the `AutoPruningEpochContainer`.
 ///
@@ -41,8 +41,7 @@ pub type ObservedSyncContributors =
 pub type ObservedAggregators = AutoPruningEpochContainer<EpochHashSet>;
 pub type ObservedSyncAggregators =
     AutoPruningSlotContainer<SlotSubcommitteeIndex, (), SyncAggregatorSlotHashSet>;
-pub type ObservedPayloadAttesters =
-    AutoPruningSlotContainer<Slot, (), PayloadAttesterSlotHashSet>;
+pub type ObservedPayloadAttesters = AutoPruningSlotContainer<Slot, (), PayloadAttesterSlotHashSet>;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -179,13 +178,13 @@ impl Item<()> for EpochHashSet {
 /// Stores a `HashSet` of which validator indices have created a sync aggregate during a
 /// slot.
 pub struct SyncContributorSlotHashSet {
-    map: HashMap<usize, Hash256>
+    map: HashMap<usize, Hash256>,
 }
 
 impl Item<Hash256> for SyncContributorSlotHashSet {
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            map: HashMap::with_capacity(capacity)
+            map: HashMap::with_capacity(capacity),
         }
     }
 
@@ -257,13 +256,13 @@ impl Item<()> for SyncAggregatorSlotHashSet {
 /// Stores a `HashSet` of validator indices that have sent a payload attestation gossip
 /// message during a slot.
 pub struct PayloadAttesterSlotHashSet {
-    set: HashSet<usize>
+    set: HashSet<usize>,
 }
 
 impl Item<()> for PayloadAttesterSlotHashSet {
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            set: HashSet::with_capacity(capacity)
+            set: HashSet::with_capacity(capacity),
         }
     }
 
@@ -302,14 +301,14 @@ impl Item<()> for PayloadAttesterSlotHashSet {
 /// `T` should be set to a `EpochBitfield` or `EpochHashSet`.
 pub struct AutoPruningEpochContainer<T> {
     lowest_permissible_epoch: Epoch,
-    items: HashMap<Epoch, T>
+    items: HashMap<Epoch, T>,
 }
 
 impl<T> Default for AutoPruningEpochContainer<T> {
     fn default() -> Self {
         Self {
             lowest_permissible_epoch: Epoch::new(0),
-            items: HashMap::new()
+            items: HashMap::new(),
         }
     }
 }
@@ -460,9 +459,7 @@ impl<K: SlotData + Eq + Hash, S, V> Default for AutoPruningSlotContainer<K, S, V
     }
 }
 
-impl<K: SlotData + Eq + Hash + Copy, S, V: Item<S>>
-    AutoPruningSlotContainer<K, S, V>
-{
+impl<K: SlotData + Eq + Hash + Copy, S, V: Item<S>> AutoPruningSlotContainer<K, S, V> {
     /// Observes the given `value` for the given `validator_index`.
     ///
     /// The `override_observation` function is supplied `previous_observation`
@@ -654,7 +651,6 @@ impl SlotSubcommitteeIndex {
 mod tests {
     use super::*;
     use fixed_bytes::FixedBytesExtended;
-
 
     #[test]
     fn value_storage() {

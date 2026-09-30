@@ -4,10 +4,8 @@ use beacon_chain::{
 };
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, Slot,
-    WithdrawalRequest,
+    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, Slot, WithdrawalRequest,
 };
-
 
 /// Parent partial withdrawals must be accounted for when packing voluntary exits.
 /// https://github.com/sigp/lighthouse/issues/9981

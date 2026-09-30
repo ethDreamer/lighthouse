@@ -50,12 +50,12 @@ use store::hot_cold_store::HotColdDBError;
 use tracing::{Instrument, Span, debug, error, info, instrument, trace, warn};
 use types::{
     Attestation, AttestationData, AttestationRef, AttesterSlashing, ColumnIndex, DataColumnSidecar,
-    DataColumnSubnetId, Spec, Hash256, IndexedAttestation, LightClientFinalityUpdate,
+    DataColumnSubnetId, Hash256, IndexedAttestation, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, PartialDataColumn, PayloadAttestationMessage, ProposerSlashing,
     SignedAggregateAndProof, SignedBeaconBlock, SignedBlsToExecutionChange,
     SignedContributionAndProof, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
     SignedInclusionList, SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, Slot,
-    SubnetId, SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
+    Spec, SubnetId, SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
     execution::SignedExecutionProof,
 };
 
@@ -1618,12 +1618,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
         let verified_block = match verification_result {
             Ok(verified_block) => {
-                if block_delay
-                    >= self
-                        .chain
-                        .spec
-                        .get_attestation_due(block.slot())
-                {
+                if block_delay >= self.chain.spec.get_attestation_due(block.slot()) {
                     metrics::inc_counter(&metrics::BEACON_BLOCK_DELAY_GOSSIP_ARRIVED_LATE_TOTAL);
                     debug!(
                         block_root = ?verified_block.block_root,
@@ -4092,12 +4087,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         block_root: Hash256,
         source: EnvelopeSource,
     ) {
-        if self
-            .chain
-            .spec
-            .fork_name_at_slot(slot)
-            .gloas_enabled()
-        {
+        if self.chain.spec.fork_name_at_slot(slot).gloas_enabled() {
             self.notify_payload_envelope_imported(block_root, source);
         } else {
             self.notify_block_imported(block_root, source);

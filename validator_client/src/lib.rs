@@ -39,7 +39,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 use tracing::{debug, error, info, warn};
-use types::{Spec, Hash256};
+use types::{Hash256, Spec};
 use validator_http_api::ApiSecret;
 use validator_services::notifier_service::spawn_notifier;
 use validator_services::{
@@ -92,8 +92,7 @@ pub struct ProductionValidatorClient {
     attestation_service: AttestationService<ValidatorStore, SystemTimeSlotClock>,
     sync_committee_service: SyncCommitteeService<ValidatorStore, SystemTimeSlotClock>,
     payload_attestation_service: PayloadAttestationService<ValidatorStore, SystemTimeSlotClock>,
-    proposer_preferences_service:
-        ProposerPreferencesService<ValidatorStore, SystemTimeSlotClock>,
+    proposer_preferences_service: ProposerPreferencesService<ValidatorStore, SystemTimeSlotClock>,
     doppelganger_service: Option<Arc<DoppelgangerService>>,
     preparation_service: PreparationService<ValidatorStore, SystemTimeSlotClock>,
     validator_store: Arc<ValidatorStore>,

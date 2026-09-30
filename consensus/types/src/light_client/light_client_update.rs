@@ -15,7 +15,7 @@ use typenum::{U4, U5, U6, U7};
 
 use crate::{
     block::SignedBlindedBeaconBlock,
-    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Hash256, Slot, Spec},
     fork::ForkName,
     light_client::{
         LightClientError, LightClientHeader, LightClientHeaderAltair, LightClientHeaderCapella,
@@ -48,17 +48,11 @@ type NextSyncCommitteeBranchElectra = FixedVector<Hash256, NextSyncCommitteeProo
         derive(Debug, Clone, Serialize, Deserialize, Educe, Decode, Encode, TreeHash,),
         educe(PartialEq),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         context_deserialize(ForkName),
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, TreeHash, PartialEq)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]

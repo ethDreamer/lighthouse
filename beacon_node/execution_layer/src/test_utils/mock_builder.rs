@@ -33,10 +33,10 @@ use types::builder::{
     BuilderBidFulu, SignedBuilderBid,
 };
 use types::{
-    Address, BeaconState, ChainSpec, Epoch, Spec, ExecPayload, ExecutionPayload,
+    Address, BeaconState, ChainSpec, Epoch, ExecPayload, ExecutionPayload,
     ExecutionPayloadHeaderRefMut, ExecutionRequests, ExecutionRequestsElectra, ForkName,
     ForkVersionDecode, Hash256, SignedBlindedBeaconBlock, SignedRoot,
-    SignedValidatorRegistrationData, Slot, Uint256,
+    SignedValidatorRegistrationData, Slot, Spec, Uint256,
 };
 use types::{ExecutionBlockHash, ProgressiveTransactions};
 use warp::{
@@ -1046,8 +1046,7 @@ pub fn serve(
         .and(warp::path::end())
         .and(ctx_filter.clone())
         .and_then(
-            |registrations: Vec<SignedValidatorRegistrationData>,
-             builder: MockBuilder| async move {
+            |registrations: Vec<SignedValidatorRegistrationData>, builder: MockBuilder| async move {
                 builder
                     .register_validators(registrations)
                     .await
@@ -1075,11 +1074,9 @@ pub fn serve(
                             "Unsupported version: {endpoint_version}"
                         ))));
                     }
-                    let block = SignedBlindedBeaconBlock::from_ssz_bytes_by_fork(
-                        &block_bytes,
-                        fork_name,
-                    )
-                    .map_err(|e| warp::reject::custom(Custom(format!("{:?}", e))))?;
+                    let block =
+                        SignedBlindedBeaconBlock::from_ssz_bytes_by_fork(&block_bytes, fork_name)
+                            .map_err(|e| warp::reject::custom(Custom(format!("{:?}", e))))?;
                     let payload = builder
                         .submit_blinded_block(block)
                         .await

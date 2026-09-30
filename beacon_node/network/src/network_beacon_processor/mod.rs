@@ -1096,8 +1096,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             }
             // `kzg_commitments.len()` is bounded by `MaxBlobCommitmentsPerBlock`, so the
             // bitmap constructor is infallible.
-            let Ok(cells_present_bitmap) = CellBitmap::with_capacity(num_cells)
-            else {
+            let Ok(cells_present_bitmap) = CellBitmap::with_capacity(num_cells) else {
                 crit!(
                     %block_root,
                     num_cells,

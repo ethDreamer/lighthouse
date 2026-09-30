@@ -680,11 +680,7 @@ impl GossipTester {
         }
     }
 
-    fn configure_payload_status(
-        &self,
-        block: &SignedBeaconBlock,
-        status: Option<PayloadStatus>,
-    ) {
+    fn configure_payload_status(&self, block: &SignedBeaconBlock, status: Option<PayloadStatus>) {
         let Some(mock_execution_layer) = self.harness.mock_execution_layer.as_ref() else {
             return;
         };
@@ -926,10 +922,7 @@ fn slot_time_ms(slot: Slot, spec: &ChainSpec) -> Result<u64, Error> {
 }
 
 impl FinalizedCheckpoint {
-    fn checkpoint(
-        &self,
-        blocks: &HashMap<String, SignedBeaconBlock>,
-    ) -> Result<Checkpoint, Error> {
+    fn checkpoint(&self, blocks: &HashMap<String, SignedBeaconBlock>) -> Result<Checkpoint, Error> {
         match self {
             FinalizedCheckpoint::Root { epoch, root } => Ok(Checkpoint {
                 epoch: (*epoch).into(),

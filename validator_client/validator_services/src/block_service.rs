@@ -22,8 +22,8 @@ use tokio::sync::mpsc;
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use tree_hash::TreeHash;
 use types::{
-    BeaconBlock, BlobsList, BlockType, ChainSpec, Spec, ExecutionPayloadEnvelope, ForkName,
-    Graffiti, Hash256, KzgProofs, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD,
+    BeaconBlock, BlobsList, BlockType, ChainSpec, ExecutionPayloadEnvelope, ForkName, Graffiti,
+    Hash256, KzgProofs, Slot, Spec, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use validator_store::{Error as ValidatorStoreError, SignedBlock, UnsignedBlock, ValidatorStore};
 
@@ -1307,11 +1307,7 @@ mod tests {
         }
 
         /// Assert `sign_block` was called once, for `block`, with `local_payload_root`.
-        fn assert_signed_once(
-            &self,
-            block: &BeaconBlock,
-            local_payload_root: Option<Hash256>,
-        ) {
+        fn assert_signed_once(&self, block: &BeaconBlock, local_payload_root: Option<Hash256>) {
             let calls = self.service.validator_store.sign_block_calls();
             assert_eq!(calls.len(), 1, "expected exactly one sign_block call");
             assert_eq!(calls[0].validator_pubkey, self.harness.pubkeys[0]);
@@ -1350,16 +1346,12 @@ mod tests {
             block: block.clone(),
             execution_payload_envelope: envelope,
             kzg_proofs: KzgProofs::try_from(vec![KzgProof::empty()]).unwrap(),
-            blobs: BlobsList::try_from(vec![Blob::default()])
-                .unwrap(),
+            blobs: BlobsList::try_from(vec![Blob::default()]).unwrap(),
         }
     }
 
     /// Assert `node` received exactly one envelope publish matching `contents`.
-    fn assert_published_contents(
-        node: &MockBeaconNode,
-        contents: &BlockAndEnvelope,
-    ) {
+    fn assert_published_contents(node: &MockBeaconNode, contents: &BlockAndEnvelope) {
         let received = node.execution_payload_envelope_contents.lock().unwrap();
         assert_eq!(received.len(), 1, "Expected one envelope contents publish");
         assert_eq!(

@@ -22,8 +22,7 @@ use types::{
 use crate::BeaconChain;
 use crate::{BeaconChainError, BeaconChainTypes};
 
-type PayloadEnvelopeResult =
-    Result<Option<Arc<SignedExecutionPayloadEnvelope>>, BeaconChainError>;
+type PayloadEnvelopeResult = Result<Option<Arc<SignedExecutionPayloadEnvelope>>, BeaconChainError>;
 
 #[derive(Debug)]
 pub enum Error {

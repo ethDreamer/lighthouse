@@ -7,7 +7,7 @@ use node_test_rig::{
     eth2::types::StateId,
     testing_client_config,
 };
-use types::{Slot};
+use types::Slot;
 
 fn env_builder() -> EnvironmentBuilder {
     EnvironmentBuilder::minimal()

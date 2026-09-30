@@ -3,7 +3,7 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use types::{BeaconBlockRef, Epoch, Spec, Hash256, Slot};
+use types::{BeaconBlockRef, Epoch, Hash256, Slot, Spec};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -39,7 +39,7 @@ impl ProposalKey {
 /// known_distinct_shufflings` which is much smaller.
 pub struct ObservedBlockProducers {
     finalized_slot: Slot,
-    items: HashMap<ProposalKey, HashSet<Hash256>>
+    items: HashMap<ProposalKey, HashSet<Hash256>>,
 }
 
 impl Default for ObservedBlockProducers {
@@ -47,7 +47,7 @@ impl Default for ObservedBlockProducers {
     fn default() -> Self {
         Self {
             finalized_slot: Slot::new(0),
-            items: HashMap::new()
+            items: HashMap::new(),
         }
     }
 }
@@ -202,8 +202,7 @@ impl ObservedBlockProducers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{BeaconBlock};
-
+    use types::BeaconBlock;
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock {
         let mut block = BeaconBlock::empty(&Spec::default_spec());

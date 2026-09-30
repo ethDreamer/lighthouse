@@ -41,8 +41,8 @@ use types::data::{
     PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
 };
 use types::{
-    AbstractExecPayload, BeaconStateError, Spec, Hash256, KzgCommitment, ListRef,
-    SignedBeaconBlock, SignedExecutionPayloadBid, Slot, VersionedHash,
+    AbstractExecPayload, BeaconStateError, Hash256, KzgCommitment, ListRef, SignedBeaconBlock,
+    SignedExecutionPayloadBid, Slot, Spec, VersionedHash,
 };
 
 /// The source of the KZG commitments for a block's partial data columns.
@@ -61,9 +61,7 @@ impl PartialHeaderOrBid {
     /// Extract the commitments source from a block: the execution payload bid if the block is
     /// post-Gloas, otherwise the partial data column header. Returns `None` for blocks that carry
     /// neither (e.g. the header cannot be built, or the block predates blob commitments).
-    pub fn try_from_block<P: AbstractExecPayload>(
-        block: &SignedBeaconBlock<P>,
-    ) -> Option<Self> {
+    pub fn try_from_block<P: AbstractExecPayload>(block: &SignedBeaconBlock<P>) -> Option<Self> {
         if let Ok(bid) = block.message().body().signed_execution_payload_bid() {
             Some(PartialHeaderOrBid::Bid(Arc::new(bid.clone())))
         } else {
@@ -73,7 +71,9 @@ impl PartialHeaderOrBid {
         }
     }
 
-    pub fn kzg_commitments(&self) -> ListRef<'_, KzgCommitment, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
+    pub fn kzg_commitments(
+        &self,
+    ) -> ListRef<'_, KzgCommitment, typenum::U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>> {
         match self {
             PartialHeaderOrBid::PartialHeader(header) => ListRef::Basic(&header.kzg_commitments),
             PartialHeaderOrBid::Bid(bid) => ListRef::Progressive(&bid.message.blob_kzg_commitments),
@@ -537,8 +537,7 @@ async fn build_partial_columns_from_v4_response<T: BeaconChainTypes>(
     let mut sorted_column_indices = custody_columns_indices.to_vec();
     sorted_column_indices.sort_unstable();
 
-    let mut custody_columns: Vec<KzgVerifiedPartialDataColumn> =
-        Vec::with_capacity(num_columns);
+    let mut custody_columns: Vec<KzgVerifiedPartialDataColumn> = Vec::with_capacity(num_columns);
     for (col_pos, &column_index) in sorted_column_indices.iter().enumerate() {
         let mut bitmap = CellBitmap::with_capacity(num_blobs).map_err(|_| {
             FetchEngineBlobError::InternalError("failed to allocate cell bitmap".to_string())

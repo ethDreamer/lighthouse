@@ -4,7 +4,7 @@ use beacon_chain::test_utils::{
 use beacon_chain::validator_monitor::{MISSED_BLOCK_LAG_SLOTS, ValidatorMonitorConfig};
 use bls::{Keypair, PublicKeyBytes};
 use std::sync::LazyLock;
-use types::{Epoch, Spec, Hash256, Slot};
+use types::{Epoch, Hash256, Slot, Spec};
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;
@@ -12,7 +12,6 @@ pub const VALIDATOR_COUNT: usize = 48;
 /// A cached set of keys.
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(VALIDATOR_COUNT));
-
 
 fn get_harness(
     validator_count: usize,

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     attestation::{AttestationRef, CommitteeIndex, SingleAttestation},
-    core::{ChainSpec, Spec, Slot},
+    core::{ChainSpec, Slot, Spec},
 };
 
 const MAX_SUBNET_ID: usize = 64;
@@ -168,7 +168,7 @@ impl AsRef<str> for SubnetId {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Uint256};
+    use crate::Uint256;
 
     use super::*;
 

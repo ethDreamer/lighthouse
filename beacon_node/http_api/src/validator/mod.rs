@@ -32,9 +32,9 @@ use tokio::sync::mpsc::{Sender, UnboundedSender};
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, warn};
 use types::{
-    BeaconState, Epoch, Spec, ForkName, ProposerPreparationData, SignedAggregateAndProof,
+    BeaconState, Epoch, ForkName, ProposerPreparationData, SignedAggregateAndProof,
     SignedContributionAndProof, SignedProposerPreferences, SignedValidatorRegistrationData, Slot,
-    SyncContributionData, ValidatorSubscription,
+    Spec, SyncContributionData, ValidatorSubscription,
 };
 use warp::{Filter, Rejection, Reply, http::response::Builder};
 use warp_utils::reject::convert_rejection;
@@ -1045,11 +1045,7 @@ pub fn post_validator_prepare_beacon_proposer<T: BeaconChainTypes>(
                     // block (it's in the payload envelope), so the head block's
                     // execution_payload() is unavailable.
                     let next_slot = current_slot + 1;
-                    if !chain
-                        .spec
-                        .fork_name_at_slot(next_slot)
-                        .gloas_enabled()
-                    {
+                    if !chain.spec.fork_name_at_slot(next_slot).gloas_enabled() {
                         chain
                             .prepare_beacon_proposer(current_slot)
                             .await

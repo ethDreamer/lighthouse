@@ -8,7 +8,7 @@ use slot_clock::SlotClock;
 use std::{fmt::Debug, time::Duration};
 use task_executor::TaskExecutor;
 use tracing::{debug, error, warn};
-use types::{Spec, GRAFFITI_BYTES_LEN, Graffiti};
+use types::{GRAFFITI_BYTES_LEN, Graffiti, Spec};
 
 const ENGINE_VERSION_AGE_LIMIT_EPOCH_MULTIPLE: u32 = 6; // 6 epochs
 const ENGINE_VERSION_CACHE_REFRESH_EPOCH_MULTIPLE: u32 = 2; // 2 epochs

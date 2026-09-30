@@ -14,8 +14,7 @@ use std::time::Duration;
 use superstruct::superstruct;
 use typenum::U512;
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
-    Slot,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, ExecutionBlockHash, Hash256, Slot, Spec,
 };
 
 // Define a "legacy" implementation of `Option<usize>` which uses four bytes for encoding the union
@@ -437,10 +436,7 @@ impl ProtoArray {
     ///   should become the best child.
     /// - If required, update the parents best-descendant with the current node or its best-descendant.
     #[allow(clippy::too_many_arguments)]
-    pub fn apply_score_changes(
-        &mut self,
-        mut deltas: Vec<NodeDelta>,
-    ) -> Result<(), Error> {
+    pub fn apply_score_changes(&mut self, mut deltas: Vec<NodeDelta>) -> Result<(), Error> {
         if deltas.len() != self.indices.len() {
             return Err(Error::InvalidDeltaLen {
                 deltas: deltas.len(),
@@ -691,8 +687,7 @@ impl ProtoArray {
                 // Spec: `record_block_timeliness` + `get_forkchoice_store`.
                 // Anchor gets [True, True]. Others computed from time_into_slot.
                 block_timeliness_attestation_threshold: is_anchor
-                    || (is_current_slot
-                        && time_into_slot < spec.get_attestation_due(current_slot)),
+                    || (is_current_slot && time_into_slot < spec.get_attestation_due(current_slot)),
                 block_timeliness_ptc_threshold: is_anchor
                     || (is_current_slot && time_into_slot < spec.get_payload_attestation_due()),
                 equivocating_attestation_score: 0,
@@ -1009,11 +1004,9 @@ impl ProtoArray {
             return Err(Error::PayloadHashUnknown(op.head_hash()));
         }
         for head_index in head_indices {
-            if let Some(deepest_executed_index) = self.find_deepest_node_to_invalidate(
-                head_index,
-                op,
-                best_finalized_checkpoint,
-            )? {
+            if let Some(deepest_executed_index) =
+                self.find_deepest_node_to_invalidate(head_index, op, best_finalized_checkpoint)?
+            {
                 self.invalidate_node_and_descendants(deepest_executed_index)?;
             }
         }
@@ -1060,8 +1053,7 @@ impl ProtoArray {
             .and_then(|hash| self.execution_block_hash_to_beacon_block_root(&hash))
             .filter(|&root| {
                 self.is_descendant(root, head_block_root)
-                    && self
-                        .is_finalized_checkpoint_or_descendant(root, best_finalized_checkpoint)
+                    && self.is_finalized_checkpoint_or_descendant(root, best_finalized_checkpoint)
             });
 
         match latest_valid_ancestor_root {
@@ -1978,10 +1970,11 @@ impl ProtoArray {
             .ok_or(Error::InvalidNodeIndex(parent_index))?
             .root();
 
-        Ok((proto_node.payload_timeliness(true)?
-            && proto_node.payload_data_availability(true)?)
-            || proposer_boost_parent_root != fc_node.root
-            || proposer_boost_node.is_parent_node_full())
+        Ok(
+            (proto_node.payload_timeliness(true)? && proto_node.payload_data_availability(true)?)
+                || proposer_boost_parent_root != fc_node.root
+                || proposer_boost_node.is_parent_node_full(),
+        )
     }
 
     /// Update the tree with new finalization information. The tree is only actually pruned if both
@@ -2094,8 +2087,7 @@ impl ProtoArray {
             || voting_source.epoch + 2 >= current_epoch;
 
         let correct_finalized = best_finalized_checkpoint.epoch == genesis_epoch
-            || self
-                .is_finalized_checkpoint_or_descendant(node.root(), best_finalized_checkpoint);
+            || self.is_finalized_checkpoint_or_descendant(node.root(), best_finalized_checkpoint);
 
         correct_justified && correct_finalized
     }

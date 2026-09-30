@@ -158,10 +158,7 @@ pub async fn poll_head_event_from_beacon_nodes<T: SlotClock + 'static>(
     let mut streams = vec![];
 
     for candidate in &candidates {
-        let head_event_stream = candidate
-            .beacon_node
-            .get_events(&[EventTopic::Head])
-            .await;
+        let head_event_stream = candidate.beacon_node.get_events(&[EventTopic::Head]).await;
 
         let head_event_stream = match head_event_stream {
             Ok(stream) => stream,

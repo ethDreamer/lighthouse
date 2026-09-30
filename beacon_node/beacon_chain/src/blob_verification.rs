@@ -5,7 +5,7 @@ use ssz_derive::{Decode, Encode};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::instrument;
-use types::{BlobSidecar};
+use types::BlobSidecar;
 
 /// Wrapper over a `BlobSidecar` for which we have completed kzg verification.
 /// i.e. `verify_blob_kzg_proof(blob, commitment, proof) == true`.
@@ -138,10 +138,7 @@ impl IntoIterator for KzgVerifiedBlobList {
 /// Note: This function should be preferred over calling `verify_kzg_for_blob`
 /// in a loop since this function kzg verifies a list of blobs more efficiently.
 #[instrument(skip_all, level = "debug")]
-pub fn verify_kzg_for_blob_list<'a, I>(
-    blob_iter: I,
-    kzg: &'a Kzg,
-) -> Result<(), KzgError>
+pub fn verify_kzg_for_blob_list<'a, I>(blob_iter: I, kzg: &'a Kzg) -> Result<(), KzgError>
 where
     I: Iterator<Item = &'a Arc<BlobSidecar>>,
 {

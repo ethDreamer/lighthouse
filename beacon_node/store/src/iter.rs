@@ -2,7 +2,7 @@ use crate::errors::HandleUnavailable;
 use crate::{Error, HotColdDB, ItemStore};
 use std::borrow::Cow;
 use types::{
-    BeaconState, BeaconStateError, BlindedPayload, Spec, Hash256, SignedBeaconBlock, Slot,
+    BeaconState, BeaconStateError, BlindedPayload, Hash256, SignedBeaconBlock, Slot, Spec,
 };
 
 /// Implemented for types that have ancestors (e.g., blocks, states) that may be iterated over.
@@ -75,9 +75,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> StateRootsIterator<'a, Hot, Cold> {
     }
 }
 
-impl<Hot: ItemStore, Cold: ItemStore> Iterator
-    for StateRootsIterator<'_, Hot, Cold>
-{
+impl<Hot: ItemStore, Cold: ItemStore> Iterator for StateRootsIterator<'_, Hot, Cold> {
     type Item = Result<(Hash256, Slot), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -122,19 +120,14 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> BlockRootsIterator<'a, Hot, Cold> {
         }
     }
 
-    pub fn from_block(
-        store: &'a HotColdDB<Hot, Cold>,
-        block_hash: Hash256,
-    ) -> Result<Self, Error> {
+    pub fn from_block(store: &'a HotColdDB<Hot, Cold>, block_hash: Hash256) -> Result<Self, Error> {
         Ok(Self {
             inner: RootsIterator::from_block(store, block_hash)?,
         })
     }
 }
 
-impl<Hot: ItemStore, Cold: ItemStore> Iterator
-    for BlockRootsIterator<'_, Hot, Cold>
-{
+impl<Hot: ItemStore, Cold: ItemStore> Iterator for BlockRootsIterator<'_, Hot, Cold> {
     type Item = Result<(Hash256, Slot), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -178,10 +171,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> RootsIterator<'a, Hot, Cold> {
         }
     }
 
-    pub fn from_block(
-        store: &'a HotColdDB<Hot, Cold>,
-        block_hash: Hash256,
-    ) -> Result<Self, Error> {
+    pub fn from_block(store: &'a HotColdDB<Hot, Cold>, block_hash: Hash256) -> Result<Self, Error> {
         let block = store
             .get_blinded_block(&block_hash)?
             .ok_or_else(|| BeaconStateError::MissingBeaconBlock(block_hash.into()))?;
@@ -240,21 +230,19 @@ impl<Hot: ItemStore, Cold: ItemStore> Iterator for RootsIterator<'_, Hot, Cold> 
 /// Block iterator that uses the `parent_root` of each block to backtrack.
 pub struct ParentRootBlockIterator<'a, Hot: ItemStore, Cold: ItemStore> {
     store: &'a HotColdDB<Hot, Cold>,
-    next_block_root: Hash256
+    next_block_root: Hash256,
 }
 
 impl<'a, Hot: ItemStore, Cold: ItemStore> ParentRootBlockIterator<'a, Hot, Cold> {
     pub fn new(store: &'a HotColdDB<Hot, Cold>, start_block_root: Hash256) -> Self {
         Self {
             store,
-            next_block_root: start_block_root
+            next_block_root: start_block_root,
         }
     }
 
     #[allow(clippy::type_complexity)]
-    fn do_next(
-        &mut self,
-    ) -> Result<Option<(Hash256, SignedBeaconBlock<BlindedPayload>)>, Error> {
+    fn do_next(&mut self) -> Result<Option<(Hash256, SignedBeaconBlock<BlindedPayload>)>, Error> {
         // Stop once we reach the zero parent, otherwise we'll keep returning the genesis
         // block forever.
         if self.next_block_root.is_zero() {
@@ -271,9 +259,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> ParentRootBlockIterator<'a, Hot, Cold>
     }
 }
 
-impl<Hot: ItemStore, Cold: ItemStore> Iterator
-    for ParentRootBlockIterator<'_, Hot, Cold>
-{
+impl<Hot: ItemStore, Cold: ItemStore> Iterator for ParentRootBlockIterator<'_, Hot, Cold> {
     type Item = Result<(Hash256, SignedBeaconBlock<BlindedPayload>), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

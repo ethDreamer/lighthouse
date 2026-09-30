@@ -4,7 +4,7 @@ use safe_arith::SafeArith;
 use state_processing::per_block_processing::get_expected_withdrawals;
 use state_processing::state_advance::partial_state_advance;
 use std::sync::Arc;
-use types::{BeaconState, Spec, Slot, Withdrawals};
+use types::{BeaconState, Slot, Spec, Withdrawals};
 
 const MAX_EPOCH_LOOKAHEAD: u64 = 2;
 

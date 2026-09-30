@@ -12,8 +12,8 @@ use network_utils::enr_ext::CombinedKeyExt;
 use serde::{Deserialize, Serialize};
 use ssz::Encode;
 use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::path::PathBuf;
 use std::time::Duration;
-use std::{path::PathBuf};
 use tracing::{info, warn};
 
 /// A set of configuration parameters for the bootnode, established from CLI arguments.
@@ -22,7 +22,7 @@ pub struct BootNodeConfig {
     pub boot_nodes: Vec<Enr>,
     pub local_enr: Enr,
     pub local_key: CombinedKey,
-    pub discv5_config: discv5::Config
+    pub discv5_config: discv5::Config,
 }
 
 impl BootNodeConfig {
@@ -168,7 +168,7 @@ impl BootNodeConfig {
             boot_nodes,
             local_enr,
             local_key,
-            discv5_config: network_config.discv5_config
+            discv5_config: network_config.discv5_config,
         })
     }
 }

@@ -4,7 +4,7 @@ use lighthouse_validator_store::LighthouseValidatorStore;
 use slot_clock::SlotClock;
 use std::sync::Arc;
 use tracing::info;
-use types::{Epoch, Spec, SignedVoluntaryExit, VoluntaryExit};
+use types::{Epoch, SignedVoluntaryExit, Spec, VoluntaryExit};
 use validator_store::ValidatorStore;
 
 pub async fn create_signed_voluntary_exit<T: 'static + SlotClock + Clone>(

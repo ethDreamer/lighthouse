@@ -19,8 +19,8 @@ use store::Hash256;
 use strum::IntoStaticStr;
 use tracing::{Span, debug_span};
 use types::{
-    DataColumnSidecarList, Spec, ExecutionBlockHash, SignedBeaconBlock,
-    SignedExecutionPayloadEnvelope, Slot,
+    DataColumnSidecarList, ExecutionBlockHash, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    Slot, Spec,
 };
 
 // Dedicated enum for LookupResult to force its usage

@@ -6,8 +6,8 @@ use store::DatabaseBlock;
 use tracing::debug;
 use tree_hash::TreeHash;
 use types::{
-    ChainSpec, Spec, ExecutionPayloadBid, ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
-    SignedExecutionPayloadEnvelope, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD,
+    ChainSpec, ExecutionPayloadBid, ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
+    SignedExecutionPayloadEnvelope, Slot, Spec, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 
 use crate::payload_envelope_verification::observed_payload_envelopes::ObservedPayloadEnvelopes;
@@ -418,16 +418,15 @@ mod tests {
     use ssz_types::ProgressiveVariableList;
     use types::{
         Address, BeaconBlock, BeaconBlockBodyGloas, BeaconBlockGloas, BuilderDepositRequest,
-        BuilderExitRequest, ConsolidationRequest, Eth1Data, Spec, ExecutionBlockHash,
+        BuilderExitRequest, ConsolidationRequest, Eth1Data, ExecutionBlockHash,
         ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
-        ExecutionRequestsGloas, Graffiti, Hash256, SignedBeaconBlock,
-        SignedExecutionPayloadBid, Slot, SyncAggregate, Withdrawal, WithdrawalRequest,
+        ExecutionRequestsGloas, Graffiti, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
+        Slot, Spec, SyncAggregate, Withdrawal, WithdrawalRequest,
     };
 
     use super::verify_envelope_consistency;
     use crate::payload_envelope_verification::EnvelopeError;
     use tree_hash::TreeHash;
-
 
     fn make_envelope(
         slot: Slot,
@@ -511,8 +510,7 @@ mod tests {
         let bid = make_bid(builder_index, block_hash);
         let latest_finalized_slot = Slot::new(10);
 
-        let result =
-            verify_envelope_consistency(&envelope, &block, &bid, latest_finalized_slot);
+        let result = verify_envelope_consistency(&envelope, &block, &bid, latest_finalized_slot);
         assert!(matches!(
             result,
             Err(EnvelopeError::PriorToFinalization { .. })

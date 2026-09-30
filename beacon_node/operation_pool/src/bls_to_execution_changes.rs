@@ -2,8 +2,7 @@ use state_processing::SigVerifiedOp;
 use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::sync::Arc;
 use types::{
-    AbstractExecPayload, BeaconState, ChainSpec, SignedBeaconBlock,
-    SignedBlsToExecutionChange,
+    AbstractExecPayload, BeaconState, ChainSpec, SignedBeaconBlock, SignedBlsToExecutionChange,
 };
 
 /// Indicates if a `BlsToExecutionChange` was received before or after the

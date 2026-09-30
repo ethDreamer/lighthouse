@@ -16,7 +16,7 @@ pub struct KZGVerifyBlobKZGProofBatchInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGVerifyBlobKZGProofBatch {
     pub input: KZGVerifyBlobKZGProofBatchInput,
-    pub output: Option<bool>
+    pub output: Option<bool>,
 }
 
 impl LoadCase for KZGVerifyBlobKZGProofBatch {
@@ -52,21 +52,19 @@ impl Case for KZGVerifyBlobKZGProofBatch {
 
         let kzg = get_kzg();
         let result =
-            parse_input(&self.input).and_then(
-                |(commitments, blobs, proofs)| match validate_blobs(
-                    &kzg,
-                    &commitments,
-                    blobs.iter().collect(),
-                    &proofs,
-                ) {
-                    Ok(_) => Ok(true),
-                    Err(KzgError::KzgVerificationFailed) => Ok(false),
-                    Err(e) => Err(Error::InternalError(format!(
-                        "Failed to validate blobs: {:?}",
-                        e
-                    ))),
-                },
-            );
+            parse_input(&self.input).and_then(|(commitments, blobs, proofs)| match validate_blobs(
+                &kzg,
+                &commitments,
+                blobs.iter().collect(),
+                &proofs,
+            ) {
+                Ok(_) => Ok(true),
+                Err(KzgError::KzgVerificationFailed) => Ok(false),
+                Err(e) => Err(Error::InternalError(format!(
+                    "Failed to validate blobs: {:?}",
+                    e
+                ))),
+            });
 
         compare_result::<bool, _>(&result, &self.output)
     }

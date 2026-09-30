@@ -13,7 +13,7 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use std::sync::Arc;
 use tree_hash::TreeHash;
 use types::execution::SignedExecutionProof;
-use types::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot};
+use types::{ChainSpec, Domain, Hash256, SignedRoot, Slot, Spec};
 
 pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub canonical_head: &'a CanonicalHead<T>,

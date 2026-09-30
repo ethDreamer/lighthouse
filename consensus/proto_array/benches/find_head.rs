@@ -3,10 +3,7 @@ use fixed_bytes::FixedBytesExtended;
 use proto_array::{Block, ExecutionStatus, JustifiedBalances, ProtoArrayForkChoice};
 use std::collections::BTreeSet;
 use std::time::Duration;
-use types::{
-    AttestationShufflingId, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
-    Slot,
-};
+use types::{AttestationShufflingId, Checkpoint, Epoch, ExecutionBlockHash, Hash256, Slot, Spec};
 
 fn get_root(i: u64) -> Hash256 {
     Hash256::from_low_u64_be(i)

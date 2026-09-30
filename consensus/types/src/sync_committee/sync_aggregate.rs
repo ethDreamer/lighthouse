@@ -24,10 +24,7 @@ impl From<ArithError> for Error {
         Error::ArithError(e)
     }
 }
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 pub struct SyncAggregate {

@@ -47,10 +47,7 @@ struct BlockParts {
 }
 
 impl BlockParts {
-    pub fn new(
-        blinded: Box<SignedBlindedBeaconBlock>,
-        header: ExecutionPayloadHeader,
-    ) -> Self {
+    pub fn new(blinded: Box<SignedBlindedBeaconBlock>, header: ExecutionPayloadHeader) -> Self {
         Self {
             blinded_block: blinded,
             header: Box::new(header),
@@ -364,7 +361,7 @@ mod tests {
     use std::sync::Arc;
     use std::sync::LazyLock;
     use tokio::sync::mpsc;
-    use types::{ChainSpec, Epoch, Spec, Hash256, Slot};
+    use types::{ChainSpec, Epoch, Hash256, Slot, Spec};
 
     const VALIDATOR_COUNT: usize = 48;
 

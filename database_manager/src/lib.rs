@@ -253,10 +253,7 @@ fn parse_compact_config(compact_config: &Compact) -> Result<CompactConfig, Strin
     })
 }
 
-pub fn compact_db(
-    compact_config: CompactConfig,
-    client_config: ClientConfig,
-) -> Result<(), Error> {
+pub fn compact_db(compact_config: CompactConfig, client_config: ClientConfig) -> Result<(), Error> {
     let hot_path = client_config.get_db_path();
     let cold_path = client_config.get_freezer_db_path();
     let blobs_path = client_config.get_blobs_db_path();

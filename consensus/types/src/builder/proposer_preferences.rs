@@ -1,4 +1,4 @@
-use crate::{Address, ChainSpec, Domain, Spec, Fork, ForkName, Hash256, SignedRoot, Slot};
+use crate::{Address, ChainSpec, Domain, Fork, ForkName, Hash256, SignedRoot, Slot, Spec};
 use bls::{PublicKey, Signature};
 use context_deserialize::context_deserialize;
 use educe::Educe;

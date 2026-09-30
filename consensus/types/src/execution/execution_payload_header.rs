@@ -9,7 +9,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Address, Spec, ExecutionBlockHash, Hash256, Uint256},
+    core::{Address, ExecutionBlockHash, Hash256, Spec, Uint256},
     execution::{
         ExecutionPayloadBellatrix, ExecutionPayloadCapella, ExecutionPayloadDeneb,
         ExecutionPayloadElectra, ExecutionPayloadFulu, ExecutionPayloadRef, Transactions,
@@ -31,13 +31,11 @@ use crate::{
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
         ),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         context_deserialize(ForkName),
     ),
     ref_attributes(
@@ -54,10 +52,7 @@ use crate::{
     ),
     map_ref_into(ExecutionPayloadHeader)
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]

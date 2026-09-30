@@ -6,7 +6,7 @@ use store::{
     StoreConfig,
     hdiff::{HDiff, HDiffBuffer},
 };
-use types::{BeaconState, Epoch, Eth1Data, Spec, MainnetEthSpec as E, Validator};
+use types::{BeaconState, Epoch, Eth1Data, MainnetEthSpec as E, Spec, Validator};
 
 pub fn all_benches(c: &mut Criterion) {
     let spec = Spec::default_spec();

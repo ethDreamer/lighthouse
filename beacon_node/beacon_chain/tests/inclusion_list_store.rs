@@ -7,10 +7,7 @@ use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
 use beacon_chain::{BeaconChainError, WhenSlotSkipped};
 use bls::Signature;
 use ssz_types::ProgressiveVariableList;
-use types::{
-    Spec, Hash256, InclusionList, RelativeEpoch, SignedInclusionList, Slot,
-};
-
+use types::{Hash256, InclusionList, RelativeEpoch, SignedInclusionList, Slot, Spec};
 
 /// 8 validators per slot on minimal, fewer than the committee size, so positions repeat.
 const VALIDATOR_COUNT: usize = 64;
@@ -80,9 +77,7 @@ async fn committee_matches_the_state_level_helper() {
 #[tokio::test]
 async fn committee_resolves_for_a_slot_in_the_previous_epoch() {
     let harness = get_harness();
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH + 1)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH + 1).await;
 
     let slot = Slot::new(Spec::slots_per_epoch() - 1);
     assert!(harness.chain.canonical_head.cached_head().head_slot() > slot);

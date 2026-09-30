@@ -23,11 +23,10 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockBellatrix, BeaconBlockHeader,
     BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSidecarGloas,
-    DataColumnsByRootIdentifier, EmptyBlock, Epoch, Spec, ForkName, Hash256, KzgCommitment,
-    KzgProof, LightClientUpdate, LightClientUpdateCapella, SignedBeaconBlock,
-    SignedBeaconBlockHeader, Slot, SyncAggregate, SyncCommittee,
+    DataColumnsByRootIdentifier, EmptyBlock, Epoch, ForkName, Hash256, KzgCommitment, KzgProof,
+    LightClientUpdate, LightClientUpdateCapella, SignedBeaconBlock, SignedBeaconBlockHeader, Slot,
+    Spec, SyncAggregate, SyncCommittee,
 };
-
 
 /// Bellatrix block with length < max_rpc_size.
 fn bellatrix_block_small(spec: &ChainSpec) -> BeaconBlock {

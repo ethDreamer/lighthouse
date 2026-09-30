@@ -28,7 +28,7 @@ use std::sync::{
 use task_executor::TaskExecutor;
 use tokio::time::{Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, debug_span, error, instrument, warn};
-use types::{AttestationShufflingId, BeaconStateError, Spec, Hash256, RelativeEpoch, Slot};
+use types::{AttestationShufflingId, BeaconStateError, Hash256, RelativeEpoch, Slot, Spec};
 
 /// If the head slot is more than `MAX_ADVANCE_DISTANCE` from the current slot, then don't perform
 /// the state advancement.

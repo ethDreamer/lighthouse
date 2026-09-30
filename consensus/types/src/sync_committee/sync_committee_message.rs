@@ -5,7 +5,7 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot, SlotData},
+    core::{ChainSpec, Domain, Hash256, SignedRoot, Slot, SlotData, Spec},
     fork::{Fork, ForkName},
 };
 

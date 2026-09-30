@@ -861,8 +861,8 @@ pub fn process_execution_payload_bid(
             proposer_index,
         };
 
-        let payment_index = Spec::SLOTS_PER_EPOCH
-            .safe_add(bid.slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?)?;
+        let payment_index =
+            Spec::SLOTS_PER_EPOCH.safe_add(bid.slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?)?;
 
         *state
             .builder_pending_payments_mut()?

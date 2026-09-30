@@ -4,9 +4,7 @@ use bls::PublicKeyBytes;
 use safe_arith::ArithError;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    sync_committee::{SyncCommittee, SyncSubnetId},
-};
+use crate::sync_committee::{SyncCommittee, SyncSubnetId};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SyncDuty {
@@ -80,8 +78,6 @@ impl SyncDuty {
 
     /// Get the set of subnet IDs for this duty.
     pub fn subnet_ids(&self) -> Result<HashSet<SyncSubnetId>, ArithError> {
-        SyncSubnetId::compute_subnets_for_sync_committee(
-            &self.validator_sync_committee_indices,
-        )
+        SyncSubnetId::compute_subnets_for_sync_committee(&self.validator_sync_committee_indices)
     }
 }

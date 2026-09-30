@@ -31,11 +31,13 @@ impl CommitteeLengths {
     }
 
     /// Get the count of committees per each slot of `self.epoch`.
-    pub fn get_committee_count_per_slot(
-        &self,
-        spec: &ChainSpec,
-    ) -> Result<usize, Error> {
-        Spec::get_committee_count_per_slot(self.active_validator_indices_len, spec.max_committees_per_slot, spec.target_committee_size).map_err(Into::into)
+    pub fn get_committee_count_per_slot(&self, spec: &ChainSpec) -> Result<usize, Error> {
+        Spec::get_committee_count_per_slot(
+            self.active_validator_indices_len,
+            spec.max_committees_per_slot,
+            spec.target_committee_size,
+        )
+        .map_err(Into::into)
     }
 
     /// Get the length of the committee at the given `slot` and `committee_index`.
@@ -192,9 +194,7 @@ impl EarlyAttesterCache {
             return Ok(None);
         }
 
-        let committee_count = item
-            .committee_lengths
-            .get_committee_count_per_slot(spec)?;
+        let committee_count = item.committee_lengths.get_committee_count_per_slot(spec)?;
         if request_index >= committee_count as u64 {
             return Ok(None);
         }

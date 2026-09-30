@@ -4,7 +4,7 @@
 use crate::observed_block_producers::Error;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use types::{Spec, Hash256, Slot};
+use types::{Hash256, Slot, Spec};
 
 #[derive(Eq, Hash, PartialEq, Debug, Default)]
 pub struct ProposalKey {
@@ -25,7 +25,7 @@ pub struct ProposalKey {
 /// known_distinct_shufflings` which is much smaller.
 pub struct ObservedSlashable {
     finalized_slot: Slot,
-    items: HashMap<ProposalKey, HashSet<Hash256>>
+    items: HashMap<ProposalKey, HashSet<Hash256>>,
 }
 
 impl Default for ObservedSlashable {
@@ -33,7 +33,7 @@ impl Default for ObservedSlashable {
     fn default() -> Self {
         Self {
             finalized_slot: Slot::new(0),
-            items: HashMap::new()
+            items: HashMap::new(),
         }
     }
 }
@@ -145,7 +145,6 @@ impl ObservedSlashable {
 mod tests {
     use super::*;
     use types::{BeaconBlock, Graffiti};
-
 
     fn get_block(slot: u64, proposer: u64) -> BeaconBlock {
         let mut block = BeaconBlock::empty(&Spec::default_spec());

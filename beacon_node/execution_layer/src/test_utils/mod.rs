@@ -171,7 +171,7 @@ impl MockServer {
             new_payload_statuses: <_>::default(),
             fcu_payload_statuses: <_>::default(),
             syncing_response: Arc::new(Mutex::new(Ok(false))),
-            engine_capabilities: Arc::new(RwLock::new(DEFAULT_ENGINE_CAPABILITIES))
+            engine_capabilities: Arc::new(RwLock::new(DEFAULT_ENGINE_CAPABILITIES)),
         });
 
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
@@ -546,7 +546,7 @@ pub struct Context {
         Arc<Mutex<HashMap<ExecutionBlockHash, Result<PayloadStatusV1, String>>>>,
     pub syncing_response: Arc<Mutex<Result<bool, String>>>,
 
-    pub engine_capabilities: Arc<RwLock<EngineCapabilities>>
+    pub engine_capabilities: Arc<RwLock<EngineCapabilities>>,
 }
 
 impl Context {

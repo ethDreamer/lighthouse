@@ -5,17 +5,14 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Spec, Hash256},
+    core::{Hash256, Spec},
     fork::ForkName,
 };
 
 /// Historical block and state roots.
 ///
 /// Spec v0.12.1
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct HistoricalBatch {

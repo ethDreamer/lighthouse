@@ -1,7 +1,6 @@
-use typenum::U;
 use crate::{
     block::{BLOB_KZG_COMMITMENTS_INDEX, SignedBeaconBlock, SignedBeaconBlockHeader},
-    core::{Spec, Hash256, ListRef, Slot},
+    core::{Hash256, ListRef, Slot, Spec},
     data::{Cell, ColumnIndex, DataColumnSidecar, DataColumnSidecarFulu},
     execution::AbstractExecPayload,
     kzg_ext::KzgCommitments,
@@ -17,6 +16,7 @@ use std::fmt::Display;
 use superstruct::superstruct;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
 
@@ -24,20 +24,14 @@ pub type CellBitmap = BitList<U<{ Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK }>>;
     variants(Fulu, Gloas),
     variant_attributes(
         derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     ref_attributes(
         derive(Debug, PartialEq, TreeHash),
         tree_hash(enum_behaviour = "transparent")
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 #[ssz(enum_behaviour = "transparent")]
@@ -61,8 +55,8 @@ impl PartialDataColumnSidecarGloas {
     pub fn max_size(max_blobs_per_block: usize) -> usize {
         use ssz::Encode;
 
-        let cell_with_proof_size = <Cell as Encode>::ssz_fixed_len()
-            .saturating_add(<KzgProof as Encode>::ssz_fixed_len());
+        let cell_with_proof_size =
+            <Cell as Encode>::ssz_fixed_len().saturating_add(<KzgProof as Encode>::ssz_fixed_len());
         let bitmap_size = (max_blobs_per_block / 8).saturating_add(1); // Include the length bit.
         (3 * ssz::BYTES_PER_LENGTH_OFFSET)
             .saturating_add(bitmap_size)
@@ -278,15 +272,13 @@ impl PartialDataColumnSidecar {
     }
 }
 
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 pub struct PartialDataColumnHeader {
     pub kzg_commitments: KzgCommitments,
     pub signed_block_header: SignedBeaconBlockHeader,
-    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+    pub kzg_commitments_inclusion_proof:
+        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
 }
 
 impl PartialDataColumnHeader {
@@ -307,9 +299,7 @@ impl PartialDataColumnHeader {
     }
 }
 
-impl<P: AbstractExecPayload> TryFrom<&SignedBeaconBlock<P>>
-    for PartialDataColumnHeader
-{
+impl<P: AbstractExecPayload> TryFrom<&SignedBeaconBlock<P>> for PartialDataColumnHeader {
     type Error = BeaconStateError;
 
     fn try_from(block: &SignedBeaconBlock<P>) -> Result<Self, Self::Error> {
@@ -376,10 +366,7 @@ impl PartialDataColumnFulu {
 
     /// Equivalent to a call to `clone` followed by [`Self::try_into_full`], but returns early if
     /// conversion is not possible.
-    pub fn try_clone_full(
-        &self,
-        header: &PartialDataColumnHeader,
-    ) -> Option<DataColumnSidecar> {
+    pub fn try_clone_full(&self, header: &PartialDataColumnHeader) -> Option<DataColumnSidecar> {
         if !self.is_complete() {
             return None;
         }
@@ -393,10 +380,7 @@ impl PartialDataColumnFulu {
         }))
     }
 
-    pub fn try_into_full(
-        self,
-        header: &PartialDataColumnHeader,
-    ) -> Option<DataColumnSidecar> {
+    pub fn try_into_full(self, header: &PartialDataColumnHeader) -> Option<DataColumnSidecar> {
         if !self.is_complete() {
             return None;
         }
@@ -427,7 +411,6 @@ mod tests {
     use fixed_bytes::FixedBytesExtended;
     use kzg::KzgCommitment;
     use ssz::Encode;
-
 
     fn make_cell(marker: u8) -> Cell {
         let mut cell = Cell::default();

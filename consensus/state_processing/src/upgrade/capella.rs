@@ -5,10 +5,7 @@ use types::{
 };
 
 /// Transform a `Bellatrix` state into an `Capella` state.
-pub fn upgrade_to_capella(
-    pre_state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn upgrade_to_capella(pre_state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();
     let pre = pre_state.as_bellatrix_mut()?;
 

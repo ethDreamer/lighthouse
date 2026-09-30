@@ -8,7 +8,7 @@ use eth2::lighthouse_vc::types::{self as api_types};
 use lighthouse_validator_store::LighthouseValidatorStore;
 use slot_clock::SlotClock;
 use std::path::{Path, PathBuf};
-use types::{ChainSpec};
+use types::ChainSpec;
 use validator_dir::{Builder as ValidatorDirBuilder, keystore_password_path};
 use zeroize::Zeroizing;
 

@@ -36,7 +36,6 @@ use tempfile::tempdir;
 use types::ExecutionBlockHash;
 use types::{test_utils::generate_deterministic_keypair, *};
 
-
 // Gloas requires >= 1 validator per slot for PTC committee computation, so >= 32 for MainnetEthSpec.
 const VALIDATOR_COUNT: usize = 32;
 const CHAIN_SEGMENT_LENGTH: usize = 32 * 6;
@@ -339,10 +338,7 @@ fn update_parent_roots(snapshots: &mut [BeaconSnapshot], blobs: &mut [Option<Dat
     }
 }
 
-fn update_blob_signed_header(
-    signed_block: &SignedBeaconBlock,
-    blobs: &mut BlobSidecarList,
-) {
+fn update_blob_signed_header(signed_block: &SignedBeaconBlock, blobs: &mut BlobSidecarList) {
     for old_blob_sidecar in blobs.as_mut_slice() {
         let new_blob = Arc::new(BlobSidecar {
             index: old_blob_sidecar.index,
@@ -1224,20 +1220,18 @@ async fn block_gossip_verification() {
     let harness = get_harness(VALIDATOR_COUNT, NodeCustodyType::Fullnode);
     let block_index = CHAIN_SEGMENT_LENGTH - 2;
     let test_block_slot = Slot::new(block_index as u64);
-    let (chain_segment, chain_segment_blobs): (
-        &Vec<BeaconSnapshot>,
-        Vec<Option<DataSidecars>>,
-    ) = if is_fulu_enabled_at_slot(&harness.spec, test_block_slot) {
-        let (chain_segment, ref_blobs) = get_chain_segment().await;
-        (chain_segment, ref_blobs.clone())
-    } else {
-        // disable blobs if we're testing pre-fulu forks, as gossip blobs support has been removed.
-        let chain_segment = get_chain_segment_no_blobs().await;
-        let chain_segment_blobs = std::iter::repeat_with(|| None)
-            .take(chain_segment.len())
-            .collect();
-        (chain_segment, chain_segment_blobs)
-    };
+    let (chain_segment, chain_segment_blobs): (&Vec<BeaconSnapshot>, Vec<Option<DataSidecars>>) =
+        if is_fulu_enabled_at_slot(&harness.spec, test_block_slot) {
+            let (chain_segment, ref_blobs) = get_chain_segment().await;
+            (chain_segment, ref_blobs.clone())
+        } else {
+            // disable blobs if we're testing pre-fulu forks, as gossip blobs support has been removed.
+            let chain_segment = get_chain_segment_no_blobs().await;
+            let chain_segment_blobs = std::iter::repeat_with(|| None)
+                .take(chain_segment.len())
+                .collect();
+            (chain_segment, chain_segment_blobs)
+        };
 
     harness
         .chain
@@ -2096,9 +2090,7 @@ async fn gloas_get_head_can_return_justified_empty_payload_branch() {
         .mock_execution_layer()
         .build();
 
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH * 3)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH * 3).await;
 
     let justified_checkpoint = harness.justified_checkpoint();
     assert_ne!(justified_checkpoint.epoch, Epoch::new(0));
@@ -2714,16 +2706,16 @@ async fn filter_chain_segment_keeps_checkpoint_gloas_block_by_split_root() {
         .unwrap()
         .unwrap();
 
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH * 4 - 1)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH * 4 - 1).await;
 
     let finalized_checkpoint = harness
         .chain
         .canonical_head
         .cached_head()
         .finalized_checkpoint();
-    let finalized_slot = finalized_checkpoint.epoch.start_slot(Spec::slots_per_epoch());
+    let finalized_slot = finalized_checkpoint
+        .epoch
+        .start_slot(Spec::slots_per_epoch());
     assert!(finalized_slot > Slot::new(1));
 
     let (mut block_message, signature) = block.deconstruct();

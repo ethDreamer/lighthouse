@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::Arc;
-use types::{BlobSidecar, ChainSpec, DataColumnSidecar, Spec, Hash256, Slot};
+use types::{BlobSidecar, ChainSpec, DataColumnSidecar, Hash256, Slot, Spec};
 
 type ValidatorIndex = u64;
 type BeaconBlockRoot = Hash256;
@@ -87,10 +87,7 @@ pub enum ObservationKey {
 }
 
 impl ObservationKey {
-    pub fn new<T: ObservableDataSidecar>(
-        sidecar: &T,
-        spec: &ChainSpec,
-    ) -> Result<Self, Error> {
+    pub fn new<T: ObservableDataSidecar>(sidecar: &T, spec: &ChainSpec) -> Result<Self, Error> {
         let slot = sidecar.slot();
 
         if spec.fork_name_at_slot(slot).gloas_enabled() {
@@ -249,9 +246,9 @@ mod tests {
     use bls::{FixedBytesExtended, Signature};
     use std::sync::Arc;
     use types::{
-        BeaconBlockHeader, DataColumnSidecarFulu, DataColumnSidecarGloas, ForkName, SignedBeaconBlockHeader,
+        BeaconBlockHeader, DataColumnSidecarFulu, DataColumnSidecarGloas, ForkName,
+        SignedBeaconBlockHeader,
     };
-
 
     /// Creates a Fulu DataColumnSidecar for testing.
     /// Keyed by (proposer_index, slot) in the observation cache.
@@ -302,12 +299,7 @@ mod tests {
         }))
     }
 
-    fn get_sidecar(
-        slot: u64,
-        key: u64,
-        index: u64,
-        fork_name: ForkName,
-    ) -> Arc<DataColumnSidecar> {
+    fn get_sidecar(slot: u64, key: u64, index: u64, fork_name: ForkName) -> Arc<DataColumnSidecar> {
         if fork_name.gloas_enabled() {
             get_data_column_sidecar_gloas(slot, Hash256::from_low_u64_be(key), index)
         } else {
@@ -502,9 +494,7 @@ mod tests {
         assert_eq!(cache.items.len(), 1, "only one slot should be present");
         let cached_indices = cache
             .items
-            .get(
-                &ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap(),
-            )
+            .get(&ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap())
             .expect("slot zero should be present");
         assert_eq!(cached_indices.len(), 1, "only one index should be present");
 
@@ -546,9 +536,7 @@ mod tests {
         assert_eq!(cache.items.len(), 2, "two slots should be present");
         let cached_indices = cache
             .items
-            .get(
-                &ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap(),
-            )
+            .get(&ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap())
             .expect("slot zero should be present");
         assert_eq!(
             cached_indices.len(),
@@ -557,9 +545,7 @@ mod tests {
         );
         let cached_indices = cache
             .items
-            .get(
-                &ObservationKey::new::<DataColumnSidecar>(sidecar_b.as_ref(), &spec).unwrap(),
-            )
+            .get(&ObservationKey::new::<DataColumnSidecar>(sidecar_b.as_ref(), &spec).unwrap())
             .expect("slot one should be present");
         assert_eq!(
             cached_indices.len(),
@@ -603,9 +589,7 @@ mod tests {
         assert_eq!(cache.items.len(), 2, "two slots should be present");
         let cached_indices = cache
             .items
-            .get(
-                &ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap(),
-            )
+            .get(&ObservationKey::new::<DataColumnSidecar>(sidecar_a.as_ref(), &spec).unwrap())
             .expect("slot zero should be present");
         assert_eq!(
             cached_indices.len(),
@@ -634,9 +618,7 @@ mod tests {
         );
         let cached_indices = cache
             .items
-            .get(
-                &ObservationKey::new::<DataColumnSidecar>(sidecar_d.as_ref(), &spec).unwrap(),
-            )
+            .get(&ObservationKey::new::<DataColumnSidecar>(sidecar_d.as_ref(), &spec).unwrap())
             .expect("sidecar_d's observation key should be present");
         assert_eq!(
             cached_indices.len(),
@@ -680,8 +662,7 @@ mod tests {
 
         let sidecar_for_key = get_sidecar(0, key, 0, fork_name);
         let observation_key =
-            ObservationKey::new::<DataColumnSidecar>(sidecar_for_key.as_ref(), &spec)
-                .unwrap();
+            ObservationKey::new::<DataColumnSidecar>(sidecar_for_key.as_ref(), &spec).unwrap();
         let cached_indices = cache.items.get(&observation_key).unwrap();
         assert_eq!(cached_indices.len(), 5, "five indices should be tracked");
 

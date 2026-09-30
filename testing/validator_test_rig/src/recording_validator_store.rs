@@ -23,8 +23,7 @@ pub struct SignBlockCall {
     pub local_payload_root: Option<Hash256>,
 }
 
-type SignBlockResult<S> =
-    Result<SignedBlock, StoreError<<S as ValidatorStore>::Error>>;
+type SignBlockResult<S> = Result<SignedBlock, StoreError<<S as ValidatorStore>::Error>>;
 
 /// A `ValidatorStore` that records block and envelope signing calls and delegates to `inner`.
 pub struct RecordingValidatorStore<S: ValidatorStore> {
@@ -185,9 +184,8 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
     fn sign_sync_committee_contributions(
         self: &Arc<Self>,
         contributions: Vec<ContributionToSign>,
-    ) -> impl Stream<
-        Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>,
-    > + Send {
+    ) -> impl Stream<Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>> + Send
+    {
         self.inner.sign_sync_committee_contributions(contributions)
     }
 

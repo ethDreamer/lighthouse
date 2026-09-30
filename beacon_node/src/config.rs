@@ -28,7 +28,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use tracing::{info, warn};
 use types::graffiti::GraffitiString;
-use types::{Checkpoint, Epoch, Spec, Hash256};
+use types::{Checkpoint, Epoch, Hash256, Spec};
 
 const PURGE_DB_CONFIRMATION: &str = "confirm";
 
@@ -39,10 +39,7 @@ const PURGE_DB_CONFIRMATION: &str = "confirm";
 /// The output of this function depends primarily upon the given `cli_args`, however it's behaviour
 /// may be influenced by other external services like the contents of the file system or the
 /// response of some remote server.
-pub fn get_config(
-    cli_args: &ArgMatches,
-    context: &RuntimeContext,
-) -> Result<ClientConfig, String> {
+pub fn get_config(cli_args: &ArgMatches, context: &RuntimeContext) -> Result<ClientConfig, String> {
     let spec = &context.eth2_config.spec;
 
     let mut client_config = ClientConfig::default();

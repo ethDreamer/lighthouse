@@ -12,10 +12,9 @@ use genesis::{InteropGenesisBuilder, bls_withdrawal_credentials};
 use http_api::test_utils::*;
 use std::collections::HashSet;
 use types::{
-    Address, ChainSpec, Epoch, Spec, Hash256, Slot,
+    Address, ChainSpec, Epoch, Hash256, Slot, Spec,
     test_utils::{generate_deterministic_keypair, generate_deterministic_keypairs},
 };
-
 
 fn altair_spec(altair_fork_epoch: Epoch) -> ChainSpec {
     let mut spec = Spec::default_spec();

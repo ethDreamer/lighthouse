@@ -2,10 +2,7 @@ use std::mem;
 use types::{BeaconState, BeaconStateError as Error, BeaconStateHeze, ChainSpec, Fork};
 
 /// Transform a `Gloas` state into a `Heze` state.
-pub fn upgrade_to_heze(
-    pre_state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn upgrade_to_heze(pre_state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let post = upgrade_state_to_heze(pre_state, spec)?;
 
     *pre_state = post;

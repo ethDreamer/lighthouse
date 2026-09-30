@@ -25,7 +25,6 @@ use types::*;
 
 const VALIDATOR_COUNT: usize = 32;
 
-
 #[derive(PartialEq, Clone, Copy)]
 enum Payload {
     Valid,

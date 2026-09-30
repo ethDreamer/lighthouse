@@ -47,8 +47,8 @@ use timer::spawn_timer;
 use tracing::{debug, info, instrument, warn};
 use types::data::compute_ordered_custody_column_indices;
 use types::{
-    BeaconState, BlobSidecarList, ChainSpec, Spec, ExecutionBlockHash, Hash256,
-    SignedBeaconBlock, test_utils::generate_deterministic_keypairs,
+    BeaconState, BlobSidecarList, ChainSpec, ExecutionBlockHash, Hash256, SignedBeaconBlock, Spec,
+    test_utils::generate_deterministic_keypairs,
 };
 
 /// Interval between polling the eth1 node for genesis information.
@@ -90,11 +90,10 @@ pub struct ClientBuilder<T: BeaconChainTypes> {
     slasher: Option<Arc<Slasher>>,
     beacon_processor_config: Option<BeaconProcessorConfig>,
     beacon_processor_channels: Option<BeaconProcessorChannels>,
-    light_client_server_rv: Option<Receiver<LightClientProducerEvent>>
+    light_client_server_rv: Option<Receiver<LightClientProducerEvent>>,
 }
 
-impl<TSlotClock, THotStore, TColdStore>
-    ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
+impl<TSlotClock, THotStore, TColdStore> ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
 where
     TSlotClock: SlotClock + Clone + 'static,
     THotStore: ItemStore + 'static,
@@ -225,10 +224,8 @@ where
             Kzg::new_from_trusted_setup_no_precomp(&config.trusted_setup).map_err(kzg_err_msg)?
         };
 
-        let ordered_custody_column_indices =
-            compute_ordered_custody_column_indices(node_id, &spec).map_err(|e| {
-                format!("Failed to compute ordered custody column indices: {:?}", e)
-            })?;
+        let ordered_custody_column_indices = compute_ordered_custody_column_indices(node_id, &spec)
+            .map_err(|e| format!("Failed to compute ordered custody column indices: {:?}", e))?;
 
         let builder = BeaconChainBuilder::new(eth_spec_instance, Arc::new(kzg))
             .store(store)
@@ -453,9 +450,7 @@ where
                 debug!("Downloaded finalized block");
 
                 // `get_blob_sidecars` API is deprecated from Fulu and may not be supported by all servers
-                let is_before_fulu = !spec
-                    .fork_name_at_slot(finalized_block_slot)
-                    .fulu_enabled();
+                let is_before_fulu = !spec.fork_name_at_slot(finalized_block_slot).fulu_enabled();
                 let blobs = if is_before_fulu && block.message().body().has_blobs() {
                     debug!("Downloading finalized blobs");
                     if let Some(response) = remote
@@ -843,8 +838,7 @@ where
     }
 }
 
-impl<TSlotClock, THotStore, TColdStore>
-    ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
+impl<TSlotClock, THotStore, TColdStore> ClientBuilder<Witness<TSlotClock, THotStore, TColdStore>>
 where
     TSlotClock: SlotClock + Clone + 'static,
     THotStore: ItemStore + 'static,
@@ -881,7 +875,7 @@ where
 
 impl<TSlotClock> ClientBuilder<Witness<TSlotClock, BeaconNodeBackend, BeaconNodeBackend>>
 where
-    TSlotClock: SlotClock + 'static
+    TSlotClock: SlotClock + 'static,
 {
     /// Specifies that the `Client` should use a `HotColdDB` database.
     pub fn disk_store(

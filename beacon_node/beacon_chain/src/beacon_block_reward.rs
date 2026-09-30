@@ -270,9 +270,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         Ok(block_reward)
     }
 
-    fn compute_beacon_block_attestation_reward_altair_and_later<
-        Payload: AbstractExecPayload,
-    >(
+    fn compute_beacon_block_attestation_reward_altair_and_later<Payload: AbstractExecPayload>(
         &self,
         block: BeaconBlockRef<'_, Payload>,
         state: &BeaconState,

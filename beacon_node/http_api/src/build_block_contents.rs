@@ -1,6 +1,6 @@
 use beacon_chain::{BeaconBlockResponse, BeaconBlockResponseWrapper, BlockProductionError};
 use eth2::types::{BlockContents, FullBlockContents, ProduceBlockV3Response};
-use types::{ForkName};
+use types::ForkName;
 type Error = warp::reject::Rejection;
 
 pub fn build_block_contents(

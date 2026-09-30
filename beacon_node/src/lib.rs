@@ -196,8 +196,8 @@ impl lighthouse_network::discv5::Executor for Discv5Executor {
 
 #[cfg(test)]
 mod test {
-    use types::Spec;
     use super::*;
+    use types::Spec;
 
     #[test]
     fn test_validator_fork_epoch_alignments() {

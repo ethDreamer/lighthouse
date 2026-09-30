@@ -683,8 +683,7 @@ impl From<PeerConnectionStatus> for PeerState {
 mod tests {
     use super::*;
     use crate::types::Subnet;
-    use types::{DataColumnSubnetId};
-
+    use types::DataColumnSubnetId;
 
     fn create_test_peer_info() -> PeerInfo {
         PeerInfo::default()

@@ -7,20 +7,16 @@ use itertools::Itertools;
 use std::iter::Peekable;
 use std::marker::PhantomData;
 use types::{
-    BeaconState, BeaconStateError, BlindedPayload, ChainSpec, Hash256, SignedBeaconBlock,
-    Slot,
+    BeaconState, BeaconStateError, BlindedPayload, ChainSpec, Hash256, SignedBeaconBlock, Slot,
 };
 
-pub type PreBlockHook<'a, Error> = Box<
-    dyn FnMut(&mut BeaconState, &SignedBeaconBlock<BlindedPayload>) -> Result<(), Error>
-        + 'a,
->;
+pub type PreBlockHook<'a, Error> =
+    Box<dyn FnMut(&mut BeaconState, &SignedBeaconBlock<BlindedPayload>) -> Result<(), Error> + 'a>;
 pub type PostBlockHook<'a, Error> = PreBlockHook<'a, Error>;
 pub type PreSlotHook<'a, Error> =
     Box<dyn FnMut(Hash256, &mut BeaconState) -> Result<(), Error> + 'a>;
 pub type PostSlotHook<'a, Error> = Box<
-    dyn FnMut(&mut BeaconState, Option<EpochProcessingSummary>, bool) -> Result<(), Error>
-        + 'a,
+    dyn FnMut(&mut BeaconState, Option<EpochProcessingSummary>, bool) -> Result<(), Error> + 'a,
 >;
 pub type StateRootIterDefault<Error> = std::iter::Empty<Result<(Hash256, Slot), Error>>;
 

@@ -9,10 +9,7 @@ use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
 /// An attestation that has been included in the state but not yet fully processed.
 ///
 /// Spec v0.12.1
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct PendingAttestation {

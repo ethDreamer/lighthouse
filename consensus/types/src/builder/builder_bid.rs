@@ -32,10 +32,7 @@ use crate::{
             Clone,
         ),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     map_ref_into(ExecutionPayloadHeaderRef),
     map_ref_mut_into(ExecutionPayloadHeaderRefMut)

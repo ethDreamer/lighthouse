@@ -19,8 +19,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{Span, debug, warn};
 use types::{
-    BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Spec,
-    Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Hash256,
+    SignedBeaconBlock, SignedExecutionPayloadEnvelope, Spec,
 };
 
 use crate::sync::network_context::{LookupRequestResult, PeerGroup, SyncNetworkContext};
@@ -39,16 +39,12 @@ use crate::sync::network_context::{LookupRequestResult, PeerGroup, SyncNetworkCo
 pub struct RangeBlockComponentsRequest {
     /// Blocks we have received awaiting for their corresponding sidecar.
     #[allow(clippy::type_complexity)]
-    blocks_request:
-        ByRangeRequest<BlocksByRangeRequestId, (Vec<Arc<SignedBeaconBlock>>, PeerId)>,
+    blocks_request: ByRangeRequest<BlocksByRangeRequestId, (Vec<Arc<SignedBeaconBlock>>, PeerId)>,
     /// Sidecars we have received awaiting for their corresponding block.
     block_data_request: RangeBlockDataRequest,
     /// Payload envelopes for Gloas blocks.
     payloads_request: Option<
-        ByRangeRequest<
-            PayloadEnvelopesByRangeRequestId,
-            Vec<Arc<SignedExecutionPayloadEnvelope>>,
-        >,
+        ByRangeRequest<PayloadEnvelopesByRangeRequestId, Vec<Arc<SignedExecutionPayloadEnvelope>>>,
     >,
     /// Span to track the range request and all children range requests.
     pub(crate) request_span: Span,

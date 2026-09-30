@@ -9,7 +9,6 @@ use logging::create_test_tracing_subscriber;
 use std::sync::{Arc, LazyLock};
 use types::{data::FixedBlobSidecarList, *};
 
-
 // Should ideally be divisible by 3.
 const VALIDATOR_COUNT: usize = 24;
 

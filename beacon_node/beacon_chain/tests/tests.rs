@@ -18,9 +18,8 @@ use state_processing::{per_slot_processing, per_slot_processing::Error as SlotPr
 use std::sync::{Arc, LazyLock};
 use types::{
     BeaconState, BeaconStateError, BlockImportSource, ChainSpec, Checkpoint,
-    DEFAULT_PRE_ELECTRA_WS_PERIOD, Spec, ForkName, Hash256, RelativeEpoch, Slot,
+    DEFAULT_PRE_ELECTRA_WS_PERIOD, ForkName, Hash256, RelativeEpoch, Slot, Spec,
 };
-
 
 // Should ideally be divisible by 3.
 pub const VALIDATOR_COUNT: usize = 48;
@@ -79,9 +78,7 @@ fn get_harness_with_config(
 
 /// Creates a harness with SemiSupernode custody type to ensure enough columns are stored
 /// for sampling validation in Fulu.
-fn get_harness_semi_supernode(
-    validator_count: usize,
-) -> BeaconChainHarness<EphemeralHarnessType> {
+fn get_harness_semi_supernode(validator_count: usize) -> BeaconChainHarness<EphemeralHarnessType> {
     let harness = BeaconChainHarness::builder()
         .default_spec()
         .chain_config(ChainConfig {
@@ -554,7 +551,9 @@ async fn gloas_packs_attestations_voting_for_available_payload() {
 
     let insert_attestations =
         |attesting_validators: &[usize], slot: Slot, payload_present_override: Option<bool>| {
-            let fork = harness.spec.fork_at_epoch(slot.epoch(Spec::slots_per_epoch()));
+            let fork = harness
+                .spec
+                .fork_at_epoch(slot.epoch(Spec::slots_per_epoch()));
             let (attestations, _) = harness.make_attestations_with_opts(
                 attesting_validators,
                 &head.beacon_state,
@@ -762,8 +761,7 @@ async fn attestations_with_increasing_slots() {
 
         let current_slot = harness.chain.slot().expect("should get slot");
         let expected_attestation_slot = attestation.data.slot;
-        let expected_earliest_permissible_slot =
-            current_slot - Spec::slots_per_epoch() - 1;
+        let expected_earliest_permissible_slot = current_slot - Spec::slots_per_epoch() - 1;
 
         if expected_attestation_slot < expected_earliest_permissible_slot {
             assert!(matches!(

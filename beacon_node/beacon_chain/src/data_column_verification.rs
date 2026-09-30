@@ -1,4 +1,3 @@
-use typenum::U;
 use crate::block_verification::{
     BlockSlashInfo, get_validator_pubkey_cache, process_block_slash_info,
 };
@@ -27,14 +26,15 @@ use store::DatabaseBlock;
 use superstruct::superstruct;
 use tracing::{debug, instrument};
 use tree_hash::TreeHash;
+use typenum::U;
 use types::data::{
     ColumnIndex, PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas,
     PartialDataColumnHeader, PartialDataColumnRef, PartialDataColumnSidecarError,
     PartialDataColumnSidecarFulu, PartialDataColumnSidecarRef,
 };
 use types::{
-    BeaconStateError, ChainSpec, DataColumnSidecar, DataColumnSubnetId, Spec, Hash256,
-    KzgCommitment, PartialDataColumnView, SignedBeaconBlockHeader, SignedExecutionPayloadBid, Slot,
+    BeaconStateError, ChainSpec, DataColumnSidecar, DataColumnSubnetId, Hash256, KzgCommitment,
+    PartialDataColumnView, SignedBeaconBlockHeader, SignedExecutionPayloadBid, Slot, Spec,
 };
 
 /// An error occurred while validating a gossip data column.
@@ -698,8 +698,7 @@ impl GossipVerifiedPartialDataColumnHeader {
     }
 }
 
-pub type CustodyDataColumnList =
-    VariableList<CustodyDataColumn, U<{ Spec::NUMBER_OF_COLUMNS }>>;
+pub type CustodyDataColumnList = VariableList<CustodyDataColumn, U<{ Spec::NUMBER_OF_COLUMNS }>>;
 
 /// Data column that we must custody
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Encode)]
@@ -1871,7 +1870,6 @@ pub fn observe_gossip_data_column<T: BeaconChainTypes>(
 
 #[cfg(test)]
 mod test {
-    use typenum::U;
     use crate::ChainConfig;
     use crate::data_column_verification::{
         GossipDataColumnError, GossipPartialDataColumnError, GossipVerifiedDataColumn,
@@ -1892,14 +1890,13 @@ mod test {
     use ssz_types::{ProgressiveVariableList, VariableList};
     use std::sync::Arc;
     use std::time::UNIX_EPOCH;
+    use typenum::U;
     use types::{
-        Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSubnetId, Spec,
-        ForkName, Hash256, PartialDataColumn, PartialDataColumnFulu,
-        PartialDataColumnGloas, PartialDataColumnHeader, PartialDataColumnSidecarFulu,
-        PartialDataColumnSidecarGloas, SignedExecutionPayloadBid, Slot,
-        test_utils::test_unstructured,
+        Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, DataColumnSubnetId, ForkName,
+        Hash256, PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas,
+        PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
+        SignedExecutionPayloadBid, Slot, Spec, test_utils::test_unstructured,
     };
-
 
     // TODO(gloas) make this generic over gloas/fulu
     #[tokio::test]
@@ -2384,10 +2381,9 @@ mod test {
         for i in 0..present_cells {
             bitmap.set(i, true).unwrap();
         }
-        let column: ProgressiveVariableList<_, _> = ProgressiveVariableList::new(
-            (0..present_cells).map(|_| Cell::default()).collect(),
-        )
-        .unwrap();
+        let column: ProgressiveVariableList<_, _> =
+            ProgressiveVariableList::new((0..present_cells).map(|_| Cell::default()).collect())
+                .unwrap();
         let kzg_proofs: ProgressiveVariableList<_, _> =
             ProgressiveVariableList::new((0..present_cells).map(|_| KzgProof::empty()).collect())
                 .unwrap();

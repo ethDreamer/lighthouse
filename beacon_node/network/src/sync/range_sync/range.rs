@@ -57,7 +57,7 @@ use lru_cache::LRUTimeCache;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{debug, trace, warn};
-use types::{Epoch, Spec, Hash256};
+use types::{Epoch, Hash256, Spec};
 
 /// For how long we store failed finalized chains to prevent retries.
 const FAILED_CHAINS_EXPIRY_SECONDS: u64 = 30;
@@ -150,8 +150,7 @@ where
                 // to using exact epoch boundaries for batches (rather than one slot past the epoch
                 // boundary), we need to sync finalized sync to 2 epochs + 1 slot past our peer's
                 // finalized slot in order to finalize the chain locally.
-                let target_head_slot =
-                    remote_finalized_slot + (2 * Spec::slots_per_epoch()) + 1;
+                let target_head_slot = remote_finalized_slot + (2 * Spec::slots_per_epoch()) + 1;
 
                 // Note: We keep current head chains. These can continue syncing whilst we complete
                 // this new finalized chain.

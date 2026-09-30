@@ -6,7 +6,7 @@ use eth2::types::{self as api_types, PtcDuty};
 use slot_clock::SlotClock;
 use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
-use types::{BeaconState, ChainSpec, Epoch, Spec, Hash256};
+use types::{BeaconState, ChainSpec, Epoch, Hash256, Spec};
 
 type ApiDuties = api_types::DutiesResponse<Vec<PtcDuty>>;
 
@@ -109,22 +109,22 @@ fn compute_ptc_duties_from_state<T: BeaconChainTypes>(
         }
     };
 
-    let (state, execution_optimistic) =
-        if let Some((state_root, mut state, execution_optimistic)) = state_opt {
-            ensure_state_knows_ptc_duties_for_epoch(
-                &mut state,
-                state_root,
-                request_epoch,
-                chain.builder_onboarding_cache.as_deref(),
-                &chain.spec,
-            )?;
-            (state, execution_optimistic)
-        } else {
-            let (state, execution_optimistic, _finalized) =
-                StateId::from_slot(request_epoch.start_slot(Spec::slots_per_epoch()))
-                    .state(chain)?;
-            (state, execution_optimistic)
-        };
+    let (state, execution_optimistic) = if let Some((state_root, mut state, execution_optimistic)) =
+        state_opt
+    {
+        ensure_state_knows_ptc_duties_for_epoch(
+            &mut state,
+            state_root,
+            request_epoch,
+            chain.builder_onboarding_cache.as_deref(),
+            &chain.spec,
+        )?;
+        (state, execution_optimistic)
+    } else {
+        let (state, execution_optimistic, _finalized) =
+            StateId::from_slot(request_epoch.start_slot(Spec::slots_per_epoch())).state(chain)?;
+        (state, execution_optimistic)
+    };
 
     if !(state.current_epoch() == request_epoch || state.current_epoch() + 1 == request_epoch) {
         return Err(warp_utils::reject::custom_server_error(format!(

@@ -1,4 +1,3 @@
-use types::Spec;
 use super::*;
 use crate::case_result::compare_beacon_state_results_without_caches;
 use crate::decode::{ssz_decode_state, yaml_decode_file};
@@ -9,6 +8,7 @@ use state_processing::upgrade::{
     upgrade_to_electra, upgrade_to_fulu, upgrade_to_gloas, upgrade_to_heze,
 };
 use types::BeaconState;
+use types::Spec;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Metadata {

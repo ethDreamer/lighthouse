@@ -9,7 +9,7 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Address, Spec, ExecutionBlockHash, Hash256},
+    core::{Address, ExecutionBlockHash, Hash256, Spec},
     execution::{
         ExecutionPayload, ExecutionPayloadBellatrix, ExecutionPayloadCapella,
         ExecutionPayloadDeneb, ExecutionPayloadElectra, ExecutionPayloadFulu,
@@ -155,13 +155,11 @@ pub trait AbstractExecPayload:
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
         ),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
@@ -179,10 +177,7 @@ pub trait AbstractExecPayload:
         expr = "BeaconStateError::IncorrectStateVariant"
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct FullPayload {
@@ -515,13 +510,11 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
         ),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         ssz(struct_behaviour = "transparent"),
     ),
     ref_attributes(
@@ -538,10 +531,7 @@ impl TryFrom<ExecutionPayloadHeader> for FullPayload {
         expr = "BeaconStateError::IncorrectStateVariant"
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, TreeHash, PartialEq, Hash)]
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BlindedPayload {

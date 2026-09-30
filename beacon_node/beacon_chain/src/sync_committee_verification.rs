@@ -51,8 +51,8 @@ use types::SlotData;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
 use types::sync_committee::SyncCommitteeError;
 use types::{
-    BeaconStateError, Spec, Hash256, SignedContributionAndProof, Slot,
-    SyncCommitteeContribution, SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId,
+    BeaconStateError, Hash256, SignedContributionAndProof, Slot, Spec, SyncCommitteeContribution,
+    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId,
     sync_committee::SyncCommitteeContributionError as ContributionError,
 };
 

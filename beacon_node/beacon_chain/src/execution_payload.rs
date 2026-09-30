@@ -77,8 +77,7 @@ impl<T: BeaconChainTypes> PayloadNotifier<T> {
             match notify_execution_layer {
                 NotifyExecutionLayer::No if chain.config.optimistic_finalized_sync => {
                     // Create a NewPayloadRequest (no clones required) and check optimistic sync verifications
-                    let new_payload_request: NewPayloadRequest =
-                        block_message.try_into()?;
+                    let new_payload_request: NewPayloadRequest = block_message.try_into()?;
                     if let Err(e) = new_payload_request.perform_optimistic_sync_verifications() {
                         warn!(
                             block_number = ?block_message.execution_payload().map(|payload| payload.block_number()),

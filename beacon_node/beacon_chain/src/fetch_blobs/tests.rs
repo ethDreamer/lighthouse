@@ -14,7 +14,8 @@ use maplit::hashset;
 use std::sync::{Arc, Mutex};
 use task_executor::test_utils::TestRuntime;
 use types::{
-    BeaconBlock, BeaconBlockFulu, EmptyBlock, Spec, ForkName, Hash256, SignedBeaconBlock, SignedBeaconBlockFulu,
+    BeaconBlock, BeaconBlockFulu, EmptyBlock, ForkName, Hash256, SignedBeaconBlock,
+    SignedBeaconBlockFulu, Spec,
 };
 
 type T = EphemeralHarnessType;
@@ -293,9 +294,7 @@ mod get_blobs_v4 {
         let list = (0..num_blobs)
             .map(|blob_idx| {
                 let blob_cells = (0..num_custody_cols)
-                    .map(|col_pos| {
-                        present(blob_idx, col_pos).then(|| JsonCell(Cell::default()))
-                    })
+                    .map(|col_pos| present(blob_idx, col_pos).then(|| JsonCell(Cell::default())))
                     .collect();
                 let proofs = (0..num_custody_cols)
                     .map(|col_pos| present(blob_idx, col_pos).then(KzgProof::empty))

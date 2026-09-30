@@ -17,7 +17,7 @@ use types::data::BlobIdentifier;
 use types::kzg_ext::KzgCommitments;
 use types::{
     BlobSidecar, BlockImportSource, ChainSpec, ColumnIndex, DataColumnSidecar,
-    DataColumnSidecarList, Epoch, Spec, Hash256, SignedBeaconBlock,
+    DataColumnSidecarList, Epoch, Hash256, SignedBeaconBlock, Spec,
 };
 
 pub enum CachedBlock {
@@ -81,10 +81,7 @@ impl PendingComponents {
     }
 
     /// Returns an immutable reference to the cached data column.
-    pub fn get_cached_data_column(
-        &self,
-        data_column_index: u64,
-    ) -> Option<Arc<DataColumnSidecar>> {
+    pub fn get_cached_data_column(&self, data_column_index: u64) -> Option<Arc<DataColumnSidecar>> {
         self.verified_data_columns
             .iter()
             .find(|d| d.index() == data_column_index)
@@ -410,10 +407,7 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
     }
 
     /// Fetch data columns of a given `block_root` from the cache without affecting the LRU ordering
-    pub fn peek_data_columns(
-        &self,
-        block_root: Hash256,
-    ) -> Option<DataColumnSidecarList> {
+    pub fn peek_data_columns(&self, block_root: Hash256) -> Option<DataColumnSidecarList> {
         self.critical
             .read()
             .peek(&block_root)
@@ -480,9 +474,7 @@ impl<T: BeaconChainTypes> DataAvailabilityCheckerInner<T> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn put_kzg_verified_data_columns<
-        I: IntoIterator<Item = KzgVerifiedCustodyDataColumn>,
-    >(
+    pub fn put_kzg_verified_data_columns<I: IntoIterator<Item = KzgVerifiedCustodyDataColumn>>(
         &self,
         block_root: Hash256,
         kzg_verified_data_columns: I,
@@ -763,7 +755,7 @@ mod test {
     use store::{HotColdDB, ItemStore, StoreConfig, database::interface::BeaconNodeBackend};
     use tempfile::{TempDir, tempdir};
     use tracing::info;
-    use types::{DataColumnSubnetId};
+    use types::DataColumnSubnetId;
 
     const LOW_VALIDATOR_COUNT: usize = 32;
 
@@ -788,9 +780,7 @@ mod test {
     }
 
     // get a beacon chain harness advanced to just before fulu fork
-    async fn get_fulu_chain(
-        db_path: &TempDir,
-    ) -> BeaconChainHarness<DiskHarnessType> {
+    async fn get_fulu_chain(db_path: &TempDir) -> BeaconChainHarness<DiskHarnessType> {
         let altair_fork_epoch = Epoch::new(0);
         let bellatrix_fork_epoch = Epoch::new(0);
         let capella_fork_epoch = Epoch::new(3);
@@ -1082,7 +1072,6 @@ mod pending_components_tests {
     use kzg::KzgCommitment;
     use state_processing::ConsensusContext;
     use types::{BeaconState, ForkName, SignedBeaconBlock, Slot};
-
 
     type Setup = (
         SignedBeaconBlock,

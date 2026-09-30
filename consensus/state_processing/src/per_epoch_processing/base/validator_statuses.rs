@@ -1,6 +1,6 @@
 use crate::common::attesting_indices_base::get_attesting_indices;
 use safe_arith::SafeArith;
-use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, PendingAttestation};
+use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, PendingAttestation, Spec};
 
 #[cfg(feature = "arbitrary")]
 use arbitrary::Arbitrary;
@@ -191,10 +191,7 @@ impl ValidatorStatuses {
     /// - Total balances for the current and previous epochs.
     ///
     /// Spec v0.12.1
-    pub fn new(
-        state: &BeaconState,
-        spec: &ChainSpec,
-    ) -> Result<Self, BeaconStateError> {
+    pub fn new(state: &BeaconState, spec: &ChainSpec) -> Result<Self, BeaconStateError> {
         let mut statuses = Vec::with_capacity(state.validators().len());
         let mut total_balances = TotalBalances::new(spec);
 
@@ -238,10 +235,7 @@ impl ValidatorStatuses {
     /// `total_balances` fields.
     ///
     /// Spec v0.12.1
-    pub fn process_attestations(
-        &mut self,
-        state: &BeaconState,
-    ) -> Result<(), BeaconStateError> {
+    pub fn process_attestations(&mut self, state: &BeaconState) -> Result<(), BeaconStateError> {
         // The `validator_statuses` in `process_epoch` are used in three functions:
         // 1. `process_justification_and_finalization` - this function is a no-operation at the genesis_epoch
         // 2. `process_rewards_and_penalties` - this function is also a no-operation at the genesis epoch

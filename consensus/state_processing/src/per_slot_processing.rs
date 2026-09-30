@@ -49,7 +49,11 @@ pub fn per_slot_processing(
     cache_state(state, state_root)?;
 
     let summary = if state.slot() > spec.genesis_slot
-        && state.slot().safe_add(1)?.safe_rem(Spec::slots_per_epoch())? == 0
+        && state
+            .slot()
+            .safe_add(1)?
+            .safe_rem(Spec::slots_per_epoch())?
+            == 0
     {
         Some(per_epoch_processing(state, spec)?)
     } else {
@@ -119,10 +123,7 @@ pub fn per_slot_processing(
 }
 
 #[instrument(skip_all)]
-fn cache_state(
-    state: &mut BeaconState,
-    state_root: Option<Hash256>,
-) -> Result<(), Error> {
+fn cache_state(state: &mut BeaconState, state_root: Option<Hash256>) -> Result<(), Error> {
     let previous_state_root = if let Some(root) = state_root {
         root
     } else {

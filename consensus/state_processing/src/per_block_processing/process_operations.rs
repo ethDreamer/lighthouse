@@ -1,4 +1,3 @@
-use types::Spec;
 use super::*;
 use crate::VerifySignatures;
 use crate::common::{
@@ -9,6 +8,7 @@ use crate::per_block_processing::errors::{BlockProcessingError, ExitInvalid, Int
 use crate::per_block_processing::verify_payload_attestation::verify_payload_attestation;
 use ssz_types::FixedVector;
 use typenum::U33;
+use types::Spec;
 use types::consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR};
 use types::consts::gloas::PAYLOAD_BUILDER_VERSION;
 use types::is_builder_withdrawal_credential;
@@ -365,10 +365,7 @@ pub mod gloas {
 
         // [New in EIP-7732]
         let current_epoch_target = data.target.epoch == state.current_epoch();
-        let slot_mod = data
-            .slot
-            .as_usize()
-            .safe_rem(Spec::SLOTS_PER_EPOCH)?;
+        let slot_mod = data.slot.as_usize().safe_rem(Spec::SLOTS_PER_EPOCH)?;
         let payment_index = if current_epoch_target {
             (Spec::SLOTS_PER_EPOCH).safe_add(slot_mod)?
         } else {

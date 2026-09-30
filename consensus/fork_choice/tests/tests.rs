@@ -22,11 +22,10 @@ use std::time::Duration;
 use store::MemoryStore;
 use types::SingleAttestation;
 use types::{
-    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Epoch, Spec, ForkName, Hash256,
-    IndexedAttestation, IndexedPayloadAttestation, PayloadAttestationData,
-    RelativeEpoch, SignedBeaconBlock, Slot, SubnetId, test_utils::generate_deterministic_keypair,
+    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Epoch, ForkName, Hash256,
+    IndexedAttestation, IndexedPayloadAttestation, PayloadAttestationData, RelativeEpoch,
+    SignedBeaconBlock, Slot, Spec, SubnetId, test_utils::generate_deterministic_keypair,
 };
-
 
 pub const VALIDATOR_COUNT: usize = 64;
 

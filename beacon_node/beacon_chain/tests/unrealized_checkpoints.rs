@@ -18,7 +18,6 @@ use types::{
     BeaconState, ChainSpec, Checkpoint, Epoch, Spec, consts::altair::TIMELY_TARGET_FLAG_INDEX,
 };
 
-
 // Proposer slashings are limited to MaxProposerSlashings (16) per block. With 32 validators,
 // dropping below the 2/3 justification threshold requires only ~11 slashes, which fits.
 const VALIDATOR_COUNT: usize = 32;
@@ -157,13 +156,12 @@ where
 {
     let spec = test_spec();
 
-    let harness: BeaconChainHarness<EphemeralHarnessType> =
-        BeaconChainHarness::builder()
-            .spec(Arc::new(spec))
-            .deterministic_keypairs(validator_count)
-            .fresh_ephemeral_store()
-            .mock_execution_layer()
-            .build();
+    let harness: BeaconChainHarness<EphemeralHarnessType> = BeaconChainHarness::builder()
+        .spec(Arc::new(spec))
+        .deterministic_keypairs(validator_count)
+        .fresh_ephemeral_store()
+        .mock_execution_layer()
+        .build();
 
     let slots_per_epoch = Spec::slots_per_epoch();
 

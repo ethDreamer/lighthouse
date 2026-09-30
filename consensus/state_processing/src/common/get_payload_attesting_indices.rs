@@ -3,8 +3,7 @@ use crate::per_block_processing::errors::{
 };
 use ssz_types::VariableList;
 use types::{
-    BeaconState, BeaconStateError, ChainSpec, IndexedPayloadAttestation,
-    PayloadAttestation,
+    BeaconState, BeaconStateError, ChainSpec, IndexedPayloadAttestation, PayloadAttestation,
 };
 
 pub fn get_indexed_payload_attestation(

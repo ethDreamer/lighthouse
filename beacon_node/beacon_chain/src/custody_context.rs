@@ -11,7 +11,7 @@ use std::{
 };
 use tracing::{debug, warn};
 use types::{
-    ChainSpec, ColumnIndex, Epoch, Spec, SignedBeaconBlock, SignedExecutionPayloadBid, Slot,
+    ChainSpec, ColumnIndex, Epoch, SignedBeaconBlock, SignedExecutionPayloadBid, Slot, Spec,
 };
 
 /// A delay before making the CGC change effective to the data availability checker.
@@ -399,11 +399,8 @@ impl<T: BeaconChainTypes> CustodyContext<T> {
         let Some((effective_epoch, new_validator_custody)) = self
             .validator_registrations
             .write()
-            .register_validators(
-            validators_and_balance,
-            current_slot,
-            &self.spec,
-        ) else {
+            .register_validators(validators_and_balance, current_slot, &self.spec)
+        else {
             return None;
         };
 
@@ -588,10 +585,7 @@ impl<T: BeaconChainTypes> CustodyContext<T> {
         block.num_expected_blobs() > 0 && self.data_columns_required_for_epoch(block.epoch())
     }
 
-    pub fn data_columns_required_for_bid(
-        &self,
-        bid: &SignedExecutionPayloadBid,
-    ) -> bool {
+    pub fn data_columns_required_for_bid(&self, bid: &SignedExecutionPayloadBid) -> bool {
         bid.num_blobs_expected() > 0 && self.data_columns_required_for_epoch(bid.epoch())
     }
 

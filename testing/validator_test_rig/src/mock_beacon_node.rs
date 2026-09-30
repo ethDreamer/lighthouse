@@ -200,9 +200,8 @@ impl MockBeaconNode {
             .with_status(200)
             .with_body_from_request(move |request| {
                 let body = request.body().expect("Failed to get request body");
-                let contributions: Vec<SignedContributionAndProof> =
-                    serde_json::from_slice(body)
-                        .expect("Failed to deserialize sync committee contributions");
+                let contributions: Vec<SignedContributionAndProof> = serde_json::from_slice(body)
+                    .expect("Failed to deserialize sync committee contributions");
                 sync_committee_contributions
                     .lock()
                     .unwrap()
@@ -614,10 +613,9 @@ impl MockBeaconNode {
             .with_status(200)
             .with_body_from_request(move |request| {
                 let body = request.body().expect("Failed to get request body");
-                let contents = SignedExecutionPayloadEnvelopeContents::from_ssz_bytes(body)
-                    .expect(
-                        "Failed to deserialize SignedExecutionPayloadEnvelopeContents from SSZ",
-                    );
+                let contents = SignedExecutionPayloadEnvelopeContents::from_ssz_bytes(body).expect(
+                    "Failed to deserialize SignedExecutionPayloadEnvelopeContents from SSZ",
+                );
                 received.lock().unwrap().push(contents);
                 vec![]
             })

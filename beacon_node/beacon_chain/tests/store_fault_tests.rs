@@ -27,7 +27,6 @@ use types::*;
 
 const VALIDATOR_COUNT: usize = 32;
 
-
 fn incompatible_fork() -> bool {
     fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled() || f.gloas_enabled())
 }

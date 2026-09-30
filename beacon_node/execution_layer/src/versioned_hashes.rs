@@ -77,7 +77,6 @@ mod test {
     use alloy_consensus::TxLegacy;
     use alloy_primitives::TxKind;
 
-
     #[test]
     fn test_decode_static_transaction() {
         let valid_tx = static_valid_tx().expect("should give me known valid transaction");

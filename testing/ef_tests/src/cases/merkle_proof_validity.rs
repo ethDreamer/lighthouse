@@ -168,8 +168,7 @@ impl LoadCase for KzgInclusionMerkleProofValidity {
                 ssz_decode_file::<BeaconBlockBodyDeneb>(&path.join("object.ssz_snappy"))?.into()
             }
             ForkName::Electra => {
-                ssz_decode_file::<BeaconBlockBodyElectra>(&path.join("object.ssz_snappy"))?
-                    .into()
+                ssz_decode_file::<BeaconBlockBodyElectra>(&path.join("object.ssz_snappy"))?.into()
             }
             ForkName::Fulu => {
                 ssz_decode_file::<BeaconBlockBodyFulu>(&path.join("object.ssz_snappy"))?.into()
@@ -284,15 +283,13 @@ impl LoadCase for BeaconBlockBodyMerkleProofValidity {
                 )));
             }
             ForkName::Capella => {
-                ssz_decode_file::<BeaconBlockBodyCapella>(&path.join("object.ssz_snappy"))?
-                    .into()
+                ssz_decode_file::<BeaconBlockBodyCapella>(&path.join("object.ssz_snappy"))?.into()
             }
             ForkName::Deneb => {
                 ssz_decode_file::<BeaconBlockBodyDeneb>(&path.join("object.ssz_snappy"))?.into()
             }
             ForkName::Electra => {
-                ssz_decode_file::<BeaconBlockBodyElectra>(&path.join("object.ssz_snappy"))?
-                    .into()
+                ssz_decode_file::<BeaconBlockBodyElectra>(&path.join("object.ssz_snappy"))?.into()
             }
             ForkName::Fulu => {
                 ssz_decode_file::<BeaconBlockBodyFulu>(&path.join("object.ssz_snappy"))?.into()

@@ -38,10 +38,10 @@ use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::ptr;
 use types::{
     AbstractExecPayload, Attestation, AttestationData, AttesterSlashing, BeaconState,
-    BeaconStateError, ChainSpec, Epoch, Spec, Hash256, PayloadAttestation,
-    PayloadAttestationData, PayloadAttestationMessage, ProposerSlashing, SignedBeaconBlock,
-    SignedBlsToExecutionChange, SignedVoluntaryExit, Slot, SyncAggregate, SyncAggregateError,
-    SyncCommitteeContribution, Validator,
+    BeaconStateError, ChainSpec, Epoch, Hash256, PayloadAttestation, PayloadAttestationData,
+    PayloadAttestationMessage, ProposerSlashing, SignedBeaconBlock, SignedBlsToExecutionChange,
+    SignedVoluntaryExit, Slot, Spec, SyncAggregate, SyncAggregateError, SyncCommitteeContribution,
+    Validator,
 };
 
 type SyncContributions = RwLock<HashMap<SyncAggregateId, Vec<SyncCommitteeContribution>>>;
@@ -64,7 +64,7 @@ pub struct OperationPool {
     payload_attestation_messages:
         RwLock<HashMap<PayloadAttestationData, Vec<PayloadAttestationMessage>>>,
     /// Reward cache for accelerating attestation packing.
-    reward_cache: RwLock<RewardCache>
+    reward_cache: RwLock<RewardCache>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -476,10 +476,7 @@ impl OperationPool {
     }
 
     /// Insert an attester slashing into the pool.
-    pub fn insert_attester_slashing(
-        &self,
-        verified_slashing: SigVerifiedOp<AttesterSlashing>,
-    ) {
+    pub fn insert_attester_slashing(&self, verified_slashing: SigVerifiedOp<AttesterSlashing>) {
         self.attester_slashings.write().insert(verified_slashing);
     }
 
@@ -963,8 +960,7 @@ mod release_tests {
     ) -> (BeaconChainHarness<EphemeralHarnessType>, ChainSpec) {
         let spec = test_spec();
 
-        let num_validators =
-            num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
         let harness = get_harness(num_validators, Some(spec.clone()));
 
         (harness, spec)
@@ -986,8 +982,7 @@ mod release_tests {
         let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
 
-        let num_validators =
-            num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
         let harness = get_harness(num_validators, Some(spec.clone()));
 
         let state = harness.get_current_state();
@@ -1020,8 +1015,7 @@ mod release_tests {
             .map(BeaconCommittee::into_owned)
             .collect::<Vec<_>>();
 
-        let num_validators =
-            Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
 
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
@@ -1109,8 +1103,7 @@ mod release_tests {
             "we expect just one committee with this many validators"
         );
 
-        let num_validators =
-            Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
 
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
@@ -1181,8 +1174,7 @@ mod release_tests {
             .map(BeaconCommittee::into_owned)
             .collect::<Vec<_>>();
 
-        let num_validators =
-            Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
             &state,
@@ -1224,8 +1216,7 @@ mod release_tests {
             .map(BeaconCommittee::into_owned)
             .collect::<Vec<_>>();
 
-        let num_validators =
-            Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
+        let num_validators = Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
 
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
@@ -1321,9 +1312,7 @@ mod release_tests {
 
         let max_attestations = Spec::MAX_ATTESTATIONS;
         let target_committee_size = spec.target_committee_size;
-        let num_validators = num_committees
-            * Spec::SLOTS_PER_EPOCH
-            * spec.target_committee_size;
+        let num_validators = num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
 
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
@@ -1333,22 +1322,18 @@ mod release_tests {
             slot,
         );
 
-        let insert_attestations = |attestations: Vec<(Attestation, SubnetId)>,
-                                   step_size| {
+        let insert_attestations = |attestations: Vec<(Attestation, SubnetId)>, step_size| {
             let att_0 = attestations.first().unwrap().0.clone();
             let aggs = attestations
                 .chunks_exact(step_size)
                 .map(|chunk| {
-                    chunk
-                        .iter()
-                        .map(|(att, _)| att)
-                        .fold::<Attestation, _>(
-                            att_0.clone(),
-                            |mut att, new_att| {
-                                att.aggregate(new_att.to_ref());
-                                att
-                            },
-                        )
+                    chunk.iter().map(|(att, _)| att).fold::<Attestation, _>(
+                        att_0.clone(),
+                        |mut att, new_att| {
+                            att.aggregate(new_att.to_ref());
+                            att
+                        },
+                    )
                 })
                 .collect::<Vec<_>>();
 
@@ -1433,9 +1418,7 @@ mod release_tests {
             state.validators_mut().get_mut(i).unwrap().effective_balance = 1_000_000_000 * i as u64;
         }
 
-        let num_validators = num_committees
-            * Spec::SLOTS_PER_EPOCH
-            * spec.target_committee_size;
+        let num_validators = num_committees * Spec::SLOTS_PER_EPOCH * spec.target_committee_size;
         let attestations = harness.make_attestations(
             (0..num_validators).collect::<Vec<_>>().as_slice(),
             &state,
@@ -1444,22 +1427,18 @@ mod release_tests {
             slot,
         );
 
-        let insert_attestations = |attestations: Vec<(Attestation, SubnetId)>,
-                                   step_size| {
+        let insert_attestations = |attestations: Vec<(Attestation, SubnetId)>, step_size| {
             let att_0 = attestations.first().unwrap().0.clone();
             let aggs = attestations
                 .chunks_exact(step_size)
                 .map(|chunk| {
-                    chunk
-                        .iter()
-                        .map(|(att, _)| att)
-                        .fold::<Attestation, _>(
-                            att_0.clone(),
-                            |mut att, new_att| {
-                                att.aggregate(new_att.to_ref());
-                                att
-                            },
-                        )
+                    chunk.iter().map(|(att, _)| att).fold::<Attestation, _>(
+                        att_0.clone(),
+                        |mut att, new_att| {
+                            att.aggregate(new_att.to_ref());
+                            att
+                        },
+                    )
                 })
                 .collect::<Vec<_>>();
 
@@ -1992,8 +1971,7 @@ mod release_tests {
         );
     }
 
-    fn cross_fork_harness() -> (BeaconChainHarness<EphemeralHarnessType>, ChainSpec)
-    {
+    fn cross_fork_harness() -> (BeaconChainHarness<EphemeralHarnessType>, ChainSpec) {
         let mut spec = Spec::default_spec();
 
         // Give some room to sign surround slashings.
@@ -2721,8 +2699,7 @@ mod release_tests {
 
         // Set the parent slot payload availability
         let parent_slot = advanced_state.latest_execution_payload_bid().unwrap().slot;
-        let availability_index =
-            parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
+        let availability_index = parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
         advanced_state
             .execution_payload_availability_mut()
             .unwrap()

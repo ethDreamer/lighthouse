@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::process;
 use std::str::FromStr;
 use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use types::{SpecId};
+use types::SpecId;
 
 fn main() {
     let matches = Command::new("Lighthouse CLI Tool")
@@ -781,8 +781,9 @@ fn run(env_builder: EnvironmentBuilder, matches: &ArgMatches) -> Result<(), Stri
             state_root::run(env, network_config, matches)
                 .map_err(|e| format!("Failed to run state-root command: {}", e))
         }
-        Some(("mock-el", matches)) => mock_el::run(env, matches)
-            .map_err(|e| format!("Failed to run mock-el command: {}", e)),
+        Some(("mock-el", matches)) => {
+            mock_el::run(env, matches).map_err(|e| format!("Failed to run mock-el command: {}", e))
+        }
         Some(("http-sync", matches)) => {
             let network_config = get_network_config()?;
             http_sync::run(env, network_config, matches)

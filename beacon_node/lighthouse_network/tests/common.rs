@@ -10,8 +10,7 @@ use std::sync::Weak;
 use tokio::runtime::Runtime;
 use tracing::{Instrument, debug, error, info_span};
 use tracing_subscriber::EnvFilter;
-use types::{ChainSpec, EnrForkId, Epoch, Spec, ForkContext, ForkName, Hash256};
-
+use types::{ChainSpec, EnrForkId, Epoch, ForkContext, ForkName, Hash256, Spec};
 
 use lighthouse_network::identity::secp256k1;
 use lighthouse_network::rpc::config::InboundRateLimiterConfig;

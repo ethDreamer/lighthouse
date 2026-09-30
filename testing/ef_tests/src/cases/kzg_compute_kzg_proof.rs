@@ -22,7 +22,7 @@ pub struct KZGComputeKZGProofInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGComputeKZGProof {
     pub input: KZGComputeKZGProofInput,
-    pub output: Option<(String, Hash256)>
+    pub output: Option<(String, Hash256)>,
 }
 
 impl LoadCase for KZGComputeKZGProof {

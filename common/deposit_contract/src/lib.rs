@@ -130,7 +130,6 @@ mod tests {
     use bls::{Keypair, Signature};
     use types::{ChainSpec, Spec, test_utils::generate_deterministic_keypair};
 
-
     fn get_deposit(keypair: Keypair, spec: &ChainSpec) -> DepositData {
         let mut deposit_data = DepositData {
             pubkey: keypair.pk.into(),

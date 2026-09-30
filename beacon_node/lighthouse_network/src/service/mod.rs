@@ -48,8 +48,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, trace, warn};
 use types::{
-    ChainSpec, DataColumnSubnetId, EnrForkId, Spec, ForkContext, ForkName, PartialDataColumn,
-    PartialDataColumnRef, Slot, SubnetId, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT,
+    ChainSpec, DataColumnSubnetId, EnrForkId, ForkContext, ForkName, PartialDataColumn,
+    PartialDataColumnRef, Slot, Spec, SubnetId, consts::altair::SYNC_COMMITTEE_SUBNET_COUNT,
 };
 use utils::{Context as ServiceContext, build_transport, strip_peer_id};
 
@@ -130,9 +130,7 @@ pub type SubscriptionFilter =
     gossipsub::MaxCountSubscriptionFilter<gossipsub::WhitelistSubscriptionFilter>;
 
 #[derive(NetworkBehaviour)]
-pub(crate) struct Behaviour
-
-{
+pub(crate) struct Behaviour {
     // NOTE: The order of the following list of behaviours has meaning,
     // `NetworkBehaviour::handle_{pending, established}_{inbound, outbound}` methods
     // are called sequentially for each behaviour and they are fallible,
@@ -256,7 +254,8 @@ impl Network {
 
         let gossip_cache = {
             let half_epoch = std::time::Duration::from_millis(
-                (ctx.chain_spec.get_slot_duration().as_millis() as u64) * Spec::slots_per_epoch() / 2,
+                (ctx.chain_spec.get_slot_duration().as_millis() as u64) * Spec::slots_per_epoch()
+                    / 2,
             );
 
             GossipCache::builder()
@@ -2074,10 +2073,7 @@ impl Network {
         }
     }
 
-    fn parse_swarm_event(
-        &mut self,
-        event: SwarmEvent<BehaviourEvent>,
-    ) -> Option<NetworkEvent> {
+    fn parse_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent>) -> Option<NetworkEvent> {
         match event {
             SwarmEvent::Behaviour(behaviour_event) => match behaviour_event {
                 // Handle sub-behaviour events.

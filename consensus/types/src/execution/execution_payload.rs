@@ -1,4 +1,3 @@
-use typenum::U;
 use context_deserialize::{ContextDeserialize, context_deserialize};
 use fixed_bytes::Uint256;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -7,10 +6,11 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     ListRef,
-    core::{Address, Spec, ExecutionBlockHash, Hash256, Slot},
+    core::{Address, ExecutionBlockHash, Hash256, Slot, Spec},
     fork::{ForkName, ForkVersionDecode},
     state::BeaconStateError,
     withdrawal::{Withdrawal, Withdrawals},
@@ -120,14 +120,12 @@ pub type WithdrawalsRef<'a> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
         ),
         context_deserialize(ForkName),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     specific_variant_attributes(
         Gloas(tree_hash(
@@ -148,10 +146,7 @@ pub type WithdrawalsRef<'a> = ListRef<'a, Withdrawal, U<{ Spec::MAX_WITHDRAWALS_
         expr = "BeaconStateError::IncorrectStateVariant"
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, TreeHash, PartialEq, Hash)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]

@@ -1,8 +1,8 @@
 use crate::{
-    Address, BeaconState, BeaconStateError, BlockAccessList, ChainSpec, Domain, Epoch, Spec,
+    Address, BeaconState, BeaconStateError, BlockAccessList, ChainSpec, Domain, Epoch,
     ExecutionBlockHash, ExecutionPayloadEnvelope, ExecutionPayloadGloas, ExecutionRequestsGloas,
     Fork, ForkName, Hash256, ProgressiveTransactions, ProgressiveWithdrawals, SignedRoot, Slot,
-    Uint256, consts::gloas::BUILDER_INDEX_SELF_BUILD,
+    Spec, Uint256, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use bls::{PublicKey, Signature};
 use context_deserialize::context_deserialize;
@@ -12,10 +12,7 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, VariableList};
 use tree_hash_derive::TreeHash;
 
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 pub struct SignedExecutionPayloadEnvelope {
@@ -239,9 +236,7 @@ pub struct SignedExecutionPayloadEnvelopeSummary {
     pub signature: Signature,
 }
 
-impl From<&SignedExecutionPayloadEnvelope>
-    for SignedExecutionPayloadEnvelopeSummary
-{
+impl From<&SignedExecutionPayloadEnvelope> for SignedExecutionPayloadEnvelopeSummary {
     fn from(envelope: &SignedExecutionPayloadEnvelope) -> Self {
         Self {
             payload_header: (&envelope.message.payload).into(),

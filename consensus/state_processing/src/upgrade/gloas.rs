@@ -11,8 +11,8 @@ use tracing::debug;
 use tree_hash::TreeHash;
 use types::{
     Address, BeaconState, BeaconStateError as Error, BeaconStateGloas, Builder,
-    BuilderPendingPayment, ChainSpec, Spec, ExecutionPayloadBid, ExecutionRequestsGloas, Fork,
-    PendingDeposit, ProgressiveKzgCommitments,
+    BuilderPendingPayment, ChainSpec, ExecutionPayloadBid, ExecutionRequestsGloas, Fork,
+    PendingDeposit, ProgressiveKzgCommitments, Spec,
     consts::gloas::{BUILDER_INDEX_SELF_BUILD, PAYLOAD_BUILDER_VERSION},
     is_builder_withdrawal_credential,
 };
@@ -187,13 +187,11 @@ pub fn upgrade_state_to_gloas(
 /// The window contains:
 /// - One epoch of empty entries (previous epoch)
 /// - Computed PTC for the current epoch through `1 + MIN_SEED_LOOKAHEAD` epochs
-fn initialize_ptc_window(
-    state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+fn initialize_ptc_window(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let slots_per_epoch = Spec::SLOTS_PER_EPOCH;
 
-    let empty_previous_epoch = vec![FixedVector::<u64, typenum::U<{ Spec::PTC_SIZE }>>::from_elem(0); slots_per_epoch];
+    let empty_previous_epoch =
+        vec![FixedVector::<u64, typenum::U<{ Spec::PTC_SIZE }>>::from_elem(0); slots_per_epoch];
     let mut ptcs = empty_previous_epoch;
 
     // Compute PTC for current epoch + lookahead epochs
@@ -323,11 +321,7 @@ mod tests {
     use beacon_chain::test_utils::BeaconChainHarness;
     use bls::{Keypair, SignatureBytes};
     use std::sync::Arc;
-    use types::{
-        DepositData, Epoch, ForkName, Slot,
-        test_utils::generate_deterministic_keypairs,
-    };
-
+    use types::{DepositData, Epoch, ForkName, Slot, test_utils::generate_deterministic_keypairs};
 
     fn validator_count() -> usize {
         Spec::SLOTS_PER_EPOCH

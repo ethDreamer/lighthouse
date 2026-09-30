@@ -52,13 +52,13 @@ use tokio::time::Duration;
 use tree_hash::TreeHash;
 use types::ApplicationDomain;
 use types::{
-    Address, Builder, Domain, Spec, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
+    Address, Builder, Domain, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
     ProposerPreferences, RelativeEpoch, SelectionProof, SignedExecutionPayloadBid,
     SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedRoot, SingleAttestation, Slot,
+    Spec,
     attestation::AttestationBase,
     consts::gloas::{BUILDER_INDEX_SELF_BUILD, PAYLOAD_BUILDER_VERSION},
 };
-
 
 const SLOT_DURATION_MS: u64 = 12_000;
 const SLOTS_PER_EPOCH: u64 = 32;
@@ -2437,11 +2437,7 @@ impl ApiTester {
         );
         let test_slot = oldest_blob_slot - 1;
         assert!(
-            !self
-                .chain
-                .spec
-                .fork_name_at_slot(test_slot)
-                .deneb_enabled(),
+            !self.chain.spec.fork_name_at_slot(test_slot).deneb_enabled(),
             "Deneb should not be enabled at {test_slot}"
         );
 
@@ -2765,11 +2761,7 @@ impl ApiTester {
         let block_id = BlockId(CoreBlockId::Finalized);
         let (block_root, _, _) = block_id.root(&self.chain).unwrap();
 
-        let result = match self
-            .client
-            .get_light_client_bootstrap(block_root)
-            .await
-        {
+        let result = match self.client.get_light_client_bootstrap(block_root).await {
             Ok(result) => result,
             Err(e) => panic!("query failed incorrectly: {e:?}"),
         };
@@ -2808,11 +2800,7 @@ impl ApiTester {
     }
 
     pub async fn test_get_beacon_light_client_finality_update(self) -> Self {
-        let result = match self
-            .client
-            .get_beacon_light_client_finality_update()
-            .await
-        {
+        let result = match self.client.get_beacon_light_client_finality_update().await {
             Ok(result) => result.map(|res| res.into_data()),
             Err(e) => panic!("query failed incorrectly: {e:?}"),
         };
@@ -4525,9 +4513,8 @@ impl ApiTester {
                 .unwrap()
                 .expect("block bytes");
 
-            let block_contents =
-                FullBlockContents::from_ssz_bytes(&block_bytes, &self.chain.spec)
-                    .expect("block contents bytes can be decoded");
+            let block_contents = FullBlockContents::from_ssz_bytes(&block_bytes, &self.chain.spec)
+                .expect("block contents bytes can be decoded");
 
             let signed_block_contents =
                 block_contents.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
@@ -5399,9 +5386,7 @@ impl ApiTester {
 
         let missing = self
             .client
-            .get_beacon_execution_payload_envelopes(CoreBlockId::Root(Hash256::repeat_byte(
-                0xab,
-            )))
+            .get_beacon_execution_payload_envelopes(CoreBlockId::Root(Hash256::repeat_byte(0xab)))
             .await
             .unwrap();
         assert!(missing.is_none());
@@ -5464,10 +5449,7 @@ impl ApiTester {
             // A request for a root this node did not build must miss (reorg-resistance).
             assert!(
                 self.client
-                    .get_validator_execution_payload_envelopes(
-                        slot,
-                        Hash256::repeat_byte(0xff)
-                    )
+                    .get_validator_execution_payload_envelopes(slot, Hash256::repeat_byte(0xff))
                     .await
                     .is_err()
             );
@@ -8760,11 +8742,7 @@ impl ApiTester {
             EventTopic::ProposerSlashing,
             EventTopic::BlsToExecutionChange,
         ];
-        let mut events_future = self
-            .client
-            .get_events(topics.as_slice())
-            .await
-            .unwrap();
+        let mut events_future = self.client.get_events(topics.as_slice()).await.unwrap();
 
         let expected_attestation_len = self.attestations.len();
 
@@ -8880,7 +8858,10 @@ impl ApiTester {
             current_duty_dependent_root,
             previous_duty_dependent_root: self
                 .chain
-                .block_root_at_slot(current_slot - Spec::slots_per_epoch(), WhenSlotSkipped::Prev)
+                .block_root_at_slot(
+                    current_slot - Spec::slots_per_epoch(),
+                    WhenSlotSkipped::Prev,
+                )
                 .unwrap()
                 .unwrap(),
             epoch_transition: true,
@@ -9079,11 +9060,7 @@ impl ApiTester {
 
     pub async fn test_get_events_electra(self) -> Self {
         let topics = vec![EventTopic::SingleAttestation];
-        let mut events_future = self
-            .client
-            .get_events(topics.as_slice())
-            .await
-            .unwrap();
+        let mut events_future = self.client.get_events(topics.as_slice()).await.unwrap();
 
         let expected_attestation_len = self.single_attestations.len();
 
@@ -9121,11 +9098,7 @@ impl ApiTester {
 
     pub async fn test_get_events_altair(self) -> Self {
         let topics = vec![EventTopic::ContributionAndProof];
-        let mut events_future = self
-            .client
-            .get_events(topics.as_slice())
-            .await
-            .unwrap();
+        let mut events_future = self.client.get_events(topics.as_slice()).await.unwrap();
 
         let expected_contribution_len = self.contribution_and_proofs.len();
 
@@ -9155,11 +9128,7 @@ impl ApiTester {
 
     pub async fn test_get_events_from_genesis(self) -> Self {
         let topics = vec![EventTopic::Block, EventTopic::Head];
-        let mut events_future = self
-            .client
-            .get_events(topics.as_slice())
-            .await
-            .unwrap();
+        let mut events_future = self.client.get_events(topics.as_slice()).await.unwrap();
 
         let block_root = self.next_block.signed_block().canonical_root();
         let next_slot = self.next_block.signed_block().slot();
@@ -9256,11 +9225,7 @@ impl ApiTester {
         let signed_block_request = PublishBlockRequest::try_from(Arc::new(signed_block)).unwrap();
 
         let topics = vec![EventTopic::HeadV2];
-        let mut events_future = self
-            .client
-            .get_events(topics.as_slice())
-            .await
-            .unwrap();
+        let mut events_future = self.client.get_events(topics.as_slice()).await.unwrap();
 
         self.client
             .post_beacon_blocks_v2(&signed_block_request, None)
@@ -9449,9 +9414,7 @@ impl ApiTester {
         // Check 3 epochs.
         let num_epochs = 3;
         for _ in 0..num_epochs {
-            self.harness
-                .extend_slots(Spec::SLOTS_PER_EPOCH)
-                .await;
+            self.harness.extend_slots(Spec::SLOTS_PER_EPOCH).await;
 
             let epoch = self.chain.epoch().unwrap() - 1;
 

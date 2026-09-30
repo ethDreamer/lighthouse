@@ -72,8 +72,8 @@ use strum::IntoStaticStr;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace};
 use types::{
-    BlobSidecar, DataColumnSidecar, Spec, ExecutionBlockHash, ForkContext, Hash256,
-    SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
+    BlobSidecar, DataColumnSidecar, ExecutionBlockHash, ForkContext, Hash256, SignedBeaconBlock,
+    SignedExecutionPayloadEnvelope, Slot, Spec,
 };
 
 /// The number of slots ahead of us that is allowed before requesting a long-range (batch)  Sync

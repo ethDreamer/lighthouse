@@ -10,7 +10,7 @@ use task_executor::TaskExecutor;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, Spec, PayloadAttestationData, Slot};
+use types::{ChainSpec, PayloadAttestationData, Slot, Spec};
 use validator_store::ValidatorStore;
 
 /// The reason payload attestation production was triggered.

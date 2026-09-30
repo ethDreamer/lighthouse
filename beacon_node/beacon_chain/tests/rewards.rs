@@ -22,7 +22,6 @@ pub const VALIDATOR_COUNT: usize = 64;
 // When set to true, cache any states fetched from the db.
 pub const CACHE_STATE_IN_TESTS: bool = true;
 
-
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| generate_deterministic_keypairs(VALIDATOR_COUNT));
 
@@ -175,9 +174,7 @@ async fn test_rewards_base() {
     let harness = get_harness(spec);
     let initial_balances = harness.get_current_state().balances().to_vec();
 
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 1)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 1).await;
 
     check_all_base_rewards(&harness, initial_balances).await;
 }
@@ -289,9 +286,7 @@ async fn test_rewards_base_slashings() {
     let harness = get_harness(spec);
     let mut initial_balances = harness.get_current_state().balances().to_vec();
 
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH - 1)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH - 1).await;
 
     harness.add_attester_slashing(vec![0]).unwrap();
     let slashed_balance = initial_balances.get_mut(0).unwrap();
@@ -359,9 +354,7 @@ async fn test_rewards_base_multi_inclusion() {
         .await
         .unwrap();
 
-    harness
-        .extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 4)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH * 2 - 4).await;
 
     check_all_base_rewards(&harness, initial_balances).await;
 }
@@ -929,15 +922,13 @@ async fn check_all_base_rewards_for_subset(
                 .state_at_slot(Slot::new(slot - 1), StateSkipConfig::WithoutStateRoots)
                 .unwrap();
 
-            let mut pre_state = BlockReplayer::<BlockReplayError, IntoIter<_, 0>>::new(
-                parent_state,
-                &harness.spec,
-            )
-            .no_signature_verification()
-            .minimal_block_root_verification()
-            .apply_blocks(vec![], Some(block.slot()))
-            .unwrap()
-            .into_state();
+            let mut pre_state =
+                BlockReplayer::<BlockReplayError, IntoIter<_, 0>>::new(parent_state, &harness.spec)
+                    .no_signature_verification()
+                    .minimal_block_root_verification()
+                    .apply_blocks(vec![], Some(block.slot()))
+                    .unwrap()
+                    .into_state();
 
             let beacon_block_reward = harness
                 .chain

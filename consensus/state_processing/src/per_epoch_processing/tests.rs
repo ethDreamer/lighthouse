@@ -1,7 +1,7 @@
 #![cfg(test)]
 use crate::per_epoch_processing::process_epoch;
 use beacon_chain::test_utils::BeaconChainHarness;
-use beacon_chain::types::{Spec};
+use beacon_chain::types::Spec;
 use types::Slot;
 
 #[tokio::test]
@@ -14,8 +14,7 @@ async fn runs_without_error() {
         .build();
     harness.advance_slot();
 
-    let target_slot =
-        (Epoch::new(Spec::genesis_epoch()) + 4).end_slot(Spec::slots_per_epoch());
+    let target_slot = (Epoch::new(Spec::genesis_epoch()) + 4).end_slot(Spec::slots_per_epoch());
 
     let state = harness.get_current_state();
     harness

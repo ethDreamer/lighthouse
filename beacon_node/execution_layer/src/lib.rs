@@ -4,7 +4,6 @@
 //! This crate only provides useful functionality for "The Merge", it does not provide any of the
 //! deposit-contract functionality that the `beacon_node/eth1` crate already provides.
 
-use types::Spec;
 use crate::json_structures::{
     BlobAndProofV2, BlobAndProofV3, CustodyColumnsBitArray, GetBlobsV4List,
 };
@@ -46,6 +45,7 @@ use tokio::{
 use tokio_stream::wrappers::WatchStream;
 use tracing::{Instrument, debug, debug_span, error, info, instrument, warn};
 use tree_hash::TreeHash;
+use types::Spec;
 use types::builder::BuilderBid;
 use types::execution::BlockProductionVersion;
 use types::kzg_ext::{KzgCommitments, ProgressiveKzgCommitments};
@@ -252,9 +252,7 @@ pub enum BlockProposalContents<Payload: AbstractExecPayload> {
     },
 }
 
-impl From<BlockProposalContents<FullPayload>>
-    for BlockProposalContents<BlindedPayload>
-{
+impl From<BlockProposalContents<FullPayload>> for BlockProposalContents<BlindedPayload> {
     fn from(item: BlockProposalContents<FullPayload>) -> Self {
         match item {
             BlockProposalContents::Payload {
@@ -281,9 +279,7 @@ impl From<BlockProposalContents<FullPayload>>
     }
 }
 
-impl<Payload: AbstractExecPayload> TryFrom<GetPayloadResponse>
-    for BlockProposalContents<Payload>
-{
+impl<Payload: AbstractExecPayload> TryFrom<GetPayloadResponse> for BlockProposalContents<Payload> {
     type Error = Error;
 
     fn try_from(response: GetPayloadResponse) -> Result<Self, Error> {
@@ -1321,10 +1317,7 @@ impl ExecutionLayer {
     async fn get_full_payload_with(
         &self,
         payload_parameters: PayloadParameters<'_>,
-        cache_fn: fn(
-            &ExecutionLayer,
-            PayloadContentsRefTuple,
-        ) -> Option<FullPayloadContents>,
+        cache_fn: fn(&ExecutionLayer, PayloadContentsRefTuple) -> Option<FullPayloadContents>,
     ) -> Result<GetPayloadResponseType, Error> {
         let PayloadParameters {
             parent_hash,
@@ -2196,10 +2189,7 @@ async fn timed_future<F: Future<Output = T>, T>(metric: &str, future: F) -> (T, 
     (result, duration)
 }
 
-fn noop(
-    _: &ExecutionLayer,
-    _: PayloadContentsRefTuple,
-) -> Option<FullPayloadContents> {
+fn noop(_: &ExecutionLayer, _: PayloadContentsRefTuple) -> Option<FullPayloadContents> {
     None
 }
 

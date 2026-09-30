@@ -20,14 +20,14 @@ use task_executor::TaskExecutor;
 use tracing::{Instrument, debug, error, info, info_span, instrument, warn};
 use types::{
     AbstractExecPayload, Address, AggregateAndProof, Attestation, AttestationData, BeaconBlock,
-    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, Spec,
-    ExecutionPayloadEnvelope, Fork, FullPayload, Graffiti, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
-    SignedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit,
-    SingleAttestation, Slot, SyncAggregatorSelectionData, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
-    VoluntaryExit, graffiti::GraffitiString,
+    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, ExecutionPayloadEnvelope, Fork,
+    FullPayload, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
+    ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedBeaconBlock,
+    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
+    SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit, SingleAttestation, Slot,
+    Spec, SyncAggregatorSelectionData, SyncCommitteeContribution, SyncCommitteeMessage,
+    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData, VoluntaryExit,
+    graffiti::GraffitiString,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -74,7 +74,7 @@ pub struct LighthouseValidatorStore<T> {
     enable_web3signer_slashing_protection: bool,
     prefer_builder_proposals: bool,
     builder_boost_factor: Option<u64>,
-    task_executor: TaskExecutor
+    task_executor: TaskExecutor,
 }
 
 impl<T: SlotClock + 'static> LighthouseValidatorStore<T> {
@@ -105,7 +105,7 @@ impl<T: SlotClock + 'static> LighthouseValidatorStore<T> {
             enable_web3signer_slashing_protection: config.enable_web3signer_slashing_protection,
             prefer_builder_proposals: config.prefer_builder_proposals,
             builder_boost_factor: config.builder_boost_factor,
-            task_executor
+            task_executor,
         }
     }
 
@@ -1440,8 +1440,10 @@ impl<T: SlotClock + 'static> ValidatorStore for LighthouseValidatorStore<T> {
         validator_pubkey: PublicKeyBytes,
         data: PayloadAttestationData,
     ) -> Result<PayloadAttestationMessage, Error> {
-        let signing_context =
-            self.signing_context(Domain::PTCAttester, data.slot.epoch(Spec::slots_per_epoch()));
+        let signing_context = self.signing_context(
+            Domain::PTCAttester,
+            data.slot.epoch(Spec::slots_per_epoch()),
+        );
 
         let validator_index = self
             .validator_index(&validator_pubkey)
@@ -1561,7 +1563,6 @@ mod tests {
     use tempfile::{TempDir, tempdir};
     use types::{Epoch, GasLimitSchedule, GasLimitScheduleEntry};
 
-
     const GLOAS_FORK_EPOCH: u64 = 4;
     const SCHEDULED_GAS_LIMIT: u64 = 70_000_000;
     const LATER_SCHEDULED_GAS_LIMIT: u64 = 80_000_000;
@@ -1628,7 +1629,11 @@ mod tests {
             Duration::from_secs(0),
             Duration::from_secs(12),
         );
-        clock.set_slot(Epoch::new(epoch).start_slot(Spec::slots_per_epoch()).as_u64());
+        clock.set_slot(
+            Epoch::new(epoch)
+                .start_slot(Spec::slots_per_epoch())
+                .as_u64(),
+        );
         clock
     }
 

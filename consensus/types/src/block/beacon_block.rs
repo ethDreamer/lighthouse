@@ -21,7 +21,7 @@ use crate::{
         BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
         BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
     },
-    core::{ChainSpec, Domain, Epoch, Spec, Graffiti, Hash256, SignedRoot, Slot},
+    core::{ChainSpec, Domain, Epoch, Graffiti, Hash256, SignedRoot, Slot, Spec},
     deposit::{Deposit, DepositData},
     execution::{
         AbstractExecPayload, BlindedPayload, Eth1Data, ExecutionPayload, ExecutionRequestsElectra,
@@ -394,11 +394,8 @@ impl<Payload: AbstractExecPayload> BeaconBlockBase<Payload> {
             signature: Signature::empty(),
         };
         let indexed_attestation = IndexedAttestationBase {
-            attesting_indices: VariableList::new(vec![
-                0_u64;
-                Spec::MAX_VALIDATORS_PER_COMMITTEE
-            ])
-            .unwrap(),
+            attesting_indices: VariableList::new(vec![0_u64; Spec::MAX_VALIDATORS_PER_COMMITTEE])
+                .unwrap(),
             data: AttestationData::default(),
             signature: AggregateSignature::empty(),
         };
@@ -420,8 +417,7 @@ impl<Payload: AbstractExecPayload> BeaconBlockBase<Payload> {
         };
 
         let attestation = AttestationBase {
-            aggregation_bits: BitList::with_capacity(Spec::MAX_VALIDATORS_PER_COMMITTEE)
-                .unwrap(),
+            aggregation_bits: BitList::with_capacity(Spec::MAX_VALIDATORS_PER_COMMITTEE).unwrap(),
             data: AttestationData::default(),
             signature: AggregateSignature::empty(),
         };
@@ -773,9 +769,7 @@ impl<Payload: AbstractExecPayload> EmptyBlock for BeaconBlockHeze<Payload> {
 // impl<E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockEIP7732<E, Payload> {
 
 // TODO(EIP-7732) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<BeaconBlockGloas<BlindedPayload>>
-    for BeaconBlockGloas<FullPayload>
-{
+impl From<BeaconBlockGloas<BlindedPayload>> for BeaconBlockGloas<FullPayload> {
     fn from(block: BeaconBlockGloas<BlindedPayload>) -> Self {
         let BeaconBlockGloas {
             slot,
@@ -796,9 +790,7 @@ impl From<BeaconBlockGloas<BlindedPayload>>
 }
 
 // TODO(heze) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<BeaconBlockHeze<BlindedPayload>>
-    for BeaconBlockHeze<FullPayload>
-{
+impl From<BeaconBlockHeze<BlindedPayload>> for BeaconBlockHeze<FullPayload> {
     fn from(block: BeaconBlockHeze<BlindedPayload>) -> Self {
         let BeaconBlockHeze {
             slot,
@@ -819,9 +811,7 @@ impl From<BeaconBlockHeze<BlindedPayload>>
 }
 
 // We can convert pre-Bellatrix blocks without payloads into blocks "with" payloads.
-impl From<BeaconBlockBase<BlindedPayload>>
-    for BeaconBlockBase<FullPayload>
-{
+impl From<BeaconBlockBase<BlindedPayload>> for BeaconBlockBase<FullPayload> {
     fn from(block: BeaconBlockBase<BlindedPayload>) -> Self {
         let BeaconBlockBase {
             slot,
@@ -841,9 +831,7 @@ impl From<BeaconBlockBase<BlindedPayload>>
     }
 }
 
-impl From<BeaconBlockAltair<BlindedPayload>>
-    for BeaconBlockAltair<FullPayload>
-{
+impl From<BeaconBlockAltair<BlindedPayload>> for BeaconBlockAltair<FullPayload> {
     fn from(block: BeaconBlockAltair<BlindedPayload>) -> Self {
         let BeaconBlockAltair {
             slot,
@@ -941,24 +929,15 @@ impl_clone_as_blinded!(BeaconBlockHeze, <FullPayload>, <BlindedPayload>);
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.
-impl<'a> From<BeaconBlockRef<'a, FullPayload>>
-    for BeaconBlock<BlindedPayload>
-{
-    fn from(
-        full_block: BeaconBlockRef<'a, FullPayload>,
-    ) -> BeaconBlock<BlindedPayload> {
+impl<'a> From<BeaconBlockRef<'a, FullPayload>> for BeaconBlock<BlindedPayload> {
+    fn from(full_block: BeaconBlockRef<'a, FullPayload>) -> BeaconBlock<BlindedPayload> {
         map_beacon_block_ref_into_beacon_block!(&'a _, full_block, |inner, cons| {
             cons(inner.clone_as_blinded())
         })
     }
 }
 
-impl From<BeaconBlock<FullPayload>>
-    for (
-        BeaconBlock<BlindedPayload>,
-        Option<ExecutionPayload>,
-    )
-{
+impl From<BeaconBlock<FullPayload>> for (BeaconBlock<BlindedPayload>, Option<ExecutionPayload>) {
     fn from(block: BeaconBlock<FullPayload>) -> Self {
         map_beacon_block!(block, |inner, cons| {
             let (block, payload) = inner.into();
@@ -967,9 +946,7 @@ impl From<BeaconBlock<FullPayload>>
     }
 }
 
-impl<'de, Payload: AbstractExecPayload> ContextDeserialize<'de, ForkName>
-    for BeaconBlock<Payload>
-{
+impl<'de, Payload: AbstractExecPayload> ContextDeserialize<'de, ForkName> for BeaconBlock<Payload> {
     fn context_deserialize<D>(deserializer: D, context: ForkName) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -1004,7 +981,7 @@ impl fmt::Display for BlockImportSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::test_ssz_tree_hash_pair_with};
+    use crate::test_utils::test_ssz_tree_hash_pair_with;
     use arbitrary::Arbitrary;
     use ssz::Encode;
 

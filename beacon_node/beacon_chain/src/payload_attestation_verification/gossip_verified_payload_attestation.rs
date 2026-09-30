@@ -14,7 +14,7 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::per_block_processing::signature_sets::indexed_payload_attestation_signature_set_from_pubkeys;
 use std::borrow::Cow;
 use types::{
-    ChainSpec, Spec, Hash256, IndexedPayloadAttestation, PTC, PayloadAttestationMessage, Slot,
+    ChainSpec, Hash256, IndexedPayloadAttestation, PTC, PayloadAttestationMessage, Slot, Spec,
 };
 
 pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
@@ -47,11 +47,7 @@ impl VerifiedPayloadAttestationMessage {
         let validator_index = payload_attestation_message.validator_index;
 
         // [REJECT] The payload attestation's slot is at or after the Gloas fork.
-        if !ctx
-            .spec
-            .fork_name_at_slot(slot)
-            .gloas_enabled()
-        {
+        if !ctx.spec.fork_name_at_slot(slot).gloas_enabled() {
             return Err(Error::PreGloasSlot { slot });
         }
 

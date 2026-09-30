@@ -17,8 +17,8 @@ use store::{HotColdDB, MemoryStore};
 use task_executor::test_utils::TestRuntime;
 use tracing_subscriber::EnvFilter;
 use types::{
-    CommitteeIndex, Epoch, Spec, Hash256, Slot, SubnetId,
-    SyncCommitteeSubscription, SyncSubnetId, ValidatorSubscription,
+    CommitteeIndex, Epoch, Hash256, Slot, Spec, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
+    ValidatorSubscription,
 };
 
 const SLOT_DURATION_MILLIS: u64 = 400;
@@ -663,10 +663,8 @@ mod test {
 
         // Remove permanent subscription events
 
-        let subnet_ids = SyncSubnetId::compute_subnets_for_sync_committee(
-            &sync_committee_indices,
-        )
-        .unwrap();
+        let subnet_ids =
+            SyncSubnetId::compute_subnets_for_sync_committee(&sync_committee_indices).unwrap();
         let subnet_id = subnet_ids.iter().next().unwrap();
 
         // Note: the unsubscription event takes 2 epochs (8 * 2 * 0.4 secs = 3.2 secs)

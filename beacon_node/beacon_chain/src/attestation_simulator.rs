@@ -5,7 +5,7 @@ use std::time::Duration;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
-use types::{ChainSpec, Spec, Slot};
+use types::{ChainSpec, Slot, Spec};
 
 /// Don't run the attestation simulator if the head slot is this many epochs
 /// behind the wall-clock slot.
@@ -36,11 +36,7 @@ async fn attestation_simulator_service<T: BeaconChainTypes>(
         match chain.slot_clock.now_duration() {
             Some(now_duration) => {
                 let (attestation_slot, Some(time_to_deadline)) =
-                    time_until_attestation_deadline(
-                        &chain.slot_clock,
-                        &chain.spec,
-                        now_duration,
-                    )
+                    time_until_attestation_deadline(&chain.slot_clock, &chain.spec, now_duration)
                 else {
                     error!("Failed to calculate attestation deadline");
                     sleep(slot_duration).await;

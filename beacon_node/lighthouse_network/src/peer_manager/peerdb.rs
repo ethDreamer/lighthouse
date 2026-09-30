@@ -16,7 +16,7 @@ use std::{
 use sync_status::SyncStatus;
 use tracing::{debug, error, trace, warn};
 use types::data::compute_subnets_for_node;
-use types::{ChainSpec, DataColumnSubnetId, Epoch, Spec, Hash256, Slot};
+use types::{ChainSpec, DataColumnSubnetId, Epoch, Hash256, Slot, Spec};
 
 pub mod client;
 pub mod peer_info;
@@ -1486,7 +1486,6 @@ mod tests {
     use super::*;
     use libp2p::core::multiaddr::Protocol;
     use std::net::{Ipv4Addr, Ipv6Addr};
-
 
     fn add_score(db: &mut PeerDB, peer_id: &PeerId, score: f64) {
         if let Some(info) = db.peer_info_mut(peer_id) {

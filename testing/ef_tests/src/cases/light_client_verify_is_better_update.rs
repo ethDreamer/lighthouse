@@ -1,7 +1,7 @@
-use types::Spec;
 use super::*;
 use decode::ssz_decode_light_client_update;
 use serde::Deserialize;
+use types::Spec;
 use types::{LightClientUpdate, Slot};
 
 #[derive(Debug, Clone)]

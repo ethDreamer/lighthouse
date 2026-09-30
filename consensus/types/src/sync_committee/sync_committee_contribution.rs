@@ -6,7 +6,7 @@ use ssz_types::BitVector;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Spec, Hash256, SignedRoot, Slot, SlotData},
+    core::{Hash256, SignedRoot, Slot, SlotData, Spec},
     fork::ForkName,
     sync_committee::SyncCommitteeMessage,
 };
@@ -19,10 +19,7 @@ pub enum Error {
 }
 
 /// An aggregation of `SyncCommitteeMessage`s, used in creating a `SignedContributionAndProof`.
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct SyncCommitteeContribution {

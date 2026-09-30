@@ -13,8 +13,7 @@ use ssz::BitVector;
 use std::collections::BTreeSet;
 use std::time::Duration;
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
-    Slot,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, ExecutionBlockHash, Hash256, Slot, Spec,
 };
 
 pub use execution_status::*;
@@ -437,10 +436,7 @@ impl ForkChoiceTestDefinition {
                         InvalidationOperation::InvalidateOne { head_hash }
                     };
                     fork_choice
-                        .process_execution_payload_invalidation(
-                            &op,
-                            self.finalized_checkpoint,
-                        )
+                        .process_execution_payload_invalidation(&op, self.finalized_checkpoint)
                         .unwrap()
                 }
                 Operation::AssertWeight { block_root, weight } => assert_eq!(
@@ -627,11 +623,7 @@ impl ForkChoiceTestDefinition {
                     expected,
                 } => {
                     let actual = fork_choice
-                        .should_build_on_full(
-                            &block_root,
-                            parent_payload_status,
-                            proposal_slot,
-                        )
+                        .should_build_on_full(&block_root, parent_payload_status, proposal_slot)
                         .unwrap_or_else(|e| {
                             panic!(
                                 "should_build_on_full op at index {} returned error: {}",
@@ -679,12 +671,7 @@ fn assert_canonical_payload_status_matches_find_head(
     expected: PayloadStatus,
     op_index: usize,
 ) {
-    match fork_choice.get_canonical_payload_status(
-        head,
-        current_slot,
-        proposer_boost_root,
-        spec,
-    ) {
+    match fork_choice.get_canonical_payload_status(head, current_slot, proposer_boost_root, spec) {
         Ok(actual) => assert_eq!(
             actual, expected,
             "get_canonical_payload_status disagreed with find_head for head {:?} at op index {}",

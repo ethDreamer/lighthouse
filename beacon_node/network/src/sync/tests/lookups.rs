@@ -1664,10 +1664,7 @@ impl TestRig {
         self.fork_name.fulu_enabled()
     }
 
-    fn trigger_unknown_parent_blocks_from_all_peers(
-        &mut self,
-        blocks: &[Arc<SignedBeaconBlock>],
-    ) {
+    fn trigger_unknown_parent_blocks_from_all_peers(&mut self, blocks: &[Arc<SignedBeaconBlock>]) {
         for peer in self.new_connected_peers_for_peerdas() {
             for block in blocks {
                 self.trigger_unknown_parent_block(peer, block.clone());
@@ -2036,8 +2033,7 @@ impl TestRig {
 #[test]
 fn stable_arbitrary() {
     let mut u = types::test_utils::test_unstructured();
-    let (block, _) =
-        generate_rand_block_and_blobs(ForkName::Base, NumBlobs::None, &mut u).unwrap();
+    let (block, _) = generate_rand_block_and_blobs(ForkName::Base, NumBlobs::None, &mut u).unwrap();
     assert_eq!(
         block.canonical_root(),
         Hash256::from_slice(

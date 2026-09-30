@@ -30,12 +30,12 @@ use types::consts::gloas::BUILDER_INDEX_SELF_BUILD;
 use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
     BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
-    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, Spec, ExecutionBlockHash,
+    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, ExecutionBlockHash,
     ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionRequestsGloas, FullPayload, Graffiti,
     Hash256, IndexedAttestation, KzgProofs, PayloadAttestation, ProgressiveTransactions,
     ProposerSlashing, RelativeEpoch, SignedBeaconBlock, SignedBlsToExecutionChange,
     SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal, Withdrawals,
+    SignedVoluntaryExit, Slot, Spec, SyncAggregate, Uint256, Withdrawal, Withdrawals,
 };
 
 use builder_client::BidRequestContext;
@@ -61,11 +61,7 @@ pub const EXECUTION_PAYMENT_TRUSTLESS_BUILD: u64 = 0;
 
 type ConsensusBlockValue = u64;
 
-pub type PayloadEnvelopeContents = (
-    Arc<ExecutionPayloadEnvelope>,
-    KzgProofs,
-    Arc<BlobsList>,
-);
+pub type PayloadEnvelopeContents = (Arc<ExecutionPayloadEnvelope>, KzgProofs, Arc<BlobsList>);
 
 /// Execution payload value in wei: the local payload's EL value when self-building, or the
 /// bid value when committing to a builder bid.
@@ -363,8 +359,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         graffiti: Graffiti,
         parent_execution_requests: &ExecutionRequestsGloas,
         should_build_on_full: bool,
-    ) -> Result<(PartialBeaconBlock, BeaconState), BlockProductionError>
-    {
+    ) -> Result<(PartialBeaconBlock, BeaconState), BlockProductionError> {
         // It is invalid to try to produce a block using a state from a future slot.
         if state.slot() > produce_at_slot {
             return Err(BlockProductionError::StateSlotTooHigh {
@@ -451,8 +446,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             // block processing does.
             if should_build_on_full {
                 let parent_slot = state.latest_execution_payload_bid()?.slot;
-                let availability_index =
-                    parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
+                let availability_index = parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
                 state
                     .execution_payload_availability_mut()?
                     .set(availability_index, true)?;
@@ -929,13 +923,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         builder_index: BuilderIndex,
         executed_ancestor_hash: ExecutionBlockHash,
         proposer_preferences: Option<&SignedProposerPreferences>,
-    ) -> Result<
-        (
-            SignedExecutionPayloadBid,
-            LocalBuildResult,
-        ),
-        BlockProductionError,
-    > {
+    ) -> Result<(SignedExecutionPayloadBid, LocalBuildResult), BlockProductionError> {
         // TODO(gloas) For non local building, add sanity check on value
         // The builder MUST have enough excess balance to fulfill this bid (i.e. `value`) and all pending payments.
 
@@ -1277,8 +1265,7 @@ fn get_execution_payload_gloas<T: BeaconChainTypes>(
                 &envelope.message.execution_requests,
                 spec,
             )?;
-            Withdrawals::from(get_expected_withdrawals(&withdrawals_state, spec)?)
-                .into()
+            Withdrawals::from(get_expected_withdrawals(&withdrawals_state, spec)?).into()
         } else {
             // No envelope available (e.g. genesis). The parent had no execution requests,
             // so compute withdrawals directly from the current state.
@@ -1448,7 +1435,6 @@ mod tests {
     use super::*;
     use ssz_types::ProgressiveVariableList;
     use types::{ConsolidationRequest, Epoch, VoluntaryExit, WithdrawalRequest};
-
 
     fn pubkey(byte: u8) -> PublicKeyBytes {
         PublicKeyBytes::deserialize(&[byte; 48]).expect("valid pubkey byte length")

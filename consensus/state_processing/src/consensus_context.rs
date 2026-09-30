@@ -9,9 +9,9 @@ use crate::per_block_processing::errors::{
 use std::collections::{HashMap, hash_map::Entry};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, AttestationRef, BeaconState, BeaconStateError, ChainSpec, Epoch, Spec,
-    Hash256, IndexedAttestation, IndexedAttestationRef, IndexedPayloadAttestation,
-    PayloadAttestation, SignedBeaconBlock, Slot,
+    AbstractExecPayload, AttestationRef, BeaconState, BeaconStateError, ChainSpec, Epoch, Hash256,
+    IndexedAttestation, IndexedAttestationRef, IndexedPayloadAttestation, PayloadAttestation,
+    SignedBeaconBlock, Slot, Spec,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -199,8 +199,7 @@ impl ConsensusContext {
         state: &BeaconState,
         payload_attestation: &'a PayloadAttestation,
         spec: &ChainSpec,
-    ) -> Result<&'a IndexedPayloadAttestation, BlockOperationError<PayloadAttestationInvalid>>
-    {
+    ) -> Result<&'a IndexedPayloadAttestation, BlockOperationError<PayloadAttestationInvalid>> {
         let key = payload_attestation.tree_hash_root();
         match self.indexed_payload_attestations.entry(key) {
             Entry::Occupied(occupied) => Ok(occupied.into_mut()),

@@ -15,17 +15,13 @@ use eth2::types::{
 use ssz::Encode;
 use std::sync::Arc;
 use types::{
-    AttestationShufflingId, BeaconStateError, CommitteeCache, Spec, RelativeEpoch,
-    RelativeEpochError,
+    AttestationShufflingId, BeaconStateError, CommitteeCache, RelativeEpoch, RelativeEpochError,
+    Spec,
 };
 use warp::{Filter, Reply, filters::BoxedFilter, http::response::Builder};
 use warp_utils::query::multi_key_query;
 
-type BeaconStatesPath<T> = BoxedFilter<(
-    StateId,
-    TaskSpawner,
-    Arc<BeaconChain<T>>,
-)>;
+type BeaconStatesPath<T> = BoxedFilter<(StateId, TaskSpawner, Arc<BeaconChain<T>>)>;
 
 type BeaconStatesCommitteesFilter = BoxedFilter<(Arc<HistoricalCommitteeCache>,)>;
 
@@ -404,8 +400,8 @@ pub fn get_beacon_state_committees<T: BeaconChainTypes>(
                                 let epoch = query.epoch.unwrap_or(current_epoch);
 
                                 // Attempt to obtain the committee_cache from the beacon chain
-                                let decision_slot = (epoch.saturating_sub(2u64))
-                                    .end_slot(Spec::slots_per_epoch());
+                                let decision_slot =
+                                    (epoch.saturating_sub(2u64)).end_slot(Spec::slots_per_epoch());
                                 // Find the decision block and skip to another method on any kind
                                 // of failure
                                 let shuffling_id = if let Ok(Some(shuffling_decision_block)) =
@@ -832,9 +828,7 @@ pub fn get_beacon_state_finality_checkpoints<T: BeaconChainTypes>(
         .and(warp::path("finality_checkpoints"))
         .and(warp::path::end())
         .then(
-            |state_id: StateId,
-             task_spawner: TaskSpawner,
-             chain: Arc<BeaconChain<T>>| {
+            |state_id: StateId, task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (data, execution_optimistic, finalized) = state_id
                         .map_state_and_execution_optimistic_and_finalized(
@@ -872,9 +866,7 @@ pub fn get_beacon_state_fork<T: BeaconChainTypes>(
         .and(warp::path("fork"))
         .and(warp::path::end())
         .then(
-            |state_id: StateId,
-             task_spawner: TaskSpawner,
-             chain: Arc<BeaconChain<T>>| {
+            |state_id: StateId, task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (fork, execution_optimistic, finalized) =
                         state_id.fork_and_execution_optimistic_and_finalized(&chain)?;
@@ -897,9 +889,7 @@ pub fn get_beacon_state_root<T: BeaconChainTypes>(
         .and(warp::path("root"))
         .and(warp::path::end())
         .then(
-            |state_id: StateId,
-             task_spawner: TaskSpawner,
-             chain: Arc<BeaconChain<T>>| {
+            |state_id: StateId, task_spawner: TaskSpawner, chain: Arc<BeaconChain<T>>| {
                 task_spawner.blocking_json_task(Priority::P1, move || {
                     let (root, execution_optimistic, finalized) = state_id.root(&chain)?;
                     Ok(eth2::types::GenericResponse::from(

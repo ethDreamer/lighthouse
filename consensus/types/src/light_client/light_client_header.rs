@@ -1,4 +1,3 @@
-
 use context_deserialize::{ContextDeserialize, context_deserialize};
 use educe::Educe;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -25,17 +24,11 @@ use crate::{
         derive(Debug, Clone, Serialize, Deserialize, Educe, Decode, Encode, TreeHash,),
         educe(PartialEq),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
         context_deserialize(ForkName),
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -60,7 +53,7 @@ pub struct LightClientHeader {
     pub execution: ExecutionPayloadHeaderFulu,
 
     #[superstruct(only(Capella, Deneb, Electra, Fulu))]
-    pub execution_branch: FixedVector<Hash256, ExecutionPayloadProofLen>
+    pub execution_branch: FixedVector<Hash256, ExecutionPayloadProofLen>,
 }
 
 impl LightClientHeader {
@@ -148,7 +141,7 @@ impl LightClientHeaderAltair {
         block: &SignedBlindedBeaconBlock,
     ) -> Result<Self, LightClientError> {
         Ok(LightClientHeaderAltair {
-            beacon: block.message().block_header()
+            beacon: block.message().block_header(),
         })
     }
 }
@@ -156,7 +149,7 @@ impl LightClientHeaderAltair {
 impl Default for LightClientHeaderAltair {
     fn default() -> Self {
         Self {
-            beacon: BeaconBlockHeader::empty()
+            beacon: BeaconBlockHeader::empty(),
         }
     }
 }
@@ -186,7 +179,7 @@ impl LightClientHeaderCapella {
         Ok(LightClientHeaderCapella {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?
+            execution_branch: FixedVector::new(execution_branch)?,
         })
     }
 }
@@ -196,7 +189,7 @@ impl Default for LightClientHeaderCapella {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderCapella::default(),
-            execution_branch: FixedVector::default()
+            execution_branch: FixedVector::default(),
         }
     }
 }
@@ -226,7 +219,7 @@ impl LightClientHeaderDeneb {
         Ok(LightClientHeaderDeneb {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?
+            execution_branch: FixedVector::new(execution_branch)?,
         })
     }
 }
@@ -236,7 +229,7 @@ impl Default for LightClientHeaderDeneb {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderDeneb::default(),
-            execution_branch: FixedVector::default()
+            execution_branch: FixedVector::default(),
         }
     }
 }
@@ -266,7 +259,7 @@ impl LightClientHeaderElectra {
         Ok(LightClientHeaderElectra {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?
+            execution_branch: FixedVector::new(execution_branch)?,
         })
     }
 }
@@ -276,7 +269,7 @@ impl Default for LightClientHeaderElectra {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderElectra::default(),
-            execution_branch: FixedVector::default()
+            execution_branch: FixedVector::default(),
         }
     }
 }
@@ -306,7 +299,7 @@ impl LightClientHeaderFulu {
         Ok(LightClientHeaderFulu {
             beacon: block.message().block_header(),
             execution: header,
-            execution_branch: FixedVector::new(execution_branch)?
+            execution_branch: FixedVector::new(execution_branch)?,
         })
     }
 }
@@ -316,7 +309,7 @@ impl Default for LightClientHeaderFulu {
         Self {
             beacon: BeaconBlockHeader::empty(),
             execution: ExecutionPayloadHeaderFulu::default(),
-            execution_branch: FixedVector::default()
+            execution_branch: FixedVector::default(),
         }
     }
 }
@@ -364,31 +357,31 @@ mod tests {
     // `ssz_tests!` can only be defined once per namespace
     #[cfg(test)]
     mod altair {
-        use crate::{LightClientHeaderAltair};
+        use crate::LightClientHeaderAltair;
         ssz_tests!(LightClientHeaderAltair);
     }
 
     #[cfg(test)]
     mod capella {
-        use crate::{LightClientHeaderCapella};
+        use crate::LightClientHeaderCapella;
         ssz_tests!(LightClientHeaderCapella);
     }
 
     #[cfg(test)]
     mod deneb {
-        use crate::{LightClientHeaderDeneb};
+        use crate::LightClientHeaderDeneb;
         ssz_tests!(LightClientHeaderDeneb);
     }
 
     #[cfg(test)]
     mod electra {
-        use crate::{LightClientHeaderElectra};
+        use crate::LightClientHeaderElectra;
         ssz_tests!(LightClientHeaderElectra);
     }
 
     #[cfg(test)]
     mod fulu {
-        use crate::{LightClientHeaderFulu};
+        use crate::LightClientHeaderFulu;
         ssz_tests!(LightClientHeaderFulu);
     }
 }

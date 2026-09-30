@@ -157,9 +157,7 @@ async fn metrics_handler(State(ctx): State<Arc<Context>>) -> impl IntoResponse {
     }
 }
 
-pub fn gather_prometheus_metrics(
-    ctx: &Context,
-) -> std::result::Result<String, String> {
+pub fn gather_prometheus_metrics(ctx: &Context) -> std::result::Result<String, String> {
     use validator_metrics::*;
     let mut buffer = vec![];
     let encoder = TextEncoder::new();

@@ -6,9 +6,9 @@ use std::sync::Arc;
 use tracing::debug;
 use tree_hash::TreeHash;
 use types::{
-    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, Spec, ForkName, Hash256,
-    LightClientBootstrap, LightClientFinalityUpdate, LightClientOptimisticUpdate,
-    LightClientUpdate, MerkleProof, Slot, SyncAggregate, SyncCommittee,
+    BeaconBlockRef, BeaconState, ChainSpec, Checkpoint, ForkName, Hash256, LightClientBootstrap,
+    LightClientFinalityUpdate, LightClientOptimisticUpdate, LightClientUpdate, MerkleProof, Slot,
+    Spec, SyncAggregate, SyncCommittee,
 };
 
 /// A prev block cache miss requires to re-generate the state of the post-parent block. Items in the
@@ -302,9 +302,7 @@ impl LightClientServerCache {
     /// Checks if we've already broadcasted the latest finality update.
     /// If we haven't, update the `latest_broadcasted_finality_update` cache
     /// and return the latest finality update for broadcasting, else return `None`.
-    pub fn should_broadcast_latest_finality_update(
-        &self,
-    ) -> Option<LightClientFinalityUpdate> {
+    pub fn should_broadcast_latest_finality_update(&self) -> Option<LightClientFinalityUpdate> {
         if let Some(latest_finality_update) = self.get_latest_finality_update() {
             let latest_broadcasted_finality_update = self.get_latest_broadcasted_finality_update();
             match latest_broadcasted_finality_update {
@@ -328,15 +326,11 @@ impl LightClientServerCache {
         self.latest_finality_update.read().clone()
     }
 
-    pub fn get_latest_broadcasted_optimistic_update(
-        &self,
-    ) -> Option<LightClientOptimisticUpdate> {
+    pub fn get_latest_broadcasted_optimistic_update(&self) -> Option<LightClientOptimisticUpdate> {
         self.latest_broadcasted_optimistic_update.read().clone()
     }
 
-    pub fn get_latest_broadcasted_finality_update(
-        &self,
-    ) -> Option<LightClientFinalityUpdate> {
+    pub fn get_latest_broadcasted_finality_update(&self) -> Option<LightClientFinalityUpdate> {
         self.latest_broadcasted_finality_update.read().clone()
     }
 
@@ -357,9 +351,7 @@ impl LightClientServerCache {
     /// Checks if we've already broadcasted the latest optimistic update.
     /// If we haven't, update the `latest_broadcasted_optimistic_update` cache
     /// and return the latest optimistic update for broadcasting, else return `None`.
-    pub fn should_broadcast_latest_optimistic_update(
-        &self,
-    ) -> Option<LightClientOptimisticUpdate> {
+    pub fn should_broadcast_latest_optimistic_update(&self) -> Option<LightClientOptimisticUpdate> {
         if let Some(latest_optimistic_update) = self.get_latest_optimistic_update() {
             let latest_broadcasted_optimistic_update =
                 self.get_latest_broadcasted_optimistic_update();

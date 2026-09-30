@@ -10,12 +10,9 @@ use types::data::compute_subnets_for_node;
 pub fn subnet_predicate(
     subnets: Vec<Subnet>,
     spec: Arc<ChainSpec>,
-) -> impl Fn(&Enr) -> bool + Send
-
-{
+) -> impl Fn(&Enr) -> bool + Send {
     move |enr: &Enr| {
-        let attestation_bitfield: EnrAttestationBitfield = match enr.attestation_bitfield()
-        {
+        let attestation_bitfield: EnrAttestationBitfield = match enr.attestation_bitfield() {
             Ok(b) => b,
             Err(_e) => return false,
         };

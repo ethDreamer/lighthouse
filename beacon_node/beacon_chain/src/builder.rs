@@ -50,8 +50,8 @@ use tracing::{debug, error, info, warn};
 use tree_hash::TreeHash;
 use types::data::CustodyIndex;
 use types::{
-    BeaconState, BlobSidecarList, ChainSpec, ColumnIndex, DataColumnSidecarList, Spec, Hash256,
-    SignedBeaconBlock, Slot,
+    BeaconState, BlobSidecarList, ChainSpec, ColumnIndex, DataColumnSidecarList, Hash256,
+    SignedBeaconBlock, Slot, Spec,
 };
 
 /// An empty struct used to "witness" all the `BeaconChainTypes` traits. It has no user-facing
@@ -65,7 +65,7 @@ impl<TSlotClock, THotStore, TColdStore> BeaconChainTypes
 where
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
-    TSlotClock: SlotClock + 'static
+    TSlotClock: SlotClock + 'static,
 {
     type HotStore = THotStore;
     type ColdStore = TColdStore;
@@ -88,9 +88,7 @@ pub struct BeaconChainBuilder<T: BeaconChainTypes> {
     genesis_block_root: Option<Hash256>,
     genesis_state_root: Option<Hash256>,
     #[allow(clippy::type_complexity)]
-    fork_choice: Option<
-        ForkChoice<BeaconForkChoiceStore<T::HotStore, T::ColdStore>>,
-    >,
+    fork_choice: Option<ForkChoice<BeaconForkChoiceStore<T::HotStore, T::ColdStore>>>,
     op_pool: Option<OperationPool>,
     execution_layer: Option<ExecutionLayer>,
     proof_engine: Option<Arc<ProofEngine>>,
@@ -120,7 +118,7 @@ impl<TSlotClock, THotStore, TColdStore>
 where
     THotStore: ItemStore + 'static,
     TColdStore: ItemStore + 'static,
-    TSlotClock: SlotClock + 'static
+    TSlotClock: SlotClock + 'static,
 {
     /// Returns a new builder.
     ///
@@ -972,34 +970,33 @@ where
 
         // Load the persisted custody context from the db and initialize
         // the context for this run
-        let (custody_context, cgc_changed_opt) = if let Some(custody) =
-            load_custody_context::<THotStore, TColdStore>(store.clone())
-        {
-            let head_epoch = canonical_head
-                .cached_head()
-                .head_slot()
-                .epoch(Spec::slots_per_epoch());
-            CustodyContext::new_from_persisted_custody_context(
-                custody,
-                self.node_custody_type,
-                head_epoch,
-                ordered_custody_column_indices,
-                slot_clock.clone(),
-                complete_blob_backfill,
-                self.spec.clone(),
-            )
-        } else {
-            (
-                CustodyContext::new(
+        let (custody_context, cgc_changed_opt) =
+            if let Some(custody) = load_custody_context::<THotStore, TColdStore>(store.clone()) {
+                let head_epoch = canonical_head
+                    .cached_head()
+                    .head_slot()
+                    .epoch(Spec::slots_per_epoch());
+                CustodyContext::new_from_persisted_custody_context(
+                    custody,
                     self.node_custody_type,
+                    head_epoch,
                     ordered_custody_column_indices,
                     slot_clock.clone(),
                     complete_blob_backfill,
                     self.spec.clone(),
-                ),
-                None,
-            )
-        };
+                )
+            } else {
+                (
+                    CustodyContext::new(
+                        self.node_custody_type,
+                        ordered_custody_column_indices,
+                        slot_clock.clone(),
+                        complete_blob_backfill,
+                        self.spec.clone(),
+                    ),
+                    None,
+                )
+            };
         debug!(?custody_context, "Loaded persisted custody context");
         let custody_context = Arc::new(custody_context);
 
@@ -1148,8 +1145,9 @@ where
         if let Some(cgc_changed) = cgc_changed_opt {
             // Update data column custody info if there's a CGC change from CLI flags.
             // This will trigger column backfill.
-            let cgc_change_effective_slot =
-                cgc_changed.effective_epoch.start_slot(Spec::slots_per_epoch());
+            let cgc_change_effective_slot = cgc_changed
+                .effective_epoch
+                .start_slot(Spec::slots_per_epoch());
             beacon_chain.update_data_column_custody_info(Some(cgc_change_effective_slot));
 
             // Persist change to disk.
@@ -1215,11 +1213,10 @@ where
     }
 }
 
-impl<THotStore, TColdStore>
-    BeaconChainBuilder<Witness<TestingSlotClock, THotStore, TColdStore>>
+impl<THotStore, TColdStore> BeaconChainBuilder<Witness<TestingSlotClock, THotStore, TColdStore>>
 where
     THotStore: ItemStore + 'static,
-    TColdStore: ItemStore + 'static
+    TColdStore: ItemStore + 'static,
 {
     /// Sets the `BeaconChain` slot clock to `TestingSlotClock`.
     ///
@@ -1240,9 +1237,7 @@ where
 }
 
 #[cfg(any(test, feature = "ef_tests"))]
-impl BeaconChainBuilder<crate::test_utils::EphemeralHarnessType>
-
-{
+impl BeaconChainBuilder<crate::test_utils::EphemeralHarnessType> {
     /// Start an ephemeral test chain from an existing block and its post-state.
     ///
     /// EF networking tests provide `state.ssz_snappy` and setup blocks, not a full replayable chain
@@ -1585,7 +1580,7 @@ mod test {
     use store::config::StoreConfig;
     use store::{HotColdDB, MemoryStore};
     use task_executor::test_utils::TestRuntime;
-    use types::{Slot};
+    use types::Slot;
 
     type Builder = BeaconChainBuilder<EphemeralHarnessType>;
 
@@ -1594,11 +1589,8 @@ mod test {
         let validator_count = 1;
         let genesis_time = 13_371_337;
 
-        let store: HotColdDB<MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(
-            StoreConfig::default(),
-            Spec::default_spec().into(),
-        )
-        .unwrap();
+        let store: HotColdDB<MemoryStore, MemoryStore> =
+            HotColdDB::open_ephemeral(StoreConfig::default(), Spec::default_spec().into()).unwrap();
         let spec = Spec::default_spec();
 
         let genesis_state = interop_genesis_state(
@@ -1624,9 +1616,7 @@ mod test {
             .expect("should configure testing slot clock")
             .shutdown_sender(shutdown_tx)
             .rng(Box::new(StdRng::seed_from_u64(42)))
-            .ordered_custody_column_indices(
-                generate_data_column_indices_rand_order(),
-            )
+            .ordered_custody_column_indices(generate_data_column_indices_rand_order())
             .build()
             .expect("should build");
 

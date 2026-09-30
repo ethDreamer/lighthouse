@@ -3,9 +3,9 @@
 
 mod keystores;
 
-use types::Spec;
 use doppelganger_service::DoppelgangerService;
 use initialized_validators::{Config as InitializedValidatorsConfig, InitializedValidators};
+use types::Spec;
 
 use crate::{ApiSecret, Config as HttpConfig, Context};
 use account_utils::{
@@ -42,7 +42,6 @@ use zeroize::Zeroizing;
 
 const PASSWORD_BYTES: &[u8] = &[42, 50, 37];
 pub const TEST_DEFAULT_FEE_RECIPIENT: Address = Address::repeat_byte(42);
-
 
 struct ApiTester {
     client: ValidatorClientHttpClient,
@@ -141,10 +140,9 @@ impl ApiTester {
             slot_clock: slot_clock.clone(),
         });
         let ctx = context.clone();
-        let (listening_socket, server) =
-            super::serve(ctx, test_runtime.task_executor.exit())
-                .await
-                .unwrap();
+        let (listening_socket, server) = super::serve(ctx, test_runtime.task_executor.exit())
+            .await
+            .unwrap();
 
         tokio::spawn(server);
 

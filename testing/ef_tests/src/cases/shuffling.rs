@@ -1,15 +1,15 @@
-use types::Spec;
 use super::*;
 use crate::case_result::compare_result;
 use crate::decode::yaml_decode_file;
 use serde::Deserialize;
 use swap_or_not_shuffle::{compute_shuffled_index, shuffle_list};
+use types::Spec;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Shuffling {
     pub seed: String,
     pub count: usize,
-    pub mapping: Vec<usize>
+    pub mapping: Vec<usize>,
 }
 
 impl LoadCase for Shuffling {

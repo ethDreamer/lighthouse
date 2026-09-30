@@ -21,9 +21,9 @@ use std::sync::Arc;
 use tracing::info;
 use tree_hash::TreeHash;
 use types::{
-    AttestationData, ChainSpec, Epoch, Spec, Hash256, IndexedAttestation,
-    IndexedAttestationBase, IndexedAttestationElectra, IndexedAttestationGloas, ProposerSlashing,
-    SignedBeaconBlockHeader, Slot,
+    AttestationData, ChainSpec, Epoch, Hash256, IndexedAttestation, IndexedAttestationBase,
+    IndexedAttestationElectra, IndexedAttestationGloas, ProposerSlashing, SignedBeaconBlockHeader,
+    Slot, Spec,
 };
 
 /// Current database schema version, to check compatibility of on-disk DB with software.
@@ -74,7 +74,7 @@ pub struct SlasherDB {
     /// LRU cache mapping indexed attestation IDs to their attestation data roots.
     attestation_root_cache: Mutex<LruCache<IndexedAttestationId, Hash256>>,
     pub(crate) config: Arc<Config>,
-    pub(crate) spec: Arc<ChainSpec>
+    pub(crate) spec: Arc<ChainSpec>,
 }
 
 /// Database key for the `attesters` database.
@@ -254,10 +254,7 @@ pub struct IndexedAttestationOnDisk {
 }
 
 impl IndexedAttestationOnDisk {
-    fn into_indexed_attestation(
-        self,
-        spec: &ChainSpec,
-    ) -> Result<IndexedAttestation, Error> {
+    fn into_indexed_attestation(self, spec: &ChainSpec) -> Result<IndexedAttestation, Error> {
         let fork_at_target_epoch = spec.fork_name_at_epoch(self.data.target.epoch);
         if fork_at_target_epoch.gloas_enabled() {
             let attesting_indices = ProgressiveVariableList::new(self.attesting_indices)?;
@@ -318,7 +315,7 @@ impl SlasherDB {
             databases,
             attestation_root_cache,
             config,
-            spec
+            spec,
         };
 
         db = db.migrate()?;
@@ -869,14 +866,9 @@ mod test {
     use super::*;
     use types::{Checkpoint, ForkName};
 
-
     fn indexed_attestation_on_disk_roundtrip_test(
         spec: &ChainSpec,
-        make_attestation: fn(
-            Vec<u64>,
-            AttestationData,
-            AggregateSignature,
-        ) -> IndexedAttestation,
+        make_attestation: fn(Vec<u64>, AttestationData, AggregateSignature) -> IndexedAttestation,
         committee_len: u64,
     ) {
         let attestation_data = AttestationData {

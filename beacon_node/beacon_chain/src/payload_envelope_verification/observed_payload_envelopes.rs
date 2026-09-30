@@ -21,10 +21,7 @@ impl ObservedPayloadEnvelopes {
     /// Observe the verified payload envelope for its `(slot, block_root, builder_index)` tuple
     ///
     /// Returns `true` if the envelope was newly observed, `false` if it had already been seen
-    pub fn observe_envelope(
-        &self,
-        envelope: &GossipVerifiedEnvelope,
-    ) -> bool {
+    pub fn observe_envelope(&self, envelope: &GossipVerifiedEnvelope) -> bool {
         let message = &envelope.signed_envelope.message;
         self.seen_envelopes
             .write()
@@ -64,11 +61,10 @@ mod tests {
     use bls::Signature;
     use std::sync::Arc;
     use types::{
-        BeaconBlock, BuilderIndex, Spec, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
-        ExecutionRequestsGloas, Hash256, SignedBeaconBlock,
-        SignedExecutionPayloadEnvelope, Slot,
+        BeaconBlock, BuilderIndex, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
+        ExecutionRequestsGloas, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
+        Spec,
     };
-
 
     fn make_verified_envelope(
         slot: Slot,

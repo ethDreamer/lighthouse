@@ -20,7 +20,6 @@ mod retry;
 use cli::cli_app;
 use local_network::LocalNetwork;
 
-
 fn main() {
     let matches = cli_app().get_matches();
     match matches.subcommand_name() {

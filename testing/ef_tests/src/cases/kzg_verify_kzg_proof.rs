@@ -16,7 +16,7 @@ pub struct KZGVerifyKZGProofInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGVerifyKZGProof {
     pub input: KZGVerifyKZGProofInput,
-    pub output: Option<bool>
+    pub output: Option<bool>,
 }
 
 impl LoadCase for KZGVerifyKZGProof {

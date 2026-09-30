@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::error;
-use types::core::{Epoch, Spec, Hash256};
+use types::core::{Epoch, Hash256, Spec};
 use types::data::{ColumnIndex, PartialDataColumnGloas, PartialDataColumnHeader};
 
 /// Assembles partial data columns into complete columns
@@ -292,7 +292,6 @@ mod tests {
         Cell, CellBitmap, DataColumnSidecar, DataColumnSidecarFulu, PartialDataColumn,
         PartialDataColumnFulu, PartialDataColumnSidecarFulu,
     };
-
 
     fn make_cell(marker: u8) -> Cell {
         let mut cell = Cell::default();

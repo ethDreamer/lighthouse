@@ -447,8 +447,7 @@ impl Operation for BeaconBlockBody<BlindedPayload> {
         ssz_decode_file_with(path, |bytes| {
             Ok(match fork_name {
                 ForkName::Bellatrix => {
-                    let inner =
-                        <BeaconBlockBodyBellatrix<FullPayload>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyBellatrix<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Bellatrix(inner.clone_as_blinded())
                 }
                 ForkName::Capella => {

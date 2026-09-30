@@ -1,4 +1,4 @@
-use crate::{Withdrawals};
+use crate::Withdrawals;
 use superstruct::superstruct;
 
 #[superstruct(

@@ -547,13 +547,12 @@ impl AsBlock for LookupBlock {
 
 #[cfg(test)]
 mod tests {
-    use types::Spec;
     use super::*;
     use crate::custody_context::NodeCustodyType;
     use crate::test_utils::test_custody_context;
     use bls::Signature;
+    use types::Spec;
     use types::{BeaconBlockGloas, EmptyBlock};
-
 
     /// Test that calling the pre-gloas constructor `RangeSyncBlock::new` with a gloas block
     /// is rejected, because gloas blocks need to use `RangeSyncBlock::new_gloas``.

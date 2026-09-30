@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{error, trace};
 use types::PartialDataColumnSidecarError;
-use types::core::{Hash256};
+use types::core::Hash256;
 use types::data::{
     CellBitmap, PartialDataColumnFulu, PartialDataColumnHeader, PartialDataColumnPartsMetadata,
     PartialDataColumnSidecar, PartialDataColumnViewFulu,
@@ -254,14 +254,12 @@ fn action_from_present_metadata(
         );
         Some((
             sidecar.as_ssz_bytes(),
-            Box::new(MaybeKnownMetadata::from(
-                PartialDataColumnPartsMetadata {
-                    available: peer_metadata
-                        .available
-                        .union(sidecar.cells_present_bitmap()),
-                    requests: peer_metadata.requests.union(sidecar.cells_present_bitmap()),
-                },
-            )) as Box<dyn Metadata + 'static>,
+            Box::new(MaybeKnownMetadata::from(PartialDataColumnPartsMetadata {
+                available: peer_metadata
+                    .available
+                    .union(sidecar.cells_present_bitmap()),
+                requests: peer_metadata.requests.union(sidecar.cells_present_bitmap()),
+            })) as Box<dyn Metadata + 'static>,
         ))
     } else {
         trace!(
@@ -345,19 +343,18 @@ impl Partial for OutgoingPartialColumnGloas {
 
 #[cfg(test)]
 mod tests {
-    use types::Spec;
     use super::*;
     use bls::Signature;
     use fixed_bytes::FixedBytesExtended;
     use libp2p::identity::Keypair;
     use ssz_types::FixedVector;
     use types::CellBitmap;
+    use types::Spec;
     use types::block::{BeaconBlockHeader, SignedBeaconBlockHeader};
-    use types::core::{Slot};
+    use types::core::Slot;
     use types::data::PartialDataColumnHeader;
     use types::data::PartialDataColumnSidecarFulu;
     use types::data::PartialDataColumnSidecarGloas;
-
 
     fn make_cell(marker: u8) -> types::Cell {
         let mut cell = types::Cell::default();

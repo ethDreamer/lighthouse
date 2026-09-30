@@ -123,8 +123,7 @@ pub fn get_kzg(spec: &ChainSpec) -> Arc<Kzg> {
     }
 }
 
-pub type BaseHarnessType<THotStore, TColdStore> =
-    Witness<TestingSlotClock, THotStore, TColdStore>;
+pub type BaseHarnessType<THotStore, TColdStore> = Witness<TestingSlotClock, THotStore, TColdStore>;
 
 pub type DiskHarnessType = BaseHarnessType<BeaconNodeBackend, BeaconNodeBackend>;
 pub type EphemeralHarnessType = BaseHarnessType<MemoryStore, MemoryStore>;
@@ -779,13 +778,10 @@ pub struct BeaconChainHarness<T: BeaconChainTypes> {
 
 pub type CommitteeSingleAttestations = Vec<(SingleAttestation, SubnetId)>;
 pub type CommitteeAttestations = Vec<(Attestation, SubnetId)>;
-pub type HarnessAttestations =
-    Vec<(CommitteeAttestations, Option<SignedAggregateAndProof>)>;
+pub type HarnessAttestations = Vec<(CommitteeAttestations, Option<SignedAggregateAndProof>)>;
 
-pub type HarnessSingleAttestations = Vec<(
-    CommitteeSingleAttestations,
-    Option<SignedAggregateAndProof>,
-)>;
+pub type HarnessSingleAttestations =
+    Vec<(CommitteeSingleAttestations, Option<SignedAggregateAndProof>)>;
 
 pub type HarnessPayloadAttestationMessages = Vec<PayloadAttestationMessage>;
 
@@ -1444,11 +1440,7 @@ where
     }
 
     /// Sign a beacon block using the proposer's key.
-    pub fn sign_beacon_block(
-        &self,
-        block: BeaconBlock,
-        state: &BeaconState,
-    ) -> SignedBeaconBlock {
+    pub fn sign_beacon_block(&self, block: BeaconBlock, state: &BeaconState) -> SignedBeaconBlock {
         let proposer_index = block.proposer_index() as usize;
         block.sign(
             &self.validator_keypairs[proposer_index].sk,
@@ -2840,12 +2832,7 @@ where
             .expect("no withdrawal key for validator")
     }
 
-    pub fn add_voluntary_exit(
-        &self,
-        block: &mut BeaconBlock,
-        validator_index: u64,
-        epoch: Epoch,
-    ) {
+    pub fn add_voluntary_exit(&self, block: &mut BeaconBlock, validator_index: u64, epoch: Epoch) {
         let exit = self.make_voluntary_exit(validator_index, epoch);
         block.body_mut().voluntary_exits_push(exit).unwrap();
     }
@@ -3320,11 +3307,7 @@ where
         })
     }
 
-    pub fn process_attestations(
-        &self,
-        attestations: HarnessAttestations,
-        state: &BeaconState,
-    ) {
+    pub fn process_attestations(&self, attestations: HarnessAttestations, state: &BeaconState) {
         let num_validators = self.validator_keypairs.len();
         let mut unaggregated = Vec::with_capacity(num_validators);
         // This is an over-allocation, but it should be fine. It won't be *that* memory hungry and
@@ -3409,14 +3392,7 @@ where
         &self,
         slot: Slot,
         state: BeaconState,
-    ) -> Result<
-        (
-            SignedBeaconBlockHash,
-            SignedBlockContentsTuple,
-            BeaconState,
-        ),
-        BlockError,
-    > {
+    ) -> Result<(SignedBeaconBlockHash, SignedBlockContentsTuple, BeaconState), BlockError> {
         self.set_current_slot(slot);
         let (block_contents, opt_envelope, new_state) =
             self.make_block_with_envelope(state, slot).await;
@@ -4199,10 +4175,7 @@ pub fn generate_rand_block_and_data_columns(
     num_blobs: NumBlobs,
     u: &mut arbitrary::Unstructured,
     spec: &ChainSpec,
-) -> arbitrary::Result<(
-    SignedBeaconBlock<FullPayload>,
-    DataColumnSidecarList,
-)> {
+) -> arbitrary::Result<(SignedBeaconBlock<FullPayload>, DataColumnSidecarList)> {
     let (block, _blobs) = generate_rand_block_and_blobs(fork_name, num_blobs, u)?;
     let data_columns = generate_data_column_sidecars_from_block(&block, spec);
     Ok((block, data_columns))
@@ -4228,12 +4201,11 @@ pub fn generate_data_column_sidecars_from_block(
         }
         let num_blobs = kzg_commitments.len();
         let signed_block_header = block.signed_block_header();
-        let template_data_columns =
-            RuntimeVariableList::<DataColumnSidecarGloas>::from_ssz_bytes(
-                TEST_DATA_COLUMN_SIDECARS_GLOAS_SSZ,
-                Spec::NUMBER_OF_COLUMNS,
-            )
-            .unwrap();
+        let template_data_columns = RuntimeVariableList::<DataColumnSidecarGloas>::from_ssz_bytes(
+            TEST_DATA_COLUMN_SIDECARS_GLOAS_SSZ,
+            Spec::NUMBER_OF_COLUMNS,
+        )
+        .unwrap();
 
         let (cells, proofs) = template_data_columns
             .into_iter()
@@ -4273,12 +4245,11 @@ pub fn generate_data_column_sidecars_from_block(
         let signed_block_header = block.signed_block_header();
 
         // load the precomputed column sidecar to avoid computing them for every block in the tests.
-        let template_data_columns =
-            RuntimeVariableList::<DataColumnSidecarFulu>::from_ssz_bytes(
-                TEST_DATA_COLUMN_SIDECARS_SSZ,
-                Spec::NUMBER_OF_COLUMNS,
-            )
-            .unwrap();
+        let template_data_columns = RuntimeVariableList::<DataColumnSidecarFulu>::from_ssz_bytes(
+            TEST_DATA_COLUMN_SIDECARS_SSZ,
+            Spec::NUMBER_OF_COLUMNS,
+        )
+        .unwrap();
 
         let (cells, proofs) = template_data_columns
             .into_iter()

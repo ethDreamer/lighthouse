@@ -1,4 +1,3 @@
-use types::Spec;
 use super::Context;
 use crate::engine_api::{http::*, *};
 use crate::json_structures::*;
@@ -7,6 +6,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tracing::debug;
+use types::Spec;
 use types::{ProgressiveTransactions, ProgressiveWithdrawals};
 
 pub const GENERIC_ERROR_CODE: i64 = -1234;
@@ -14,10 +14,7 @@ pub const BAD_PARAMS_ERROR_CODE: i64 = -32602;
 pub const UNKNOWN_PAYLOAD_ERROR_CODE: i64 = -38001;
 pub const FORK_REQUEST_MISMATCH_ERROR_CODE: i64 = -32000;
 
-pub async fn handle_rpc(
-    body: JsonValue,
-    ctx: Arc<Context>,
-) -> Result<JsonValue, (String, i64)> {
+pub async fn handle_rpc(body: JsonValue, ctx: Arc<Context>) -> Result<JsonValue, (String, i64)> {
     *ctx.previous_request.lock() = Some(body.clone());
 
     let method = body
@@ -797,9 +794,9 @@ pub async fn handle_rpc(
                                 .transactions()
                                 .iter()
                                 .map(|tx| {
-                                    types::Transaction::<typenum::U<{ Spec::MAX_BYTES_PER_TRANSACTION }>>::new(
-                                        tx.to_vec(),
-                                    )
+                                    types::Transaction::<
+                                        typenum::U<{ Spec::MAX_BYTES_PER_TRANSACTION }>,
+                                    >::new(tx.to_vec())
                                 })
                                 .collect::<Result<Vec<_>, _>>()
                                 .and_then(ssz_types::VariableList::new)

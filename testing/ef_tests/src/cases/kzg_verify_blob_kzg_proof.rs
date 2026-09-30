@@ -96,7 +96,7 @@ pub struct KZGVerifyBlobKZGProofInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGVerifyBlobKZGProof {
     pub input: KZGVerifyBlobKZGProofInput,
-    pub output: Option<bool>
+    pub output: Option<bool>,
 }
 
 impl LoadCase for KZGVerifyBlobKZGProof {
@@ -111,12 +111,13 @@ impl Case for KZGVerifyBlobKZGProof {
     }
 
     fn result(&self, _case_index: usize, _fork_name: ForkName) -> Result<(), Error> {
-        let parse_input = |input: &KZGVerifyBlobKZGProofInput| -> Result<(Blob, KzgCommitment, KzgProof), Error> {
-            let blob = parse_blob(&input.blob)?;
-            let commitment = parse_commitment(&input.commitment)?;
-            let proof = parse_proof(&input.proof)?;
-            Ok((blob, commitment, proof))
-        };
+        let parse_input =
+            |input: &KZGVerifyBlobKZGProofInput| -> Result<(Blob, KzgCommitment, KzgProof), Error> {
+                let blob = parse_blob(&input.blob)?;
+                let commitment = parse_commitment(&input.commitment)?;
+                let proof = parse_proof(&input.proof)?;
+                Ok((blob, commitment, proof))
+            };
 
         let kzg = get_kzg();
         let result = parse_input(&self.input).and_then(|(blob, commitment, proof)| {

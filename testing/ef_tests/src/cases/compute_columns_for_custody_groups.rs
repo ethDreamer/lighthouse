@@ -1,6 +1,6 @@
-use types::Spec;
 use super::*;
 use serde::Deserialize;
+use types::Spec;
 use types::data::{CustodyIndex, compute_columns_for_custody_group};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -9,7 +9,7 @@ pub struct ComputeColumnsForCustodyGroups {
     /// The custody group index.
     pub custody_group: CustodyIndex,
     /// The list of resulting custody columns.
-    pub result: Vec<u64>
+    pub result: Vec<u64>,
 }
 
 impl LoadCase for ComputeColumnsForCustodyGroups {

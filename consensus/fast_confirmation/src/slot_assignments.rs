@@ -5,8 +5,8 @@ use crate::Error;
 use safe_arith::SafeArith;
 use std::sync::Arc;
 use types::{
-    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, Spec, Hash256,
-    RelativeEpoch, Slot,
+    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, Hash256, RelativeEpoch,
+    Slot, Spec,
 };
 
 /// One of the three epochs the FCR examines for committee assignments, relative to a beacon
@@ -27,10 +27,7 @@ impl WindowEpoch {
         }
     }
 
-    fn shuffling_id(
-        self,
-        state: &BeaconState,
-    ) -> Result<AttestationShufflingId, Error> {
+    fn shuffling_id(self, state: &BeaconState) -> Result<AttestationShufflingId, Error> {
         // Block root is only used for genesis so we use zero.
         let block_root = Hash256::ZERO;
         match self {
@@ -202,8 +199,7 @@ fn assigned_slot(
 mod tests {
     use super::*;
     use state_processing::{GloasVerificationContext, per_slot_processing};
-    use types::{Validator};
-
+    use types::Validator;
 
     fn genesis_state(n: usize) -> (BeaconState, types::ChainSpec) {
         let spec = Spec::default_spec();

@@ -519,7 +519,6 @@ mod tests {
     use mockito::{Matcher, Server, ServerGuard};
     use std::str::FromStr;
 
-
     #[test]
     fn test_headers_no_panic() {
         for fork in ForkName::list_all() {

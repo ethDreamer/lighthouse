@@ -7,8 +7,8 @@ use state_processing::signature_sets::{
     execution_payload_bid_signature_set, get_builder_pubkey_from_state,
 };
 use types::{
-    BeaconState, ChainSpec, Spec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
-    SignedProposerPreferences, Slot,
+    BeaconState, ChainSpec, ExecutionBlockHash, Hash256, SignedExecutionPayloadBid,
+    SignedProposerPreferences, Slot, Spec,
 };
 
 /// Fully validate a bid fetched directly from a builder, for inclusion in a block being produced.
@@ -67,7 +67,8 @@ pub fn verify_direct_bid(
     }
 
     // `prev_randao` must be the RANDAO mix from the production state.
-    let expected_prev_randao = *state.get_randao_mix(proposal_slot.epoch(Spec::slots_per_epoch()))?;
+    let expected_prev_randao =
+        *state.get_randao_mix(proposal_slot.epoch(Spec::slots_per_epoch()))?;
     if bid.prev_randao != expected_prev_randao {
         return Err(PayloadBidError::InvalidPrevRandao { slot: bid.slot });
     }
@@ -122,7 +123,6 @@ mod tests {
     use super::*;
     use bls::Signature;
     use types::{Address, ExecutionPayloadBid, ProposerPreferences};
-
 
     /// Gas limit of the executed ancestor's payload; equal to the proposer's target in `preferences()`.
     const EXECUTED_ANCESTOR_GAS_LIMIT: u64 = 30_000_000;

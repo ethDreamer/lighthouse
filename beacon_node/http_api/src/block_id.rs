@@ -11,8 +11,8 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use types::{
-    BlobSidecarList, DataColumnSidecar, DataColumnSidecarList, Spec, ForkName, Hash256,
-    SignedBeaconBlock, SignedBlindedBeaconBlock, Slot,
+    BlobSidecarList, DataColumnSidecar, DataColumnSidecarList, ForkName, Hash256,
+    SignedBeaconBlock, SignedBlindedBeaconBlock, Slot, Spec,
 };
 use warp::Rejection;
 
@@ -170,14 +170,7 @@ impl BlockId {
     pub fn blinded_block<T: BeaconChainTypes>(
         &self,
         chain: &BeaconChain<T>,
-    ) -> Result<
-        (
-            SignedBlindedBeaconBlock,
-            ExecutionOptimistic,
-            Finalized,
-        ),
-        warp::Rejection,
-    > {
+    ) -> Result<(SignedBlindedBeaconBlock, ExecutionOptimistic, Finalized), warp::Rejection> {
         match &self.0 {
             CoreBlockId::Head => {
                 let (cached_head, execution_status) = chain
@@ -227,14 +220,7 @@ impl BlockId {
     pub async fn full_block<T: BeaconChainTypes>(
         &self,
         chain: &BeaconChain<T>,
-    ) -> Result<
-        (
-            Arc<SignedBeaconBlock>,
-            ExecutionOptimistic,
-            Finalized,
-        ),
-        warp::Rejection,
-    > {
+    ) -> Result<(Arc<SignedBeaconBlock>, ExecutionOptimistic, Finalized), warp::Rejection> {
         match &self.0 {
             CoreBlockId::Head => {
                 let (cached_head, execution_status) = chain
@@ -451,10 +437,7 @@ impl BlockId {
             vec![]
         };
 
-        let blobs = blobs
-            .into_iter()
-            .map(|blob| BlobWrapper { blob })
-            .collect();
+        let blobs = blobs.into_iter().map(|blob| BlobWrapper { blob }).collect();
 
         Ok(UnversionedResponse {
             metadata: ExecutionOptimisticFinalizedMetadata {

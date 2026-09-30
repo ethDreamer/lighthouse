@@ -2,7 +2,7 @@
 
 use crate::Error;
 use safe_arith::SafeArith;
-use types::{BeaconState, Epoch, Spec, Hash256};
+use types::{BeaconState, Epoch, Hash256, Spec};
 
 /// Cache key identifying the validator-set view a `BalanceSourceData` was built from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,10 +22,7 @@ pub enum BalanceSourceKey {
 
 impl BalanceSourceKey {
     /// Create a key for a specific `block_root` and its state.
-    pub(crate) fn compute(
-        state: &BeaconState,
-        block_root: Hash256,
-    ) -> Result<Self, Error> {
+    pub(crate) fn compute(state: &BeaconState, block_root: Hash256) -> Result<Self, Error> {
         let epoch = state.current_epoch();
         let epoch_slashings = state
             .get_slashings(epoch)
@@ -62,10 +59,7 @@ impl BalanceSourceData {
     /// Create a balance source for `state` at its current epoch.
     ///
     /// The state must be pulled up to the desired epoch prior to calling this function.
-    pub(crate) fn new(
-        state: &BeaconState,
-        block_root: Hash256,
-    ) -> Result<Self, Error> {
+    pub(crate) fn new(state: &BeaconState, block_root: Hash256) -> Result<Self, Error> {
         let current_epoch = state.current_epoch();
         let key = BalanceSourceKey::compute(state, block_root)?;
         let validators = state.validators();

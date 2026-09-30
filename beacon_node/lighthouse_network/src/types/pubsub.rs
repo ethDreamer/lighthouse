@@ -9,7 +9,7 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
-    CellBitmap, DataColumnSidecar, DataColumnSubnetId, Spec, ForkContext, ForkName, Hash256,
+    CellBitmap, DataColumnSidecar, DataColumnSubnetId, ForkContext, ForkName, Hash256,
     LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
     PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
     PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
@@ -20,7 +20,7 @@ use types::{
     SignedBeaconBlockFulu, SignedBeaconBlockGloas, SignedBeaconBlockHeze,
     SignedBlsToExecutionChange, SignedContributionAndProof, SignedExecutionPayloadBid,
     SignedExecutionPayloadEnvelope, SignedInclusionList, SignedProposerPreferences,
-    SignedVoluntaryExit, SingleAttestation, SubnetId, SyncCommitteeMessage, SyncSubnetId,
+    SignedVoluntaryExit, SingleAttestation, Spec, SubnetId, SyncCommitteeMessage, SyncSubnetId,
     execution::SignedExecutionProof,
 };
 
@@ -273,10 +273,12 @@ impl PubsubMessage {
                                 SignedBeaconBlockAltair::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
                             ),
-                            Some(ForkName::Bellatrix) => SignedBeaconBlock::<FullPayload>::Bellatrix(
-                                SignedBeaconBlockBellatrix::from_ssz_bytes(data)
-                                    .map_err(|e| format!("{:?}", e))?,
-                            ),
+                            Some(ForkName::Bellatrix) => {
+                                SignedBeaconBlock::<FullPayload>::Bellatrix(
+                                    SignedBeaconBlockBellatrix::from_ssz_bytes(data)
+                                        .map_err(|e| format!("{:?}", e))?,
+                                )
+                            }
                             Some(ForkName::Capella) => SignedBeaconBlock::<FullPayload>::Capella(
                                 SignedBeaconBlockCapella::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?,
@@ -720,7 +722,6 @@ mod tests {
     use libp2p::gossipsub::partial_messages::Partial;
     use types::data::{CellBitmap, PartialDataColumnSidecarGloas};
     use types::{Epoch, Slot, data::DataColumnSubnetId};
-
 
     fn gloas_fork_context() -> ForkContext {
         let mut spec = Spec::default_spec();

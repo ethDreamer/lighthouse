@@ -1,4 +1,3 @@
-use typenum::U;
 use alloy_primitives::Bytes;
 use context_deserialize::{ContextDeserialize, context_deserialize};
 use ethereum_hashing::{DynamicContext, Sha256Context};
@@ -8,11 +7,12 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     builder::{BuilderDepositRequest, BuilderExitRequest},
     consolidation::ConsolidationRequest,
-    core::{Spec, Hash256},
+    core::{Hash256, Spec},
     deposit::DepositRequest,
     fork::{ForkName, ForkVersionDecode},
     state::BeaconStateError,
@@ -47,13 +47,12 @@ pub type BuilderExitRequests =
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Eq, Hash,
+            PartialEq,
+            Eq,
+            Hash,
         ),
         context_deserialize(ForkName),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     specific_variant_attributes(Gloas(tree_hash(
         struct_behaviour = "progressive_container",
@@ -68,10 +67,7 @@ pub type BuilderExitRequests =
         expr = "BeaconStateError::IncorrectStateVariant"
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, TreeHash, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
@@ -84,19 +80,28 @@ pub struct ExecutionRequests {
     #[superstruct(only(Electra), partial_getter(rename = "withdrawals_electra"))]
     pub withdrawals: WithdrawalRequests,
     #[superstruct(only(Gloas), partial_getter(rename = "withdrawals_gloas"))]
-    pub withdrawals: ProgressiveVariableList<WithdrawalRequest, U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>,
+    pub withdrawals: ProgressiveVariableList<
+        WithdrawalRequest,
+        U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>,
+    >,
     #[superstruct(only(Electra), partial_getter(rename = "consolidations_electra"))]
     pub consolidations: ConsolidationRequests,
     #[superstruct(only(Gloas), partial_getter(rename = "consolidations_gloas"))]
-    pub consolidations:
-        ProgressiveVariableList<ConsolidationRequest, U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>>,
+    pub consolidations: ProgressiveVariableList<
+        ConsolidationRequest,
+        U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>,
+    >,
     // [New in Gloas:EIP8282] The builder request lists are only present on the Gloas variant.
     #[superstruct(only(Gloas))]
-    pub builder_deposits:
-        ProgressiveVariableList<BuilderDepositRequest, U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>>,
+    pub builder_deposits: ProgressiveVariableList<
+        BuilderDepositRequest,
+        U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>,
+    >,
     #[superstruct(only(Gloas))]
-    pub builder_exits:
-        ProgressiveVariableList<BuilderExitRequest, U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>,
+    pub builder_exits: ProgressiveVariableList<
+        BuilderExitRequest,
+        U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>,
+    >,
 }
 
 impl<'de> ContextDeserialize<'de, ForkName> for ExecutionRequests {

@@ -5,17 +5,14 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot},
+    core::{ChainSpec, Domain, Hash256, SignedRoot, Spec},
     fork::{Fork, ForkName},
     sync_committee::{ContributionAndProof, SyncCommitteeContribution, SyncSelectionProof},
 };
 
 /// A Validators signed contribution proof to publish on the `sync_committee_contribution_and_proof`
 /// gossipsub topic.
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, TreeHash)]
 #[context_deserialize(ForkName)]
 pub struct SignedContributionAndProof {

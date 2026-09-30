@@ -1,7 +1,6 @@
 //! Provides an `ObservedAggregates` struct which allows us to reject aggregated attestations or
 //! sync committee contributions if we've already seen them.
 
-use typenum::U;
 use crate::sync_committee_verification::SyncCommitteeData;
 use ssz::ProgressiveBitList;
 use ssz_types::{BitList, BitVector};
@@ -9,18 +8,17 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 use types::SlotData;
 use types::consts::altair::{
     SYNC_COMMITTEE_SUBNET_COUNT, TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE,
 };
 use types::{
-    Attestation, AttestationData, AttestationRef, Spec, Hash256, Slot, SyncCommitteeContribution,
+    Attestation, AttestationData, AttestationRef, Hash256, Slot, Spec, SyncCommitteeContribution,
 };
 
-pub type ObservedSyncContributions = ObservedAggregates<
-    SyncCommitteeContribution,
-    BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>,
->;
+pub type ObservedSyncContributions =
+    ObservedAggregates<SyncCommitteeContribution, BitVector<U<{ Spec::SYNC_SUBCOMMITTEE_SIZE }>>>;
 pub type ObservedAggregateAttestations =
     ObservedAggregates<Attestation, BitList<U<{ Spec::MAX_VALIDATORS_PER_SLOT }>>>;
 
@@ -134,9 +132,7 @@ impl SubsetItem for AttestationRef<'_> {
             }
             Self::Electra(att) => att.aggregation_bits.is_subset(other),
             Self::Gloas(att) => {
-                if let Ok(aggregation_bits) =
-                    progressive_bits_to_bitlist(&att.aggregation_bits)
-                {
+                if let Ok(aggregation_bits) = progressive_bits_to_bitlist(&att.aggregation_bits) {
                     return aggregation_bits.is_subset(other);
                 }
                 false
@@ -154,9 +150,7 @@ impl SubsetItem for AttestationRef<'_> {
             }
             Self::Electra(att) => other.is_subset(&att.aggregation_bits),
             Self::Gloas(att) => {
-                if let Ok(aggregation_bits) =
-                    progressive_bits_to_bitlist(&att.aggregation_bits)
-                {
+                if let Ok(aggregation_bits) = progressive_bits_to_bitlist(&att.aggregation_bits) {
                     return other.is_subset(&aggregation_bits);
                 }
                 false
@@ -171,8 +165,9 @@ impl SubsetItem for AttestationRef<'_> {
                 .extend_aggregation_bits()
                 .map_err(|_| Error::GetItemError),
             Self::Electra(att) => Ok(att.aggregation_bits.clone()),
-            Self::Gloas(att) => progressive_bits_to_bitlist(&att.aggregation_bits)
-                .map_err(|_| Error::GetItemError),
+            Self::Gloas(att) => {
+                progressive_bits_to_bitlist(&att.aggregation_bits).map_err(|_| Error::GetItemError)
+            }
         }
     }
 
@@ -499,7 +494,6 @@ mod tests {
     use super::*;
     use fixed_bytes::FixedBytesExtended;
     use types::{AttestationBase, Hash256, test_utils::test_arbitrary_instance};
-
 
     fn get_attestation(slot: Slot, beacon_block_root: u64) -> Attestation {
         let a: AttestationBase = test_arbitrary_instance();

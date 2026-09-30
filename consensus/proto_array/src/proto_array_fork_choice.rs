@@ -17,8 +17,7 @@ use std::{
     time::Duration,
 };
 use types::{
-    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, Spec, ExecutionBlockHash, Hash256,
-    Slot,
+    AttestationShufflingId, ChainSpec, Checkpoint, Epoch, ExecutionBlockHash, Hash256, Slot, Spec,
 };
 
 pub const DEFAULT_PRUNE_THRESHOLD: usize = 256;
@@ -978,14 +977,12 @@ impl ProtoArrayForkChoice {
             equivocating_indices,
         )
         .map_err(|e| format!("optimistic reset settle compute_deltas failed: {:?}", e))?;
-        self.proto_array
-            .apply_score_changes(deltas)
-            .map_err(|e| {
-                format!(
-                    "optimistic reset settle apply_score_changes failed: {:?}",
-                    e
-                )
-            })?;
+        self.proto_array.apply_score_changes(deltas).map_err(|e| {
+            format!(
+                "optimistic reset settle apply_score_changes failed: {:?}",
+                e
+            )
+        })?;
 
         // Clear every `VALID`/`INVALID` verdict. `Irrelevant` and `NotYetRevealed` have no verdict
         // to reset. This must happen before the replay below: `apply_score_changes` discards
@@ -1027,14 +1024,12 @@ impl ProtoArrayForkChoice {
         )
         .map_err(|e| format!("optimistic reset replay compute_deltas failed: {:?}", e))?;
 
-        self.proto_array
-            .apply_score_changes(deltas)
-            .map_err(|e| {
-                format!(
-                    "optimistic reset replay apply_score_changes failed: {:?}",
-                    e
-                )
-            })
+        self.proto_array.apply_score_changes(deltas).map_err(|e| {
+            format!(
+                "optimistic reset replay apply_score_changes failed: {:?}",
+                e
+            )
+        })
     }
 
     pub fn maybe_prune(&mut self, finalized_root: Hash256) -> Result<(), String> {
@@ -1620,24 +1615,10 @@ mod test_compute_deltas {
         assert!(!fc.is_descendant(finalized_root, not_finalized_desc));
         assert!(!fc.is_descendant(finalized_root, unknown));
 
-        assert!(fc.is_finalized_checkpoint_or_descendant(
-            finalized_root,
-            genesis_checkpoint
-        ));
-        assert!(fc.is_finalized_checkpoint_or_descendant(
-            finalized_desc,
-            genesis_checkpoint
-        ));
-        assert!(!fc.is_finalized_checkpoint_or_descendant(
-            not_finalized_desc,
-            genesis_checkpoint
-        ));
-        assert!(
-            !fc.is_finalized_checkpoint_or_descendant(
-                unknown,
-                genesis_checkpoint
-            )
-        );
+        assert!(fc.is_finalized_checkpoint_or_descendant(finalized_root, genesis_checkpoint));
+        assert!(fc.is_finalized_checkpoint_or_descendant(finalized_desc, genesis_checkpoint));
+        assert!(!fc.is_finalized_checkpoint_or_descendant(not_finalized_desc, genesis_checkpoint));
+        assert!(!fc.is_finalized_checkpoint_or_descendant(unknown, genesis_checkpoint));
 
         assert!(!fc.is_descendant(finalized_desc, not_finalized_desc));
         assert!(fc.is_descendant(finalized_desc, finalized_desc));
@@ -1805,27 +1786,22 @@ mod test_compute_deltas {
 
         assert!(
             fc.proto_array
-                .is_finalized_checkpoint_or_descendant(
-                    finalized_root,
-                    finalized_checkpoint
-                ),
+                .is_finalized_checkpoint_or_descendant(finalized_root, finalized_checkpoint),
             "the finalized checkpoint is the finalized checkpoint"
         );
 
         assert!(
-            fc.proto_array
-                .is_finalized_checkpoint_or_descendant(
-                    get_block_root(canonical_slot),
-                    finalized_checkpoint
-                ),
+            fc.proto_array.is_finalized_checkpoint_or_descendant(
+                get_block_root(canonical_slot),
+                finalized_checkpoint
+            ),
             "the canonical block is a descendant of the finalized checkpoint"
         );
         assert!(
-            !fc.proto_array
-                .is_finalized_checkpoint_or_descendant(
-                    get_block_root(non_canonical_slot),
-                    finalized_checkpoint
-                ),
+            !fc.proto_array.is_finalized_checkpoint_or_descendant(
+                get_block_root(non_canonical_slot),
+                finalized_checkpoint
+            ),
             "although the non-canonical block is a descendant of the finalized block, \
             it's not a descendant of the finalized checkpoint"
         );

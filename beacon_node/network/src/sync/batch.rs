@@ -114,9 +114,7 @@ pub struct BatchInfo<B: BatchConfig, D: Hash> {
     marker: std::marker::PhantomData<B>,
 }
 
-impl<B: BatchConfig, D: std::fmt::Debug + Hash> std::fmt::Display
-    for BatchInfo<B, D>
-{
+impl<B: BatchConfig, D: std::fmt::Debug + Hash> std::fmt::Display for BatchInfo<B, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

@@ -65,10 +65,7 @@ impl PendingPayloadEnvelopes {
     }
 
     /// Remove and return a pending envelope by the beacon block root it commits to.
-    pub fn remove(
-        &mut self,
-        beacon_block_root: Hash256,
-    ) -> Option<Arc<ExecutionPayloadEnvelope>> {
+    pub fn remove(&mut self, beacon_block_root: Hash256) -> Option<Arc<ExecutionPayloadEnvelope>> {
         self.envelopes
             .remove(&beacon_block_root)
             .map(|data| data.envelope)
@@ -98,7 +95,6 @@ impl PendingPayloadEnvelopes {
 mod tests {
     use super::*;
     use types::{ExecutionPayloadGloas, ExecutionRequestsGloas, Hash256};
-
 
     fn make_envelope(slot: Slot, beacon_block_root: Hash256) -> PendingEnvelopeData {
         PendingEnvelopeData {

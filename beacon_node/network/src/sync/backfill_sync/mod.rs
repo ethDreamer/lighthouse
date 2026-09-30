@@ -157,10 +157,7 @@ pub struct BackFillSync<T: BeaconChainTypes> {
 }
 
 impl<T: BeaconChainTypes> BackFillSync<T> {
-    pub fn new(
-        beacon_chain: Arc<BeaconChain<T>>,
-        network_globals: Arc<NetworkGlobals>,
-    ) -> Self {
+    pub fn new(beacon_chain: Arc<BeaconChain<T>>, network_globals: Arc<NetworkGlobals>) -> Self {
         // Determine if backfill is enabled or not.
         // If, for some reason a backfill has already been completed (or we've used a trusted
         // genesis root) then backfill has been completed.
@@ -171,9 +168,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
             } else {
                 (
                     BackFillState::Paused,
-                    anchor_info
-                        .oldest_block_slot
-                        .epoch(Spec::slots_per_epoch()),
+                    anchor_info.oldest_block_slot.epoch(Spec::slots_per_epoch()),
                 )
             };
 
@@ -1085,9 +1080,7 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         if anchor_info.block_backfill_complete(self.beacon_chain.genesis_backfill_slot) {
             Err(ResetEpochError::SyncCompleted)
         } else {
-            self.current_start = anchor_info
-                .oldest_block_slot
-                .epoch(Spec::slots_per_epoch());
+            self.current_start = anchor_info.oldest_block_slot.epoch(Spec::slots_per_epoch());
             Ok(())
         }
     }

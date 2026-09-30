@@ -38,8 +38,8 @@ pub(crate) fn post_beacon_execution_payload_bids_ssz<T: BeaconChainTypes>(
              chain: Arc<BeaconChain<T>>,
              network_tx: UnboundedSender<NetworkMessage>| {
                 task_spawner.blocking_response_task(Priority::P0, move || {
-                    let bid = SignedExecutionPayloadBid::from_ssz_bytes(&body_bytes)
-                        .map_err(|e| {
+                    let bid =
+                        SignedExecutionPayloadBid::from_ssz_bytes(&body_bytes).map_err(|e| {
                             warp_utils::reject::custom_bad_request(format!("invalid SSZ: {e:?}"))
                         })?;
                     publish_execution_payload_bid(bid, &chain, &network_tx)

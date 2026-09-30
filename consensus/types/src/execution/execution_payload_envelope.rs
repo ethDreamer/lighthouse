@@ -1,5 +1,5 @@
 use crate::execution::{ExecutionPayloadGloas, ExecutionRequestsGloas};
-use crate::{Spec, ForkName, Hash256, SignedRoot, Slot};
+use crate::{ForkName, Hash256, SignedRoot, Slot, Spec};
 use context_deserialize::context_deserialize;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Serialize};
@@ -7,10 +7,7 @@ use ssz::{BYTES_PER_LENGTH_OFFSET, Encode as SszEncode};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, Decode, Deserialize, TreeHash, PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 #[tree_hash(

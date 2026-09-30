@@ -16,7 +16,7 @@ pub struct KZGVerifyCellKZGProofBatchInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGVerifyCellKZGProofBatch {
     pub input: KZGVerifyCellKZGProofBatchInput,
-    pub output: Option<bool>
+    pub output: Option<bool>,
 }
 
 impl LoadCase for KZGVerifyCellKZGProofBatch {

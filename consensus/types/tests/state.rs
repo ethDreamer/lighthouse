@@ -150,8 +150,7 @@ async fn cache_initialization() {
 
     let mut state = build_state(16).await;
 
-    *state.slot_mut() =
-        (Epoch::new(Spec::genesis_epoch()) + 1).start_slot(Spec::slots_per_epoch());
+    *state.slot_mut() = (Epoch::new(Spec::genesis_epoch()) + 1).start_slot(Spec::slots_per_epoch());
 
     test_cache_initialization(&mut state, RelativeEpoch::Previous, &spec);
     test_cache_initialization(&mut state, RelativeEpoch::Current, &spec);
@@ -278,8 +277,12 @@ mod committees {
 
         committee_consistency_test(validator_count, Epoch::new(0), cached_epoch).await;
 
-        committee_consistency_test(validator_count, Epoch::new(Spec::genesis_epoch()) + 4, cached_epoch)
-            .await;
+        committee_consistency_test(
+            validator_count,
+            Epoch::new(Spec::genesis_epoch()) + 4,
+            cached_epoch,
+        )
+        .await;
 
         committee_consistency_test(
             validator_count,
@@ -345,11 +348,10 @@ fn decode_base_and_altair() {
 
     // BeaconStateAltair
     {
-        let good_altair_state: BeaconState =
-            BeaconState::Altair(BeaconStateAltair {
-                slot: altair_slot,
-                ..<_>::arbitrary(&mut u).unwrap()
-            });
+        let good_altair_state: BeaconState = BeaconState::Altair(BeaconStateAltair {
+            slot: altair_slot,
+            ..<_>::arbitrary(&mut u).unwrap()
+        });
         // It's invalid to have an Altair state with a slot lower than the fork slot.
         let bad_altair_state = {
             let mut bad = good_altair_state.clone();

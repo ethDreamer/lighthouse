@@ -8,7 +8,7 @@ use types::SlotData;
 use types::consts::altair::SYNC_COMMITTEE_SUBNET_COUNT;
 use types::sync_committee::SyncContributionData;
 use types::{
-    Attestation, AttestationData, AttestationRef, CommitteeIndex, Spec, Hash256, Slot,
+    Attestation, AttestationData, AttestationRef, CommitteeIndex, Hash256, Slot, Spec,
     SyncCommitteeContribution,
 };
 
@@ -352,10 +352,7 @@ impl AggregateMap for SyncContributionAggregateMap {
     /// Insert a sync committee contribution into `self`, aggregating it into the pool.
     ///
     /// The given sync contribution must only have one signature.
-    fn insert(
-        &mut self,
-        contribution: &SyncCommitteeContribution,
-    ) -> Result<InsertOutcome, Error> {
+    fn insert(&mut self, contribution: &SyncCommitteeContribution) -> Result<InsertOutcome, Error> {
         let _timer =
             metrics::start_timer(&metrics::SYNC_CONTRIBUTION_PROCESSING_AGG_POOL_CORE_INSERT);
 
@@ -601,7 +598,6 @@ mod tests {
         test_utils::{generate_deterministic_keypair, test_arbitrary_instance},
     };
 
-
     fn get_attestation_base(slot: Slot) -> Attestation {
         let mut a: AttestationBase = test_arbitrary_instance();
         a.data.slot = slot;
@@ -698,10 +694,7 @@ mod tests {
         AttestationKey::from_attestation_ref(a.to_ref()).expect("should create attestation key")
     }
 
-    fn mutate_sync_contribution_block_root(
-        a: &mut SyncCommitteeContribution,
-        block_root: Hash256,
-    ) {
+    fn mutate_sync_contribution_block_root(a: &mut SyncCommitteeContribution, block_root: Hash256) {
         a.beacon_block_root = block_root
     }
 

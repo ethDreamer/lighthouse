@@ -6,10 +6,7 @@ use types::{BeaconState, ChainSpec, Validator};
 /// Performs a validator registry update, if required.
 ///
 /// NOTE: unchanged in Altair
-pub fn process_registry_updates(
-    state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn process_registry_updates(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     // Process activation eligibility and ejections.
     // Collect eligible and exiting validators (we need to avoid mutating the state while iterating).
     // We assume it's safe to re-order the change in eligibility and `initiate_validator_exit`.

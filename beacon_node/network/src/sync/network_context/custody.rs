@@ -10,8 +10,8 @@ use std::hash::{BuildHasher, RandomState};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, sync::Arc};
 use tracing::{Span, debug, debug_span, warn};
+use types::DataColumnSidecarList;
 use types::{DataColumnSidecar, Hash256, Slot, data::ColumnIndex};
-use types::{DataColumnSidecarList};
 
 use super::{
     ActiveRequestsPerPeer, LookupRequestResult, PeerGroup, RpcResponseResult, SyncNetworkContext,
@@ -32,7 +32,7 @@ pub struct ActiveCustodyRequest {
     /// Set of peers that claim to have imported this block and their custody columns
     lookup_peers: Arc<RwLock<HashSet<PeerId>>>,
     /// Span for tracing the lifetime of this request.
-    span: Span
+    span: Span,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -83,7 +83,7 @@ impl ActiveCustodyRequest {
             active_batch_columns_requests: <_>::default(),
             peer_attempts: HashMap::new(),
             lookup_peers,
-            span
+            span,
         }
     }
 

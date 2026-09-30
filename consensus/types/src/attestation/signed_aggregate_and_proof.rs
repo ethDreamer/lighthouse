@@ -10,7 +10,7 @@ use crate::{
         AggregateAndProof, AggregateAndProofBase, AggregateAndProofElectra, AggregateAndProofGloas,
         AggregateAndProofRef, Attestation, AttestationRef, SelectionProof,
     },
-    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot},
+    core::{ChainSpec, Domain, Hash256, SignedRoot, Spec},
     fork::{Fork, ForkName},
 };
 
@@ -32,18 +32,12 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     map_into(Attestation),
     map_ref_into(AggregateAndProofRef)
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, TreeHash)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -80,7 +74,11 @@ impl SignedAggregateAndProof {
             genesis_validators_root,
             spec,
         );
-        let target_epoch = message.aggregate().data().slot.epoch(Spec::slots_per_epoch());
+        let target_epoch = message
+            .aggregate()
+            .data()
+            .slot
+            .epoch(Spec::slots_per_epoch());
         let domain = spec.get_domain(
             target_epoch,
             Domain::AggregateAndProof,

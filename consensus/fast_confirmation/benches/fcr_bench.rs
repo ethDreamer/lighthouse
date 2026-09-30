@@ -21,7 +21,6 @@ use proto_array::core::{ProtoArray, VoteTracker};
 use proto_array::{Block, ExecutionStatus, JustifiedBalances, ProtoArrayForkChoice};
 use types::*;
 
-
 const GWEI_PER_ETH: u64 = 1_000_000_000;
 const BALANCE: u64 = 32 * GWEI_PER_ETH;
 

@@ -1,5 +1,5 @@
 use crate::task_spawner::TaskSpawner;
-use beacon_chain::{BeaconChain};
+use beacon_chain::BeaconChain;
 use eth2::types::EndpointVersion;
 use lighthouse_network::PubsubMessage;
 use lighthouse_network::rpc::methods::MetaData;
@@ -18,14 +18,10 @@ pub type ChainFilter<T> = BoxedFilter<(Arc<BeaconChain<T>>,)>;
 pub type NotWhileSyncingFilter = BoxedFilter<(Result<(), Rejection>,)>;
 pub type TaskSpawnerFilter = BoxedFilter<(TaskSpawner,)>;
 pub type ValidatorSubscriptionTxFilter = BoxedFilter<(Sender<ValidatorSubscriptionMessage>,)>;
-pub type NetworkTxFilter =
-    BoxedFilter<(UnboundedSender<NetworkMessage>,)>;
+pub type NetworkTxFilter = BoxedFilter<(UnboundedSender<NetworkMessage>,)>;
 pub type OptionalConsensusVersionHeaderFilter = BoxedFilter<(Option<ForkName>,)>;
 
-pub fn from_meta_data(
-    meta_data: &RwLock<MetaData>,
-    spec: &ChainSpec,
-) -> eth2::types::MetaData {
+pub fn from_meta_data(meta_data: &RwLock<MetaData>, spec: &ChainSpec) -> eth2::types::MetaData {
     let meta_data = meta_data.read();
     let format_hex = |bytes: &[u8]| format!("0x{}", hex::encode(bytes));
 

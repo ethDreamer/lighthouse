@@ -1580,8 +1580,7 @@ impl BeaconNodeHttpClient {
     pub async fn get_beacon_blocks(
         &self,
         block_id: BlockId,
-    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<SignedBeaconBlock>>, Error>
-    {
+    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<SignedBeaconBlock>>, Error> {
         let path = self.get_beacon_blocks_path(block_id)?;
         self.get_opt(path)
             .await
@@ -1624,8 +1623,7 @@ impl BeaconNodeHttpClient {
         &self,
         block_id: BlockId,
         versioned_hashes: Option<&[Hash256]>,
-    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<Vec<BlobWrapper>>>, Error>
-    {
+    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<Vec<BlobWrapper>>>, Error> {
         let mut path = self.get_blobs_path(block_id)?;
         if let Some(hashes) = versioned_hashes {
             let hashes_string = hashes
@@ -1648,10 +1646,8 @@ impl BeaconNodeHttpClient {
     pub async fn get_beacon_blinded_blocks(
         &self,
         block_id: BlockId,
-    ) -> Result<
-        Option<ExecutionOptimisticFinalizedBeaconResponse<SignedBlindedBeaconBlock>>,
-        Error,
-    > {
+    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<SignedBlindedBeaconBlock>>, Error>
+    {
         let path = self.get_beacon_blinded_blocks_path(block_id)?;
         self.get_opt(path)
             .await
@@ -1756,8 +1752,7 @@ impl BeaconNodeHttpClient {
     pub async fn get_beacon_blocks_attestations_v2(
         &self,
         block_id: BlockId,
-    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<Vec<Attestation>>>, Error>
-    {
+    ) -> Result<Option<ExecutionOptimisticFinalizedBeaconResponse<Vec<Attestation>>>, Error> {
         let mut path = self.eth_path(V2)?;
 
         path.path_segments_mut()
@@ -2940,10 +2935,8 @@ impl BeaconNodeHttpClient {
                     } else {
                         ProduceBlockV4Response::BlockOnly(
                             response
-                                .json::<ForkVersionedResponse<
-                                    BeaconBlock,
-                                    ProduceBlockV4Metadata,
-                                >>()
+                                .json::<ForkVersionedResponse<BeaconBlock, ProduceBlockV4Metadata>>(
+                                )
                                 .await?
                                 .data,
                         )

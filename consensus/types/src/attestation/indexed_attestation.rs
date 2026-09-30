@@ -1,8 +1,8 @@
-use typenum::U;
 use std::{
     hash::{Hash, Hasher},
     slice::Iter,
 };
+use typenum::U;
 
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
@@ -31,24 +31,20 @@ use crate::{attestation::AttestationData, core::Spec, fork::ForkName};
             Deserialize,
             Decode,
             Encode,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
             TreeHash,
         ),
         context_deserialize(ForkName),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
-    specific_variant_attributes(Gloas(
-        tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))
-    ))
+    specific_variant_attributes(Gloas(tree_hash(
+        struct_behaviour = "progressive_container",
+        active_fields(1, 1, 1)
+    )))
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, Educe, Deserialize)]
 #[educe(PartialEq)]
 #[serde(untagged)]
@@ -131,9 +127,11 @@ impl IndexedAttestation {
     pub fn to_electra(self) -> Result<IndexedAttestationElectra, ssz_types::Error> {
         match self {
             Self::Base(att) => {
-                let extended_attesting_indices: VariableList<u64, U<{ Spec::MAX_VALIDATORS_PER_SLOT }>> =
-                    VariableList::new(att.attesting_indices.to_vec())
-                        .expect("MaxValidatorsPerSlot must be >= MaxValidatorsPerCommittee");
+                let extended_attesting_indices: VariableList<
+                    u64,
+                    U<{ Spec::MAX_VALIDATORS_PER_SLOT }>,
+                > = VariableList::new(att.attesting_indices.to_vec())
+                    .expect("MaxValidatorsPerSlot must be >= MaxValidatorsPerCommittee");
                 // Note a unit test in consensus/types/src/eth_spec.rs asserts this invariant for
                 // all known specs
 
@@ -251,7 +249,7 @@ impl Hash for IndexedAttestation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Epoch};
+    use crate::core::Epoch;
     use arbitrary::Arbitrary;
 
     #[test]
@@ -311,10 +309,7 @@ mod tests {
         ssz_and_tree_hash_tests!(IndexedAttestationElectra);
     }
 
-    fn create_indexed_attestation(
-        target_epoch: u64,
-        source_epoch: u64,
-    ) -> IndexedAttestation {
+    fn create_indexed_attestation(target_epoch: u64, source_epoch: u64) -> IndexedAttestation {
         let mut u = crate::test_utils::test_unstructured();
         let mut indexed_vote =
             IndexedAttestation::Base(IndexedAttestationBase::arbitrary(&mut u).unwrap());

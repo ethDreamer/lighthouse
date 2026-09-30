@@ -16,12 +16,12 @@ use std::sync::Arc;
 use tokio_util::codec::{Decoder, Encoder};
 use types::SignedExecutionPayloadEnvelope;
 use types::{
-    BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnsByRootIdentifier, Spec, ForkContext,
-    ForkName, ForkVersionDecode, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
+    BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnsByRootIdentifier, ForkContext, ForkName,
+    ForkVersionDecode, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, LightClientUpdate, SignedBeaconBlock, SignedBeaconBlockAltair,
     SignedBeaconBlockBase, SignedBeaconBlockBellatrix, SignedBeaconBlockCapella,
     SignedBeaconBlockDeneb, SignedBeaconBlockElectra, SignedBeaconBlockFulu,
-    SignedBeaconBlockGloas, SignedBeaconBlockHeze,
+    SignedBeaconBlockGloas, SignedBeaconBlockHeze, Spec,
 };
 use unsigned_varint::codec::Uvi;
 
@@ -35,7 +35,7 @@ pub struct SSZSnappyInboundCodec {
     len: Option<usize>,
     /// Maximum bytes that can be sent in one req/resp chunked responses.
     max_packet_size: usize,
-    fork_context: Arc<ForkContext>
+    fork_context: Arc<ForkContext>,
 }
 
 impl SSZSnappyInboundCodec {
@@ -58,11 +58,7 @@ impl SSZSnappyInboundCodec {
     }
 
     /// Encodes RPC Responses sent to peers.
-    fn encode_response(
-        &mut self,
-        item: RpcResponse,
-        dst: &mut BytesMut,
-    ) -> Result<(), RPCError> {
+    fn encode_response(&mut self, item: RpcResponse, dst: &mut BytesMut) -> Result<(), RPCError> {
         let bytes = match &item {
             RpcResponse::Success(resp) => match &resp {
                 RpcSuccessResponse::Status(res) => match self.protocol.versioned_protocol {
@@ -170,9 +166,7 @@ impl Decoder for SSZSnappyInboundCodec {
 
         // Should not attempt to decode rpc chunks with `length > max_packet_size` or not within bounds of
         // packet size for ssz container corresponding to `self.protocol`.
-        let ssz_limits = self
-            .protocol
-            .rpc_request_limits(&self.fork_context.spec);
+        let ssz_limits = self.protocol.rpc_request_limits(&self.fork_context.spec);
         if ssz_limits.is_out_of_bounds(length, self.max_packet_size) {
             return Err(RPCError::InvalidData(format!(
                 "RPC request length for protocol {:?} is out of bounds, length {}",
@@ -216,7 +210,7 @@ pub struct SSZSnappyOutboundCodec {
     fork_name: Option<ForkName>,
     fork_context: Arc<ForkContext>,
     /// Keeps track of the current response code for a chunk.
-    current_response_code: Option<u8>
+    current_response_code: Option<u8>,
 }
 
 impl SSZSnappyOutboundCodec {
@@ -999,7 +993,6 @@ mod tests {
     };
     use types::{BlobSidecar, DataColumnSidecarFulu};
 
-
     fn spec_with_all_forks_enabled() -> ChainSpec {
         let mut chain_spec = Spec::default_spec();
         chain_spec.altair_fork_epoch = Some(Epoch::new(1));
@@ -1074,8 +1067,7 @@ mod tests {
     fn bellatrix_block_small(spec: &ChainSpec) -> SignedBeaconBlock {
         // The context bytes are now derived from the block epoch, so we need to have the slot set
         // here.
-        let mut block: BeaconBlockBellatrix<FullPayload> =
-            BeaconBlockBellatrix::empty(spec);
+        let mut block: BeaconBlockBellatrix<FullPayload> = BeaconBlockBellatrix::empty(spec);
 
         let tx = VariableList::try_from(vec![0; 1024]).unwrap();
         let txs =
@@ -1094,8 +1086,7 @@ mod tests {
     fn bellatrix_block_large(spec: &ChainSpec) -> SignedBeaconBlock {
         // The context bytes are now derived from the block epoch, so we need to have the slot set
         // here.
-        let mut block: BeaconBlockBellatrix<FullPayload> =
-            BeaconBlockBellatrix::empty(spec);
+        let mut block: BeaconBlockBellatrix<FullPayload> = BeaconBlockBellatrix::empty(spec);
 
         // 11,000 × 1KB ≈ 11MB, just above the 10MB max_payload_size.
         // Previously used 100,000 txs (~100MB) which made this test take >60s.
@@ -1299,11 +1290,8 @@ mod tests {
         let protocol = ProtocolId::new(req.versioned_protocol(), Encoding::SSZSnappy);
         // Encode a request we send
         let mut buf = BytesMut::new();
-        let mut outbound_codec = SSZSnappyOutboundCodec::new(
-            protocol.clone(),
-            max_packet_size,
-            fork_context.clone(),
-        );
+        let mut outbound_codec =
+            SSZSnappyOutboundCodec::new(protocol.clone(), max_packet_size, fork_context.clone());
         outbound_codec.encode(req.clone(), &mut buf).unwrap();
 
         let mut inbound_codec =
@@ -2387,22 +2375,16 @@ mod tests {
         let max_rpc_size = chain_spec.max_payload_size as usize;
         let limit = protocol_id.rpc_response_limits(&fork_context);
         let mut max = encode_len(limit.max + 1);
-        let mut codec = SSZSnappyOutboundCodec::new(
-            protocol_id.clone(),
-            max_rpc_size,
-            fork_context.clone(),
-        );
+        let mut codec =
+            SSZSnappyOutboundCodec::new(protocol_id.clone(), max_rpc_size, fork_context.clone());
         assert!(matches!(
             codec.decode_response(&mut max).unwrap_err(),
             RPCError::InvalidData(_)
         ));
 
         let mut min = encode_len(limit.min - 1);
-        let mut codec = SSZSnappyOutboundCodec::new(
-            protocol_id.clone(),
-            max_rpc_size,
-            fork_context.clone(),
-        );
+        let mut codec =
+            SSZSnappyOutboundCodec::new(protocol_id.clone(), max_rpc_size, fork_context.clone());
         assert!(matches!(
             codec.decode_response(&mut min).unwrap_err(),
             RPCError::InvalidData(_)
@@ -2411,19 +2393,15 @@ mod tests {
         // Request limits
         let limit = protocol_id.rpc_request_limits(&fork_context.spec);
         let mut max = encode_len(limit.max + 1);
-        let mut codec = SSZSnappyOutboundCodec::new(
-            protocol_id.clone(),
-            max_rpc_size,
-            fork_context.clone(),
-        );
+        let mut codec =
+            SSZSnappyOutboundCodec::new(protocol_id.clone(), max_rpc_size, fork_context.clone());
         assert!(matches!(
             codec.decode_response(&mut max).unwrap_err(),
             RPCError::InvalidData(_)
         ));
 
         let mut min = encode_len(limit.min - 1);
-        let mut codec =
-            SSZSnappyOutboundCodec::new(protocol_id, max_rpc_size, fork_context);
+        let mut codec = SSZSnappyOutboundCodec::new(protocol_id, max_rpc_size, fork_context);
         assert!(matches!(
             codec.decode_response(&mut min).unwrap_err(),
             RPCError::InvalidData(_)
@@ -2439,11 +2417,8 @@ mod tests {
 
         let protocol = ProtocolId::new(SupportedProtocol::BlocksByRangeV2, Encoding::SSZSnappy);
 
-        let mut codec = SSZSnappyOutboundCodec::new(
-            protocol.clone(),
-            max_packet_size,
-            fork_ctx.clone(),
-        );
+        let mut codec =
+            SSZSnappyOutboundCodec::new(protocol.clone(), max_packet_size, fork_ctx.clone());
 
         let mut payload = BytesMut::new();
         payload.extend_from_slice(&[0u8]);

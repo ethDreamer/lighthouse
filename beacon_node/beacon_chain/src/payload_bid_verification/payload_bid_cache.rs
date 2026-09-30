@@ -6,8 +6,7 @@ use std::{
     sync::Arc,
 };
 use types::{
-    BuilderIndex, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
-    SignedExecutionPayloadBid, Slot,
+    BuilderIndex, ExecutionBlockHash, ExecutionPayloadBid, Hash256, SignedExecutionPayloadBid, Slot,
 };
 
 /// The parent a bid builds on: which beacon block, and which payload state of it.
@@ -147,7 +146,6 @@ mod tests {
 
     use super::{BidParent, GossipVerifiedPayloadBidCache};
     use crate::payload_bid_verification::gossip_verified_bid::GossipVerifiedPayloadBid;
-
 
     fn make_gossip_verified(
         slot: Slot,

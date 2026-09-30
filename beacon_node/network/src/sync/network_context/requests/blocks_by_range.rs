@@ -1,7 +1,7 @@
 use super::{ActiveRequestItems, LookupVerifyError};
 use lighthouse_network::rpc::BlocksByRangeRequest;
 use std::sync::Arc;
-use types::{SignedBeaconBlock};
+use types::SignedBeaconBlock;
 
 /// Accumulates results of a blocks_by_range request. Only returns items after receiving the
 /// stream termination.

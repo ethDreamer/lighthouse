@@ -1,14 +1,12 @@
 use lighthouse_network::Enr;
 use std::sync::Arc;
 use store::{DBColumn, Error as StoreError, HotColdDB, ItemStore, StoreItem};
-use types::{Hash256};
+use types::Hash256;
 
 /// 32-byte key for accessing the `DhtEnrs`. All zero because `DhtEnrs` has its own column.
 pub const DHT_DB_KEY: Hash256 = Hash256::ZERO;
 
-pub fn load_dht<Hot: ItemStore, Cold: ItemStore>(
-    store: Arc<HotColdDB<Hot, Cold>>,
-) -> Vec<Enr> {
+pub fn load_dht<Hot: ItemStore, Cold: ItemStore>(store: Arc<HotColdDB<Hot, Cold>>) -> Vec<Enr> {
     // Load DHT from store
     match store.get_item(&DHT_DB_KEY) {
         Ok(Some(p)) => {
@@ -68,18 +66,15 @@ impl StoreItem for PersistedDht {
 
 #[cfg(test)]
 mod tests {
-    use types::Spec;
     use super::*;
     use std::str::FromStr;
     use store::MemoryStore;
     use store::config::StoreConfig;
+    use types::Spec;
     #[test]
     fn test_persisted_dht() {
-        let store: HotColdDB<MemoryStore, MemoryStore> = HotColdDB::open_ephemeral(
-            StoreConfig::default(),
-            Spec::default_spec().into(),
-        )
-        .unwrap();
+        let store: HotColdDB<MemoryStore, MemoryStore> =
+            HotColdDB::open_ephemeral(StoreConfig::default(), Spec::default_spec().into()).unwrap();
         let enrs = vec![Enr::from_str("enr:-IS4QHCYrYZbAKWCBRlAy5zzaDZXJBGkcnh4MHcBFZntXNFrdvJjX04jRzjzCBOonrkTfj499SZuOh8R33Ls8RRcy5wBgmlkgnY0gmlwhH8AAAGJc2VjcDI1NmsxoQPKY0yuDUmstAHYpMa2_oxVtw0RW_QAdpzBQA8yWM0xOIN1ZHCCdl8").unwrap()];
         store
             .put_item(&DHT_DB_KEY, &PersistedDht { enrs: enrs.clone() })

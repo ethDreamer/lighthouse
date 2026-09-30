@@ -6,7 +6,7 @@ use libp2p::gossipsub::{
 use std::cmp::max;
 use std::collections::HashMap;
 use std::time::Duration;
-use types::{ChainSpec, EnrForkId, Spec, Slot, SubnetId};
+use types::{ChainSpec, EnrForkId, Slot, Spec, SubnetId};
 
 const MAX_IN_MESH_SCORE: f64 = 10.0;
 const MAX_FIRST_MESSAGE_DELIVERIES_SCORE: f64 = 40.0;
@@ -47,7 +47,7 @@ pub struct PeerScoreSettings {
     max_committees_per_slot: usize,
     target_committee_size: usize,
     target_aggregators_per_committee: usize,
-    attestation_subnet_count: u64
+    attestation_subnet_count: u64,
 }
 
 impl PeerScoreSettings {
@@ -73,7 +73,7 @@ impl PeerScoreSettings {
             max_committees_per_slot: chain_spec.max_committees_per_slot,
             target_committee_size: chain_spec.target_committee_size,
             target_aggregators_per_committee: chain_spec.target_aggregators_per_committee as usize,
-            attestation_subnet_count: chain_spec.attestation_subnet_count
+            attestation_subnet_count: chain_spec.attestation_subnet_count,
         }
     }
 
@@ -177,8 +177,8 @@ impl PeerScoreSettings {
     ) -> Result<(TopicScoreParams, TopicScoreParams, TopicScoreParams), String> {
         let (aggregators_per_slot, committees_per_slot) =
             self.expected_aggregator_count_per_slot(active_validators)?;
-        let multiple_bursts_per_subnet_per_epoch =
-            committees_per_slot as u64 >= 2 * self.attestation_subnet_count / Spec::slots_per_epoch();
+        let multiple_bursts_per_subnet_per_epoch = committees_per_slot as u64
+            >= 2 * self.attestation_subnet_count / Spec::slots_per_epoch();
 
         let beacon_block_params = Self::get_topic_params(
             self,

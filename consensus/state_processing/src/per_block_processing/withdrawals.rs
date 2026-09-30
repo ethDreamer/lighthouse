@@ -8,9 +8,9 @@ use milhouse::ProgressiveList;
 use safe_arith::{SafeArith, SafeArithIter};
 use tree_hash::TreeHash;
 use types::{
-    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, Spec, ExecPayload,
+    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, ExecPayload,
     ExpectedWithdrawals, ExpectedWithdrawalsCapella, ExpectedWithdrawalsElectra,
-    ExpectedWithdrawalsGloas, Validator, Withdrawal, Withdrawals,
+    ExpectedWithdrawalsGloas, Spec, Validator, Withdrawal, Withdrawals,
 };
 
 /// Compute the next batch of withdrawals which should be included in a block.

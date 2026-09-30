@@ -11,10 +11,8 @@ use proto_array::ExecutionStatus;
 use std::sync::Arc;
 use types::execution::{ExecutionProof, ProofData, PublicInput, SignedExecutionProof};
 use types::{
-    Address, BlockImportSource, Epoch, ExecPayload, ForkName, Hash256, Slot,
-    WithdrawalRequest,
+    Address, BlockImportSource, Epoch, ExecPayload, ForkName, Hash256, Slot, WithdrawalRequest,
 };
-
 
 #[tokio::test]
 async fn pre_gloas_block_import_records_payload_gas_limit() {

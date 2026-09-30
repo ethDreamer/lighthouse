@@ -15,8 +15,8 @@ use tree_hash::TreeHash;
 use crate::{
     consts::bellatrix::BASIS_POINTS,
     core::{
-        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch, Spec,
-        SpecId, ExecutionBlockHash, Hash256, Slot, Uint256,
+        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch,
+        ExecutionBlockHash, Hash256, Slot, Spec, SpecId, Uint256,
     },
     fork::{Fork, ForkData, ForkName},
 };
@@ -371,11 +371,7 @@ impl ChainSpec {
     }
 
     /// Returns an `EnrForkId` for the given `slot`.
-    pub fn enr_fork_id(
-        &self,
-        slot: Slot,
-        genesis_validators_root: Hash256,
-    ) -> EnrForkId {
+    pub fn enr_fork_id(&self, slot: Slot, genesis_validators_root: Hash256) -> EnrForkId {
         EnrForkId {
             fork_digest: self
                 .compute_fork_digest(genesis_validators_root, slot.epoch(Spec::slots_per_epoch())),
@@ -911,10 +907,7 @@ impl ChainSpec {
     }
 
     /// Returns the number of column sidecars to sample per slot.
-    pub fn sampling_size_columns(
-        &self,
-        custody_group_count: u64,
-    ) -> Result<usize, String> {
+    pub fn sampling_size_columns(&self, custody_group_count: u64) -> Result<usize, String> {
         let sampling_size_groups = self.sampling_size_custody_groups(custody_group_count)?;
         let columns_per_custody_group = self.data_columns_per_group();
 
@@ -2786,9 +2779,7 @@ pub(crate) fn max_blobs_by_root_request_common(max_request_blob_sidecars: u64) -
 }
 
 // Simplified function which precomputes the size of a `List` of `DataColumnIdentifiers`.
-pub(crate) fn max_data_columns_by_root_request_common(
-    max_request_blocks: u64,
-) -> usize {
+pub(crate) fn max_data_columns_by_root_request_common(max_request_blocks: u64) -> usize {
     // DataColumnsByRootIdentifier is a variable-size struct with two fields:
     // - block_root: Hash256 (32 bytes)
     // - columns: List<ColumnIndex, NumberOfColumns> (4 byte offset + n × 8 bytes)
@@ -3444,8 +3435,7 @@ mod tests {
                 // Fork is activated at non-zero epoch: check that `next_fork_epoch` returns
                 // the correct result.
                 if let Ok(prior_slot) = last_fork_slot.safe_sub(1) {
-                    let (next_fork, next_fork_epoch) =
-                        spec.next_fork_epoch(prior_slot).unwrap();
+                    let (next_fork, next_fork_epoch) = spec.next_fork_epoch(prior_slot).unwrap();
                     assert_eq!(fork, next_fork);
                     assert_eq!(spec.fork_epoch(fork).unwrap(), next_fork_epoch);
                 }
@@ -3526,9 +3516,7 @@ mod yaml_tests {
         let mut config = Config::from_chain_spec(&mainnet);
         config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
         config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config
-            .apply_to_chain_spec(&mainnet)
-            .unwrap();
+        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
         assert_eq!(spec.seconds_per_slot, 12);
         assert_eq!(spec.slot_duration_ms, 12000);
     }
@@ -3548,9 +3536,7 @@ mod yaml_tests {
         let mut config = Config::from_chain_spec(&mainnet);
         config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
         config.slot_duration_ms = None;
-        let spec = config
-            .apply_to_chain_spec(&mainnet)
-            .unwrap();
+        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
         assert_eq!(spec.seconds_per_slot, 12);
         assert_eq!(spec.slot_duration_ms, 12000);
     }
@@ -3561,9 +3547,7 @@ mod yaml_tests {
         let mut config = Config::from_chain_spec(&mainnet);
         config.seconds_per_slot = None;
         config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config
-            .apply_to_chain_spec(&mainnet)
-            .unwrap();
+        let spec = config.apply_to_chain_spec(&mainnet).unwrap();
         assert_eq!(spec.seconds_per_slot, 12);
         assert_eq!(spec.slot_duration_ms, 12000);
     }
@@ -3574,11 +3558,7 @@ mod yaml_tests {
         let mut config = Config::from_chain_spec(&mainnet);
         config.seconds_per_slot = None;
         config.slot_duration_ms = None;
-        assert!(
-            config
-                .apply_to_chain_spec(&mainnet)
-                .is_none()
-        );
+        assert!(config.apply_to_chain_spec(&mainnet).is_none());
     }
 
     #[test]
@@ -3640,8 +3620,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         // test out max_blobs_per_block(epoch)
         assert_eq!(
@@ -3681,10 +3660,7 @@ mod yaml_tests {
             spec.max_blobs_per_block(Epoch::new(18446744073709551615)),
             20
         );
-        assert_eq!(
-            spec.compute_max_data_column_sidecar_size_gloas(),
-            41976
-        );
+        assert_eq!(spec.compute_max_data_column_sidecar_size_gloas(), 41976);
         assert_eq!(
             spec.compute_max_partial_data_column_sidecar_size_gloas(),
             41935
@@ -3795,8 +3771,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         // The schedule does not apply before the Gloas fork epoch.
         assert_eq!(spec.get_scheduled_gas_limit(Epoch::new(0)), None);
@@ -3947,8 +3922,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         let genesis_validators_root = Hash256::from_slice(&[0; 32]);
 
@@ -4338,7 +4312,6 @@ mod yaml_tests {
 
     #[test]
     fn test_attestation_due_is_fork_aware() {
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
@@ -4361,7 +4334,6 @@ mod yaml_tests {
 
     #[test]
     fn test_aggregate_attestation_due_is_fork_aware() {
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
@@ -4384,7 +4356,6 @@ mod yaml_tests {
 
     #[test]
     fn test_sync_message_due_is_fork_aware() {
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
@@ -4407,7 +4378,6 @@ mod yaml_tests {
 
     #[test]
     fn test_contribution_message_due_is_fork_aware() {
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);

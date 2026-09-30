@@ -18,8 +18,8 @@ use state_processing::signature_sets::{
 };
 use tracing::debug;
 use types::{
-    BeaconState, Builder, ChainSpec, Spec, ExecutionPayloadBid, ExecutionRequestsGloas,
-    SignedExecutionPayloadBid, SignedProposerPreferences, Slot,
+    BeaconState, Builder, ChainSpec, ExecutionPayloadBid, ExecutionRequestsGloas,
+    SignedExecutionPayloadBid, SignedProposerPreferences, Slot, Spec,
     consts::gloas::PAYLOAD_BUILDER_VERSION,
 };
 
@@ -65,10 +65,7 @@ pub(crate) fn verify_bid_block_hash_not_parent(
     Ok(())
 }
 
-fn verify_bid_blobs(
-    bid: &ExecutionPayloadBid,
-    spec: &ChainSpec,
-) -> Result<(), PayloadBidError> {
+fn verify_bid_blobs(bid: &ExecutionPayloadBid, spec: &ChainSpec) -> Result<(), PayloadBidError> {
     let max_blobs_per_block =
         spec.max_blobs_per_block(bid.slot.epoch(Spec::slots_per_epoch())) as usize;
 
@@ -212,9 +209,7 @@ pub(crate) fn is_bid_compatible_with_head<T: BeaconChainTypes>(
         })?;
 
     // TODO(post-gloas) this can be removed after the gloas fork
-    let head_is_pre_gloas = !spec
-        .fork_name_at_slot(head_block.slot)
-        .gloas_enabled();
+    let head_is_pre_gloas = !spec.fork_name_at_slot(head_block.slot).gloas_enabled();
 
     let builds_on_parent_block = Some(bid.parent_block_root) == head_block.parent_root;
     let builds_on_parent_payload = if head_is_pre_gloas {
@@ -345,10 +340,7 @@ impl GossipVerifiedPayloadBid {
         // use the advanced state instead.
         // TODO(post-gloas) this can be removed after the gloas fork
         let advanced_state;
-        let head_state = if ctx
-            .spec
-            .fork_name_at_slot(bid_slot)
-            .gloas_enabled()
+        let head_state = if ctx.spec.fork_name_at_slot(bid_slot).gloas_enabled()
             && !snapshot_state.fork_name_unchecked().gloas_enabled()
         {
             let (_, state) = ctx

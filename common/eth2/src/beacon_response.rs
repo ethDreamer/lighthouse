@@ -201,7 +201,6 @@ mod fork_version_response_tests {
 
     #[test]
     fn fork_versioned_response_deserialize_correct_fork() {
-
         let response_json =
             serde_json::to_string(&json!(ForkVersionedResponse::<ExecutionPayload> {
                 version: ForkName::Bellatrix,
@@ -218,7 +217,6 @@ mod fork_version_response_tests {
 
     #[test]
     fn fork_versioned_response_deserialize_incorrect_fork() {
-
         let response_json =
             serde_json::to_string(&json!(ForkVersionedResponse::<ExecutionPayload> {
                 version: ForkName::Capella,

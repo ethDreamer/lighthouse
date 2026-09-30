@@ -6,8 +6,8 @@ use milhouse::List;
 use std::mem;
 use std::sync::Arc;
 use types::{
-    BeaconState, BeaconStateAltair, BeaconStateError as Error, ChainSpec, EpochCache, Spec,
-    Fork, ParticipationFlags, PendingAttestation, RelativeEpoch, SyncCommittee,
+    BeaconState, BeaconStateAltair, BeaconStateError as Error, ChainSpec, EpochCache, Fork,
+    ParticipationFlags, PendingAttestation, RelativeEpoch, Spec, SyncCommittee,
 };
 
 /// Translate the participation information from the epoch prior to the fork into Altair's format.
@@ -46,10 +46,7 @@ pub fn translate_participation(
 }
 
 /// Transform a `Base` state into an `Altair` state.
-pub fn upgrade_to_altair(
-    pre_state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn upgrade_to_altair(pre_state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     let epoch = pre_state.current_epoch();
     let pre = pre_state.as_base_mut()?;
 

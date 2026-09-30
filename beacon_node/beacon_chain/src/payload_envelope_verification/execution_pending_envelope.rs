@@ -2,7 +2,7 @@ use bls::Hash256;
 use slot_clock::SlotClock;
 use state_processing::{VerifySignatures, envelope_processing::verify_execution_payload_envelope};
 use std::sync::Arc;
-use types::{SignedExecutionPayloadEnvelope};
+use types::SignedExecutionPayloadEnvelope;
 
 use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, NotifyExecutionLayer,

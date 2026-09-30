@@ -1,7 +1,7 @@
 use crate::EpochProcessingError;
 use safe_arith::SafeArith;
 use std::sync::Arc;
-use types::core::{ChainSpec};
+use types::core::ChainSpec;
 use types::state::BeaconState;
 
 pub fn process_sync_committee_updates(

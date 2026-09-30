@@ -2,7 +2,7 @@ use crate::Work;
 use logging::TimeLatch;
 use std::collections::VecDeque;
 use tracing::error;
-use types::{BeaconState, ChainSpec, Spec, RelativeEpoch};
+use types::{BeaconState, ChainSpec, RelativeEpoch, Spec};
 
 /// Over-provision queues based on active validator count by some factor. The beacon chain has
 /// strict churns that prevent the validator set size from changing rapidly. By over-provisioning
@@ -159,10 +159,7 @@ pub struct BeaconProcessorQueueLengths {
 }
 
 impl BeaconProcessorQueueLengths {
-    pub fn from_state(
-        state: &BeaconState,
-        spec: &ChainSpec,
-    ) -> Result<Self, String> {
+    pub fn from_state(state: &BeaconState, spec: &ChainSpec) -> Result<Self, String> {
         let active_validator_count =
             match state.get_cached_active_validator_indices(RelativeEpoch::Current) {
                 Ok(indices) => indices.len(),

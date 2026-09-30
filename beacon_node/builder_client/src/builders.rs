@@ -250,12 +250,11 @@ mod tests {
     use bls::Signature;
     use eth2::types::beacon_response::EmptyMetadata;
     use eth2::types::{
-        ExecutionPayloadBid, ForkName, ForkVersionedResponse, RequestAuth,
-        RequestAuthData, SignedExecutionPayloadBid, SignedRequestAuth,
+        ExecutionPayloadBid, ForkName, ForkVersionedResponse, RequestAuth, RequestAuthData,
+        SignedExecutionPayloadBid, SignedRequestAuth,
     };
     use eth2::{CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER};
     use mockito::{Matcher, Mock, Server, ServerGuard};
-
 
     const BID_PATH: &str = r"^/eth/v1/builder/execution_payload_bid/.+$";
 

@@ -4,10 +4,8 @@ use crate::{ColumnIter, DBColumn, HotColdDB, ItemStore};
 use itertools::process_results;
 use std::marker::PhantomData;
 use types::{BeaconState, Hash256, Slot};
-pub type HybridForwardsBlockRootsIterator<'a, Hot, Cold> =
-    HybridForwardsIterator<'a, Hot, Cold>;
-pub type HybridForwardsStateRootsIterator<'a, Hot, Cold> =
-    HybridForwardsIterator<'a, Hot, Cold>;
+pub type HybridForwardsBlockRootsIterator<'a, Hot, Cold> = HybridForwardsIterator<'a, Hot, Cold>;
+pub type HybridForwardsStateRootsIterator<'a, Hot, Cold> = HybridForwardsIterator<'a, Hot, Cold>;
 
 impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     fn simple_forwards_iterator(
@@ -146,9 +144,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> FrozenForwardsIterator<'a, Hot, Cold> 
     }
 }
 
-impl<Hot: ItemStore, Cold: ItemStore> Iterator
-    for FrozenForwardsIterator<'_, Hot, Cold>
-{
+impl<Hot: ItemStore, Cold: ItemStore> Iterator for FrozenForwardsIterator<'_, Hot, Cold> {
     type Item = Result<(Hash256, Slot)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -345,9 +341,7 @@ impl<'a, Hot: ItemStore, Cold: ItemStore> HybridForwardsIterator<'a, Hot, Cold> 
     }
 }
 
-impl<Hot: ItemStore, Cold: ItemStore> Iterator
-    for HybridForwardsIterator<'_, Hot, Cold>
-{
+impl<Hot: ItemStore, Cold: ItemStore> Iterator for HybridForwardsIterator<'_, Hot, Cold> {
     type Item = Result<(Hash256, Slot)>;
 
     fn next(&mut self) -> Option<Self::Item> {

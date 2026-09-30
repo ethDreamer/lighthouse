@@ -17,19 +17,17 @@ use tokio_util::{
 };
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BlobSidecar, ChainSpec, DataColumnSidecarFulu,
-    DataColumnSidecarGloas, EmptyBlock, Epoch, Spec, SpecId, ForkContext, ForkName,
-    LightClientBootstrap, LightClientBootstrapAltair, LightClientFinalityUpdate,
-    LightClientFinalityUpdateAltair, LightClientOptimisticUpdate,
-    LightClientOptimisticUpdateAltair, LightClientUpdate, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    DataColumnSidecarGloas, EmptyBlock, Epoch, ForkContext, ForkName, LightClientBootstrap,
+    LightClientBootstrapAltair, LightClientFinalityUpdate, LightClientFinalityUpdateAltair,
+    LightClientOptimisticUpdate, LightClientOptimisticUpdateAltair, LightClientUpdate,
+    SignedBeaconBlock, SignedExecutionPayloadEnvelope, Spec, SpecId,
 };
 
 // Note: Hardcoding the `EthSpec` type for `SignedBeaconBlock` as min/max values is
 // same across different `EthSpec` implementations.
 pub static SIGNED_BEACON_BLOCK_BASE_MIN: LazyLock<usize> = LazyLock::new(|| {
     SignedBeaconBlock::<FullPayload>::from_block(
-        BeaconBlock::Base(BeaconBlockBase::<FullPayload>::empty(
-            &Spec::default_spec(),
-        )),
+        BeaconBlock::Base(BeaconBlockBase::<FullPayload>::empty(&Spec::default_spec())),
         Signature::empty(),
     )
     .as_ssz_bytes()
@@ -69,11 +67,9 @@ pub static SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MIN: LazyLock<usize> =
 pub static SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MAX: LazyLock<usize> =
     LazyLock::new(SignedExecutionPayloadEnvelope::max_size);
 
-pub static BLOB_SIDECAR_SIZE: LazyLock<usize> =
-    LazyLock::new(BlobSidecar::max_size);
+pub static BLOB_SIDECAR_SIZE: LazyLock<usize> = LazyLock::new(BlobSidecar::max_size);
 
-pub static BLOB_SIDECAR_SIZE_MINIMAL: LazyLock<usize> =
-    LazyLock::new(BlobSidecar::max_size);
+pub static BLOB_SIDECAR_SIZE_MINIMAL: LazyLock<usize> = LazyLock::new(BlobSidecar::max_size);
 
 pub static ERROR_TYPE_MIN: LazyLock<usize> = LazyLock::new(|| {
     VariableList::<u8, MaxErrorLen>::try_from(Vec::<u8>::new())
@@ -89,32 +85,24 @@ pub static ERROR_TYPE_MAX: LazyLock<usize> = LazyLock::new(|| {
         .len()
 });
 
-pub static LIGHT_CLIENT_FINALITY_UPDATE_CAPELLA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Capella)
-});
-pub static LIGHT_CLIENT_FINALITY_UPDATE_DENEB_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Deneb)
-});
-pub static LIGHT_CLIENT_FINALITY_UPDATE_ELECTRA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Electra)
-});
-pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_CAPELLA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Capella)
-});
-pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_DENEB_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Deneb)
-});
-pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_ELECTRA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Electra)
-});
-pub static LIGHT_CLIENT_BOOTSTRAP_CAPELLA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientBootstrap::ssz_max_len_for_fork(ForkName::Capella)
-});
+pub static LIGHT_CLIENT_FINALITY_UPDATE_CAPELLA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Capella));
+pub static LIGHT_CLIENT_FINALITY_UPDATE_DENEB_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Deneb));
+pub static LIGHT_CLIENT_FINALITY_UPDATE_ELECTRA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientFinalityUpdate::ssz_max_len_for_fork(ForkName::Electra));
+pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_CAPELLA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Capella));
+pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_DENEB_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Deneb));
+pub static LIGHT_CLIENT_OPTIMISTIC_UPDATE_ELECTRA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientOptimisticUpdate::ssz_max_len_for_fork(ForkName::Electra));
+pub static LIGHT_CLIENT_BOOTSTRAP_CAPELLA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientBootstrap::ssz_max_len_for_fork(ForkName::Capella));
 pub static LIGHT_CLIENT_BOOTSTRAP_DENEB_MAX: LazyLock<usize> =
     LazyLock::new(|| LightClientBootstrap::ssz_max_len_for_fork(ForkName::Deneb));
-pub static LIGHT_CLIENT_BOOTSTRAP_ELECTRA_MAX: LazyLock<usize> = LazyLock::new(|| {
-    LightClientBootstrap::ssz_max_len_for_fork(ForkName::Electra)
-});
+pub static LIGHT_CLIENT_BOOTSTRAP_ELECTRA_MAX: LazyLock<usize> =
+    LazyLock::new(|| LightClientBootstrap::ssz_max_len_for_fork(ForkName::Electra));
 
 pub static LIGHT_CLIENT_UPDATES_BY_RANGE_CAPELLA_MAX: LazyLock<usize> =
     LazyLock::new(|| LightClientUpdate::ssz_max_len_for_fork(ForkName::Capella));
@@ -490,7 +478,7 @@ impl std::fmt::Display for Encoding {
 pub struct RPCProtocol {
     pub fork_context: Arc<ForkContext>,
     pub max_rpc_size: usize,
-    pub enable_light_client_server: bool
+    pub enable_light_client_server: bool,
 }
 
 impl UpgradeInfo for RPCProtocol {
@@ -712,19 +700,12 @@ impl ProtocolId {
 
 pub fn rpc_blob_limits() -> RpcLimits {
     match Spec::SPEC_ID {
-        SpecId::Minimal => {
-            RpcLimits::new(*BLOB_SIDECAR_SIZE_MINIMAL, *BLOB_SIDECAR_SIZE_MINIMAL)
-        }
-        SpecId::Mainnet | SpecId::Gnosis => {
-            RpcLimits::new(*BLOB_SIDECAR_SIZE, *BLOB_SIDECAR_SIZE)
-        }
+        SpecId::Minimal => RpcLimits::new(*BLOB_SIDECAR_SIZE_MINIMAL, *BLOB_SIDECAR_SIZE_MINIMAL),
+        SpecId::Mainnet | SpecId::Gnosis => RpcLimits::new(*BLOB_SIDECAR_SIZE, *BLOB_SIDECAR_SIZE),
     }
 }
 
-pub fn rpc_data_column_limits(
-    current_digest_epoch: Epoch,
-    spec: &ChainSpec,
-) -> RpcLimits {
+pub fn rpc_data_column_limits(current_digest_epoch: Epoch, spec: &ChainSpec) -> RpcLimits {
     let fork_name = spec.fork_name_at_epoch(current_digest_epoch);
     let max_blobs = spec.max_blobs_per_block(current_digest_epoch) as usize;
 
@@ -762,7 +743,7 @@ pub type InboundFramed<TSocket> =
 
 impl<TSocket> InboundUpgrade<TSocket> for RPCProtocol
 where
-    TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static
+    TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Output = InboundOutput<TSocket>;
     type Error = (Protocol, RPCError);
@@ -1184,7 +1165,6 @@ mod tests {
     use strum::IntoEnumIterator;
     use types::{Hash256, Slot};
 
-
     /// Whether this protocol should appear in `currently_supported()` for the given context.
     ///
     /// Uses an exhaustive match so that adding a new `SupportedProtocol` variant
@@ -1250,7 +1230,7 @@ mod tests {
             let rpc_protocol = RPCProtocol {
                 fork_context: fork_context.clone(),
                 max_rpc_size: spec.max_payload_size as usize,
-                enable_light_client_server: true
+                enable_light_client_server: true,
             };
             let protocol_info: HashSet<SupportedProtocol> = rpc_protocol
                 .protocol_info()

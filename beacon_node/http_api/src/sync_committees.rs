@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, warn};
 use types::{
-    BeaconStateError, Epoch, Spec, SignedContributionAndProof, SlotData, SyncCommitteeMessage,
+    BeaconStateError, Epoch, SignedContributionAndProof, SlotData, Spec, SyncCommitteeMessage,
     SyncDuty, SyncSubnetId,
 };
 

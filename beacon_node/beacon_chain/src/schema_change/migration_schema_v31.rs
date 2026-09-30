@@ -18,15 +18,13 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
 
     for result in db.hot_db.iter_column::<Hash256>(DBColumn::PayloadBody) {
         let (block_root, envelope_bytes) = result?;
-        let envelope = SignedExecutionPayloadEnvelope::from_ssz_bytes(
-            &envelope_bytes,
-        )
-        .map_err(|error| {
-            StoreError::MigrationError(format!(
-                "cannot upgrade from v30 to v31: invalid payload envelope at {block_root:?}: \
+        let envelope =
+            SignedExecutionPayloadEnvelope::from_ssz_bytes(&envelope_bytes).map_err(|error| {
+                StoreError::MigrationError(format!(
+                    "cannot upgrade from v30 to v31: invalid payload envelope at {block_root:?}: \
                  {error:?}"
-            ))
-        })?;
+                ))
+            })?;
 
         // Older Gloas databases may retain envelopes for blocks that finalized as EMPTY.
         // Their summaries must not survive the upgrade, regardless of payload-pruning mode.

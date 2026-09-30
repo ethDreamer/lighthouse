@@ -51,7 +51,7 @@ use proto_array::core::{ProtoArray, ProtoNode, VoteTracker};
 use safe_arith::{ArithError, SafeArith};
 use std::collections::BTreeSet;
 use tracing::{debug, debug_span};
-use types::{BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, Spec, Hash256, Slot};
+use types::{BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, Hash256, Slot, Spec};
 
 #[derive(Debug, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
@@ -644,12 +644,8 @@ impl FastConfirmationRule {
             }
 
             if get_block_epoch(tentative_confirmed_root, proto_array)? == current_epoch
-                || (get_voting_source_epoch(
-                    tentative_confirmed_root,
-                    current_slot,
-                    proto_array,
-                )?
-                .safe_add(2)?
+                || (get_voting_source_epoch(tentative_confirmed_root, current_slot, proto_array)?
+                    .safe_add(2)?
                     >= current_epoch
                     && (is_start_slot_at_epoch(current_slot)
                         || self.will_no_conflicting_checkpoint_be_justified(
@@ -815,10 +811,7 @@ impl FastConfirmationRule {
     /// Spec: `compute_proposer_score(balance_source)`.
     /// Uses `(committee_weight * proposer_score_boost) // 100` (multiply-first) to match
     /// the spec and avoid precision loss from divide-first ordering.
-    fn compute_proposer_score(
-        &self,
-        balance_source: &BalanceSourceData,
-    ) -> Result<u64, Error> {
+    fn compute_proposer_score(&self, balance_source: &BalanceSourceData) -> Result<u64, Error> {
         let committee_weight = balance_source
             .total_active_balance
             .safe_div(Spec::slots_per_epoch())?;
@@ -970,11 +963,8 @@ impl FastConfirmationRule {
         equivocating_indices: &BTreeSet<u64>,
     ) -> Result<u64, Error> {
         let total_active_balance = balance_source.total_active_balance;
-        let maximum_weight = estimate_committee_weight_between_slots(
-            total_active_balance,
-            start_slot,
-            end_slot,
-        )?;
+        let maximum_weight =
+            estimate_committee_weight_between_slots(total_active_balance, start_slot, end_slot)?;
         let max_adversarial_weight = maximum_weight
             .safe_div(100)?
             .safe_mul(self.byzantine_threshold)?;
@@ -1233,10 +1223,7 @@ fn get_block_slot(root: Hash256, proto_array: &ProtoArray) -> Result<Slot, Error
 }
 
 /// Spec: `get_block_epoch`.
-fn get_block_epoch(
-    root: Hash256,
-    proto_array: &ProtoArray,
-) -> Result<types::Epoch, Error> {
+fn get_block_epoch(root: Hash256, proto_array: &ProtoArray) -> Result<types::Epoch, Error> {
     Ok(get_block_slot(root, proto_array)?.epoch(Spec::slots_per_epoch()))
 }
 
@@ -1407,10 +1394,7 @@ fn compute_start_slot_at_epoch(epoch: Epoch) -> Slot {
 }
 
 /// Spec: `is_full_validator_set_covered`.
-fn is_full_validator_set_covered(
-    start_slot: Slot,
-    end_slot: Slot,
-) -> Result<bool, Error> {
+fn is_full_validator_set_covered(start_slot: Slot, end_slot: Slot) -> Result<bool, Error> {
     let spe = Spec::slots_per_epoch();
     let start_full_epoch = start_slot.safe_add(spe.safe_sub(1)?)?.epoch(spe);
     let end_full_epoch = end_slot.safe_add(1)?.epoch(spe);
@@ -1488,7 +1472,6 @@ fn estimate_committee_weight_between_slots(
 mod tests {
     use super::*;
 
-
     #[test]
     fn test_is_start_slot_at_epoch() {
         assert!(is_start_slot_at_epoch(Slot::new(0)));
@@ -1502,19 +1485,15 @@ mod tests {
         let slots_per_epoch = Spec::slots_per_epoch();
         // Full epoch
         assert!(
-            is_full_validator_set_covered(Slot::new(0), Slot::new(slots_per_epoch - 1))
-                .unwrap()
+            is_full_validator_set_covered(Slot::new(0), Slot::new(slots_per_epoch - 1)).unwrap()
         );
         // Crossing an epoch boundary
-        assert!(
-            is_full_validator_set_covered(Slot::new(0), Slot::new(slots_per_epoch)).unwrap()
-        );
+        assert!(is_full_validator_set_covered(Slot::new(0), Slot::new(slots_per_epoch)).unwrap());
         // Single slot — not full
         assert!(!is_full_validator_set_covered(Slot::new(0), Slot::new(0)).unwrap());
         // One slot short — not full
         assert!(
-            !is_full_validator_set_covered(Slot::new(1), Slot::new(slots_per_epoch - 1))
-                .unwrap()
+            !is_full_validator_set_covered(Slot::new(1), Slot::new(slots_per_epoch - 1)).unwrap()
         );
     }
 
@@ -1524,8 +1503,7 @@ mod tests {
         // The total should divide evenly across the epoch. 32B gwei on Mainnet, 1B per slot.
         let total = slots_per_epoch * 1_000_000_000;
 
-        let w = estimate_committee_weight_between_slots(total, Slot::new(0), Slot::new(0))
-            .unwrap();
+        let w = estimate_committee_weight_between_slots(total, Slot::new(0), Slot::new(0)).unwrap();
         assert_eq!(w, total / slots_per_epoch);
 
         // Full epoch => total
@@ -1540,12 +1518,9 @@ mod tests {
 
     #[test]
     fn test_estimate_committee_weight_empty_range() {
-        let w = estimate_committee_weight_between_slots(
-            32_000_000_000,
-            Slot::new(10),
-            Slot::new(5),
-        )
-        .unwrap();
+        let w =
+            estimate_committee_weight_between_slots(32_000_000_000, Slot::new(10), Slot::new(5))
+                .unwrap();
         assert_eq!(w, 0);
     }
 

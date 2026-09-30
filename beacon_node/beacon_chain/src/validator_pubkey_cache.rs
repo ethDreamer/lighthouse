@@ -23,7 +23,7 @@ use types::{BeaconState, Hash256};
 pub struct ValidatorPubkeyCache {
     pubkeys: Vec<PublicKey>,
     indices: HashMap<PublicKeyBytes, usize>,
-    pubkey_bytes: Vec<PublicKeyBytes>
+    pubkey_bytes: Vec<PublicKeyBytes>,
 }
 
 impl ValidatorPubkeyCache {
@@ -38,7 +38,7 @@ impl ValidatorPubkeyCache {
         let mut cache = Self {
             pubkeys: vec![],
             indices: HashMap::new(),
-            pubkey_bytes: vec![]
+            pubkey_bytes: vec![],
         };
 
         let store_ops = cache.import_new_pubkeys(state)?;
@@ -49,7 +49,9 @@ impl ValidatorPubkeyCache {
 
     /// Load the pubkey cache from the given on-disk database.
     #[instrument(name = "validator_pubkey_cache_load_from_store", skip_all)]
-    pub fn load_from_store<T: BeaconChainTypes>(store: BeaconStore<T>) -> Result<Self, BeaconChainError> {
+    pub fn load_from_store<T: BeaconChainTypes>(
+        store: BeaconStore<T>,
+    ) -> Result<Self, BeaconChainError> {
         let mut pubkeys = vec![];
         let mut indices = HashMap::new();
         let mut pubkey_bytes = vec![];
@@ -70,7 +72,7 @@ impl ValidatorPubkeyCache {
         Ok(ValidatorPubkeyCache {
             pubkeys,
             indices,
-            pubkey_bytes
+            pubkey_bytes,
         })
     }
 
@@ -97,10 +99,7 @@ impl ValidatorPubkeyCache {
     }
 
     /// Adds zero or more validators to `self`.
-    fn import<I>(
-        &mut self,
-        validator_keys: I,
-    ) -> Result<Vec<StoreOp<'static>>, BeaconChainError>
+    fn import<I>(&mut self, validator_keys: I) -> Result<Vec<StoreOp<'static>>, BeaconChainError>
     where
         I: Iterator<Item = PublicKeyBytes> + ExactSizeIterator,
     {
@@ -246,7 +245,7 @@ mod test {
     use logging::create_test_tracing_subscriber;
     use std::sync::Arc;
     use store::HotColdDB;
-    use types::{Spec};
+    use types::Spec;
 
     type T = EphemeralHarnessType;
 

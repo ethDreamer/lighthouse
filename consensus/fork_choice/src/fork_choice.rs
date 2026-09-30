@@ -18,9 +18,9 @@ use superstruct::superstruct;
 use tracing::{debug, instrument, warn};
 use types::{
     AbstractExecPayload, AttestationData, AttestationShufflingId, AttesterSlashingRef,
-    BeaconBlockRef, BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, Spec,
-    ExecPayload, ExecutionBlockHash, Hash256, IndexedAttestationRef, IndexedPayloadAttestation,
-    RelativeEpoch, SignedBeaconBlock, Slot,
+    BeaconBlockRef, BeaconState, BeaconStateError, ChainSpec, Checkpoint, Epoch, ExecPayload,
+    ExecutionBlockHash, Hash256, IndexedAttestationRef, IndexedPayloadAttestation, RelativeEpoch,
+    SignedBeaconBlock, Slot, Spec,
 };
 
 #[derive(Debug)]
@@ -383,12 +383,12 @@ pub struct ForkChoice<T> {
     forkchoice_update_parameters: ForkchoiceUpdateParameters,
     /// Rejects attestations from the current or a future slot instead of queueing them, as the
     /// spec does. Always `false` in production.
-    spec_test_mode: bool
+    spec_test_mode: bool,
 }
 
 impl<T> PartialEq for ForkChoice<T>
 where
-    T: ForkChoiceStore + PartialEq
+    T: ForkChoiceStore + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.fc_store == other.fc_store
@@ -399,7 +399,7 @@ where
 
 impl<T> ForkChoice<T>
 where
-    T: ForkChoiceStore
+    T: ForkChoiceStore,
 {
     /// Instantiates `Self` from an anchor (genesis or another finalized checkpoint).
     pub fn from_anchor(
@@ -483,7 +483,7 @@ where
                 finalized_hash: None,
                 // This will be updated during the next call to `Self::get_head`.
                 head_root: Hash256::zero(),
-            }
+            },
         };
 
         // Ensure that `fork_choice.forkchoice_update_parameters.head_root` is updated.
@@ -518,7 +518,7 @@ where
         ancestor_slot: Slot,
     ) -> Result<Option<Hash256>, Error<T::Error>>
     where
-        T: ForkChoiceStore
+        T: ForkChoiceStore,
     {
         let block = self
             .proto_array
@@ -997,7 +997,8 @@ where
         }
 
         // If block is from past epochs, try to update store's justified & finalized checkpoints right away
-        if block.slot().epoch(Spec::slots_per_epoch()) < current_slot.epoch(Spec::slots_per_epoch()) {
+        if block.slot().epoch(Spec::slots_per_epoch()) < current_slot.epoch(Spec::slots_per_epoch())
+        {
             self.pull_up_store_checkpoints(
                 unrealized_justified_checkpoint,
                 unrealized_finalized_checkpoint,
@@ -1186,7 +1187,12 @@ where
             self.validate_target_epoch_against_current_time(target.epoch)?;
         }
 
-        if target.epoch != indexed_attestation.data().slot.epoch(Spec::slots_per_epoch()) {
+        if target.epoch
+            != indexed_attestation
+                .data()
+                .slot
+                .epoch(Spec::slots_per_epoch())
+        {
             return Err(InvalidAttestation::BadTargetEpoch {
                 target: target.epoch,
                 slot: indexed_attestation.data().slot,
@@ -1545,9 +1551,7 @@ where
         }
 
         // Not a new epoch, return.
-        if !(current_slot > previous_slot
-            && compute_slots_since_epoch_start(current_slot) == 0)
-        {
+        if !(current_slot > previous_slot && compute_slots_since_epoch_start(current_slot) == 0) {
             return Ok(());
         }
 
@@ -1772,12 +1776,7 @@ where
             let current_slot = self.fc_store.get_current_slot();
             let proposer_boost_root = self.fc_store.proposer_boost_root();
             self.proto_array
-                .get_canonical_payload_status(
-                    block_root,
-                    current_slot,
-                    proposer_boost_root,
-                    spec,
-                )
+                .get_canonical_payload_status(block_root, current_slot, proposer_boost_root, spec)
                 .map_err(Error::ProtoArrayError)
         } else {
             Err(Error::DoesNotDescendFromFinalizedCheckpoint)
@@ -2026,7 +2025,7 @@ where
                 finalized_hash: None,
                 // Will be updated in the following call to `Self::get_head`.
                 head_root: Hash256::zero(),
-            }
+            },
         };
 
         // If a call to `get_head` fails, the only known cause is because the only head with viable
@@ -2107,7 +2106,6 @@ impl From<PersistedForkChoiceV29> for PersistedForkChoiceV28 {
 mod tests {
 
     use super::*;
-
 
     #[test]
     fn slots_since_epoch_start() {

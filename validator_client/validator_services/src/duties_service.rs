@@ -30,7 +30,7 @@ use std::time::Duration;
 use task_executor::TaskExecutor;
 use tokio::{sync::mpsc::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, Epoch, Spec, Hash256, SelectionProof, Slot};
+use types::{ChainSpec, Epoch, Hash256, SelectionProof, Slot, Spec};
 use validator_metrics::{ATTESTATION_DUTY, get_int_gauge, set_int_gauge};
 use validator_store::{DoppelgangerStatus, Error as ValidatorStoreError, ValidatorStore};
 
@@ -980,8 +980,7 @@ async fn poll_beacon_attesters<S: ValidatorStore + 'static, T: SlotClock + 'stat
     let num_expected_subscriptions = overallocation_numerator
         * std::cmp::max(
             1,
-            local_pubkeys.len() * ATTESTATION_SUBSCRIPTION_OFFSETS.len()
-                / Spec::SLOTS_PER_EPOCH,
+            local_pubkeys.len() * ATTESTATION_SUBSCRIPTION_OFFSETS.len() / Spec::SLOTS_PER_EPOCH,
         )
         / overallocation_denominator;
     let mut subscriptions = Vec::with_capacity(num_expected_subscriptions);

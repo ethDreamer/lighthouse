@@ -86,7 +86,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use store::HotColdDB;
 use tracing::{debug, info};
-use types::{BeaconState, ChainSpec, Spec, Hash256, SignedBeaconBlock};
+use types::{BeaconState, ChainSpec, Hash256, SignedBeaconBlock, Spec};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 

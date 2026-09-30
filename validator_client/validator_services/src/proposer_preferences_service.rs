@@ -9,7 +9,7 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, Epoch, Spec, ForkName, Hash256, ProposerPreferences, Slot};
+use types::{ChainSpec, Epoch, ForkName, Hash256, ProposerPreferences, Slot, Spec};
 use validator_store::{ProposalData, ValidatorStore};
 
 /// `(validator_index, proposal_slot)` duties already published, keyed by epoch and dependent
@@ -328,9 +328,7 @@ mod tests {
     use futures::FutureExt;
     use slot_clock::ManualSlotClock;
     use std::time::Duration;
-    use types::{
-        Address, ForkName, GasLimitSchedule, GasLimitScheduleEntry, Hash256, Slot,
-    };
+    use types::{Address, ForkName, GasLimitSchedule, GasLimitScheduleEntry, Hash256, Slot};
     use validator_test_rig::validator_client_harness::{
         S, ValidatorClientHarness, ValidatorStoreConfig,
     };

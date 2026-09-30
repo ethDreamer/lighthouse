@@ -47,10 +47,7 @@ pub fn process_slashings(
     Ok(())
 }
 
-pub fn process_slashings_slow(
-    state: &mut BeaconState,
-    spec: &ChainSpec,
-) -> Result<(), Error> {
+pub fn process_slashings_slow(state: &mut BeaconState, spec: &ChainSpec) -> Result<(), Error> {
     process_epoch_single_pass(
         state,
         spec,

@@ -226,10 +226,7 @@ fn get_states_descendant_of_block(
 /// Builds a `LightClientUpdate` for the given fork,
 /// sets `signature_slot` to the provided `marker_slot` so tests can identify which update was returned.
 /// Uses `test_arbitrary_instance` for all other fields.
-fn make_light_client_update(
-    fork_name: ForkName,
-    marker_slot: Slot,
-) -> LightClientUpdate {
+fn make_light_client_update(fork_name: ForkName, marker_slot: Slot) -> LightClientUpdate {
     match fork_name {
         ForkName::Base => panic!("light client updates don't exist pre-Altair"),
         ForkName::Altair | ForkName::Bellatrix => {
@@ -986,36 +983,37 @@ async fn block_replayer_hooks() {
     let mut pre_block_slots = vec![];
     let mut post_block_slots = vec![];
 
-    let mut replay_state = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(state, &chain.spec)
-        .pre_slot_hook(Box::new(|_, state| {
-            pre_slots.push(state.slot());
-            Ok(())
-        }))
-        .post_slot_hook(Box::new(|state, epoch_summary, is_skip_slot| {
-            if is_skip_slot {
-                assert!(!block_slots.contains(&state.slot()));
-            } else {
-                assert!(block_slots.contains(&state.slot()));
-            }
-            if state.slot() % Spec::slots_per_epoch() == 0 {
-                assert!(epoch_summary.is_some());
-            }
-            post_slots.push(state.slot());
-            Ok(())
-        }))
-        .pre_block_hook(Box::new(|state, block| {
-            assert_eq!(state.slot(), block.slot());
-            pre_block_slots.push(block.slot());
-            Ok(())
-        }))
-        .post_block_hook(Box::new(|state, block| {
-            assert_eq!(state.slot(), block.slot());
-            post_block_slots.push(block.slot());
-            Ok(())
-        }))
-        .apply_blocks(blocks, None)
-        .unwrap()
-        .into_state();
+    let mut replay_state =
+        BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(state, &chain.spec)
+            .pre_slot_hook(Box::new(|_, state| {
+                pre_slots.push(state.slot());
+                Ok(())
+            }))
+            .post_slot_hook(Box::new(|state, epoch_summary, is_skip_slot| {
+                if is_skip_slot {
+                    assert!(!block_slots.contains(&state.slot()));
+                } else {
+                    assert!(block_slots.contains(&state.slot()));
+                }
+                if state.slot() % Spec::slots_per_epoch() == 0 {
+                    assert!(epoch_summary.is_some());
+                }
+                post_slots.push(state.slot());
+                Ok(())
+            }))
+            .pre_block_hook(Box::new(|state, block| {
+                assert_eq!(state.slot(), block.slot());
+                pre_block_slots.push(block.slot());
+                Ok(())
+            }))
+            .post_block_hook(Box::new(|state, block| {
+                assert_eq!(state.slot(), block.slot());
+                post_block_slots.push(block.slot());
+                Ok(())
+            }))
+            .apply_blocks(blocks, None)
+            .unwrap()
+            .into_state();
 
     // All but last slot seen by pre-slot hook
     assert_eq!(&pre_slots, all_slots.split_last().unwrap().1);
@@ -5755,12 +5753,8 @@ async fn payload_envelope_schema_v31_migration_discards_finalized_empty_envelope
                 )
                 .unwrap();
 
-            migrate_schema::<DiskHarnessType>(
-                store.clone(),
-                SchemaVersion(30),
-                SchemaVersion(31),
-            )
-            .expect("schema upgrade to v31 should succeed");
+            migrate_schema::<DiskHarnessType>(store.clone(), SchemaVersion(30), SchemaVersion(31))
+                .expect("schema upgrade to v31 should succeed");
 
             let expect_summary = parent_payload_status == PayloadStatus::Full;
             let expect_body = expect_summary && !prune_payloads;
@@ -6567,9 +6561,9 @@ async fn test_earliest_custodied_data_column_epoch() {
     let harness = get_harness(store.clone(), LOW_VALIDATOR_COUNT);
 
     // earliest custody info is set to the last slot in `custody_info_epoch`
-    harness
-        .chain
-        .update_data_column_custody_info(Some(custody_info_epoch.end_slot(Spec::slots_per_epoch())));
+    harness.chain.update_data_column_custody_info(Some(
+        custody_info_epoch.end_slot(Spec::slots_per_epoch()),
+    ));
 
     // earliest custodied data column epoch should be `custody_info_epoch` + 1
     assert_eq!(
@@ -6578,9 +6572,9 @@ async fn test_earliest_custodied_data_column_epoch() {
     );
 
     // earliest custody info is set to the first slot in `custody_info_epoch`
-    harness
-        .chain
-        .update_data_column_custody_info(Some(custody_info_epoch.start_slot(Spec::slots_per_epoch())));
+    harness.chain.update_data_column_custody_info(Some(
+        custody_info_epoch.start_slot(Spec::slots_per_epoch()),
+    ));
 
     // earliest custodied data column epoch should be `custody_info_epoch`
     assert_eq!(
@@ -7437,12 +7431,15 @@ async fn test_gloas_block_replay_with_envelopes() {
     assert!(!blocks.is_empty(), "should have blocks for replay");
 
     // Replay blocks and verify against the expected state.
-    let mut replayed = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(genesis_state, store.get_chain_spec())
-        .no_signature_verification()
-        .minimal_block_root_verification()
-        .apply_blocks(blocks, None)
-        .expect("should replay blocks")
-        .into_state();
+    let mut replayed = BlockReplayer::<BlockReplayError, StateRootIterDefault<Error>>::new(
+        genesis_state,
+        store.get_chain_spec(),
+    )
+    .no_signature_verification()
+    .minimal_block_root_verification()
+    .apply_blocks(blocks, None)
+    .expect("should replay blocks")
+    .into_state();
     replayed.apply_pending_mutations().unwrap();
 
     let (_, mut expected) = states.get(&end_slot).unwrap().clone();
@@ -7901,9 +7898,7 @@ fn get_finalized_epoch_boundary_blocks(
         .collect()
 }
 
-fn get_blocks(
-    dump: &[BeaconSnapshot<BlindedPayload>],
-) -> HashSet<SignedBeaconBlockHash> {
+fn get_blocks(dump: &[BeaconSnapshot<BlindedPayload>]) -> HashSet<SignedBeaconBlockHash> {
     dump.iter()
         .map(|checkpoint| checkpoint.beacon_block_root.into())
         .collect()

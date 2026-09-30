@@ -60,10 +60,7 @@ fn default_client_config(network_params: LocalNetworkParams, genesis_time: u64) 
     beacon_config
 }
 
-fn default_mock_execution_config(
-    spec: &ChainSpec,
-    genesis_time: u64,
-) -> MockExecutionConfig {
+fn default_mock_execution_config(spec: &ChainSpec, genesis_time: u64) -> MockExecutionConfig {
     let mut mock_execution_config = MockExecutionConfig {
         server_config: MockServerConfig {
             listen_port: EXECUTION_PORT,

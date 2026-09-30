@@ -10,7 +10,7 @@ use crate::{
         Attestation, AttestationBase, AttestationElectra, AttestationGloas, AttestationRef,
         SelectionProof,
     },
-    core::{ChainSpec, Domain, Spec, Hash256, SignedRoot},
+    core::{ChainSpec, Domain, Hash256, SignedRoot, Spec},
     fork::{Fork, ForkName},
 };
 
@@ -28,10 +28,7 @@ use crate::{
             TreeHash,
         ),
         context_deserialize(ForkName),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        ),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),),
     ),
     ref_attributes(
         derive(Debug, PartialEq, TreeHash, Serialize),
@@ -40,10 +37,7 @@ use crate::{
     ),
     map_ref_into(AttestationRef)
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, TreeHash)]
 #[serde(untagged)]
 #[tree_hash(enum_behaviour = "transparent")]

@@ -562,7 +562,6 @@ mod tests {
 
     #[test]
     fn payload_envelope_summary_survives_payload_pruning() {
-
         let store = HotColdDB::<MemoryStore, MemoryStore>::open_ephemeral(
             StoreConfig::default(),
             Arc::new(Spec::default_spec()),

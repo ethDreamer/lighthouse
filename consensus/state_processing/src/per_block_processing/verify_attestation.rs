@@ -96,10 +96,7 @@ pub fn verify_attestation_for_state<'ctxt>(
 }
 
 /// Check target epoch and source checkpoint.
-fn verify_casper_ffg_vote(
-    attestation: AttestationRef,
-    state: &BeaconState,
-) -> Result<()> {
+fn verify_casper_ffg_vote(attestation: AttestationRef, state: &BeaconState) -> Result<()> {
     let data = attestation.data();
     verify!(
         data.target.epoch == data.slot.epoch(Spec::slots_per_epoch()),

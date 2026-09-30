@@ -6,11 +6,11 @@
 //! keyed by `(slot, dependent_root)`, which pins an inclusion list to the committee it was produced
 //! against.
 
-use typenum::U;
 use ssz_types::{BitVector, ProgressiveVariableList};
 use std::collections::{HashMap, HashSet};
 use tree_hash::TreeHash;
-use types::{ChainSpec, Spec, Hash256, InclusionListCommittee, SignedInclusionList, Slot};
+use typenum::U;
+use types::{ChainSpec, Hash256, InclusionListCommittee, SignedInclusionList, Slot, Spec};
 
 /// The shuffling `dependent_root` an inclusion list was produced against.
 pub type DependentRoot = Hash256;
@@ -59,7 +59,7 @@ pub struct InclusionListStore {
     lowest_permissible_slot: Slot,
     /// One more than `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS` requires. A slot `S` payload
     /// envelope reads the slot `S-1` lists, and might not be processed until the clock is at `S+1`.
-    slots_retained: u64
+    slots_retained: u64,
 }
 
 impl InclusionListStore {
@@ -75,7 +75,7 @@ impl InclusionListStore {
             lowest_permissible_slot: first_heze_slot,
             slots_retained: spec
                 .min_slots_for_inclusion_lists_requests
-                .saturating_add(1)
+                .saturating_add(1),
         }
     }
 
@@ -279,14 +279,13 @@ impl InclusionListStore {
 
 #[cfg(test)]
 mod tests {
-    use typenum::U;
     use super::{DependentRoot, InclusionListStore, InsertOutcome};
     use bls::Signature;
     use ssz_types::{BitVector, FixedVector, ProgressiveVariableList};
+    use typenum::U;
     use types::{
-        Epoch, Spec, Hash256, InclusionList, InclusionListCommittee, SignedInclusionList, Slot,
+        Epoch, Hash256, InclusionList, InclusionListCommittee, SignedInclusionList, Slot, Spec,
     };
-
 
     fn new_store() -> InclusionListStore {
         InclusionListStore::new(&Spec::default_spec())
@@ -401,8 +400,7 @@ mod tests {
     #[test]
     fn bits_reflect_submitters_and_inclusivity() {
         let mut store = new_store();
-        let il_committee: InclusionListCommittee =
-            FixedVector::new((100..116).collect()).unwrap();
+        let il_committee: InclusionListCommittee = FixedVector::new((100..116).collect()).unwrap();
         let dr = root(1);
 
         store.process_inclusion_list(signed_il(10, il_committee[3], dr, &[0xaa]), true);

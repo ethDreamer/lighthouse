@@ -9,7 +9,7 @@ use std::sync::{
 };
 use tree_hash::TreeHash as _;
 use tree_hash_derive::TreeHash;
-use types::{Spec, Hash256, IndexedAttestation};
+use types::{Hash256, IndexedAttestation, Spec};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AttesterRecord {

@@ -13,7 +13,7 @@ use parking_lot::{Mutex, RwLock};
 use slot_clock::SlotClock;
 use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use tracing::debug;
-use types::{ChainSpec, Spec, Hash256, ProposerPreferences, SignedProposerPreferences, Slot};
+use types::{ChainSpec, Hash256, ProposerPreferences, SignedProposerPreferences, Slot, Spec};
 
 /// Verify that proposer preferences are consistent with the current chain state
 pub(crate) fn verify_preferences_consistency(
@@ -88,11 +88,7 @@ impl GossipVerifiedProposerPreferences {
             });
         }
 
-        verify_preferences_consistency(
-            &signed_preferences.message,
-            current_slot,
-            ctx.spec,
-        )?;
+        verify_preferences_consistency(&signed_preferences.message, current_slot, ctx.spec)?;
 
         let proposal_epoch = proposal_slot.epoch(Spec::slots_per_epoch());
 
@@ -268,12 +264,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
 #[cfg(test)]
 mod tests {
-    use types::{Address, ChainSpec, Spec, Hash256, ProposerPreferences, Slot};
+    use types::{Address, ChainSpec, Hash256, ProposerPreferences, Slot, Spec};
 
     use super::verify_preferences_consistency;
     use crate::proposer_preferences_verification::ProposerPreferencesError;
     use crate::test_utils::{fork_name_from_env, test_spec};
-
 
     fn make_preferences(proposal_slot: Slot, validator_index: u64) -> ProposerPreferences {
         ProposerPreferences {

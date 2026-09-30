@@ -17,7 +17,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use types::{
-    ChainSpec, Spec, Hash256, Slot, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
+    ChainSpec, Hash256, Slot, Spec, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
     SyncSelectionProof, SyncSubnetId,
 };
 use validator_store::{ContributionToSign, SyncMessageToSign, ValidatorStore};
@@ -194,11 +194,9 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         // If a head event triggered us before the duties were computed, wait until the sync
         // message deadline and check for duties once more.
         if slot_duties.is_none() && head_event_root.is_some() {
-            let Some(duration_to_deadline) = delay_until_slot_offset(
-                &self.slot_clock,
-                slot,
-                spec.get_sync_message_due(slot),
-            ) else {
+            let Some(duration_to_deadline) =
+                delay_until_slot_offset(&self.slot_clock, slot, spec.get_sync_message_due(slot))
+            else {
                 debug!(%slot, "Skipping sync committee tasks for expired slot");
                 return;
             };
@@ -685,7 +683,6 @@ mod tests {
     use slot_clock::ManualSlotClock;
     use types::{Epoch, SignedContributionAndProof, SyncCommitteeContribution};
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
-
 
     struct TestHarness {
         harness: ValidatorClientHarness,

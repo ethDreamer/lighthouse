@@ -14,7 +14,7 @@ pub struct KZGRecoverCellsAndKzgProofsInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGRecoverCellsAndKZGProofs {
     pub input: KZGRecoverCellsAndKzgProofsInput,
-    pub output: Option<(Vec<String>, Vec<String>)>
+    pub output: Option<(Vec<String>, Vec<String>)>,
 }
 
 impl LoadCase for KZGRecoverCellsAndKZGProofs {

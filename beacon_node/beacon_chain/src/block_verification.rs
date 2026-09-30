@@ -102,8 +102,8 @@ use task_executor::JoinHandle;
 use tracing::{Instrument, Span, debug, debug_span, error, info_span, instrument};
 use types::{
     BeaconBlockRef, BeaconState, BeaconStateError, BlobsList, ChainSpec, DataColumnSidecarList,
-    Epoch, Spec, ExecutionBlockHash, FullPayload, Hash256, InconsistentFork, KzgProofs,
-    RelativeEpoch, SignedBeaconBlock, SignedBeaconBlockHeader, Slot, data::DataColumnSidecarError,
+    Epoch, ExecutionBlockHash, FullPayload, Hash256, InconsistentFork, KzgProofs, RelativeEpoch,
+    SignedBeaconBlock, SignedBeaconBlockHeader, Slot, Spec, data::DataColumnSidecarError,
 };
 
 /// Maximum block slot number. Block with slots bigger than this constant will NOT be processed.
@@ -1067,11 +1067,7 @@ impl GossipVerifiedBlock {
 
         // [New in Gloas]: Skip payload validation checks. The payload now arrives separately
         // via `ExecutionPayloadEnvelope`.
-        if !chain
-            .spec
-            .fork_name_at_slot(block.slot())
-            .gloas_enabled()
-        {
+        if !chain.spec.fork_name_at_slot(block.slot()).gloas_enabled() {
             validate_execution_payload_for_gossip(&parent_block, block.message(), chain)?;
         }
 
@@ -1249,10 +1245,7 @@ impl SignatureVerifiedBlock {
         match result {
             Ok(_) => {
                 // gloas blocks are always available.
-                let maybe_available = if chain
-                    .spec
-                    .fork_name_at_slot(block.slot())
-                    .gloas_enabled()
+                let maybe_available = if chain.spec.fork_name_at_slot(block.slot()).gloas_enabled()
                 {
                     MaybeAvailableBlock::Available(
                         AvailableBlock::new(
@@ -1621,8 +1614,7 @@ impl ExecutionPendingBlock {
         // If the block is sufficiently recent, notify the validator monitor.
         if let Some(slot) = chain.slot_clock.now() {
             let epoch = slot.epoch(Spec::slots_per_epoch());
-            if block_slot.epoch(Spec::slots_per_epoch())
-                + VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64
+            if block_slot.epoch(Spec::slots_per_epoch()) + VALIDATOR_MONITOR_HISTORIC_EPOCHS as u64
                 >= epoch
             {
                 let validator_monitor = chain.validator_monitor.read();
@@ -1814,10 +1806,7 @@ fn check_block_against_finalized_slot<T: BeaconChainTypes>(
 /// ## Warning
 ///
 /// Taking a lock on the `chain.canonical_head.fork_choice` might cause a deadlock here.
-pub fn check_block_is_finalized_checkpoint_or_descendant<
-    T: BeaconChainTypes,
-    B: AsBlock,
->(
+pub fn check_block_is_finalized_checkpoint_or_descendant<T: BeaconChainTypes, B: AsBlock>(
     chain: &BeaconChain<T>,
     fork_choice: &BeaconForkChoice<T>,
     block: B,

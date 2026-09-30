@@ -130,10 +130,7 @@ impl ExitConfig {
     }
 }
 
-pub async fn cli_run(
-    matches: &ArgMatches,
-    dump_config: DumpConfig,
-) -> Result<(), String> {
+pub async fn cli_run(matches: &ArgMatches, dump_config: DumpConfig) -> Result<(), String> {
     let config = ExitConfig::from_cli(matches)?;
 
     if dump_config.should_exit_early(&config)? {
@@ -301,7 +298,7 @@ mod test {
         io::Write,
         sync::Arc,
     };
-    use types::{ChainSpec};
+    use types::ChainSpec;
     use validator_http_api::{Config as HttpConfig, test_utils::ApiTester};
     use zeroize::Zeroizing;
 

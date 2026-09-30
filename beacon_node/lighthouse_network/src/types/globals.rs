@@ -274,7 +274,7 @@ impl NetworkGlobals {
 mod test {
     use super::*;
     use logging::create_test_tracing_subscriber;
-    use types::{Epoch, Spec, MainnetEthSpec as E};
+    use types::{Epoch, MainnetEthSpec as E, Spec};
 
     #[test]
     fn test_sampling_subnets() {

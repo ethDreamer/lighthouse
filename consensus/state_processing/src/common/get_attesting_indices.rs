@@ -1,9 +1,9 @@
 use types::*;
 
 pub mod attesting_indices_base {
-    use typenum::U;
     use crate::per_block_processing::errors::{AttestationInvalid as Invalid, BlockOperationError};
     use ssz_types::{BitList, VariableList};
+    use typenum::U;
     use types::*;
 
     /// Convert `attestation` to (almost) indexed-verifiable form.
@@ -13,8 +13,7 @@ pub mod attesting_indices_base {
         committee: &[usize],
         attestation: &AttestationBase,
     ) -> Result<IndexedAttestation, BlockOperationError<Invalid>> {
-        let attesting_indices =
-            get_attesting_indices(committee, &attestation.aggregation_bits)?;
+        let attesting_indices = get_attesting_indices(committee, &attestation.aggregation_bits)?;
         Ok(IndexedAttestation::Base(IndexedAttestationBase {
             attesting_indices: VariableList::new(attesting_indices)?,
             data: attestation.data.clone(),
@@ -46,11 +45,11 @@ pub mod attesting_indices_base {
 }
 
 pub mod attesting_indices_electra {
-    use typenum::U;
     use crate::per_block_processing::errors::{AttestationInvalid as Invalid, BlockOperationError};
     use safe_arith::SafeArith;
     use ssz_types::{BitVector, VariableList};
     use std::collections::HashSet;
+    use typenum::U;
     use types::*;
 
     /// Compute an Electra IndexedAttestation given a list of committees.

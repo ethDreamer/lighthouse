@@ -14,8 +14,8 @@ use types::data::{
 use types::kzg_ext::KzgCommitments;
 use types::{
     Blob, BlobSidecar, BlobSidecarList, ChainSpec, DataColumnSidecar, DataColumnSidecarFulu,
-    DataColumnSidecarGloas, DataColumnSidecarList, Spec, Hash256, KzgCommitment, KzgProof,
-    SignedBeaconBlock, SignedBeaconBlockHeader, SignedBlindedBeaconBlock, Slot,
+    DataColumnSidecarGloas, DataColumnSidecarList, Hash256, KzgCommitment, KzgProof,
+    SignedBeaconBlock, SignedBeaconBlockHeader, SignedBlindedBeaconBlock, Slot, Spec,
 };
 
 /// Converts a blob ssz FixedVector to a reference to a fixed-size array
@@ -254,10 +254,7 @@ pub fn compute_blob_kzg_proof(
 }
 
 /// Compute the kzg commitment for a given blob.
-pub fn blob_to_kzg_commitment(
-    kzg: &Kzg,
-    blob: &Blob,
-) -> Result<KzgCommitment, KzgError> {
+pub fn blob_to_kzg_commitment(kzg: &Kzg, blob: &Blob) -> Result<KzgCommitment, KzgError> {
     let kzg_blob = ssz_blob_to_kzg_blob_ref(blob)?;
     kzg.blob_to_kzg_commitment(kzg_blob)
 }
@@ -304,8 +301,7 @@ pub fn blobs_to_data_column_sidecars(
         .map_err(|_err| DataColumnSidecarError::PreDeneb)?;
     let signed_block_header = block.signed_block_header();
 
-    let blob_cells_and_proofs_vec =
-        compute_cells_with_provided_proofs(blobs, cell_proofs, kzg)?;
+    let blob_cells_and_proofs_vec = compute_cells_with_provided_proofs(blobs, cell_proofs, kzg)?;
 
     if block.fork_name_unchecked().gloas_enabled() {
         build_data_column_sidecars_gloas(
@@ -372,8 +368,7 @@ pub fn blobs_to_data_column_sidecars_gloas_with_proofs(
         return Ok(vec![]);
     }
 
-    let blob_cells_and_proofs_vec =
-        compute_cells_with_provided_proofs(blobs, cell_proofs, kzg)?;
+    let blob_cells_and_proofs_vec = compute_cells_with_provided_proofs(blobs, cell_proofs, kzg)?;
 
     build_data_column_sidecars_gloas(beacon_block_root, slot, blob_cells_and_proofs_vec, spec)
         .map_err(DataColumnSidecarError::BuildSidecarFailed)
@@ -493,7 +488,10 @@ pub fn compute_cells(blobs: &[&Blob], kzg: &Kzg) -> Result<Vec<KzgCell>, KzgErro
 
 pub(crate) fn build_data_column_sidecars_fulu(
     kzg_commitments: KzgCommitments,
-    kzg_commitments_inclusion_proof: FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+    kzg_commitments_inclusion_proof: FixedVector<
+        Hash256,
+        typenum::U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>,
+    >,
     signed_block_header: SignedBeaconBlockHeader,
     blob_cells_and_proofs_vec: Vec<CellsAndKzgProofs>,
     spec: &ChainSpec,
@@ -506,9 +504,12 @@ pub(crate) fn build_data_column_sidecars_fulu(
     }
 
     let number_of_columns = Spec::NUMBER_OF_COLUMNS;
-    let max_blobs_per_block = spec
-        .max_blobs_per_block(signed_block_header.message.slot.epoch(Spec::slots_per_epoch()))
-        as usize;
+    let max_blobs_per_block = spec.max_blobs_per_block(
+        signed_block_header
+            .message
+            .slot
+            .epoch(Spec::slots_per_epoch()),
+    ) as usize;
     let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
     let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
 
@@ -521,8 +522,7 @@ pub(crate) fn build_data_column_sidecars_fulu(
                 .get(col)
                 .ok_or(format!("Missing blob cell at index {col}"))?;
             let cell: Vec<u8> = cell.to_vec();
-            let cell =
-                Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
+            let cell = Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
 
             let proof = blob_cell_proofs
                 .get(col)
@@ -573,7 +573,8 @@ pub(crate) fn build_data_column_sidecars_gloas(
     }
 
     let number_of_columns = Spec::NUMBER_OF_COLUMNS;
-    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
+    let max_blobs_per_block =
+        spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
     let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
 
@@ -586,8 +587,7 @@ pub(crate) fn build_data_column_sidecars_gloas(
                 .get(col)
                 .ok_or(format!("Missing blob cell at index {col}"))?;
             let cell: Vec<u8> = cell.to_vec();
-            let cell =
-                Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
+            let cell = Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
 
             let proof = blob_cell_proofs
                 .get(col)
@@ -680,7 +680,8 @@ pub(crate) fn build_partial_data_columns_gloas(
     }
 
     let number_of_columns = Spec::NUMBER_OF_COLUMNS;
-    let max_blobs_per_block = spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
+    let max_blobs_per_block =
+        spec.max_blobs_per_block(slot.epoch(Spec::slots_per_epoch())) as usize;
     let (bitmap, columns, column_kzg_proofs) = build_partial_column_cells(
         blob_cells_and_proofs_vec,
         number_of_columns,
@@ -715,14 +716,13 @@ fn build_partial_column_cells(
     number_of_columns: usize,
     max_blobs_per_block: usize,
 ) -> Result<(CellBitmap, Vec<Vec<Cell>>, Vec<Vec<KzgProof>>), String> {
-    let mut bitmap =
-        CellBitmap::with_capacity(blob_cells_and_proofs_vec.len()).map_err(|_| {
-            format!(
-                "Exceeded max committment count: {} (got {})",
-                Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK,
-                blob_cells_and_proofs_vec.len()
-            )
-        })?;
+    let mut bitmap = CellBitmap::with_capacity(blob_cells_and_proofs_vec.len()).map_err(|_| {
+        format!(
+            "Exceeded max committment count: {} (got {})",
+            Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK,
+            blob_cells_and_proofs_vec.len()
+        )
+    })?;
     let mut columns = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
     let mut column_kzg_proofs = vec![Vec::with_capacity(max_blobs_per_block); number_of_columns];
 
@@ -743,8 +743,7 @@ fn build_partial_column_cells(
                 .get(col)
                 .ok_or(format!("Missing blob cell at index {col}"))?;
             let cell: Vec<u8> = cell.to_vec();
-            let cell =
-                Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
+            let cell = Cell::try_from(cell).map_err(|e| format!("BytesPerCell exceeded: {e:?}"))?;
 
             let proof = blob_cell_proofs
                 .get(col)
@@ -787,9 +786,7 @@ fn reconstruct_blobs_with_indices(
                     .column()
                     .get(row_index)
                     .ok_or(format!("Missing data column at row index {row_index}"))
-                    .and_then(|cell| {
-                        ssz_cell_to_crypto_cell(cell).map_err(|e| format!("{e:?}"))
-                    })?;
+                    .and_then(|cell| ssz_cell_to_crypto_cell(cell).map_err(|e| format!("{e:?}")))?;
 
                 cells.push(cell);
                 cell_ids.push(*data_column.index());
@@ -956,11 +953,9 @@ mod test {
     use execution_layer::test_utils::generate_blobs;
     use kzg::{Kzg, KzgCommitment, trusted_setup::get_trusted_setup};
     use types::{
-        BeaconBlock, BeaconBlockFulu, BlobsList, ChainSpec, EmptyBlock, Spec, ForkName,
-        FullPayload, Hash256, KzgProofs, SignedBeaconBlock, Slot,
-        kzg_ext::KzgCommitments,
+        BeaconBlock, BeaconBlockFulu, BlobsList, ChainSpec, EmptyBlock, ForkName, FullPayload,
+        Hash256, KzgProofs, SignedBeaconBlock, Slot, Spec, kzg_ext::KzgCommitments,
     };
-
 
     // Loading and initializing PeerDAS KZG is expensive and slow, so we group the tests together
     // only load it once.
@@ -989,8 +984,7 @@ mod test {
     #[track_caller]
     fn test_validate_data_columns(kzg: &Kzg, spec: &ChainSpec) {
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1003,8 +997,7 @@ mod test {
     #[track_caller]
     fn test_validate_data_columns_with_commitments(kzg: &Kzg, spec: &ChainSpec) {
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1060,8 +1053,7 @@ mod test {
     #[track_caller]
     fn test_build_data_columns_empty(kzg: &Kzg, spec: &ChainSpec) {
         let num_of_blobs = 0;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1077,14 +1069,9 @@ mod test {
         let slot = Slot::new(0);
 
         let blob_refs: Vec<_> = blobs.iter().collect();
-        let column_sidecars = blobs_to_data_column_sidecars_gloas(
-            &blob_refs,
-            beacon_block_root,
-            slot,
-            kzg,
-            spec,
-        )
-        .unwrap();
+        let column_sidecars =
+            blobs_to_data_column_sidecars_gloas(&blob_refs, beacon_block_root, slot, kzg, spec)
+                .unwrap();
 
         assert_eq!(column_sidecars.len(), Spec::NUMBER_OF_COLUMNS);
         for (idx, col_sidecar) in column_sidecars.iter().enumerate() {
@@ -1116,8 +1103,7 @@ mod test {
     fn test_build_data_columns_fulu(kzg: &Kzg, spec: &ChainSpec) {
         // Using at least 2 blobs to make sure we're arranging the data columns correctly.
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
 
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
@@ -1163,8 +1149,7 @@ mod test {
     fn test_reconstruct_data_columns(kzg: &Kzg, spec: &ChainSpec) {
         // Using at least 2 blobs to make sure we're arranging the data columns correctly.
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1194,8 +1179,7 @@ mod test {
     fn test_reconstruct_data_columns_unordered(kzg: &Kzg, spec: &ChainSpec) {
         // Using at least 2 blobs to make sure we're arranging the data columns correctly.
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1237,8 +1221,7 @@ mod test {
         .unwrap();
 
         let commitments =
-            KzgCommitments::new(vec![KzgCommitment::empty_for_testing(); num_of_blobs])
-                .unwrap();
+            KzgCommitments::new(vec![KzgCommitment::empty_for_testing(); num_of_blobs]).unwrap();
 
         let subset = column_sidecars[..column_sidecars.len() / 2].to_vec();
         let reconstructed_columns =
@@ -1252,8 +1235,7 @@ mod test {
     #[track_caller]
     fn test_reconstruct_blob_sidecars_from_data_columns(kzg: &Kzg, spec: &ChainSpec) {
         let num_of_blobs = 3;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1286,8 +1268,7 @@ mod test {
     #[track_caller]
     fn test_reconstruct_blob_sidecars_from_data_columns_unordered(kzg: &Kzg, spec: &ChainSpec) {
         let num_of_blobs = 2;
-        let (signed_block, blobs, proofs) =
-            create_test_fulu_block_and_blobs(num_of_blobs, spec);
+        let (signed_block, blobs, proofs) = create_test_fulu_block_and_blobs(num_of_blobs, spec);
         let blob_refs = blobs.iter().collect::<Vec<_>>();
         let column_sidecars =
             blobs_to_data_column_sidecars(&blob_refs, proofs.to_vec(), &signed_block, kzg, spec)
@@ -1316,17 +1297,12 @@ mod test {
     fn create_test_fulu_block_and_blobs(
         num_of_blobs: usize,
         spec: &ChainSpec,
-    ) -> (
-        SignedBeaconBlock<FullPayload>,
-        BlobsList,
-        KzgProofs,
-    ) {
+    ) -> (SignedBeaconBlock<FullPayload>, BlobsList, KzgProofs) {
         let mut block = BeaconBlock::Fulu(BeaconBlockFulu::empty(spec));
         let mut body = block.body_mut();
         let blob_kzg_commitments = body.blob_kzg_commitments_mut().unwrap();
         *blob_kzg_commitments =
-            KzgCommitments::new(vec![KzgCommitment::empty_for_testing(); num_of_blobs])
-                .unwrap();
+            KzgCommitments::new(vec![KzgCommitment::empty_for_testing(); num_of_blobs]).unwrap();
 
         let mut signed_block = SignedBeaconBlock::from_block(block, Signature::empty());
         let fork = signed_block.fork_name_unchecked();

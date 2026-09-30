@@ -28,7 +28,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use store::MemoryStore;
 use task_executor::test_utils::TestRuntime;
-use types::{ChainSpec};
+use types::ChainSpec;
 
 pub const TCP_PORT: u16 = 42;
 pub const UDP_PORT: u16 = 42;

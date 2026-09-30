@@ -15,9 +15,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, warn};
-use types::{
-    ChainSpec, DataColumnSubnetId, EnrForkId, ForkContext, SubnetId, SyncSubnetId,
-};
+use types::{ChainSpec, DataColumnSubnetId, EnrForkId, ForkContext, SubnetId, SyncSubnetId};
 
 pub const NETWORK_KEY_FILENAME: &str = "key";
 /// The filename to store our local metadata.
@@ -202,10 +200,7 @@ pub fn strip_peer_id(addr: &mut Multiaddr) {
 }
 
 /// Load metadata from persisted file. Return default metadata if loading fails.
-pub fn load_or_build_metadata(
-    network_dir: &Path,
-    custody_group_count: u64,
-) -> MetaData {
+pub fn load_or_build_metadata(network_dir: &Path, custody_group_count: u64) -> MetaData {
     // We load a V3 metadata version by default (regardless of current fork)
     // since a V3 metadata can be converted to V1 or V2. The RPC encoder is responsible
     // for sending the correct metadata version based on the negotiated protocol version.

@@ -6,7 +6,7 @@ use educe::Educe;
 use std::fs::{self, DirEntry};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use types::{BeaconState, Spec, ForkName};
+use types::{BeaconState, ForkName, Spec};
 
 pub trait Handler {
     type Case: Case + LoadCase;
@@ -395,7 +395,7 @@ where
         + for<'de> ContextDeserialize<'de, ForkName>
         + tree_hash::TreeHash
         + ssz::Decode
-        + TypeName
+        + TypeName,
 {
     type Case = cases::SszStatic<T>;
 
@@ -416,9 +416,7 @@ where
     }
 }
 
-impl Handler for SszStaticTHCHandler<BeaconState>
-
-{
+impl Handler for SszStaticTHCHandler<BeaconState> {
     type Case = cases::SszStaticTHC<BeaconState>;
 
     fn config_name() -> &'static str {
@@ -574,14 +572,12 @@ impl<T: EpochTransition> Handler for EpochProcessingHandler<T> {
 }
 
 pub struct RewardsHandler {
-    handler_name: &'static str
+    handler_name: &'static str,
 }
 
 impl RewardsHandler {
     pub fn new(handler_name: &'static str) -> Self {
-        Self {
-            handler_name
-        }
+        Self { handler_name }
     }
 }
 
@@ -672,13 +668,13 @@ impl Handler for FinalityHandler {
 }
 
 pub struct ForkChoiceHandler {
-    handler_name: String
+    handler_name: String,
 }
 
 impl ForkChoiceHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into()
+            handler_name: handler_name.into(),
         }
     }
 }
@@ -750,13 +746,13 @@ impl Handler for ForkChoiceHandler {
 }
 
 pub struct ForkChoiceComplianceHandler {
-    handler_name: String
+    handler_name: String,
 }
 
 impl ForkChoiceComplianceHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into()
+            handler_name: handler_name.into(),
         }
     }
 }
@@ -790,13 +786,13 @@ impl Handler for ForkChoiceComplianceHandler {
 }
 
 pub struct FastConfirmationHandler {
-    handler_name: String
+    handler_name: String,
 }
 
 impl FastConfirmationHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
-            handler_name: handler_name.into()
+            handler_name: handler_name.into(),
         }
     }
 }
@@ -1066,7 +1062,7 @@ impl Handler for ComputeColumnsForCustodyGroupHandler {
 
 pub struct GossipValidationHandler {
     handler_name: &'static str,
-    supported_forks: Vec<ForkName>
+    supported_forks: Vec<ForkName>,
 }
 
 impl GossipValidationHandler {
@@ -1077,7 +1073,7 @@ impl GossipValidationHandler {
     pub fn for_forks(handler_name: &'static str, supported_forks: Vec<ForkName>) -> Self {
         Self {
             handler_name,
-            supported_forks
+            supported_forks,
         }
     }
 

@@ -19,7 +19,7 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
 use std::sync::Arc;
 use tracing::{debug, instrument};
-use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, Fork, Hash256, Slot};
+use types::{BeaconState, BeaconStateError, ChainSpec, Epoch, Fork, Hash256, Slot, Spec};
 
 /// The number of sets of proposer indices that should be cached.
 const CACHE_SIZE: usize = 16;
@@ -96,11 +96,7 @@ impl Default for BeaconProposerCache {
 impl BeaconProposerCache {
     /// If it is cached, returns the proposer for the block at `slot` where the block has the
     /// ancestor block root of `shuffling_decision_block` at `end_slot(slot.epoch() - 1)`.
-    pub fn get_slot(
-        &mut self,
-        shuffling_decision_block: Hash256,
-        slot: Slot,
-    ) -> Option<Proposer> {
+    pub fn get_slot(&mut self, shuffling_decision_block: Hash256, slot: Slot) -> Option<Proposer> {
         let epoch = slot.epoch(Spec::slots_per_epoch());
         let key = (epoch, shuffling_decision_block);
         let cache = self.cache.get(&key)?.get()?;

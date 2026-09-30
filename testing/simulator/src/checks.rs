@@ -1,7 +1,7 @@
 use crate::local_network::LocalNetwork;
 use node_test_rig::eth2::types::{BlockId, FinalityCheckpointsData, StateId};
 use std::time::Duration;
-use types::{Epoch, Spec, ExecPayload, ExecutionBlockHash, Slot};
+use types::{Epoch, ExecPayload, ExecutionBlockHash, Slot, Spec};
 
 /// Checks that all of the validators have on-boarded by the start of the second eth1 voting
 /// period.
@@ -57,10 +57,7 @@ async fn slot_delay(slots: Slot, slot_duration: Duration) {
 
 /// Verifies that all beacon nodes in the given network have a head state that has a finalized
 /// epoch of `epoch`.
-pub async fn verify_all_finalized_at(
-    network: LocalNetwork,
-    epoch: Epoch,
-) -> Result<(), String> {
+pub async fn verify_all_finalized_at(network: LocalNetwork, epoch: Epoch) -> Result<(), String> {
     let epochs = {
         let mut epochs = Vec::new();
         for remote_node in network.remote_nodes()? {
@@ -493,7 +490,12 @@ pub async fn check_attestation_correctness(
     node_index: usize,
     acceptable_attestation_performance: f64,
 ) -> Result<(), String> {
-    epoch_delay(Epoch::new(upto_epoch), slot_duration, Spec::slots_per_epoch()).await;
+    epoch_delay(
+        Epoch::new(upto_epoch),
+        slot_duration,
+        Spec::slots_per_epoch(),
+    )
+    .await;
 
     let remote_node = &network.remote_nodes()?[node_index];
 

@@ -11,8 +11,7 @@ use store::{Error, ItemStore, Split, StoreOp};
 pub use store::{HotColdDB, MemoryStore};
 use tracing::{debug, error, info, warn};
 use types::{
-    BeaconState, BeaconStateHash, Checkpoint, Epoch, Spec, Hash256, SignedBlindedBeaconBlock,
-    Slot,
+    BeaconState, BeaconStateHash, Checkpoint, Epoch, Hash256, SignedBlindedBeaconBlock, Slot, Spec,
 };
 
 /// Compact at least this frequently, finalization permitting (7 days).
@@ -289,10 +288,7 @@ impl<Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<Hot, Cold> {
         }
     }
 
-    fn run_manual_migration(
-        db: Arc<HotColdDB<Hot, Cold>>,
-        notif: ManualFinalizationNotification,
-    ) {
+    fn run_manual_migration(db: Arc<HotColdDB<Hot, Cold>>, notif: ManualFinalizationNotification) {
         // We create a "dummy" prev migration
         let prev_migration = PrevMigration {
             epoch: Epoch::new(1),

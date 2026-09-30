@@ -15,7 +15,7 @@ pub struct KZGComputeBlobKZGProofInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGComputeBlobKZGProof {
     pub input: KZGComputeBlobKZGProofInput,
-    pub output: Option<String>
+    pub output: Option<String>,
 }
 
 impl LoadCase for KZGComputeBlobKZGProof {

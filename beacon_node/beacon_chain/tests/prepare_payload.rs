@@ -421,8 +421,8 @@ async fn prepare_payload_generic(
         );
     }
 
-    let expect_state_advance_to_change_withdrawals =
-        prepare_slot.epoch(Spec::slots_per_epoch()) > parent_block_slot.epoch(Spec::slots_per_epoch());
+    let expect_state_advance_to_change_withdrawals = prepare_slot.epoch(Spec::slots_per_epoch())
+        > parent_block_slot.epoch(Spec::slots_per_epoch());
     if expect_state_advance_to_change_withdrawals {
         if parent_payload_status == fork_choice::PayloadStatus::Full {
             assert_ne!(
@@ -748,7 +748,8 @@ async fn prepare_payload_on_fork_boundary(
         .unwrap()
         .into();
 
-    let expect_state_advance_to_change_withdrawals = prepare_slot.epoch(Spec::slots_per_epoch()) > 0;
+    let expect_state_advance_to_change_withdrawals =
+        prepare_slot.epoch(Spec::slots_per_epoch()) > 0;
     if expect_state_advance_to_change_withdrawals {
         assert_ne!(
             withdrawals_unadvanced, withdrawals_advanced,

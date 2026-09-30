@@ -55,8 +55,8 @@ use task_executor::TaskExecutor;
 use tokio::sync::mpsc;
 use tracing::{Span, debug, debug_span, error, warn};
 use types::{
-    BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Spec,
-    ForkContext, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
+    BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch,
+    ForkContext, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot, Spec,
 };
 
 pub mod custody;
@@ -92,8 +92,7 @@ impl<T> RpcEvent<T> {
 
 pub type RpcResponseResult<T> = Result<T, RpcResponseError>;
 
-pub type CustodyByRootResult =
-    Result<DownloadResult<DataColumnSidecarList>, RpcResponseError>;
+pub type CustodyByRootResult = Result<DownloadResult<DataColumnSidecarList>, RpcResponseError>;
 
 /// Per-peer count of active requests for a single protocol, to keep peer selection within
 /// `MAX_CONCURRENT_REQUESTS` concurrent requests per protocol ID.
@@ -222,8 +221,7 @@ pub struct SyncNetworkContext<T: BeaconChainTypes> {
     request_id: Id,
 
     /// A mapping of active BlocksByRoot requests, including both current slot and parent lookups.
-    blocks_by_root_requests:
-        ActiveRequests<SingleLookupReqId, BlocksByRootRequestItems>,
+    blocks_by_root_requests: ActiveRequests<SingleLookupReqId, BlocksByRootRequestItems>,
     /// A mapping of active PayloadEnvelopesByRoot requests
     payload_envelopes_by_root_requests:
         ActiveRequests<SingleLookupReqId, PayloadEnvelopesByRootRequestItems>,
@@ -231,19 +229,15 @@ pub struct SyncNetworkContext<T: BeaconChainTypes> {
     data_columns_by_root_requests:
         ActiveRequests<DataColumnsByRootRequestId, DataColumnsByRootRequestItems>,
     /// A mapping of active BlocksByRange requests
-    blocks_by_range_requests:
-        ActiveRequests<BlocksByRangeRequestId, BlocksByRangeRequestItems>,
+    blocks_by_range_requests: ActiveRequests<BlocksByRangeRequestId, BlocksByRangeRequestItems>,
     /// A mapping of active BlobsByRange requests
-    blobs_by_range_requests:
-        ActiveRequests<BlobsByRangeRequestId, BlobsByRangeRequestItems>,
+    blobs_by_range_requests: ActiveRequests<BlobsByRangeRequestId, BlobsByRangeRequestItems>,
     /// A mapping of active DataColumnsByRange requests
     data_columns_by_range_requests:
         ActiveRequests<DataColumnsByRangeRequestId, DataColumnsByRangeRequestItems>,
     /// A mapping of active PayloadEnvelopesByRange requests
-    payload_envelopes_by_range_requests: ActiveRequests<
-        PayloadEnvelopesByRangeRequestId,
-        PayloadEnvelopesByRangeRequestItems,
-    >,
+    payload_envelopes_by_range_requests:
+        ActiveRequests<PayloadEnvelopesByRangeRequestId, PayloadEnvelopesByRangeRequestItems>,
     /// Mapping of active custody column requests for a block root
     custody_by_root_requests: FnvHashMap<CustodyRequester, ActiveCustodyRequest>,
 
@@ -822,10 +816,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         lookup_peers: Arc<RwLock<HashSet<PeerId>>>,
         peers_to_deprioritize: &HashSet<PeerId>,
         block_root: Hash256,
-    ) -> Result<
-        LookupRequestResult<Arc<SignedExecutionPayloadEnvelope>>,
-        RpcRequestSendError,
-    > {
+    ) -> Result<LookupRequestResult<Arc<SignedExecutionPayloadEnvelope>>, RpcRequestSendError> {
         // Skip the download if fork-choice already saw this envelope (e.g. imported via gossip
         // before the lookup got here). Return the cached envelope so the request completes.
         if self.chain.envelope_is_known_to_fork_choice(&block_root)
@@ -916,10 +907,9 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         self.send_network_msg(NetworkMessage::SendRequest {
             peer_id,
             request: RequestType::DataColumnsByRoot(
-                request.clone().try_into_request(
-                    self.fork_context.current_fork_name(),
-                    &self.chain.spec,
-                )?,
+                request
+                    .clone()
+                    .try_into_request(self.fork_context.current_fork_name(), &self.chain.spec)?,
             ),
             app_request_id: AppRequestId::Sync(SyncRequestId::DataColumnsByRoot(id)),
         })?;

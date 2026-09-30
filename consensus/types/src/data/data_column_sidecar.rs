@@ -1,5 +1,5 @@
-use typenum::U;
 use std::sync::Arc;
+use typenum::U;
 
 use bls::Signature;
 use context_deserialize::context_deserialize;
@@ -22,7 +22,7 @@ use crate::data::partial_data_column_sidecar::{
 use crate::{
     ListRef,
     block::{BLOB_KZG_COMMITMENTS_INDEX, BeaconBlockHeader, SignedBeaconBlockHeader},
-    core::{Epoch, Spec, Hash256, Slot},
+    core::{Epoch, Hash256, Slot, Spec},
     data::{
         CellBitmap, PartialDataColumn, PartialDataColumnHeader, PartialDataColumnSidecarError,
         PartialDataColumnView,
@@ -56,24 +56,25 @@ pub type DataColumnSidecarList = Vec<Arc<DataColumnSidecar>>;
             Deserialize,
             Decode,
             Encode,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
             TreeHash,
         ),
         context_deserialize(ForkName),
         serde(deny_unknown_fields),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-        )
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary),)
     ),
     ref_attributes(derive(TreeHash), tree_hash(enum_behaviour = "transparent")),
-    cast_error(ty = "DataColumnSidecarError", expr = "DataColumnSidecarError::IncorrectStateVariant"),
-    partial_getter_error(ty = "DataColumnSidecarError", expr = "DataColumnSidecarError::IncorrectStateVariant")
+    cast_error(
+        ty = "DataColumnSidecarError",
+        expr = "DataColumnSidecarError::IncorrectStateVariant"
+    ),
+    partial_getter_error(
+        ty = "DataColumnSidecarError",
+        expr = "DataColumnSidecarError::IncorrectStateVariant"
+    )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, TreeHash, Encode, PartialEq, Hash, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 #[tree_hash(enum_behaviour = "transparent")]
@@ -101,7 +102,8 @@ pub struct DataColumnSidecar {
     pub signed_block_header: SignedBeaconBlockHeader,
     /// An inclusion proof, proving the inclusion of `blob_kzg_commitments` in `BeaconBlockBody`.
     #[superstruct(only(Fulu))]
-    pub kzg_commitments_inclusion_proof: FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
+    pub kzg_commitments_inclusion_proof:
+        FixedVector<Hash256, U<{ Spec::KZG_COMMITMENTS_INCLUSION_PROOF_DEPTH }>>,
     #[superstruct(only(Gloas), partial_getter(rename = "slot_gloas"))]
     pub slot: Slot,
     #[superstruct(only(Gloas))]
@@ -345,8 +347,8 @@ impl DataColumnSidecarGloas {
     }
 
     pub fn max_size(max_blobs_per_block: usize) -> usize {
-        let cell_with_proof_size = <Cell as Encode>::ssz_fixed_len()
-            .saturating_add(<KzgProof as Encode>::ssz_fixed_len());
+        let cell_with_proof_size =
+            <Cell as Encode>::ssz_fixed_len().saturating_add(<KzgProof as Encode>::ssz_fixed_len());
         <u64 as Encode>::ssz_fixed_len()
             .saturating_mul(2)
             .saturating_add(<Hash256 as Encode>::ssz_fixed_len())
@@ -398,15 +400,13 @@ impl From<SszError> for DataColumnSidecarError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{max_data_columns_by_root_request_common};
+    use crate::core::max_data_columns_by_root_request_common;
     use fixed_bytes::FixedBytesExtended;
     use ssz_types::RuntimeVariableList;
 
     // This is the "correct" implementation of max_data_columns_by_root_request.
     // This test ensures that the simplified implementation doesn't deviate from it.
-    fn max_data_columns_by_root_request_implementation(
-        max_request_blocks: u64,
-    ) -> usize {
+    fn max_data_columns_by_root_request_implementation(max_request_blocks: u64) -> usize {
         let max_request_blocks = max_request_blocks as usize;
 
         let empty_data_columns_by_root_id = DataColumnsByRootIdentifier {

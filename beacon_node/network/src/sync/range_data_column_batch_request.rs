@@ -6,7 +6,7 @@ use itertools::Itertools;
 use lighthouse_network::PeerId;
 use lighthouse_network::service::api_types::DataColumnsByRangeRequestId;
 use std::sync::Arc;
-use types::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Spec, Slot};
+use types::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Slot, Spec};
 
 pub struct RangeDataColumnBatchRequest<T: BeaconChainTypes> {
     requests: HashMap<
@@ -62,11 +62,8 @@ impl<T: BeaconChainTypes> RangeDataColumnBatchRequest<T> {
         req.finish(req_id, columns)
     }
 
-    pub fn responses(
-        &mut self,
-    ) -> Option<Result<DataColumnSidecarList, CouplingError>> {
-        let mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList> =
-            HashMap::new();
+    pub fn responses(&mut self) -> Option<Result<DataColumnSidecarList, CouplingError>> {
+        let mut received_columns_for_slot: HashMap<Slot, DataColumnSidecarList> = HashMap::new();
         let mut column_to_peer_id: HashMap<u64, PeerId> = HashMap::new();
 
         for req in self.requests.values() {
@@ -313,8 +310,7 @@ mod tests {
     use lighthouse_network::service::api_types::{
         CustodyBackFillBatchRequestId, CustodyBackfillBatchId, DataColumnsByRangeRequester,
     };
-    use types::{ForkName};
-
+    use types::ForkName;
 
     #[tokio::test]
     async fn valid_gloas_batch_completes_without_peer_failure() {

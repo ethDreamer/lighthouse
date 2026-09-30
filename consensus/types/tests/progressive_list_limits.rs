@@ -48,7 +48,11 @@ fn check_limits() {
         body.bls_to_execution_changes,
         Spec::MAX_BLS_TO_EXECUTION_CHANGES
     );
-    check!(block, body.payload_attestations, Spec::MAX_PAYLOAD_ATTESTATIONS);
+    check!(
+        block,
+        body.payload_attestations,
+        Spec::MAX_PAYLOAD_ATTESTATIONS
+    );
     check!(
         block,
         body.signed_execution_payload_bid
@@ -58,7 +62,11 @@ fn check_limits() {
     );
 
     let envelope = ExecutionPayloadEnvelope::empty();
-    check!(envelope, payload.withdrawals, Spec::MAX_WITHDRAWALS_PER_PAYLOAD);
+    check!(
+        envelope,
+        payload.withdrawals,
+        Spec::MAX_WITHDRAWALS_PER_PAYLOAD
+    );
     check!(
         envelope,
         execution_requests.withdrawals,
@@ -89,13 +97,21 @@ fn check_limits() {
     assert!(round_trip(&envelope).is_ok());
 
     let attestation: IndexedAttestationGloas = test_arbitrary_instance();
-    check!(attestation, attesting_indices, Spec::MAX_VALIDATORS_PER_SLOT);
+    check!(
+        attestation,
+        attesting_indices,
+        Spec::MAX_VALIDATORS_PER_SLOT
+    );
     let column: DataColumnSidecarGloas = test_arbitrary_instance();
     check!(column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
     check!(column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
     let partial_column: PartialDataColumnSidecarGloas = test_arbitrary_instance();
     check!(partial_column, column, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
-    check!(partial_column, kzg_proofs, Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK);
+    check!(
+        partial_column,
+        kzg_proofs,
+        Spec::MAX_BLOB_COMMITMENTS_PER_BLOCK
+    );
 }
 
 #[test]
@@ -111,20 +127,14 @@ fn progressive_block_body_errors_propagate() {
         let spec = fork.make_genesis_spec(Spec::default_spec());
         let mut block = BeaconBlock::<FullPayload>::empty(&spec);
         let mut body = block.body_mut();
-        body.set_deposits_from_iter(vec![
-            test_arbitrary_instance();
-            Spec::MAX_DEPOSITS
-        ])
-        .unwrap();
+        body.set_deposits_from_iter(vec![test_arbitrary_instance(); Spec::MAX_DEPOSITS])
+            .unwrap();
         assert!(matches!(
             body.deposits_push(test_arbitrary_instance()),
             Err(BeaconStateError::SszTypesError(_))
         ));
         assert!(matches!(
-            body.set_deposits_from_iter(vec![
-                test_arbitrary_instance();
-                Spec::MAX_DEPOSITS + 1
-            ]),
+            body.set_deposits_from_iter(vec![test_arbitrary_instance(); Spec::MAX_DEPOSITS + 1]),
             Err(BeaconStateError::SszTypesError(_))
         ));
 
@@ -145,10 +155,7 @@ fn progressive_block_body_errors_propagate() {
             body.voluntary_exits_push(test_arbitrary_instance()),
             Err(BeaconStateError::SszTypesError(_))
         ));
-        assert_eq!(
-            block.body().deposits().len(),
-            Spec::MAX_DEPOSITS
-        );
+        assert_eq!(block.body().deposits().len(), Spec::MAX_DEPOSITS);
     }
 }
 

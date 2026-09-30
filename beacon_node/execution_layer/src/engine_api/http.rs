@@ -198,7 +198,7 @@ pub mod deposit_log {
     #[cfg(test)]
     pub mod tests {
         use super::*;
-        use types::{Spec};
+        use types::Spec;
 
         /// The data from a deposit event, using the v0.8.3 version of the deposit contract.
         pub const EXAMPLE_LOG: &[u8] = &[
@@ -975,10 +975,7 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn get_payload_v1(
-        &self,
-        payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse, Error> {
+    pub async fn get_payload_v1(&self, payload_id: PayloadId) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         let payload_v1: JsonExecutionPayloadBellatrix = self
@@ -1658,7 +1655,6 @@ impl HttpJsonRpc {
 
 #[cfg(test)]
 mod test {
-    use types::Spec;
     use super::auth::JwtKey;
     use super::*;
     use crate::test_utils::{DEFAULT_JWT_SECRET, MockServer};
@@ -1667,6 +1663,7 @@ mod test {
     use std::future::Future;
     use std::str::FromStr;
     use std::sync::Arc;
+    use types::Spec;
 
     struct Tester {
         server: MockServer,
@@ -1807,11 +1804,7 @@ mod test {
         Ok(ep.transactions_bounded().unwrap().clone())
     }
 
-    fn assert_transactions_serde(
-        name: &str,
-        as_obj: Transactions,
-        as_json: serde_json::Value,
-    ) {
+    fn assert_transactions_serde(name: &str, as_obj: Transactions, as_json: serde_json::Value) {
         assert_eq!(
             encode_transactions(as_obj.clone()).unwrap(),
             as_json,
@@ -1853,16 +1846,8 @@ mod test {
 
     #[test]
     fn transaction_serde() {
-        assert_transactions_serde(
-            "empty",
-            generate_transactions(&[]),
-            json!([]),
-        );
-        assert_transactions_serde(
-            "one empty tx",
-            generate_transactions(&[0]),
-            json!(["0x"]),
-        );
+        assert_transactions_serde("empty", generate_transactions(&[]), json!([]));
+        assert_transactions_serde("one empty tx", generate_transactions(&[0]), json!(["0x"]));
         assert_transactions_serde(
             "two empty txs",
             generate_transactions(&[0, 0]),
@@ -1893,10 +1878,7 @@ mod test {
         let too_many_txs = (0..=num_max_txs).map(|_| "0x00").collect::<Vec<_>>();
 
         decode_transactions(serde_json::to_value(max_txs).unwrap()).unwrap();
-        assert!(
-            decode_transactions(serde_json::to_value(too_many_txs).unwrap())
-                .is_err()
-        );
+        assert!(decode_transactions(serde_json::to_value(too_many_txs).unwrap()).is_err());
     }
 
     fn assert_inclusion_list_serde(
@@ -2178,9 +2160,7 @@ mod test {
             .await;
 
         Tester::new(false)
-            .assert_auth_failure(|client| async move {
-                client.get_payload_v1([42; 8]).await
-            })
+            .assert_auth_failure(|client| async move { client.get_payload_v1([42; 8]).await })
             .await;
     }
 
@@ -2190,24 +2170,22 @@ mod test {
             .assert_request_equals(
                 |client| async move {
                     let _ = client
-                        .new_payload_v1(ExecutionPayload::Bellatrix(
-                            ExecutionPayloadBellatrix {
-                                parent_hash: ExecutionBlockHash::repeat_byte(0),
-                                fee_recipient: Address::repeat_byte(1),
-                                state_root: Hash256::repeat_byte(1),
-                                receipts_root: Hash256::repeat_byte(0),
-                                logs_bloom: vec![1; 256].try_into().unwrap(),
-                                prev_randao: Hash256::repeat_byte(1),
-                                block_number: 0,
-                                gas_limit: 1,
-                                gas_used: 2,
-                                timestamp: 42,
-                                extra_data: vec![].try_into().unwrap(),
-                                base_fee_per_gas: Uint256::from(1),
-                                block_hash: ExecutionBlockHash::repeat_byte(1),
-                                transactions: vec![].try_into().unwrap(),
-                            },
-                        ))
+                        .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix {
+                            parent_hash: ExecutionBlockHash::repeat_byte(0),
+                            fee_recipient: Address::repeat_byte(1),
+                            state_root: Hash256::repeat_byte(1),
+                            receipts_root: Hash256::repeat_byte(0),
+                            logs_bloom: vec![1; 256].try_into().unwrap(),
+                            prev_randao: Hash256::repeat_byte(1),
+                            block_number: 0,
+                            gas_limit: 1,
+                            gas_used: 2,
+                            timestamp: 42,
+                            extra_data: vec![].try_into().unwrap(),
+                            base_fee_per_gas: Uint256::from(1),
+                            block_hash: ExecutionBlockHash::repeat_byte(1),
+                            transactions: vec![].try_into().unwrap(),
+                        }))
                         .await;
                 },
                 json!({
@@ -2237,24 +2215,22 @@ mod test {
         Tester::new(false)
             .assert_auth_failure(|client| async move {
                 client
-                    .new_payload_v1(ExecutionPayload::Bellatrix(
-                        ExecutionPayloadBellatrix {
-                            parent_hash: ExecutionBlockHash::repeat_byte(0),
-                            fee_recipient: Address::repeat_byte(1),
-                            state_root: Hash256::repeat_byte(1),
-                            receipts_root: Hash256::repeat_byte(0),
-                            logs_bloom: vec![1; 256].try_into().unwrap(),
-                            prev_randao: Hash256::repeat_byte(1),
-                            block_number: 0,
-                            gas_limit: 1,
-                            gas_used: 2,
-                            timestamp: 42,
-                            extra_data: vec![].try_into().unwrap(),
-                            base_fee_per_gas: Uint256::from(1),
-                            block_hash: ExecutionBlockHash::repeat_byte(1),
-                            transactions: vec![].try_into().unwrap(),
-                        },
-                    ))
+                    .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix {
+                        parent_hash: ExecutionBlockHash::repeat_byte(0),
+                        fee_recipient: Address::repeat_byte(1),
+                        state_root: Hash256::repeat_byte(1),
+                        receipts_root: Hash256::repeat_byte(0),
+                        logs_bloom: vec![1; 256].try_into().unwrap(),
+                        prev_randao: Hash256::repeat_byte(1),
+                        block_number: 0,
+                        gas_limit: 1,
+                        gas_used: 2,
+                        timestamp: 42,
+                        extra_data: vec![].try_into().unwrap(),
+                        base_fee_per_gas: Uint256::from(1),
+                        block_hash: ExecutionBlockHash::repeat_byte(1),
+                        transactions: vec![].try_into().unwrap(),
+                    }))
                     .await
             })
             .await;

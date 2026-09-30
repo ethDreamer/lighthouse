@@ -9,7 +9,7 @@ use swap_or_not_shuffle::shuffle_list;
 
 use crate::{
     attestation::{AttestationDuty, BeaconCommittee, CommitteeIndex},
-    core::{ChainSpec, Domain, Epoch, Spec, Slot},
+    core::{ChainSpec, Domain, Epoch, Slot, Spec},
     state::{BeaconState, BeaconStateError},
     validator::Validator,
 };
@@ -138,9 +138,12 @@ impl CommitteeCache {
             return Err(BeaconStateError::InsufficientValidators);
         }
 
-        let committees_per_slot =
-            Spec::get_committee_count_per_slot(active_validator_indices.len(), spec.max_committees_per_slot, spec.target_committee_size)
-                .map_err(BeaconStateError::ArithError)? as u64;
+        let committees_per_slot = Spec::get_committee_count_per_slot(
+            active_validator_indices.len(),
+            spec.max_committees_per_slot,
+            spec.target_committee_size,
+        )
+        .map_err(BeaconStateError::ArithError)? as u64;
 
         let seed = state.get_seed(epoch, Domain::BeaconAttester, spec)?;
 

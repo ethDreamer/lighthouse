@@ -10,8 +10,7 @@ use task_executor::test_utils::TestRuntime;
 use types::{
     BlockAccessList, ExecutionBlockHash, ExecutionPayloadBody, ExecutionPayloadEnvelope,
     ExecutionPayloadGloas, ExecutionPayloadRef, ExecutionRequestsGloas, ExecutionRequestsRef,
-    Hash256, SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary,
-    Slot,
+    Hash256, SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary, Slot,
 };
 
 type T = EphemeralHarnessType;

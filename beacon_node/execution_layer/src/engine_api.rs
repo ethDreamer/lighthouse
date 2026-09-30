@@ -503,10 +503,7 @@ pub struct ExecutionPayloadBodyV2 {
 }
 
 impl ExecutionPayloadBodyV1 {
-    pub fn to_payload(
-        self,
-        header: ExecutionPayloadHeader,
-    ) -> Result<ExecutionPayload, String> {
+    pub fn to_payload(self, header: ExecutionPayloadHeader) -> Result<ExecutionPayload, String> {
         match header {
             ExecutionPayloadHeader::Bellatrix(header) => {
                 if self.withdrawals.is_some() {

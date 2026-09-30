@@ -81,11 +81,7 @@ impl OnboardBuildersCache {
     /// Gets the new deposits added to the `pending_deposits` queue for `state.slot()`.
     /// Signature verifies and caches them for later use.
     #[instrument(skip_all)]
-    pub fn add_new_pending_deposits(
-        &self,
-        current_state: &BeaconState,
-        spec: &ChainSpec,
-    ) {
+    pub fn add_new_pending_deposits(&self, current_state: &BeaconState, spec: &ChainSpec) {
         let pending_deposits = pending_deposits_to_verify(current_state);
         if pending_deposits.is_empty() {
             return;
@@ -220,10 +216,10 @@ fn pending_deposits_to_verify(state: &BeaconState) -> Vec<&PendingDeposit> {
 
 #[cfg(all(test, not(feature = "fake_crypto")))]
 mod tests {
-    use types::Spec;
     use super::*;
     use bls::{Keypair, SignatureBytes};
     use std::sync::LazyLock;
+    use types::Spec;
     use types::{ForkName, Slot};
 
     static KEYPAIRS: LazyLock<Vec<Keypair>> =
@@ -453,7 +449,7 @@ mod tests {
         use super::*;
         use beacon_chain::test_utils::BeaconChainHarness;
         use std::sync::Arc;
-        use types::{Epoch};
+        use types::Epoch;
 
         /// A Fulu state (gloas scheduled) at the given slot, as `add_new_pending_deposits`
         /// sees it after a block import.

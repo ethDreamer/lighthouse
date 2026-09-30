@@ -110,10 +110,7 @@ pub fn ssz_decode_file<T: ssz::Decode>(path: &Path) -> Result<T, Error> {
     ssz_decode_file_with(path, T::from_ssz_bytes)
 }
 
-pub fn ssz_decode_state(
-    path: &Path,
-    spec: &ChainSpec,
-) -> Result<BeaconState, Error> {
+pub fn ssz_decode_state(path: &Path, spec: &ChainSpec) -> Result<BeaconState, Error> {
     log_file_access(path);
     ssz_decode_file_with(path, |bytes| BeaconState::from_ssz_bytes(bytes, spec))
 }

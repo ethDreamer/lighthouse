@@ -18,7 +18,7 @@ use crate::{
         BLOB_KZG_COMMITMENTS_INDEX, BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
     },
     complete_kzg_commitment_merkle_proof,
-    core::{ChainSpec, Epoch, Spec, Hash256, Slot},
+    core::{ChainSpec, Epoch, Hash256, Slot, Spec},
     data::{Blob, PartialDataColumnHeader},
     fork::ForkName,
     kzg_ext::KzgProofs,
@@ -47,10 +47,7 @@ impl Ord for BlobIdentifier {
     }
 }
 
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, PartialEq, Eq, Hash)]
 #[context_deserialize(ForkName)]
 pub struct BlobSidecar {
@@ -61,7 +58,8 @@ pub struct BlobSidecar {
     pub kzg_commitment: KzgCommitment,
     pub kzg_proof: KzgProof,
     pub signed_block_header: SignedBeaconBlockHeader,
-    pub kzg_commitment_inclusion_proof: FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
+    pub kzg_commitment_inclusion_proof:
+        FixedVector<Hash256, typenum::U<{ Spec::KZG_COMMITMENT_INCLUSION_PROOF_DEPTH }>>,
 }
 
 impl PartialOrd for BlobSidecar {

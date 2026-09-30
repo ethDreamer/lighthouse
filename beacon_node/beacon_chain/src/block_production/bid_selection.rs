@@ -22,8 +22,7 @@
 use sensitive_url::SensitiveUrl;
 use std::sync::Arc;
 use types::{
-    ExecutionPayloadGloas, ExecutionRequestsGloas, SignedExecutionPayloadBid, Slot,
-    Uint256,
+    ExecutionPayloadGloas, ExecutionRequestsGloas, SignedExecutionPayloadBid, Slot, Uint256,
 };
 
 const GWEI_TO_WEI: u64 = 1_000_000_000;
@@ -252,8 +251,7 @@ mod tests {
     use super::*;
     use bls::Signature;
     use ssz_types::VariableList;
-    use types::{ExecutionPayloadBid};
-
+    use types::ExecutionPayloadBid;
 
     const GOSSIP_BUILDER: u64 = 111;
     const DIRECT_BUILDER: u64 = 222;
@@ -299,12 +297,7 @@ mod tests {
         )
     }
 
-    fn direct(
-        value_gwei: u64,
-        payment_gwei: u64,
-        boost: u64,
-        max_payment: u64,
-    ) -> BidCandidate {
+    fn direct(value_gwei: u64, payment_gwei: u64, boost: u64, max_payment: u64) -> BidCandidate {
         BidCandidate::direct(
             signed_bid(DIRECT_BUILDER, value_gwei, payment_gwei),
             boost,

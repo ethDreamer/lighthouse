@@ -1,5 +1,3 @@
-use types::Spec;
-use typenum::U;
 use super::*;
 use alloy_rlp::RlpEncodable;
 use serde::{Deserialize, Serialize};
@@ -7,6 +5,8 @@ use ssz::{Decode, TryFromIter};
 use ssz_types::{FixedVector, ProgressiveVariableList, VariableList, typenum::Unsigned};
 use strum::EnumString;
 use superstruct::superstruct;
+use typenum::U;
+use types::Spec;
 use types::data::{BlobsList, Cell, ColumnIndex};
 use types::execution::{
     BlockAccessList, ExecutionRequestsElectra, ExecutionRequestsGloas, ProgressiveTransactions,
@@ -117,7 +117,8 @@ pub struct JsonExecutionPayload {
     )]
     pub withdrawals: VariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
     #[superstruct(only(Gloas, Heze), partial_getter(rename = "withdrawals_progressive"))]
-    pub withdrawals: ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
+    pub withdrawals:
+        ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>,
     #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze))]
     #[serde(with = "serde_utils::u64_hex_be")]
     pub blob_gas_used: u64,
@@ -1094,9 +1095,7 @@ impl TryFrom<&[ColumnIndex]> for CustodyColumnsBitArray {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct JsonCell(
-    #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")] pub Cell,
-);
+pub struct JsonCell(#[serde(with = "ssz_types::serde_utils::hex_fixed_vec")] pub Cell);
 
 /// `blob_cells` is the partial column matrix slice for one blob, indexed
 /// positionally over the bits set in the request's `indices_bitarray`
@@ -1359,7 +1358,8 @@ pub struct JsonExecutionPayloadBodyV1 {
 pub struct JsonExecutionPayloadBodyV2 {
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_prog_var_list")]
     pub transactions: ProgressiveTransactions,
-    pub withdrawals: Option<ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
+    pub withdrawals:
+        Option<ProgressiveVariableList<JsonWithdrawal, U<{ Spec::MAX_WITHDRAWALS_PER_PAYLOAD }>>>,
     #[serde(default)]
     pub block_access_list: Option<JsonBlockAccessList>,
 }
@@ -1622,9 +1622,10 @@ mod tests {
 
         // Single requests
         assert_eq!(
-            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![
-                create_request_string(RequestType::Deposit.to_u8(), &deposit_request),
-            ]))
+            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::Deposit.to_u8(),
+                &deposit_request
+            ),]))
             .unwrap(),
             ExecutionRequestsElectra {
                 deposits: singleton_list(&deposit_request),
@@ -1634,9 +1635,10 @@ mod tests {
         );
 
         assert_eq!(
-            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![
-                create_request_string(RequestType::Withdrawal.to_u8(), &withdrawal_request),
-            ]))
+            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::Withdrawal.to_u8(),
+                &withdrawal_request
+            ),]))
             .unwrap(),
             ExecutionRequestsElectra {
                 deposits: Default::default(),
@@ -1646,9 +1648,10 @@ mod tests {
         );
 
         assert_eq!(
-            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![
-                create_request_string(RequestType::Consolidation.to_u8(), &consolidation_request),
-            ]))
+            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::Consolidation.to_u8(),
+                &consolidation_request
+            ),]))
             .unwrap(),
             ExecutionRequestsElectra {
                 deposits: Default::default(),
@@ -1697,9 +1700,10 @@ mod tests {
 
         // Invalid prefix
         assert!(matches!(
-            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![
-                create_request_string(42, &deposit_request),
-            ]))
+            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![create_request_string(
+                42,
+                &deposit_request
+            ),]))
             .unwrap_err(),
             RequestsError::InvalidPrefix(42)
         ));
@@ -1734,12 +1738,10 @@ mod tests {
             signature: SignatureBytes::empty(),
         };
         assert!(matches!(
-            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![
-                create_request_string(
-                    RequestType::BuilderDeposit.to_u8(),
-                    &builder_deposit_request
-                ),
-            ]))
+            ExecutionRequestsElectra::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::BuilderDeposit.to_u8(),
+                &builder_deposit_request
+            ),]))
             .unwrap_err(),
             RequestsError::VariantMismatch
         ));
@@ -1839,9 +1841,10 @@ mod tests {
 
         // A builder-less list is a valid Gloas value (builder lists are simply empty).
         assert_eq!(
-            ExecutionRequestsGloas::try_from(JsonExecutionRequests(vec![
-                create_request_string(RequestType::Deposit.to_u8(), &deposit_request),
-            ]))
+            ExecutionRequestsGloas::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::Deposit.to_u8(),
+                &deposit_request
+            ),]))
             .unwrap(),
             ExecutionRequestsGloas {
                 deposits: singleton_progressive_list(&deposit_request),
@@ -1902,12 +1905,10 @@ mod tests {
 
         // Empty builder request data.
         assert!(matches!(
-            ExecutionRequestsGloas::try_from(JsonExecutionRequests(vec![
-                create_request_string(
-                    RequestType::BuilderDeposit.to_u8(),
-                    &Vec::<BuilderDepositRequest>::new()
-                ),
-            ]))
+            ExecutionRequestsGloas::try_from(JsonExecutionRequests(vec![create_request_string(
+                RequestType::BuilderDeposit.to_u8(),
+                &Vec::<BuilderDepositRequest>::new()
+            ),]))
             .unwrap_err(),
             RequestsError::EmptyRequest(0)
         ));
@@ -1923,8 +1924,7 @@ mod tests {
             "withdrawals": null,
             "blockAccessList": "0x010203",
         });
-        let body: JsonExecutionPayloadBodyV2 =
-            serde_json::from_value(with_bal.clone()).unwrap();
+        let body: JsonExecutionPayloadBodyV2 = serde_json::from_value(with_bal.clone()).unwrap();
         let internal: ExecutionPayloadBodyV2 = body.clone().try_into().unwrap();
         assert_eq!(
             internal.block_access_list,
@@ -1938,8 +1938,7 @@ mod tests {
             "withdrawals": null,
             "blockAccessList": null,
         });
-        let body: JsonExecutionPayloadBodyV2 =
-            serde_json::from_value(null_bal.clone()).unwrap();
+        let body: JsonExecutionPayloadBodyV2 = serde_json::from_value(null_bal.clone()).unwrap();
         let internal: ExecutionPayloadBodyV2 = body.clone().try_into().unwrap();
         assert_eq!(internal.block_access_list, None);
         assert_eq!(serde_json::to_value(&body).unwrap(), null_bal);

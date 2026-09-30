@@ -37,7 +37,7 @@ use lighthouse_network::{
     },
 };
 use std::collections::{HashMap, HashSet};
-use types::{DataColumnSubnetId, Epoch, Spec, ForkName, Hash256, MinimalEthSpec as E, Slot};
+use types::{DataColumnSubnetId, Epoch, ForkName, Hash256, MinimalEthSpec as E, Slot, Spec};
 
 /// MinimalEthSpec has 8 slots per epoch
 const SLOTS_PER_EPOCH: usize = 8;

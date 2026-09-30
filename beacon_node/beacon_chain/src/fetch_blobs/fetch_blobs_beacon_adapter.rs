@@ -13,7 +13,7 @@ use mockall::automock;
 use std::collections::HashSet;
 use std::sync::Arc;
 use task_executor::TaskExecutor;
-use types::{ChainSpec, ColumnIndex, Spec, Hash256, Slot};
+use types::{ChainSpec, ColumnIndex, Hash256, Slot, Spec};
 
 /// An adapter to the `BeaconChain` functionalities to remove `BeaconChain` from direct dependency to enable testing fetch blobs logic.
 pub(crate) struct FetchBlobsBeaconAdapter<T: BeaconChainTypes> {

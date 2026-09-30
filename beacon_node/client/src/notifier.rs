@@ -302,9 +302,8 @@ pub fn spawn_notifier<T: BeaconChainTypes>(
                         .column_data_availability_boundary(),
                     original_earliest_data_column_slot,
                 ) {
-                    let target = original_slot.saturating_sub(
-                        da_boundary_epoch.start_slot(Spec::slots_per_epoch()),
-                    );
+                    let target = original_slot
+                        .saturating_sub(da_boundary_epoch.start_slot(Spec::slots_per_epoch()));
                     speedo.estimated_time_till_slot(target)
                 } else {
                     None

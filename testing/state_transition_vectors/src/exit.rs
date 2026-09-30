@@ -1,4 +1,3 @@
-use types::Spec;
 use super::*;
 use beacon_chain::test_utils::test_spec;
 use state_processing::{
@@ -6,6 +5,7 @@ use state_processing::{
     per_block_processing, per_block_processing::errors::ExitInvalid,
 };
 use std::sync::LazyLock;
+use types::Spec;
 use types::{BeaconBlock, Epoch};
 
 // Default validator index to exit.
@@ -21,8 +21,7 @@ struct ExitTest {
     #[allow(clippy::type_complexity)]
     state_modifier: Box<dyn FnOnce(&mut BeaconState)>,
     #[allow(clippy::type_complexity)]
-    block_modifier:
-        Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType>, &mut BeaconBlock)>,
+    block_modifier: Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType>, &mut BeaconBlock)>,
     #[allow(dead_code)]
     expected: Result<(), BlockProcessingError>,
 }

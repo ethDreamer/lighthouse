@@ -81,7 +81,7 @@ pub struct HotColdDB<Hot: ItemStore, Cold: ItemStore> {
     /// HTTP API.
     historic_state_cache: Mutex<HistoricStateCache>,
     /// Chain spec.
-    pub spec: Arc<ChainSpec>
+    pub spec: Arc<ChainSpec>,
 }
 
 #[derive(Debug)]
@@ -246,7 +246,7 @@ impl HotColdDB<MemoryStore, MemoryStore> {
             )),
             config,
             hierarchy,
-            spec
+            spec,
         };
 
         Ok(db)
@@ -298,7 +298,7 @@ impl HotColdDB<BeaconNodeBackend, BeaconNodeBackend> {
             )),
             config,
             hierarchy,
-            spec
+            spec,
         };
         // Load the config from disk but don't error on a failed read because the config itself may
         // need migrating.
@@ -550,11 +550,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     }
 
     /// Store a block and update the LRU cache.
-    pub fn put_block(
-        &self,
-        block_root: &Hash256,
-        block: SignedBeaconBlock,
-    ) -> Result<(), Error> {
+    pub fn put_block(&self, block_root: &Hash256, block: SignedBeaconBlock) -> Result<(), Error> {
         // Store on disk.
         let mut ops = Vec::with_capacity(2);
         let block = self.block_as_kv_store_ops(block_root, block, &mut ops)?;
@@ -607,10 +603,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
         ));
     }
 
-    pub fn try_get_full_block(
-        &self,
-        block_root: &Hash256,
-    ) -> Result<Option<DatabaseBlock>, Error> {
+    pub fn try_get_full_block(&self, block_root: &Hash256) -> Result<Option<DatabaseBlock>, Error> {
         metrics::inc_counter(&metrics::BEACON_BLOCK_GET_COUNT);
 
         // Check the cache.
@@ -674,10 +667,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
 
     /// Fetch a full block with execution payload from the store.
     #[instrument(skip_all)]
-    pub fn get_full_block(
-        &self,
-        block_root: &Hash256,
-    ) -> Result<Option<SignedBeaconBlock>, Error> {
+    pub fn get_full_block(&self, block_root: &Hash256) -> Result<Option<SignedBeaconBlock>, Error> {
         match self.try_get_full_block(block_root)? {
             Some(DatabaseBlock::Full(block)) => Ok(Some(block)),
             Some(DatabaseBlock::Blinded(block)) => Err(
@@ -785,10 +775,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     ) -> Result<Option<ExecutionPayload>, Error> {
         let key = block_root.as_slice();
 
-        match self
-            .hot_db
-            .get_bytes(ExecutionPayload::db_column(), key)?
-        {
+        match self.hot_db.get_bytes(ExecutionPayload::db_column(), key)? {
             Some(bytes) => Ok(Some(ExecutionPayload::from_ssz_bytes_by_fork(
                 &bytes, fork_name,
             )?)),
@@ -1339,10 +1326,7 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     }
 
     /// Convert a batch of `StoreOp` to a batch of `KeyValueStoreOp`.
-    pub fn convert_to_kv_batch(
-        &self,
-        batch: Vec<StoreOp>,
-    ) -> Result<Vec<KeyValueStoreOp>, Error> {
+    pub fn convert_to_kv_batch(&self, batch: Vec<StoreOp>) -> Result<Vec<KeyValueStoreOp>, Error> {
         let mut key_value_batch = Vec::with_capacity(batch.len());
         for op in batch {
             match op {
@@ -4215,7 +4199,6 @@ mod tests {
 
     #[test]
     fn payload_pruning_fast_path_skips_withheld_gloas_blocks() {
-
         let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = Some(Epoch::new(0));
         let store = HotColdDB::<MemoryStore, MemoryStore>::open_ephemeral(

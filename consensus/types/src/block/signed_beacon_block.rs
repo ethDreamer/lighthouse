@@ -20,7 +20,7 @@ use crate::{
         BeaconBlockDeneb, BeaconBlockElectra, BeaconBlockFulu, BeaconBlockGloas, BeaconBlockHeader,
         BeaconBlockHeze, BeaconBlockRef, BeaconBlockRefMut, SignedBeaconBlockHeader,
     },
-    core::{ChainSpec, Domain, Epoch, Spec, Hash256, SignedRoot, SigningData, Slot},
+    core::{ChainSpec, Domain, Epoch, Hash256, SignedRoot, SigningData, Slot, Spec},
     execution::{
         AbstractExecPayload, BlindedPayload, BlindedPayloadBellatrix, BlindedPayloadCapella,
         BlindedPayloadDeneb, BlindedPayloadElectra, BlindedPayloadFulu, ExecutionPayload,
@@ -73,7 +73,8 @@ impl From<SignedBeaconBlockHash> for Hash256 {
             Encode,
             Decode,
             TreeHash,
-            PartialEq, Hash,
+            PartialEq,
+            Hash,
         ),
         serde(bound = "Payload: AbstractExecPayload"),
         cfg_attr(
@@ -118,9 +119,7 @@ pub struct SignedBeaconBlock<Payload: AbstractExecPayload = FullPayload> {
     pub signature: Signature,
 }
 
-impl<Payload: AbstractExecPayload> ForkVersionDecode
-    for SignedBeaconBlock<Payload>
-{
+impl<Payload: AbstractExecPayload> ForkVersionDecode for SignedBeaconBlock<Payload> {
     /// SSZ decode with explicit fork variant.
     fn from_ssz_bytes_by_fork(bytes: &[u8], fork_name: ForkName) -> Result<Self, ssz::DecodeError> {
         Self::from_ssz_bytes_with(bytes, |bytes| {
@@ -418,9 +417,7 @@ impl<Payload: AbstractExecPayload> SignedBeaconBlock<Payload> {
 }
 
 // We can convert pre-Bellatrix blocks without payloads into blocks with payloads.
-impl From<SignedBeaconBlockBase<BlindedPayload>>
-    for SignedBeaconBlockBase<FullPayload>
-{
+impl From<SignedBeaconBlockBase<BlindedPayload>> for SignedBeaconBlockBase<FullPayload> {
     fn from(signed_block: SignedBeaconBlockBase<BlindedPayload>) -> Self {
         let SignedBeaconBlockBase { message, signature } = signed_block;
         SignedBeaconBlockBase {
@@ -430,9 +427,7 @@ impl From<SignedBeaconBlockBase<BlindedPayload>>
     }
 }
 
-impl From<SignedBeaconBlockAltair<BlindedPayload>>
-    for SignedBeaconBlockAltair<FullPayload>
-{
+impl From<SignedBeaconBlockAltair<BlindedPayload>> for SignedBeaconBlockAltair<FullPayload> {
     fn from(signed_block: SignedBeaconBlockAltair<BlindedPayload>) -> Self {
         let SignedBeaconBlockAltair { message, signature } = signed_block;
         SignedBeaconBlockAltair {
@@ -525,9 +520,7 @@ impl_into_full_block!(
 
 // We can convert gloas blocks without payloads into blocks "with" payloads.
 // TODO(EIP-7732) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<SignedBeaconBlockGloas<BlindedPayload>>
-    for SignedBeaconBlockGloas<FullPayload>
-{
+impl From<SignedBeaconBlockGloas<BlindedPayload>> for SignedBeaconBlockGloas<FullPayload> {
     fn from(signed_block: SignedBeaconBlockGloas<BlindedPayload>) -> Self {
         let SignedBeaconBlockGloas { message, signature } = signed_block;
         SignedBeaconBlockGloas {
@@ -538,9 +531,7 @@ impl From<SignedBeaconBlockGloas<BlindedPayload>>
 }
 
 // TODO(heze) Look into whether we can remove this in the future since no blinded blocks post-gloas
-impl From<SignedBeaconBlockHeze<BlindedPayload>>
-    for SignedBeaconBlockHeze<FullPayload>
-{
+impl From<SignedBeaconBlockHeze<BlindedPayload>> for SignedBeaconBlockHeze<FullPayload> {
     fn from(signed_block: SignedBeaconBlockHeze<BlindedPayload>) -> Self {
         let SignedBeaconBlockHeze { message, signature } = signed_block;
         SignedBeaconBlockHeze {
@@ -591,9 +582,7 @@ impl SignedBeaconBlock<BlindedPayload> {
 // We can blind blocks with payloads by converting the payload into a header.
 //
 // We can optionally keep the header, or discard it.
-impl From<SignedBeaconBlock>
-    for (SignedBlindedBeaconBlock, Option<ExecutionPayload>)
-{
+impl From<SignedBeaconBlock> for (SignedBlindedBeaconBlock, Option<ExecutionPayload>) {
     fn from(signed_block: SignedBeaconBlock) -> Self {
         let (block, signature) = signed_block.deconstruct();
         let (blinded_block, payload) = block.into();
@@ -763,11 +752,10 @@ pub mod ssz_tagged_signed_beacon_block_arc {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{block::EmptyBlock};
+    use crate::block::EmptyBlock;
 
     #[test]
     fn add_remove_payload_roundtrip() {
-
         let spec = &Spec::default_spec();
         let sig = Signature::empty();
         let blocks = vec![
@@ -823,7 +811,6 @@ mod test {
 
     #[test]
     fn test_ssz_tagged_signed_beacon_block() {
-
         let spec = &spec_with_all_forks_enabled();
         let sig = Signature::empty();
         let blocks = vec![

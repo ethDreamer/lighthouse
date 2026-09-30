@@ -8,7 +8,7 @@ use ssz::Encode;
 
 use crate::{
     core::{
-        ChainSpec, Domain, Spec, Hash256, SignedRoot, Slot,
+        ChainSpec, Domain, Hash256, SignedRoot, Slot, Spec,
         consts::altair::{SYNC_COMMITTEE_SUBNET_COUNT, TARGET_AGGREGATORS_PER_SYNC_SUBCOMMITTEE},
     },
     fork::Fork,

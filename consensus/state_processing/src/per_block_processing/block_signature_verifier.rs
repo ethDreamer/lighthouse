@@ -8,8 +8,7 @@ use crate::{ConsensusContext, ContextError};
 use bls::{PublicKey, PublicKeyBytes, SignatureSet, verify_signature_sets};
 use std::borrow::Cow;
 use types::{
-    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, Hash256,
-    SignedBeaconBlock,
+    AbstractExecPayload, BeaconState, BeaconStateError, ChainSpec, Hash256, SignedBeaconBlock,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

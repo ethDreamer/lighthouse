@@ -77,8 +77,7 @@ mod test {
     #[test]
     fn test_verify_blob_inclusion_proof() {
         let mut u = crate::test_utils::test_unstructured();
-        let (_block, blobs) =
-            generate_rand_block_and_blobs(ForkName::Deneb, 2, &mut u).unwrap();
+        let (_block, blobs) = generate_rand_block_and_blobs(ForkName::Deneb, 2, &mut u).unwrap();
         for blob in blobs {
             assert!(blob.verify_blob_sidecar_inclusion_proof());
         }
@@ -105,8 +104,7 @@ mod test {
     #[test]
     fn test_verify_blob_inclusion_proof_invalid() {
         let mut u = crate::test_utils::test_unstructured();
-        let (_block, blobs) =
-            generate_rand_block_and_blobs(ForkName::Deneb, 1, &mut u).unwrap();
+        let (_block, blobs) = generate_rand_block_and_blobs(ForkName::Deneb, 1, &mut u).unwrap();
 
         for mut blob in blobs {
             blob.kzg_commitment_inclusion_proof = FixedVector::arbitrary(&mut u).unwrap();

@@ -342,7 +342,10 @@ impl<Hot: ItemStore, Cold: ItemStore> HotColdDB<Hot, Cold> {
     ) -> InvariantCheckResult {
         let mut result = InvariantCheckResult::new();
         if let Some(finalized_checkpoint) = ctx.persisted_fork_choice_finalized_checkpoint
-            && finalized_checkpoint.epoch.start_slot(Spec::slots_per_epoch()) < ctx.split.slot
+            && finalized_checkpoint
+                .epoch
+                .start_slot(Spec::slots_per_epoch())
+                < ctx.split.slot
         {
             result.add_violation(
                 InvariantViolation::ForkChoiceFinalizedCheckpointBehindSplit {

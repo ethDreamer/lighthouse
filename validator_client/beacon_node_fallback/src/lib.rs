@@ -33,7 +33,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, warn};
-use types::{ChainSpec, Config as ConfigSpec, Spec, Slot};
+use types::{ChainSpec, Config as ConfigSpec, Slot, Spec};
 use validator_metrics::{ENDPOINT_ERRORS, ENDPOINT_REQUESTS, inc_counter_vec};
 
 /// Message emitted when the VC detects the BN is using a different spec.
@@ -923,7 +923,6 @@ mod tests {
     use types::{BeaconBlockDeneb, ForkName, Slot};
     use types::{EmptyBlock, SignedBeaconBlockDeneb, SignedBlindedBeaconBlock};
     use validator_test_rig::mock_beacon_node::MockBeaconNode;
-
 
     #[test]
     fn api_topic_all() {

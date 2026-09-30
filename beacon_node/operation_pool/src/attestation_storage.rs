@@ -1,13 +1,13 @@
-use typenum::U;
 use crate::AttestationStats;
 use bls::AggregateSignature;
 use itertools::Itertools;
 use ssz::{BitList, BitVector, ProgressiveBitList};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use superstruct::superstruct;
+use typenum::U;
 use typenum::Unsigned;
 use types::{
-    Attestation, AttestationData, BeaconState, Checkpoint, Epoch, Spec, Hash256, Slot,
+    Attestation, AttestationData, BeaconState, Checkpoint, Epoch, Hash256, Slot, Spec,
     attestation::{AttestationBase, AttestationElectra, AttestationGloas},
 };
 

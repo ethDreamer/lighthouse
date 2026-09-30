@@ -9,7 +9,7 @@ use slot_clock::SlotClock;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, Spec, Slot, SyncDuty, SyncSelectionProof, SyncSubnetId};
+use types::{ChainSpec, Slot, Spec, SyncDuty, SyncSelectionProof, SyncSubnetId};
 use validator_store::{DoppelgangerStatus, Error as ValidatorStoreError, ValidatorStore};
 
 /// Top-level data-structure containing sync duty information.
@@ -108,10 +108,8 @@ impl SyncDutiesMap {
         current_slot: Slot,
         spec: &ChainSpec,
     ) -> (Slot, Vec<(Slot, SyncDuty)>) {
-        let default_start_slot = std::cmp::max(
-            current_slot,
-            first_slot_of_period(committee_period, spec),
-        );
+        let default_start_slot =
+            std::cmp::max(current_slot, first_slot_of_period(committee_period, spec));
         let pre_compute_lookahead_slots = self.selection_proof_config.lookahead_slot;
         let pre_compute_slot = std::cmp::min(
             current_slot + pre_compute_lookahead_slots,
@@ -288,7 +286,8 @@ fn epoch_offset(spec: &ChainSpec) -> u64 {
 }
 
 fn first_slot_of_period(sync_committee_period: u64, spec: &ChainSpec) -> Slot {
-    (spec.epochs_per_sync_committee_period * sync_committee_period).start_slot(Spec::slots_per_epoch())
+    (spec.epochs_per_sync_committee_period * sync_committee_period)
+        .start_slot(Spec::slots_per_epoch())
 }
 
 fn last_slot_of_period(sync_committee_period: u64, spec: &ChainSpec) -> Slot {
@@ -351,11 +350,7 @@ pub async fn poll_sync_committee_duties<S: ValidatorStore + 'static, T: SlotCloc
 
     // Pre-compute aggregator selection proofs for the current period.
     let (current_pre_compute_slot, new_pre_compute_duties) = sync_duties
-        .prepare_for_aggregator_pre_compute(
-            current_sync_committee_period,
-            current_slot,
-            spec,
-        );
+        .prepare_for_aggregator_pre_compute(current_sync_committee_period, current_slot, spec);
 
     if !new_pre_compute_duties.is_empty() {
         let sub_duties_service = duties_service.clone();
@@ -399,11 +394,7 @@ pub async fn poll_sync_committee_duties<S: ValidatorStore + 'static, T: SlotCloc
         == next_sync_committee_period
     {
         let (pre_compute_slot, new_pre_compute_duties) = sync_duties
-            .prepare_for_aggregator_pre_compute(
-                next_sync_committee_period,
-                current_slot,
-                spec,
-            );
+            .prepare_for_aggregator_pre_compute(next_sync_committee_period, current_slot, spec);
 
         if !new_pre_compute_duties.is_empty() {
             let sub_duties_service = duties_service.clone();

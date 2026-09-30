@@ -1,6 +1,6 @@
-use typenum::U;
 use ssz_types::BitVector;
-use types::{BeaconState, BeaconStateError, Checkpoint, Epoch, Spec, Hash256};
+use typenum::U;
+use types::{BeaconState, BeaconStateError, Checkpoint, Epoch, Hash256, Spec};
 
 /// This is a subset of the `BeaconState` which is used to compute justification and finality
 /// without modifying the `BeaconState`.
@@ -111,7 +111,9 @@ impl JustificationAndFinalizationState {
         &self.justification_bits
     }
 
-    pub fn justification_bits_mut(&mut self) -> &mut BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>> {
+    pub fn justification_bits_mut(
+        &mut self,
+    ) -> &mut BitVector<U<{ Spec::JUSTIFICATION_BITS_LENGTH }>> {
         &mut self.justification_bits
     }
 }

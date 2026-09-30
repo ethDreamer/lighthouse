@@ -179,10 +179,7 @@ async fn inclusion_list_committee_wraps_around_small_committees() {
 
     let size = Spec::INCLUSION_LIST_COMMITTEE_SIZE;
 
-    for slot in state
-        .current_epoch()
-        .slot_iter(Spec::slots_per_epoch())
-    {
+    for slot in state.current_epoch().slot_iter(Spec::slots_per_epoch()) {
         let concatenated: Vec<u64> = state
             .get_beacon_committees_at_slot(slot)
             .unwrap()
@@ -238,10 +235,7 @@ async fn inclusion_list_committee_truncates_large_committees() {
 
     let size = Spec::INCLUSION_LIST_COMMITTEE_SIZE;
 
-    for slot in state
-        .current_epoch()
-        .slot_iter(Spec::slots_per_epoch())
-    {
+    for slot in state.current_epoch().slot_iter(Spec::slots_per_epoch()) {
         let concatenated: Vec<u64> = state
             .get_beacon_committees_at_slot(slot)
             .unwrap()

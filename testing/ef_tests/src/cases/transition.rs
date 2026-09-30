@@ -1,4 +1,3 @@
-use types::Spec;
 use super::*;
 use crate::case_result::compare_beacon_state_results_without_caches;
 use crate::decode::{ssz_decode_file_with, ssz_decode_state, yaml_decode_file};
@@ -8,6 +7,7 @@ use state_processing::{
     state_advance::complete_state_advance,
 };
 use std::str::FromStr;
+use types::Spec;
 use types::{BeaconState, Epoch, SignedBeaconBlock};
 
 #[derive(Debug, Clone, Deserialize)]

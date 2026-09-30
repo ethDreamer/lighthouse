@@ -1,5 +1,5 @@
 use crate::execution::ExecutionPayloadBid;
-use crate::{Spec, ForkName};
+use crate::{ForkName, Spec};
 use bls::Signature;
 use context_deserialize::context_deserialize;
 use educe::Educe;
@@ -8,10 +8,7 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 #[derive(TreeHash, Debug, Clone, Encode, Decode, Serialize, Deserialize, Educe)]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[educe(PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 // https://github.com/ethereum/consensus-specs/blob/master/specs/gloas/beacon-chain.md#signedexecutionpayloadbid

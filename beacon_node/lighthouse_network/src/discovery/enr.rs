@@ -1,7 +1,7 @@
 //! Helper functions and an extension trait for Ethereum 2 ENRs.
 
-use typenum::U;
 pub use discv5::enr::CombinedKey;
+use typenum::U;
 
 use super::ENR_FILENAME;
 use crate::NetworkConfig;
@@ -37,9 +37,7 @@ pub trait Eth2Enr {
     fn attestation_bitfield(&self) -> Result<EnrAttestationBitfield, &'static str>;
 
     /// The sync committee subnet bitfield associated with the ENR.
-    fn sync_committee_bitfield(
-        &self,
-    ) -> Result<EnrSyncCommitteeBitfield, &'static str>;
+    fn sync_committee_bitfield(&self) -> Result<EnrSyncCommitteeBitfield, &'static str>;
 
     /// The peerdas custody group count associated with the ENR.
     fn custody_group_count(&self, spec: &ChainSpec) -> Result<u64, &'static str>;
@@ -61,9 +59,7 @@ impl Eth2Enr for Enr {
             .map_err(|_| "Could not decode the ENR attnets bitfield")
     }
 
-    fn sync_committee_bitfield(
-        &self,
-    ) -> Result<EnrSyncCommitteeBitfield, &'static str> {
+    fn sync_committee_bitfield(&self) -> Result<EnrSyncCommitteeBitfield, &'static str> {
         let bitfield_bytes: Bytes = self
             .get_decodable(SYNC_COMMITTEE_BITFIELD_ENR_KEY)
             .ok_or("ENR sync committee bitfield non-existent")?
@@ -365,7 +361,7 @@ pub fn save_enr_to_disk(dir: &Path, enr: &Enr) {
 mod test {
     use super::*;
     use crate::config::Config as NetworkConfig;
-    use types::{Epoch};
+    use types::Epoch;
 
     const TEST_NFD: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
 

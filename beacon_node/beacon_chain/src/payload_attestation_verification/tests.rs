@@ -4,8 +4,8 @@ use std::time::Duration;
 use bls::Signature;
 use slot_clock::{SlotClock, TestingSlotClock};
 use types::{
-    Domain, Epoch, Spec, ForkName, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, SignedRoot, Slot,
+    Domain, Epoch, ForkName, Hash256, PayloadAttestationData, PayloadAttestationMessage,
+    SignedRoot, Slot, Spec,
 };
 
 use crate::{

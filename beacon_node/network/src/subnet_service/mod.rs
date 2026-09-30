@@ -17,7 +17,7 @@ use lighthouse_network::{NetworkConfig, Subnet, SubnetDiscovery, discv5::enr::No
 use slot_clock::SlotClock;
 use tracing::{debug, error, info, warn};
 use types::{
-    AttestationData, Spec, Slot, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
+    AttestationData, Slot, Spec, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
     ValidatorSubscription,
 };
 
@@ -278,26 +278,24 @@ impl<T: BeaconChainTypes> SubnetService<T> {
                     // NOTE: We assume all subscriptions have been verified before reaching this service
 
                     // Registers the validator with the subnet service.
-                    let subnet_ids =
-                        match SyncSubnetId::compute_subnets_for_sync_committee(
-                            &subscription.sync_committee_indices,
-                        ) {
-                            Ok(subnet_ids) => subnet_ids,
-                            Err(e) => {
-                                warn!(
-                                    error = ?e,
-                                    validator_index = subscription.validator_index,
-                                    "Failed to compute subnet id for sync committee subscription"
-                                );
-                                continue;
-                            }
-                        };
+                    let subnet_ids = match SyncSubnetId::compute_subnets_for_sync_committee(
+                        &subscription.sync_committee_indices,
+                    ) {
+                        Ok(subnet_ids) => subnet_ids,
+                        Err(e) => {
+                            warn!(
+                                error = ?e,
+                                validator_index = subscription.validator_index,
+                                "Failed to compute subnet id for sync committee subscription"
+                            );
+                            continue;
+                        }
+                    };
 
                     for subnet_id in subnet_ids {
                         let subnet = Subnet::SyncCommittee(subnet_id);
-                        let slot_required_until = subscription
-                            .until_epoch
-                            .start_slot(Spec::slots_per_epoch());
+                        let slot_required_until =
+                            subscription.until_epoch.start_slot(Spec::slots_per_epoch());
                         subnets_to_discover.insert(subnet, slot_required_until);
 
                         let Some(duration_to_unsubscribe) = self

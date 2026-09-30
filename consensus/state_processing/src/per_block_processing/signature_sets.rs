@@ -8,12 +8,13 @@ use std::borrow::Cow;
 use tree_hash::TreeHash;
 use types::{
     AbstractExecPayload, AttesterSlashingRef, BeaconBlockRef, BeaconState, BeaconStateError,
-    BuilderIndex, ChainSpec, DepositData, Domain, Epoch, Spec, Fork, Hash256, InconsistentFork,
+    BuilderIndex, ChainSpec, DepositData, Domain, Epoch, Fork, Hash256, InconsistentFork,
     IndexedAttestation, IndexedAttestationRef, IndexedPayloadAttestation, ProposerSlashing,
     SignedAggregateAndProof, SignedBeaconBlock, SignedBeaconBlockHeader,
     SignedBlsToExecutionChange, SignedContributionAndProof, SignedExecutionPayloadBid,
     SignedInclusionList, SignedProposerPreferences, SignedRoot, SignedVoluntaryExit, SigningData,
-    Slot, SyncAggregate, SyncAggregatorSelectionData, consts::gloas::BUILDER_INDEX_SELF_BUILD,
+    Slot, Spec, SyncAggregate, SyncAggregatorSelectionData,
+    consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -60,9 +61,7 @@ impl From<BeaconStateError> for Error {
 pub fn get_pubkey_from_state(
     state: &BeaconState,
     validator_index: usize,
-) -> Option<Cow<'_, PublicKey>>
-
-{
+) -> Option<Cow<'_, PublicKey>> {
     state
         .validators()
         .get(validator_index)
@@ -77,9 +76,7 @@ pub fn get_pubkey_from_state(
 pub fn get_builder_pubkey_from_state(
     state: &BeaconState,
     builder_index: BuilderIndex,
-) -> Option<Cow<'_, PublicKey>>
-
-{
+) -> Option<Cow<'_, PublicKey>> {
     state
         .builders()
         .ok()?
@@ -748,9 +745,7 @@ pub fn sync_committee_message_set_from_pubkeys<'a>(
     fork: &Fork,
     genesis_validators_root: Hash256,
     spec: &'a ChainSpec,
-) -> Result<SignatureSet<'a>>
-
-{
+) -> Result<SignatureSet<'a>> {
     let domain = spec.get_domain(epoch, Domain::SyncCommittee, fork, genesis_validators_root);
 
     let message = beacon_block_root.signing_root(domain);
@@ -831,9 +826,7 @@ where
 mod inclusion_list_signature_tests {
     use super::{get_pubkey_from_state, inclusion_list_signature_set};
     use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
-    use types::{
-        Domain, Spec, Hash256, InclusionList, SignedInclusionList, SignedRoot,
-    };
+    use types::{Domain, Hash256, InclusionList, SignedInclusionList, SignedRoot, Spec};
 
     const VALIDATOR_COUNT: usize = 16;
 

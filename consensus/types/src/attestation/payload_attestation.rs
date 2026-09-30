@@ -1,5 +1,5 @@
 use crate::attestation::payload_attestation_data::PayloadAttestationData;
-use crate::{Spec, ForkName};
+use crate::{ForkName, Spec};
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
 use educe::Educe;

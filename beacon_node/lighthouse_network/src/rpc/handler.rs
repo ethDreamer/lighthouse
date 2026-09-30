@@ -29,7 +29,7 @@ use std::{
 use tokio::time::{Sleep, sleep};
 use tokio_util::time::{DelayQueue, delay_queue};
 use tracing::{debug, trace};
-use types::{Spec, ForkContext, Slot};
+use types::{ForkContext, Slot, Spec};
 
 /// The number of times to retry an outbound upgrade in the case of IO errors.
 const IO_ERROR_RETRIES: u8 = 3;
@@ -90,9 +90,7 @@ pub enum HandlerErr<Id> {
 }
 
 /// Implementation of `ConnectionHandler` for the RPC protocol.
-pub struct RPCHandler<Id>
-
-{
+pub struct RPCHandler<Id> {
     /// The PeerId matching this `ConnectionHandler`.
     peer_id: PeerId,
 
@@ -217,9 +215,7 @@ pub enum OutboundSubstreamState {
     Poisoned,
 }
 
-impl<Id> RPCHandler<Id>
-
-{
+impl<Id> RPCHandler<Id> {
     pub fn new(
         listen_protocol: SubstreamProtocol<RPCProtocol, ()>,
         fork_context: Arc<ForkContext>,
@@ -906,7 +902,7 @@ where
 
 impl<Id> RPCHandler<Id>
 where
-    Id: ReqId
+    Id: ReqId,
 {
     fn on_fully_negotiated_inbound(&mut self, substream: InboundOutput<Stream>) {
         // only accept new peer requests when active

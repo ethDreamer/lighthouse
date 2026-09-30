@@ -164,13 +164,8 @@ impl SigningMethod {
             genesis_validators_root,
         });
 
-        self.get_signature_from_root::<Payload>(
-            signable_message,
-            signing_root,
-            executor,
-            fork_info,
-        )
-        .await
+        self.get_signature_from_root::<Payload>(signable_message, signing_root, executor, fork_info)
+            .await
     }
 
     pub async fn get_signature_from_root<Payload: AbstractExecPayload>(

@@ -332,14 +332,10 @@ mod ssz_static {
     fn attestation() {
         SszStaticHandler::<AttestationBase>::pre_electra().run();
         SszStaticHandler::<AttestationBase>::pre_electra().run();
-        SszStaticHandler::<AttestationElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<AttestationElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<AttestationGloas>::gloas_and_later()
-            .run();
-        SszStaticHandler::<AttestationGloas>::gloas_and_later()
-            .run();
+        SszStaticHandler::<AttestationElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AttestationElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AttestationGloas>::gloas_and_later().run();
+        SszStaticHandler::<AttestationGloas>::gloas_and_later().run();
     }
 
     #[test]
@@ -350,78 +346,42 @@ mod ssz_static {
 
     #[test]
     fn attester_slashing() {
-        SszStaticHandler::<AttesterSlashingBase>::pre_electra()
-            .run();
-        SszStaticHandler::<AttesterSlashingBase>::pre_electra()
-            .run();
-        SszStaticHandler::<AttesterSlashingElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<AttesterSlashingElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<AttesterSlashingGloas>::gloas_and_later(
-        )
-        .run();
-        SszStaticHandler::<AttesterSlashingGloas>::gloas_and_later(
-        )
-        .run();
+        SszStaticHandler::<AttesterSlashingBase>::pre_electra().run();
+        SszStaticHandler::<AttesterSlashingBase>::pre_electra().run();
+        SszStaticHandler::<AttesterSlashingElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AttesterSlashingElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AttesterSlashingGloas>::gloas_and_later().run();
+        SszStaticHandler::<AttesterSlashingGloas>::gloas_and_later().run();
     }
 
     #[test]
     fn indexed_attestation() {
-        SszStaticHandler::<IndexedAttestationBase>::pre_electra()
-            .run();
-        SszStaticHandler::<IndexedAttestationBase>::pre_electra()
-            .run();
-        SszStaticHandler::<IndexedAttestationElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<IndexedAttestationElectra>::electra_through_fulu()
-            .run();
-        SszStaticHandler::<IndexedAttestationGloas>::gloas_and_later()
-            .run();
-        SszStaticHandler::<IndexedAttestationGloas>::gloas_and_later()
-            .run();
+        SszStaticHandler::<IndexedAttestationBase>::pre_electra().run();
+        SszStaticHandler::<IndexedAttestationBase>::pre_electra().run();
+        SszStaticHandler::<IndexedAttestationElectra>::electra_through_fulu().run();
+        SszStaticHandler::<IndexedAttestationElectra>::electra_through_fulu().run();
+        SszStaticHandler::<IndexedAttestationGloas>::gloas_and_later().run();
+        SszStaticHandler::<IndexedAttestationGloas>::gloas_and_later().run();
     }
 
     #[test]
     fn signed_aggregate_and_proof() {
-        SszStaticHandler::<SignedAggregateAndProofBase>::pre_electra(
-        )
-        .run();
-        SszStaticHandler::<SignedAggregateAndProofBase>::pre_electra(
-        )
-        .run();
-        SszStaticHandler::<SignedAggregateAndProofElectra>::electra_through_fulu(
-        )
-        .run();
-        SszStaticHandler::<SignedAggregateAndProofElectra>::electra_through_fulu(
-        )
-        .run();
-        SszStaticHandler::<SignedAggregateAndProofGloas>::gloas_and_later(
-        )
-        .run();
-        SszStaticHandler::<SignedAggregateAndProofGloas>::gloas_and_later(
-        )
-        .run();
+        SszStaticHandler::<SignedAggregateAndProofBase>::pre_electra().run();
+        SszStaticHandler::<SignedAggregateAndProofBase>::pre_electra().run();
+        SszStaticHandler::<SignedAggregateAndProofElectra>::electra_through_fulu().run();
+        SszStaticHandler::<SignedAggregateAndProofElectra>::electra_through_fulu().run();
+        SszStaticHandler::<SignedAggregateAndProofGloas>::gloas_and_later().run();
+        SszStaticHandler::<SignedAggregateAndProofGloas>::gloas_and_later().run();
     }
 
     #[test]
     fn aggregate_and_proof() {
-        SszStaticHandler::<AggregateAndProofBase>::pre_electra()
-            .run();
-        SszStaticHandler::<AggregateAndProofBase>::pre_electra()
-            .run();
-        SszStaticHandler::<AggregateAndProofElectra>::electra_through_fulu(
-        )
-        .run();
-        SszStaticHandler::<AggregateAndProofElectra>::electra_through_fulu(
-        )
-        .run();
-        SszStaticHandler::<AggregateAndProofGloas>::gloas_and_later(
-        )
-        .run();
-        SszStaticHandler::<AggregateAndProofGloas>::gloas_and_later(
-        )
-        .run();
+        SszStaticHandler::<AggregateAndProofBase>::pre_electra().run();
+        SszStaticHandler::<AggregateAndProofBase>::pre_electra().run();
+        SszStaticHandler::<AggregateAndProofElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AggregateAndProofElectra>::electra_through_fulu().run();
+        SszStaticHandler::<AggregateAndProofGloas>::gloas_and_later().run();
+        SszStaticHandler::<AggregateAndProofGloas>::gloas_and_later().run();
     }
 
     // BeaconBlockBody has no internal indicator of which fork it is for, so we test it separately.
@@ -429,32 +389,20 @@ mod ssz_static {
     fn beacon_block_body() {
         SszStaticHandler::<BeaconBlockBodyBase>::base_only().run();
         SszStaticHandler::<BeaconBlockBodyBase>::base_only().run();
-        SszStaticHandler::<BeaconBlockBodyAltair>::altair_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyAltair>::altair_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyCapella>::capella_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyCapella>::capella_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyElectra>::electra_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyElectra>::electra_only()
-            .run();
+        SszStaticHandler::<BeaconBlockBodyAltair>::altair_only().run();
+        SszStaticHandler::<BeaconBlockBodyAltair>::altair_only().run();
+        SszStaticHandler::<BeaconBlockBodyBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<BeaconBlockBodyBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<BeaconBlockBodyCapella>::capella_only().run();
+        SszStaticHandler::<BeaconBlockBodyCapella>::capella_only().run();
+        SszStaticHandler::<BeaconBlockBodyDeneb>::deneb_only().run();
+        SszStaticHandler::<BeaconBlockBodyDeneb>::deneb_only().run();
+        SszStaticHandler::<BeaconBlockBodyElectra>::electra_only().run();
+        SszStaticHandler::<BeaconBlockBodyElectra>::electra_only().run();
         SszStaticHandler::<BeaconBlockBodyFulu>::fulu_only().run();
         SszStaticHandler::<BeaconBlockBodyFulu>::fulu_only().run();
-        SszStaticHandler::<BeaconBlockBodyGloas>::gloas_only()
-            .run();
-        SszStaticHandler::<BeaconBlockBodyGloas>::gloas_only()
-            .run();
+        SszStaticHandler::<BeaconBlockBodyGloas>::gloas_only().run();
+        SszStaticHandler::<BeaconBlockBodyGloas>::gloas_only().run();
         SszStaticHandler::<BeaconBlockBodyHeze>::heze_only().run();
         SszStaticHandler::<BeaconBlockBodyHeze>::heze_only().run();
     }
@@ -462,78 +410,44 @@ mod ssz_static {
     // Altair and later
     #[test]
     fn contribution_and_proof() {
-        SszStaticHandler::<ContributionAndProof>::altair_and_later(
-        )
-        .run();
-        SszStaticHandler::<ContributionAndProof>::altair_and_later(
-        )
-        .run();
+        SszStaticHandler::<ContributionAndProof>::altair_and_later().run();
+        SszStaticHandler::<ContributionAndProof>::altair_and_later().run();
     }
 
     // LightClientBootstrap has no internal indicator of which fork it is for, so we test it separately.
     #[test]
     fn light_client_bootstrap() {
-        SszStaticHandler::<LightClientBootstrapAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapAltair>::bellatrix_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientBootstrapAltair>::bellatrix_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientBootstrapCapella>::capella_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapCapella>::capella_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapElectra>::electra_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapElectra>::electra_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<LightClientBootstrapFulu>::fulu_only()
-            .run();
+        SszStaticHandler::<LightClientBootstrapAltair>::altair_only().run();
+        SszStaticHandler::<LightClientBootstrapAltair>::altair_only().run();
+        SszStaticHandler::<LightClientBootstrapAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientBootstrapAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientBootstrapCapella>::capella_only().run();
+        SszStaticHandler::<LightClientBootstrapCapella>::capella_only().run();
+        SszStaticHandler::<LightClientBootstrapDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientBootstrapDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientBootstrapElectra>::electra_only().run();
+        SszStaticHandler::<LightClientBootstrapElectra>::electra_only().run();
+        SszStaticHandler::<LightClientBootstrapFulu>::fulu_only().run();
+        SszStaticHandler::<LightClientBootstrapFulu>::fulu_only().run();
     }
 
     // LightClientHeader has no internal indicator of which fork it is for, so we test it separately.
     #[test]
     fn light_client_header() {
-        SszStaticHandler::<LightClientHeaderAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderAltair>::bellatrix_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderAltair>::bellatrix_only()
-            .run();
+        SszStaticHandler::<LightClientHeaderAltair>::altair_only().run();
+        SszStaticHandler::<LightClientHeaderAltair>::altair_only().run();
+        SszStaticHandler::<LightClientHeaderAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientHeaderAltair>::bellatrix_only().run();
 
-        SszStaticHandler::<LightClientHeaderCapella>::capella_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientHeaderCapella>::capella_only(
-        )
-        .run();
+        SszStaticHandler::<LightClientHeaderCapella>::capella_only().run();
+        SszStaticHandler::<LightClientHeaderCapella>::capella_only().run();
 
-        SszStaticHandler::<LightClientHeaderDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientHeaderElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientHeaderFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<LightClientHeaderFulu>::fulu_only()
-            .run();
+        SszStaticHandler::<LightClientHeaderDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientHeaderDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientHeaderElectra>::electra_only().run();
+        SszStaticHandler::<LightClientHeaderElectra>::electra_only().run();
+        SszStaticHandler::<LightClientHeaderFulu>::fulu_only().run();
+        SszStaticHandler::<LightClientHeaderFulu>::fulu_only().run();
     }
 
     // LightClientOptimisticUpdate has no internal indicator of which fork it is for, so we test it separately.
@@ -556,75 +470,35 @@ mod ssz_static {
     // LightClientFinalityUpdate has no internal indicator of which fork it is for, so we test it separately.
     #[test]
     fn light_client_finality_update() {
-        SszStaticHandler::<LightClientFinalityUpdateAltair>::altair_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateAltair>::altair_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateAltair>::bellatrix_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateAltair>::bellatrix_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateCapella>::capella_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateCapella>::capella_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateDeneb>::deneb_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateDeneb>::deneb_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateElectra>::electra_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateElectra>::electra_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateFulu>::fulu_only(
-        )
-            .run();
-        SszStaticHandler::<LightClientFinalityUpdateFulu>::fulu_only(
-        )
-            .run();
+        SszStaticHandler::<LightClientFinalityUpdateAltair>::altair_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateAltair>::altair_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateCapella>::capella_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateCapella>::capella_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateElectra>::electra_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateElectra>::electra_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateFulu>::fulu_only().run();
+        SszStaticHandler::<LightClientFinalityUpdateFulu>::fulu_only().run();
     }
 
     // LightClientUpdate has no internal indicator of which fork it is for, so we test it separately.
     #[test]
     fn light_client_update() {
-        SszStaticHandler::<LightClientUpdateAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateAltair>::altair_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateAltair>::bellatrix_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateAltair>::bellatrix_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateCapella>::capella_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientUpdateCapella>::capella_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientUpdateDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientUpdateElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<LightClientUpdateFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<LightClientUpdateFulu>::fulu_only()
-            .run();
+        SszStaticHandler::<LightClientUpdateAltair>::altair_only().run();
+        SszStaticHandler::<LightClientUpdateAltair>::altair_only().run();
+        SszStaticHandler::<LightClientUpdateAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientUpdateAltair>::bellatrix_only().run();
+        SszStaticHandler::<LightClientUpdateCapella>::capella_only().run();
+        SszStaticHandler::<LightClientUpdateCapella>::capella_only().run();
+        SszStaticHandler::<LightClientUpdateDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientUpdateDeneb>::deneb_only().run();
+        SszStaticHandler::<LightClientUpdateElectra>::electra_only().run();
+        SszStaticHandler::<LightClientUpdateElectra>::electra_only().run();
+        SszStaticHandler::<LightClientUpdateFulu>::fulu_only().run();
+        SszStaticHandler::<LightClientUpdateFulu>::fulu_only().run();
     }
 
     #[test]
@@ -666,62 +540,40 @@ mod ssz_static {
     // Bellatrix and later
     #[test]
     fn execution_payload() {
-        SszStaticHandler::<ExecutionPayloadBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadCapella>::capella_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadCapella>::capella_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadDeneb>::deneb_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadElectra>::electra_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadElectra>::electra_only()
-            .run();
+        SszStaticHandler::<ExecutionPayloadBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<ExecutionPayloadBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<ExecutionPayloadCapella>::capella_only().run();
+        SszStaticHandler::<ExecutionPayloadCapella>::capella_only().run();
+        SszStaticHandler::<ExecutionPayloadDeneb>::deneb_only().run();
+        SszStaticHandler::<ExecutionPayloadDeneb>::deneb_only().run();
+        SszStaticHandler::<ExecutionPayloadElectra>::electra_only().run();
+        SszStaticHandler::<ExecutionPayloadElectra>::electra_only().run();
         SszStaticHandler::<ExecutionPayloadFulu>::fulu_only().run();
         SszStaticHandler::<ExecutionPayloadFulu>::fulu_only().run();
-        SszStaticHandler::<ExecutionPayloadGloas>::gloas_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadGloas>::gloas_only()
-            .run();
+        SszStaticHandler::<ExecutionPayloadGloas>::gloas_only().run();
+        SszStaticHandler::<ExecutionPayloadGloas>::gloas_only().run();
         SszStaticHandler::<ExecutionPayloadHeze>::heze_only().run();
         SszStaticHandler::<ExecutionPayloadHeze>::heze_only().run();
     }
 
     #[test]
     fn execution_payload_header() {
-        SszStaticHandler::<ExecutionPayloadHeaderBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadHeaderBellatrix>::bellatrix_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadHeaderCapella>
-            ::capella_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderCapella>
-            ::capella_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderDeneb>
-            ::deneb_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderDeneb>
-            ::deneb_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderElectra>
-            ::electra_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderElectra>
-            ::electra_only().run();
-        SszStaticHandler::<ExecutionPayloadHeaderFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<ExecutionPayloadHeaderFulu>::fulu_only()
-            .run();
+        SszStaticHandler::<ExecutionPayloadHeaderBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderBellatrix>::bellatrix_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderCapella>::capella_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderCapella>::capella_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderDeneb>::deneb_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderDeneb>::deneb_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderElectra>::electra_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderElectra>::electra_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderFulu>::fulu_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderFulu>::fulu_only().run();
     }
 
     #[test]
     fn execution_payload_bid() {
-        SszStaticHandler::<ExecutionPayloadBid>::gloas_and_later()
-            .run();
-        SszStaticHandler::<ExecutionPayloadBid>::gloas_and_later()
-            .run();
+        SszStaticHandler::<ExecutionPayloadBid>::gloas_and_later().run();
+        SszStaticHandler::<ExecutionPayloadBid>::gloas_and_later().run();
     }
 
     #[test]
@@ -772,30 +624,18 @@ mod ssz_static {
 
     #[test]
     fn data_column_sidecar() {
-        SszStaticHandler::<DataColumnSidecarFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<DataColumnSidecarFulu>::fulu_only()
-            .run();
-        SszStaticHandler::<DataColumnSidecarGloas>::gloas_only()
-            .run();
-        SszStaticHandler::<DataColumnSidecarGloas>::gloas_only()
-            .run();
-        SszStaticHandler::<DataColumnSidecarGloas>::heze_only()
-            .run();
-        SszStaticHandler::<DataColumnSidecarGloas>::heze_only()
-            .run();
+        SszStaticHandler::<DataColumnSidecarFulu>::fulu_only().run();
+        SszStaticHandler::<DataColumnSidecarFulu>::fulu_only().run();
+        SszStaticHandler::<DataColumnSidecarGloas>::gloas_only().run();
+        SszStaticHandler::<DataColumnSidecarGloas>::gloas_only().run();
+        SszStaticHandler::<DataColumnSidecarGloas>::heze_only().run();
+        SszStaticHandler::<DataColumnSidecarGloas>::heze_only().run();
     }
 
     #[test]
     fn data_column_by_root_identifier() {
-        SszStaticWithSpecHandler::<
-            DataColumnsByRootIdentifier
-        >::fulu_and_later()
-        .run();
-        SszStaticWithSpecHandler::<
-            DataColumnsByRootIdentifier
-        >::fulu_and_later()
-        .run();
+        SszStaticWithSpecHandler::<DataColumnsByRootIdentifier>::fulu_and_later().run();
+        SszStaticWithSpecHandler::<DataColumnsByRootIdentifier>::fulu_and_later().run();
     }
 
     #[test]
@@ -836,20 +676,12 @@ mod ssz_static {
 
     #[test]
     fn execution_requests() {
-        SszStaticHandler::<ExecutionRequestsElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<ExecutionRequestsElectra>::electra_only(
-        )
-        .run();
-        SszStaticHandler::<ExecutionRequestsElectra>::fulu_only()
-            .run();
-        SszStaticHandler::<ExecutionRequestsElectra>::fulu_only()
-            .run();
-        SszStaticHandler::<ExecutionRequestsGloas>::gloas_only()
-            .run();
-        SszStaticHandler::<ExecutionRequestsGloas>::gloas_only()
-            .run();
+        SszStaticHandler::<ExecutionRequestsElectra>::electra_only().run();
+        SszStaticHandler::<ExecutionRequestsElectra>::electra_only().run();
+        SszStaticHandler::<ExecutionRequestsElectra>::fulu_only().run();
+        SszStaticHandler::<ExecutionRequestsElectra>::fulu_only().run();
+        SszStaticHandler::<ExecutionRequestsGloas>::gloas_only().run();
+        SszStaticHandler::<ExecutionRequestsGloas>::gloas_only().run();
     }
 
     // Gloas and later
@@ -891,10 +723,8 @@ mod ssz_static {
 
     #[test]
     fn payload_attestation() {
-        SszStaticHandler::<PayloadAttestation>::gloas_and_later()
-            .run();
-        SszStaticHandler::<PayloadAttestation>::gloas_and_later()
-            .run();
+        SszStaticHandler::<PayloadAttestation>::gloas_and_later().run();
+        SszStaticHandler::<PayloadAttestation>::gloas_and_later().run();
     }
 
     #[test]
@@ -905,26 +735,20 @@ mod ssz_static {
 
     #[test]
     fn indexed_payload_attestation() {
-        SszStaticHandler::<IndexedPayloadAttestation>::gloas_and_later()
-            .run();
-        SszStaticHandler::<IndexedPayloadAttestation>::gloas_and_later()
-            .run();
+        SszStaticHandler::<IndexedPayloadAttestation>::gloas_and_later().run();
+        SszStaticHandler::<IndexedPayloadAttestation>::gloas_and_later().run();
     }
 
     #[test]
     fn execution_payload_envelope() {
-        SszStaticHandler::<ExecutionPayloadEnvelope>::gloas_and_later()
-            .run();
-        SszStaticHandler::<ExecutionPayloadEnvelope>::gloas_and_later()
-            .run();
+        SszStaticHandler::<ExecutionPayloadEnvelope>::gloas_and_later().run();
+        SszStaticHandler::<ExecutionPayloadEnvelope>::gloas_and_later().run();
     }
 
     #[test]
     fn signed_execution_payload_envelope() {
-        SszStaticHandler::<SignedExecutionPayloadEnvelope>::gloas_and_later()
-            .run();
-        SszStaticHandler::<SignedExecutionPayloadEnvelope>::gloas_and_later()
-            .run();
+        SszStaticHandler::<SignedExecutionPayloadEnvelope>::gloas_and_later().run();
+        SszStaticHandler::<SignedExecutionPayloadEnvelope>::gloas_and_later().run();
     }
 
     #[test]
@@ -1304,18 +1128,14 @@ fn gossip_beacon_attestation() {
 
 #[test]
 fn gossip_beacon_aggregate_and_proof() {
-    GossipValidationHandler::latest_stable("gossip_beacon_aggregate_and_proof")
-        .run();
-    GossipValidationHandler::latest_stable("gossip_beacon_aggregate_and_proof")
-        .run();
+    GossipValidationHandler::latest_stable("gossip_beacon_aggregate_and_proof").run();
+    GossipValidationHandler::latest_stable("gossip_beacon_aggregate_and_proof").run();
 }
 
 #[test]
 fn gossip_bls_to_execution_change() {
-    GossipValidationHandler::latest_stable("gossip_bls_to_execution_change")
-        .run();
-    GossipValidationHandler::latest_stable("gossip_bls_to_execution_change")
-        .run();
+    GossipValidationHandler::latest_stable("gossip_bls_to_execution_change").run();
+    GossipValidationHandler::latest_stable("gossip_bls_to_execution_change").run();
 }
 
 #[test]
@@ -1326,12 +1146,6 @@ fn gossip_sync_committee_message() {
 
 #[test]
 fn gossip_sync_committee_contribution_and_proof() {
-    GossipValidationHandler::latest_stable(
-        "gossip_sync_committee_contribution_and_proof",
-    )
-    .run();
-    GossipValidationHandler::latest_stable(
-        "gossip_sync_committee_contribution_and_proof",
-    )
-    .run();
+    GossipValidationHandler::latest_stable("gossip_sync_committee_contribution_and_proof").run();
+    GossipValidationHandler::latest_stable("gossip_sync_committee_contribution_and_proof").run();
 }

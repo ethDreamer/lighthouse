@@ -1363,9 +1363,7 @@ pub async fn serve<T: 'static + SlotClock + Clone>(
         .and(validator_store_filter.clone())
         .and(task_executor_filter.clone())
         .then(|request, validator_store, task_executor| {
-            blocking_json_task(move || {
-                remotekeys::import(request, validator_store, task_executor)
-            })
+            blocking_json_task(move || remotekeys::import(request, validator_store, task_executor))
         });
 
     // DELETE /eth/v1/remotekeys

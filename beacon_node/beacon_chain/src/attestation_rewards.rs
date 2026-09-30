@@ -30,7 +30,7 @@ use store::consts::altair::{
 };
 use tracing::debug;
 use types::consts::altair::WEIGHT_DENOMINATOR;
-use types::{BeaconState, Epoch, Spec, RelativeEpoch};
+use types::{BeaconState, Epoch, RelativeEpoch, Spec};
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
     pub fn compute_attestation_rewards(

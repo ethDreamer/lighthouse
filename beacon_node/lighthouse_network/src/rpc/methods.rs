@@ -15,9 +15,9 @@ use types::data::BlobIdentifier;
 use types::light_client::consts::MAX_REQUEST_LIGHT_CLIENT_UPDATES;
 use types::{
     BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnsByRootIdentifier, Epoch,
-    Spec, ForkContext, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
+    ForkContext, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, LightClientUpdate, SignedBeaconBlock,
-    SignedExecutionPayloadEnvelope, Slot,
+    SignedExecutionPayloadEnvelope, Slot, Spec,
 };
 
 /// Maximum length of error message.

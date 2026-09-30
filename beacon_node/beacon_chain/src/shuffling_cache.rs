@@ -8,8 +8,8 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use state_processing::state_advance::partial_state_advance;
 use tracing::debug;
 use types::{
-    AttestationShufflingId, BeaconState, BeaconStateError, ChainSpec, Epoch, Spec, Hash256, PTC,
-    RelativeEpoch, Slot, state::CommitteeCache,
+    AttestationShufflingId, BeaconState, BeaconStateError, ChainSpec, Epoch, Hash256, PTC,
+    RelativeEpoch, Slot, Spec, state::CommitteeCache,
 };
 
 use crate::{
@@ -193,10 +193,7 @@ impl ShufflingCache {
     /// Returns a shuffling only if it has already been fully computed and cached.
     /// Promises and misses return `None` (doesn't count as a cache miss).
     /// Does not mutate the cache, so it is safe to call under a read lock.
-    pub fn get_shuffling_if_cached(
-        &self,
-        key: &AttestationShufflingId,
-    ) -> Option<CachedShuffling> {
+    pub fn get_shuffling_if_cached(&self, key: &AttestationShufflingId) -> Option<CachedShuffling> {
         match self.cache.get(key) {
             Some(CacheItem::Committee(cached_shuffling)) => {
                 metrics::inc_counter(&metrics::SHUFFLING_CACHE_HITS);

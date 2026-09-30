@@ -23,9 +23,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use types::{
-    Address, Epoch, Spec, ExecPayload, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData, Slot,
+    Address, Epoch, ExecPayload, ExecutionBlockHash, ForkName, Hash256, ProposerPreparationData,
+    Slot, Spec,
 };
-
 
 // Test that the deposit_contract endpoint returns the correct chain_id and address.
 // Regression test for https://github.com/sigp/lighthouse/issues/2657
@@ -57,7 +57,6 @@ async fn deposit_contract_custom_network() {
 // present in the hot database, and have had their block pruned from fork choice.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn state_by_root_pruned_from_fork_choice() {
-
     let validator_count = 24;
     let spec = ForkName::latest().make_genesis_spec(Spec::default_spec());
 
@@ -263,7 +262,9 @@ pub async fn proposer_boost_re_org_slot_after_epoch_boundary() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn proposer_boost_re_org_bad_ffg() {
     proposer_boost_re_org_test(ReOrgTest {
-        head_slot: Slot::new(2 * Spec::slots_per_epoch() + (2 * Spec::slots_per_epoch()).div_ceil(3)),
+        head_slot: Slot::new(
+            2 * Spec::slots_per_epoch() + (2 * Spec::slots_per_epoch()).div_ceil(3),
+        ),
         should_re_org: false,
         ..Default::default()
     })

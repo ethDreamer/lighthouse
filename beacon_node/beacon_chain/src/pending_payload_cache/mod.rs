@@ -24,8 +24,8 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Span, debug, error, instrument};
 use types::{
-    ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Spec, Hash256,
-    PartialDataColumnRef, PartialDataColumnView,
+    ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, Hash256,
+    PartialDataColumnRef, PartialDataColumnView, Spec,
 };
 
 mod pending_column;
@@ -140,10 +140,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
 
     /// Returns all cached data columns for the given block root, if any.
     #[instrument(skip_all, level = "trace")]
-    pub fn get_data_columns(
-        &self,
-        block_root: Hash256,
-    ) -> Option<DataColumnSidecarList> {
+    pub fn get_data_columns(&self, block_root: Hash256) -> Option<DataColumnSidecarList> {
         self.peek_pending_components(&block_root, |components| {
             components.map(|c| c.get_cached_data_columns())
         })
@@ -173,10 +170,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
     }
 
     /// Return the cached Gloas payload bid for `block_root`, if present.
-    pub fn get_bid(
-        &self,
-        block_root: &Hash256,
-    ) -> Option<Arc<SignedExecutionPayloadBid>> {
+    pub fn get_bid(&self, block_root: &Hash256) -> Option<Arc<SignedExecutionPayloadBid>> {
         self.peek_pending_components(block_root, |components| {
             components.map(|components| components.bid.clone())
         })

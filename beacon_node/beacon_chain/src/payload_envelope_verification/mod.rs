@@ -29,8 +29,9 @@ use store::Error as DBError;
 use strum::AsRefStr;
 use tracing::{instrument, warn};
 use types::{
-    BeaconState, BeaconStateError, BuilderIndex, DataColumnSidecarList, ExecutionBlockHash, ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBid,
-    SignedExecutionPayloadEnvelope, Slot,
+    BeaconState, BeaconStateError, BuilderIndex, DataColumnSidecarList, ExecutionBlockHash,
+    ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
+    Slot,
 };
 
 pub mod execution_pending_envelope;
@@ -137,12 +138,7 @@ impl AvailableEnvelope {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn deconstruct(
-        self,
-    ) -> (
-        Arc<SignedExecutionPayloadEnvelope>,
-        DataColumnSidecarList,
-    ) {
+    pub fn deconstruct(self) -> (Arc<SignedExecutionPayloadEnvelope>, DataColumnSidecarList) {
         let AvailableEnvelope {
             envelope, columns, ..
         } = self;
@@ -454,7 +450,6 @@ mod payload_hash_tests {
         Graffiti, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
         SignedExecutionPayloadEnvelope, Slot, SyncAggregate,
     };
-
 
     fn make_block(slot: Slot) -> SignedBeaconBlock {
         let block = BeaconBlock::Gloas(BeaconBlockGloas {

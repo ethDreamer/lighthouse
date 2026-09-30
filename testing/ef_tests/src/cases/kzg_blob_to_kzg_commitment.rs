@@ -14,7 +14,7 @@ pub struct KZGBlobToKZGCommitmentInput {
 #[serde(deny_unknown_fields)]
 pub struct KZGBlobToKZGCommitment {
     pub input: KZGBlobToKZGCommitmentInput,
-    pub output: Option<String>
+    pub output: Option<String>,
 }
 
 impl LoadCase for KZGBlobToKZGCommitment {
