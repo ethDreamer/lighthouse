@@ -6,6 +6,7 @@ use sensitive_url::SensitiveUrl;
 use std::path::PathBuf;
 use std::process::Child;
 use tempfile::TempDir;
+use types::Spec;
 
 pub const KEYSTORE_PASSWORD: &str = "testpwd";
 pub const ACCOUNT1: &str = "7b8C3a386C0eea54693fFB0DA17373ffC9228139";
@@ -27,9 +28,7 @@ pub trait GenericExecutionEngine: Clone {
 }
 
 /// Holds handle to a running EE process, plus some other metadata.
-pub struct ExecutionEngine<E> {
-    #[allow(dead_code)]
-    engine: E,
+pub struct ExecutionEngine {
     #[allow(dead_code)]
     datadir: TempDir,
     http_port: u16,
@@ -38,7 +37,7 @@ pub struct ExecutionEngine<E> {
     pub provider: Box<dyn alloy_provider::Provider + Send + Sync>,
 }
 
-impl<E> Drop for ExecutionEngine<E> {
+impl Drop for ExecutionEngine {
     fn drop(&mut self) {
         // Ensure the EE process is killed on drop.
         if let Err(e) = self.child.kill() {
@@ -47,18 +46,17 @@ impl<E> Drop for ExecutionEngine<E> {
     }
 }
 
-impl<E: GenericExecutionEngine> ExecutionEngine<E> {
-    pub fn new(engine: E) -> Self {
-        let datadir = E::init_datadir();
+impl ExecutionEngine {
+    pub fn new() -> Self {
+        let datadir = Spec::init_datadir();
         let jwt_secret_path = datadir.path().join(DEFAULT_JWT_FILE);
         let http_port = unused_tcp4_port().unwrap();
         let http_auth_port = unused_tcp4_port().unwrap();
-        let child = E::start_client(&datadir, http_port, http_auth_port, jwt_secret_path);
+        let child = Spec::start_client(&datadir, http_port, http_auth_port, jwt_secret_path);
         let provider = Box::new(ProviderBuilder::new().connect_http(
             Url::parse(&format!("http://localhost:{}", http_port)).expect("failed to parse URL"),
         ));
         Self {
-            engine,
             datadir,
             http_port,
             http_auth_port,

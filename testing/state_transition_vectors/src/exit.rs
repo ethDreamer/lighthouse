@@ -4,6 +4,7 @@ use state_processing::{
     BlockProcessingError, BlockSignatureStrategy, ConsensusContext, VerifyBlockRoot,
     per_block_processing, per_block_processing::errors::ExitInvalid,
 };
+use types::Spec;
 use types::{BeaconBlock, Epoch};
 
 // Default validator index to exit.
@@ -16,10 +17,9 @@ struct ExitTest {
     exit_epoch: Epoch,
     state_epoch: Epoch,
     #[allow(clippy::type_complexity)]
-    state_modifier: Box<dyn FnOnce(&mut BeaconState<E>)>,
+    state_modifier: Box<dyn FnOnce(&mut BeaconState)>,
     #[allow(clippy::type_complexity)]
-    block_modifier:
-        Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType<E>>, &mut BeaconBlock<E>)>,
+    block_modifier: Box<dyn FnOnce(&BeaconChainHarness<EphemeralHarnessType>, &mut BeaconBlock)>,
     #[allow(dead_code)]
     expected: Result<(), BlockProcessingError>,
 }
@@ -38,9 +38,9 @@ impl Default for ExitTest {
 }
 
 impl ExitTest {
-    async fn block_and_pre_state(self) -> (SignedBeaconBlock<E>, BeaconState<E>) {
-        let harness = get_harness::<E>(
-            self.state_epoch.start_slot(E::slots_per_epoch()),
+    async fn block_and_pre_state(self) -> (SignedBeaconBlock, BeaconState) {
+        let harness = get_harness(
+            self.state_epoch.start_slot(Spec::slots_per_epoch()),
             VALIDATOR_COUNT,
         )
         .await;
@@ -61,8 +61,8 @@ impl ExitTest {
     }
 
     fn process(
-        block: &SignedBeaconBlock<E>,
-        state: &mut BeaconState<E>,
+        block: &SignedBeaconBlock,
+        state: &mut BeaconState,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(block.slot());
         per_block_processing(
@@ -71,13 +71,13 @@ impl ExitTest {
             BlockSignatureStrategy::VerifyIndividual,
             VerifyBlockRoot::True,
             &mut ctxt,
-            &test_spec::<E>(),
+            &test_spec(),
         )
     }
 
     #[cfg(all(test, not(debug_assertions)))]
-    async fn run(self) -> BeaconState<E> {
-        let spec = &test_spec::<E>();
+    async fn run(self) -> BeaconState {
+        let spec = &test_spec();
         let expected = self.expected.clone();
         assert_eq!(STATE_EPOCH, spec.shard_committee_period);
 
@@ -190,7 +190,7 @@ vectors_and_tests!(
     ExitTest {
         state_modifier: Box::new(|state| {
             state.validators_mut().get_mut(0).unwrap().activation_epoch =
-                E::default_spec().far_future_epoch;
+                Spec::default_spec().far_future_epoch;
         }),
         expected: Err(BlockProcessingError::ExitInvalid {
             index: 0,
@@ -329,8 +329,8 @@ vectors_and_tests!(
 mod custom_tests {
     use super::*;
 
-    fn assert_exited(state: &BeaconState<E>, validator_index: usize) {
-        let spec = E::default_spec();
+    fn assert_exited(state: &BeaconState, validator_index: usize) {
+        let spec = Spec::default_spec();
 
         let validator = &state.validators().get(validator_index).unwrap();
         assert_eq!(
@@ -342,7 +342,7 @@ mod custom_tests {
         );
         assert_eq!(
             validator.withdrawable_epoch,
-            validator.exit_epoch + E::default_spec().min_validator_withdrawability_delay,
+            validator.exit_epoch + Spec::default_spec().min_validator_withdrawability_delay,
             "withdrawable epoch"
         );
     }

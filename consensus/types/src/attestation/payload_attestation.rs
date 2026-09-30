@@ -1,5 +1,5 @@
 use crate::attestation::payload_attestation_data::PayloadAttestationData;
-use crate::{EthSpec, ForkName};
+use crate::{ForkName, Spec};
 use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
 use educe::Educe;
@@ -10,13 +10,12 @@ use tree_hash_derive::TreeHash;
 
 #[derive(TreeHash, Debug, Clone, Encode, Decode, Serialize, Deserialize, Educe)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[serde(bound = "E: EthSpec", deny_unknown_fields)]
-#[cfg_attr(feature = "arbitrary", arbitrary(bound = "E: EthSpec"))]
+#[serde(deny_unknown_fields)]
 #[educe(PartialEq, Hash)]
 #[context_deserialize(ForkName)]
 #[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))]
-pub struct PayloadAttestation<E: EthSpec> {
-    pub aggregation_bits: BitVector<E::PTCSize>,
+pub struct PayloadAttestation {
+    pub aggregation_bits: BitVector<typenum::U<{ Spec::PTC_SIZE }>>,
     pub data: PayloadAttestationData,
     pub signature: AggregateSignature,
 }
@@ -24,7 +23,6 @@ pub struct PayloadAttestation<E: EthSpec> {
 #[cfg(test)]
 mod payload_attestation_tests {
     use super::*;
-    use crate::MinimalEthSpec;
 
-    ssz_and_tree_hash_tests!(PayloadAttestation<MinimalEthSpec>);
+    ssz_and_tree_hash_tests!(PayloadAttestation);
 }

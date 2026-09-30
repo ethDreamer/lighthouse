@@ -86,7 +86,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use store::HotColdDB;
 use tracing::{debug, info};
-use types::{BeaconState, ChainSpec, EthSpec, Hash256, SignedBeaconBlock};
+use types::{BeaconState, ChainSpec, Hash256, SignedBeaconBlock, Spec};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -97,12 +97,12 @@ struct Config {
     exclude_post_block_thc: bool,
 }
 
-pub fn run<E: EthSpec>(
-    env: Environment<E>,
+pub fn run(
+    env: Environment,
     network_config: Eth2NetworkConfig,
     matches: &ArgMatches,
 ) -> Result<(), String> {
-    let spec = Arc::new(network_config.chain_spec::<E>()?);
+    let spec = Arc::new(network_config.chain_spec()?);
     let executor = env.core_context().executor;
 
     /*
@@ -123,7 +123,7 @@ pub fn run<E: EthSpec>(
         exclude_post_block_thc: matches.get_flag("exclude-post-block-thc"),
     };
 
-    info!("Using {} spec", E::spec_name());
+    info!("Using {} spec", Spec::SPEC_ID);
     info!("Doing {} runs", runs);
     info!("{:?}", &config);
 
@@ -160,7 +160,7 @@ pub fn run<E: EthSpec>(
                         return Err("Cannot run on the genesis block".to_string());
                     }
 
-                    let parent_block: SignedBeaconBlock<E> = client
+                    let parent_block: SignedBeaconBlock = client
                         .get_beacon_blocks(BlockId::Root(block.parent_root()))
                         .await
                         .map_err(|e| format!("Failed to download parent block: {:?}", e))?
@@ -170,7 +170,7 @@ pub fn run<E: EthSpec>(
                     let state_root = parent_block.state_root();
                     let state_id = StateId::Root(state_root);
                     let pre_state = client
-                        .get_debug_beacon_states::<E>(state_id)
+                        .get_debug_beacon_states(state_id)
                         .await
                         .map_err(|e| format!("Failed to download state: {:?}", e))?
                         .ok_or_else(|| format!("Unable to locate state at {:?}", state_id))?
@@ -301,16 +301,16 @@ pub fn run<E: EthSpec>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn do_transition<E: EthSpec>(
-    mut pre_state: BeaconState<E>,
+fn do_transition(
+    mut pre_state: BeaconState,
     block_root: Hash256,
-    block: SignedBeaconBlock<E>,
+    block: SignedBeaconBlock,
     mut state_root_opt: Option<Hash256>,
     config: &Config,
-    validator_pubkey_cache: &ValidatorPubkeyCache<EphemeralHarnessType<E>>,
-    saved_ctxt: &mut Option<ConsensusContext<E>>,
+    validator_pubkey_cache: &ValidatorPubkeyCache,
+    saved_ctxt: &mut Option<ConsensusContext>,
     spec: &ChainSpec,
-) -> Result<BeaconState<E>, String> {
+) -> Result<BeaconState, String> {
     if !config.exclude_cache_builds {
         let t = Instant::now();
         pre_state

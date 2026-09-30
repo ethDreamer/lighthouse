@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::{info, warn};
-use types::{BeaconState, ChainSpec, Config, EthSpec, EthSpecId, Hash256};
+use types::{BeaconState, ChainSpec, Config, Hash256, Spec, SpecId};
 use url::Url;
 
 pub use eth2_config::GenesisStateSource;
@@ -122,7 +122,7 @@ impl Eth2NetworkConfig {
 
     /// Returns an identifier that should be used for selecting an `EthSpec` instance for this
     /// network configuration.
-    pub fn eth_spec_id(&self) -> Result<EthSpecId, String> {
+    pub fn eth_spec_id(&self) -> Result<SpecId, String> {
         self.config
             .eth_spec_id()
             .ok_or_else(|| "Config does not match any known preset".to_string())
@@ -134,17 +134,17 @@ impl Eth2NetworkConfig {
     }
 
     /// The `genesis_time` of the genesis state.
-    pub fn genesis_time<E: EthSpec>(&self) -> Result<Option<u64>, String> {
+    pub fn genesis_time(&self) -> Result<Option<u64>, String> {
         if let GenesisStateSource::Url { genesis_time, .. } = self.genesis_state_source {
             Ok(Some(genesis_time))
         } else {
-            self.get_genesis_state_from_bytes::<E>()
+            self.get_genesis_state_from_bytes()
                 .map(|state| Some(state.genesis_time()))
         }
     }
 
     /// The `genesis_validators_root` of the genesis state.
-    pub fn genesis_validators_root<E: EthSpec>(&self) -> Result<Option<Hash256>, String> {
+    pub fn genesis_validators_root(&self) -> Result<Option<Hash256>, String> {
         if let GenesisStateSource::Url {
             genesis_validators_root,
             ..
@@ -159,7 +159,7 @@ impl Eth2NetworkConfig {
                     )
                 })
         } else {
-            self.get_genesis_state_from_bytes::<E>()
+            self.get_genesis_state_from_bytes()
                 .map(|state| Some(state.genesis_validators_root()))
         }
     }
@@ -169,7 +169,7 @@ impl Eth2NetworkConfig {
     /// `Ok(None)` will be returned if the genesis state is not known. No network requests will be
     /// made by this function. This function will not error unless the genesis state configuration
     /// is corrupted.
-    pub fn genesis_state_root<E: EthSpec>(&self) -> Result<Option<Hash256>, String> {
+    pub fn genesis_state_root(&self) -> Result<Option<Hash256>, String> {
         match self.genesis_state_source {
             GenesisStateSource::Unknown => Ok(None),
             GenesisStateSource::Url {
@@ -178,24 +178,23 @@ impl Eth2NetworkConfig {
                 .map(Option::Some)
                 .map_err(|e| format!("Unable to parse genesis state root: {:?}", e)),
             GenesisStateSource::IncludedBytes => {
-                self.get_genesis_state_from_bytes::<E>()
-                    .and_then(|mut state| {
-                        Ok(Some(
-                            state
-                                .canonical_root()
-                                .map_err(|e| format!("Hashing error: {e:?}"))?,
-                        ))
-                    })
+                self.get_genesis_state_from_bytes().and_then(|mut state| {
+                    Ok(Some(
+                        state
+                            .canonical_root()
+                            .map_err(|e| format!("Hashing error: {e:?}"))?,
+                    ))
+                })
             }
         }
     }
 
     /// Construct a consolidated `ChainSpec` from the YAML config.
-    pub fn chain_spec<E: EthSpec>(&self) -> Result<ChainSpec, String> {
-        ChainSpec::from_config::<E>(&self.config).ok_or_else(|| {
+    pub fn chain_spec(&self) -> Result<ChainSpec, String> {
+        ChainSpec::from_config(&self.config).ok_or_else(|| {
             format!(
                 "YAML configuration incompatible with spec constants for {}",
-                E::spec_name()
+                Spec::SPEC_ID
             )
         })
     }
@@ -204,12 +203,12 @@ impl Eth2NetworkConfig {
     ///
     /// If the genesis state is configured to be downloaded from a URL, then the
     /// `genesis_state_url` will override the built-in list of download URLs.
-    pub async fn genesis_state<E: EthSpec>(
+    pub async fn genesis_state(
         &self,
         genesis_state_url: Option<&str>,
         timeout: Duration,
-    ) -> Result<Option<BeaconState<E>>, String> {
-        let spec = self.chain_spec::<E>()?;
+    ) -> Result<Option<BeaconState>, String> {
+        let spec = self.chain_spec()?;
         match &self.genesis_state_source {
             GenesisStateSource::Unknown => Ok(None),
             GenesisStateSource::IncludedBytes => {
@@ -254,8 +253,8 @@ impl Eth2NetworkConfig {
         }
     }
 
-    fn get_genesis_state_from_bytes<E: EthSpec>(&self) -> Result<BeaconState<E>, String> {
-        let spec = self.chain_spec::<E>()?;
+    fn get_genesis_state_from_bytes(&self) -> Result<BeaconState, String> {
+        let spec = self.chain_spec()?;
         self.genesis_state_bytes
             .as_ref()
             .map(|bytes| {
@@ -477,9 +476,7 @@ mod tests {
     use fixed_bytes::FixedBytesExtended;
     use ssz::Encode;
     use tempfile::Builder as TempBuilder;
-    use types::{Eth1Data, GnosisEthSpec, MainnetEthSpec};
-
-    type E = MainnetEthSpec;
+    use types::Eth1Data;
 
     #[test]
     fn default_network_exists() {
@@ -498,21 +495,21 @@ mod tests {
     fn mainnet_config_eq_chain_spec() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&MAINNET).unwrap();
         let spec = ChainSpec::mainnet();
-        assert_eq!(spec, config.chain_spec::<E>().unwrap());
+        assert_eq!(spec, config.chain_spec().unwrap());
     }
 
     #[test]
     fn gnosis_config_eq_chain_spec() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&GNOSIS).unwrap();
         let spec = ChainSpec::gnosis();
-        assert_eq!(spec, config.chain_spec::<GnosisEthSpec>().unwrap());
+        assert_eq!(spec, config.chain_spec().unwrap());
     }
 
     #[tokio::test]
     async fn mainnet_genesis_state() {
         let config = Eth2NetworkConfig::from_hardcoded_net(&MAINNET).unwrap();
         config
-            .genesis_state::<E>(None, Duration::from_secs(1))
+            .genesis_state(None, Duration::from_secs(1))
             .await
             .expect("beacon state can decode");
     }
@@ -525,9 +522,9 @@ mod tests {
 
             // Ensure we can parse the YAML config to a chain spec.
             if config.config.preset_base == types::GNOSIS {
-                config.chain_spec::<GnosisEthSpec>().unwrap();
+                config.chain_spec().unwrap();
             } else {
-                config.chain_spec::<MainnetEthSpec>().unwrap();
+                config.chain_spec().unwrap();
             }
 
             assert_eq!(
@@ -558,7 +555,7 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let spec = &E::default_spec();
+        let spec = &Spec::default_spec();
 
         let eth1_data = Eth1Data {
             deposit_root: Hash256::zero(),
@@ -569,15 +566,15 @@ mod tests {
         // TODO: figure out how to generate ENR and add some here.
         let boot_enr = None;
         let genesis_state = Some(BeaconState::new(42, eth1_data, spec));
-        let config = Config::from_chain_spec::<E>(spec);
+        let config = Config::from_chain_spec(spec);
 
-        do_test::<E>(boot_enr, genesis_state, config.clone());
-        do_test::<E>(None, None, config);
+        do_test(boot_enr, genesis_state, config.clone());
+        do_test(None, None, config);
     }
 
-    fn do_test<E: EthSpec>(
+    fn do_test(
         boot_enr: Option<Vec<Enr<CombinedKey>>>,
-        genesis_state: Option<BeaconState<E>>,
+        genesis_state: Option<BeaconState>,
         config: Config,
     ) {
         let temp_dir = TempBuilder::new()

@@ -10,6 +10,7 @@ use crate::{
 use lmdb::{Cursor as _, DatabaseFlags, Transaction, WriteFlags};
 use lmdb_sys::{MDB_FIRST, MDB_GET_CURRENT, MDB_LAST, MDB_NEXT};
 use std::path::PathBuf;
+use types::Spec;
 
 #[derive(Debug)]
 pub struct Environment {
@@ -212,11 +213,11 @@ impl<'env> Cursor<'env> {
 }
 
 /// Mix-in trait for loading values from LMDB that may or may not exist.
-pub trait TxnOptional<T, E> {
-    fn optional(self) -> Result<Option<T>, E>;
+pub trait TxnOptional<T> {
+    fn optional(self) -> Result<Option<T>, Spec>;
 }
 
-impl<T> TxnOptional<T, Error> for Result<T, lmdb::Error> {
+impl<T> TxnOptional<T> for Result<T, lmdb::Error> {
     fn optional(self) -> Result<Option<T>, Error> {
         match self {
             Ok(x) => Ok(Some(x)),

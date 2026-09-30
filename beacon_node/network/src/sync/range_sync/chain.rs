@@ -16,10 +16,9 @@ use lighthouse_network::{PeerAction, PeerId};
 use logging::crit;
 use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 use strum::IntoStaticStr;
 use tracing::{Span, debug, error, instrument, warn};
-use types::{Epoch, EthSpec, Hash256, Slot};
+use types::{Epoch, Hash256, Slot, Spec};
 
 /// Blocks are downloaded in batches from peers. This constant specifies how many epochs worth of
 /// blocks per batch are requested _at most_. A batch may request less blocks to account for
@@ -40,9 +39,9 @@ const BATCH_BUFFER_SIZE: u8 = 5;
 /// and continued is now in an inconsistent state.
 pub type ProcessingResult = Result<KeepChain, RemoveChain>;
 
-type RpcBlocks<E> = Vec<RangeSyncBlock<E>>;
-type RangeSyncBatchInfo<E> = BatchInfo<E, RangeSyncBatchConfig<E>, RpcBlocks<E>>;
-type RangeSyncBatches<E> = BTreeMap<BatchId, RangeSyncBatchInfo<E>>;
+type RpcBlocks = Vec<RangeSyncBlock>;
+type RangeSyncBatchInfo = BatchInfo<RangeSyncBatchConfig, RpcBlocks>;
+type RangeSyncBatches = BTreeMap<BatchId, RangeSyncBatchInfo>;
 
 /// The number of times to retry a batch before it is considered failed.
 const MAX_BATCH_DOWNLOAD_ATTEMPTS: u8 = 5;
@@ -51,11 +50,9 @@ const MAX_BATCH_DOWNLOAD_ATTEMPTS: u8 = 5;
 /// after `MAX_BATCH_PROCESSING_ATTEMPTS` times, it is considered faulty.
 const MAX_BATCH_PROCESSING_ATTEMPTS: u8 = 3;
 
-pub struct RangeSyncBatchConfig<E: EthSpec> {
-    marker: PhantomData<E>,
-}
+pub struct RangeSyncBatchConfig {}
 
-impl<E: EthSpec> BatchConfig for RangeSyncBatchConfig<E> {
+impl BatchConfig for RangeSyncBatchConfig {
     fn max_batch_download_attempts() -> u8 {
         MAX_BATCH_DOWNLOAD_ATTEMPTS
     }
@@ -101,7 +98,7 @@ pub enum SyncingChainType {
 /// root are grouped into the peer pool and queried for batches when downloading the
 /// chain.
 #[derive(Debug)]
-pub struct SyncingChain<T: BeaconChainTypes> {
+pub struct SyncingChain {
     /// A random id used to identify this chain.
     id: ChainId,
 
@@ -118,7 +115,7 @@ pub struct SyncingChain<T: BeaconChainTypes> {
     pub target_head_root: Hash256,
 
     /// Sorted map of batches undergoing some kind of processing.
-    batches: RangeSyncBatches<T::EthSpec>,
+    batches: RangeSyncBatches,
 
     /// The peers that agree on the `target_head_slot` and `target_head_root` as a canonical chain
     /// and thus available to download this chain from, as well as the batches we are currently
@@ -158,7 +155,7 @@ pub enum ChainSyncingState {
     Syncing,
 }
 
-impl<T: BeaconChainTypes> SyncingChain<T> {
+impl SyncingChain {
     #[allow(clippy::too_many_arguments)]
     #[instrument(
         name = "lh_syncing_chain",
@@ -261,19 +258,18 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     fn current_processed_slot(&self) -> Slot {
         // the last slot we processed was included in the previous batch, and corresponds to the
         // first slot of the current target epoch
-        self.processing_target
-            .start_slot(T::EthSpec::slots_per_epoch())
+        self.processing_target.start_slot(Spec::slots_per_epoch())
     }
 
     /// A block has been received for a batch on this chain.
     /// If the block correctly completes the batch it will be processed if possible.
-    pub fn on_block_response(
+    pub fn on_block_response<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
         peer_id: &PeerId,
         request_id: Id,
-        blocks: Vec<RangeSyncBlock<T::EthSpec>>,
+        blocks: Vec<RangeSyncBlock>,
     ) -> ProcessingResult {
         let _guard = self.span.clone().entered();
         // check if we have this batch
@@ -325,7 +321,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// Processes the batch with the given id.
     /// The batch must exist and be ready for processing
-    fn process_batch(
+    fn process_batch<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -381,7 +377,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     }
 
     /// Processes the next ready batch, prioritizing optimistic batches over the processing target.
-    fn process_completed_batches(
+    fn process_completed_batches<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
     ) -> ProcessingResult {
@@ -498,7 +494,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// The block processor has completed processing a batch. This function handles the result
     /// of the batch processor.
-    pub fn on_batch_process_result(
+    pub fn on_batch_process_result<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -658,7 +654,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
         }
     }
 
-    fn reject_optimistic_batch(
+    fn reject_optimistic_batch<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         redownload: bool,
@@ -692,7 +688,11 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     /// If a previous batch has been validated and it had been re-processed, penalize the original
     /// peer.
     #[allow(clippy::modulo_one)]
-    fn advance_chain(&mut self, network: &mut SyncNetworkContext<T>, validating_epoch: Epoch) {
+    fn advance_chain<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+        validating_epoch: Epoch,
+    ) {
         // make sure this epoch produces an advancement
         if validating_epoch <= self.start_epoch {
             return;
@@ -797,7 +797,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     /// These events occur when a peer has successfully responded with blocks, but the blocks we
     /// have received are incorrect or invalid. This indicates the peer has not performed as
     /// intended and can result in downvoting a peer.
-    fn handle_invalid_batch(
+    fn handle_invalid_batch<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -852,7 +852,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     /// This chain has been requested to start syncing.
     ///
     /// This could be new chain, or an old chain that is being resumed.
-    pub fn start_syncing(
+    pub fn start_syncing<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         local_finalized_epoch: Epoch,
@@ -899,7 +899,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     /// Add a peer to the chain.
     ///
     /// If the chain is active, this starts requesting batches from this peer.
-    pub fn add_peer(
+    pub fn add_peer<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         peer_id: PeerId,
@@ -913,7 +913,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     /// An RPC error has occurred.
     ///
     /// If the batch exists it is re-requested.
-    pub fn inject_error(
+    pub fn inject_error<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -993,7 +993,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     ///
     /// Batches might get stuck in `AwaitingDownload` post peerdas because of lack of peers
     /// in required subnets. We need to progress them if peers are available at a later point.
-    pub fn attempt_send_awaiting_download_batches(
+    pub fn attempt_send_awaiting_download_batches<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         src: &str,
@@ -1025,7 +1025,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
     }
 
     /// Requests the batch assigned to the given id from a given peer.
-    pub fn send_batch(
+    pub fn send_batch<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
         batch_id: BatchId,
@@ -1104,7 +1104,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// Kickstarts the chain by sending for processing batches that are ready and requesting more
     /// batches if needed.
-    pub fn resume(
+    pub fn resume<T: BeaconChainTypes>(
         &mut self,
         network: &mut SyncNetworkContext<T>,
     ) -> Result<KeepChain, RemoveChain> {
@@ -1121,7 +1121,10 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// Attempts to request the next required batches from the peer pool if the chain is syncing. It will exhaust the peer
     /// pool and left over batches until the batch buffer is reached or all peers are exhausted.
-    fn request_batches(&mut self, network: &mut SyncNetworkContext<T>) -> ProcessingResult {
+    fn request_batches<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+    ) -> ProcessingResult {
         if !matches!(self.state, ChainSyncingState::Syncing) {
             return Ok(KeepChain);
         }
@@ -1165,7 +1168,7 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// Checks all sampling column subnets for peers. Returns `true` if there is at least one peer in
     /// every sampling column subnet.
-    fn good_peers_on_sampling_subnets(
+    fn good_peers_on_sampling_subnets<T: BeaconChainTypes>(
         &self,
         epoch: Epoch,
         network: &SyncNetworkContext<T>,
@@ -1185,20 +1188,19 @@ impl<T: BeaconChainTypes> SyncingChain<T> {
 
     /// Creates the next required batch from the chain. If there are no more batches required,
     /// `false` is returned.
-    fn include_next_batch(&mut self, network: &mut SyncNetworkContext<T>) -> Option<BatchId> {
+    fn include_next_batch<T: BeaconChainTypes>(
+        &mut self,
+        network: &mut SyncNetworkContext<T>,
+    ) -> Option<BatchId> {
         // don't request batches beyond the target head slot
-        if self
-            .to_be_downloaded
-            .start_slot(T::EthSpec::slots_per_epoch())
-            >= self.target_head_slot
-        {
+        if self.to_be_downloaded.start_slot(Spec::slots_per_epoch()) >= self.target_head_slot {
             return None;
         }
 
         // only request batches up to the buffer size limit
         // NOTE: we don't count batches in the AwaitingValidation state, to prevent stalling sync
         // if the current processing window is contained in a long range of skip slots.
-        let in_buffer = |batch: &RangeSyncBatchInfo<T::EthSpec>| {
+        let in_buffer = |batch: &RangeSyncBatchInfo| {
             matches!(
                 batch.state(),
                 BatchState::Downloading(..) | BatchState::AwaitingProcessing(..)

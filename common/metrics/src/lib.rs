@@ -52,6 +52,7 @@
 
 use prometheus::{Error, HistogramOpts, Opts};
 use std::time::Duration;
+use types::Spec;
 
 use prometheus::core::{Atomic, GenericGauge, GenericGaugeVec};
 pub use prometheus::{
@@ -435,7 +436,7 @@ pub trait TryExt {
     fn discard_timer_on_break(self, timer: &mut Option<HistogramTimer>) -> Self;
 }
 
-impl<T, E> TryExt for std::result::Result<T, E> {
+impl<T> TryExt for std::result::Result<T, Spec> {
     fn discard_timer_on_break(self, timer_opt: &mut Option<HistogramTimer>) -> Self {
         if self.is_err()
             && let Some(timer) = timer_opt.take()

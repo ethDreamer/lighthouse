@@ -6,7 +6,7 @@ use educe::Educe;
 use std::fs::{self, DirEntry};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use types::{BeaconState, EthSpec, ForkName};
+use types::{BeaconState, ForkName, Spec};
 
 pub trait Handler {
     type Case: Case + LoadCase;
@@ -259,18 +259,18 @@ bls_eth_handler!(
 );
 
 /// Handler for SSZ types.
-pub struct SszStaticHandler<T, E> {
+pub struct SszStaticHandler<T> {
     supported_forks: Vec<ForkName>,
-    _phantom: PhantomData<(T, E)>,
+    _phantom: PhantomData<T>,
 }
 
-impl<T, E> Default for SszStaticHandler<T, E> {
+impl<T> Default for SszStaticHandler<T> {
     fn default() -> Self {
         Self::for_forks(ForkName::list_all())
     }
 }
 
-impl<T, E> SszStaticHandler<T, E> {
+impl<T> SszStaticHandler<T> {
     pub fn for_forks(supported_forks: Vec<ForkName>) -> Self {
         SszStaticHandler {
             supported_forks,
@@ -362,21 +362,21 @@ impl<T, E> SszStaticHandler<T, E> {
 /// Handler for SSZ types that implement `CachedTreeHash`.
 #[derive(Educe)]
 #[educe(Default)]
-pub struct SszStaticTHCHandler<T, E>(PhantomData<(T, E)>);
+pub struct SszStaticTHCHandler<T>(PhantomData<T>);
 
 /// Handler for SSZ types that don't implement `ssz::Decode`.
-pub struct SszStaticWithSpecHandler<T, E> {
+pub struct SszStaticWithSpecHandler<T> {
     supported_forks: Vec<ForkName>,
-    _phantom: PhantomData<(T, E)>,
+    _phantom: PhantomData<T>,
 }
 
-impl<T, E> Default for SszStaticWithSpecHandler<T, E> {
+impl<T> Default for SszStaticWithSpecHandler<T> {
     fn default() -> Self {
         Self::for_forks(ForkName::list_all())
     }
 }
 
-impl<T, E> SszStaticWithSpecHandler<T, E> {
+impl<T> SszStaticWithSpecHandler<T> {
     pub fn for_forks(supported_forks: Vec<ForkName>) -> Self {
         SszStaticWithSpecHandler {
             supported_forks,
@@ -389,19 +389,18 @@ impl<T, E> SszStaticWithSpecHandler<T, E> {
     }
 }
 
-impl<T, E> Handler for SszStaticHandler<T, E>
+impl<T> Handler for SszStaticHandler<T>
 where
     T: cases::SszStaticType
         + for<'de> ContextDeserialize<'de, ForkName>
         + tree_hash::TreeHash
         + ssz::Decode
         + TypeName,
-    E: TypeName,
 {
     type Case = cases::SszStatic<T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -417,14 +416,11 @@ where
     }
 }
 
-impl<E> Handler for SszStaticTHCHandler<BeaconState<E>, E>
-where
-    E: EthSpec + TypeName,
-{
-    type Case = cases::SszStaticTHC<BeaconState<E>>;
+impl Handler for SszStaticTHCHandler<BeaconState> {
+    type Case = cases::SszStaticTHC<BeaconState>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -432,20 +428,19 @@ where
     }
 
     fn handler_name(&self) -> String {
-        BeaconState::<E>::name().into()
+        BeaconState::name().into()
     }
 }
 
-impl<T, E> Handler for SszStaticWithSpecHandler<T, E>
+impl<T> Handler for SszStaticWithSpecHandler<T>
 where
     T: TypeName,
-    E: EthSpec + TypeName,
     cases::SszStaticWithSpec<T>: Case + LoadCase,
 {
     type Case = cases::SszStaticWithSpec<T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -463,13 +458,13 @@ where
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ShufflingHandler<E>(PhantomData<E>);
+pub struct ShufflingHandler;
 
-impl<E: EthSpec + TypeName> Handler for ShufflingHandler<E> {
-    type Case = cases::Shuffling<E>;
+impl Handler for ShufflingHandler {
+    type Case = cases::Shuffling;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -487,13 +482,13 @@ impl<E: EthSpec + TypeName> Handler for ShufflingHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct SanityBlocksHandler<E>(PhantomData<E>);
+pub struct SanityBlocksHandler;
 
-impl<E: EthSpec + TypeName> Handler for SanityBlocksHandler<E> {
-    type Case = cases::SanityBlocks<E>;
+impl Handler for SanityBlocksHandler {
+    type Case = cases::SanityBlocks;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -513,13 +508,13 @@ impl<E: EthSpec + TypeName> Handler for SanityBlocksHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct SanitySlotsHandler<E>(PhantomData<E>);
+pub struct SanitySlotsHandler;
 
-impl<E: EthSpec + TypeName> Handler for SanitySlotsHandler<E> {
-    type Case = cases::SanitySlots<E>;
+impl Handler for SanitySlotsHandler {
+    type Case = cases::SanitySlots;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -538,13 +533,13 @@ impl<E: EthSpec + TypeName> Handler for SanitySlotsHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct RandomHandler<E>(PhantomData<E>);
+pub struct RandomHandler;
 
-impl<E: EthSpec + TypeName> Handler for RandomHandler<E> {
-    type Case = cases::SanityBlocks<E>;
+impl Handler for RandomHandler {
+    type Case = cases::SanityBlocks;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -558,13 +553,13 @@ impl<E: EthSpec + TypeName> Handler for RandomHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct EpochProcessingHandler<E, T>(PhantomData<(E, T)>);
+pub struct EpochProcessingHandler<T>(PhantomData<T>);
 
-impl<E: EthSpec + TypeName, T: EpochTransition<E>> Handler for EpochProcessingHandler<E, T> {
-    type Case = cases::EpochProcessing<E, T>;
+impl<T: EpochTransition> Handler for EpochProcessingHandler<T> {
+    type Case = cases::EpochProcessing<T>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -576,25 +571,21 @@ impl<E: EthSpec + TypeName, T: EpochTransition<E>> Handler for EpochProcessingHa
     }
 }
 
-pub struct RewardsHandler<E: EthSpec> {
+pub struct RewardsHandler {
     handler_name: &'static str,
-    _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> RewardsHandler<E> {
+impl RewardsHandler {
     pub fn new(handler_name: &'static str) -> Self {
-        Self {
-            handler_name,
-            _phantom: PhantomData,
-        }
+        Self { handler_name }
     }
 }
 
-impl<E: EthSpec + TypeName> Handler for RewardsHandler<E> {
-    type Case = cases::RewardsTest<E>;
+impl Handler for RewardsHandler {
+    type Case = cases::RewardsTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -617,13 +608,13 @@ impl<E: EthSpec + TypeName> Handler for RewardsHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ForkHandler<E>(PhantomData<E>);
+pub struct ForkHandler;
 
-impl<E: EthSpec + TypeName> Handler for ForkHandler<E> {
-    type Case = cases::ForkTest<E>;
+impl Handler for ForkHandler {
+    type Case = cases::ForkTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -637,13 +628,13 @@ impl<E: EthSpec + TypeName> Handler for ForkHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct TransitionHandler<E>(PhantomData<E>);
+pub struct TransitionHandler;
 
-impl<E: EthSpec + TypeName> Handler for TransitionHandler<E> {
-    type Case = cases::TransitionTest<E>;
+impl Handler for TransitionHandler {
+    type Case = cases::TransitionTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -657,14 +648,14 @@ impl<E: EthSpec + TypeName> Handler for TransitionHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct FinalityHandler<E>(PhantomData<E>);
+pub struct FinalityHandler;
 
-impl<E: EthSpec + TypeName> Handler for FinalityHandler<E> {
+impl Handler for FinalityHandler {
     // Reuse the blocks case runner.
-    type Case = cases::SanityBlocks<E>;
+    type Case = cases::SanityBlocks;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -676,25 +667,23 @@ impl<E: EthSpec + TypeName> Handler for FinalityHandler<E> {
     }
 }
 
-pub struct ForkChoiceHandler<E> {
+pub struct ForkChoiceHandler {
     handler_name: String,
-    _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> ForkChoiceHandler<E> {
+impl ForkChoiceHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
             handler_name: handler_name.into(),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<E: EthSpec + TypeName> Handler for ForkChoiceHandler<E> {
-    type Case = cases::ForkChoiceTest<E>;
+impl Handler for ForkChoiceHandler {
+    type Case = cases::ForkChoiceTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -755,25 +744,23 @@ impl<E: EthSpec + TypeName> Handler for ForkChoiceHandler<E> {
     }
 }
 
-pub struct FastConfirmationHandler<E> {
+pub struct FastConfirmationHandler {
     handler_name: String,
-    _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> FastConfirmationHandler<E> {
+impl FastConfirmationHandler {
     pub fn new(handler_name: &str) -> Self {
         Self {
             handler_name: handler_name.into(),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<E: EthSpec + TypeName> Handler for FastConfirmationHandler<E> {
-    type Case = cases::ForkChoiceTest<E>;
+impl Handler for FastConfirmationHandler {
+    type Case = cases::ForkChoiceTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -801,13 +788,13 @@ impl<E: EthSpec + TypeName> Handler for FastConfirmationHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct OptimisticSyncHandler<E>(PhantomData<E>);
+pub struct OptimisticSyncHandler;
 
-impl<E: EthSpec + TypeName> Handler for OptimisticSyncHandler<E> {
-    type Case = cases::ForkChoiceTest<E>;
+impl Handler for OptimisticSyncHandler {
+    type Case = cases::ForkChoiceTest;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -835,13 +822,13 @@ impl<E: EthSpec + TypeName> Handler for OptimisticSyncHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GenesisValidityHandler<E>(PhantomData<E>);
+pub struct GenesisValidityHandler;
 
-impl<E: EthSpec + TypeName> Handler for GenesisValidityHandler<E> {
-    type Case = cases::GenesisValidity<E>;
+impl Handler for GenesisValidityHandler {
+    type Case = cases::GenesisValidity;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -855,13 +842,13 @@ impl<E: EthSpec + TypeName> Handler for GenesisValidityHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GenesisInitializationHandler<E>(PhantomData<E>);
+pub struct GenesisInitializationHandler;
 
-impl<E: EthSpec + TypeName> Handler for GenesisInitializationHandler<E> {
-    type Case = cases::GenesisInitialization<E>;
+impl Handler for GenesisInitializationHandler {
+    type Case = cases::GenesisInitialization;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -875,10 +862,10 @@ impl<E: EthSpec + TypeName> Handler for GenesisInitializationHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGBlobToKZGCommitmentHandler<E>(PhantomData<E>);
+pub struct KZGBlobToKZGCommitmentHandler;
 
-impl<E: EthSpec> Handler for KZGBlobToKZGCommitmentHandler<E> {
-    type Case = cases::KZGBlobToKZGCommitment<E>;
+impl Handler for KZGBlobToKZGCommitmentHandler {
+    type Case = cases::KZGBlobToKZGCommitment;
 
     fn config_name() -> &'static str {
         "general"
@@ -895,10 +882,10 @@ impl<E: EthSpec> Handler for KZGBlobToKZGCommitmentHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeBlobKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGComputeBlobKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGComputeBlobKZGProofHandler<E> {
-    type Case = cases::KZGComputeBlobKZGProof<E>;
+impl Handler for KZGComputeBlobKZGProofHandler {
+    type Case = cases::KZGComputeBlobKZGProof;
 
     fn config_name() -> &'static str {
         "general"
@@ -915,10 +902,10 @@ impl<E: EthSpec> Handler for KZGComputeBlobKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGComputeKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGComputeKZGProofHandler<E> {
-    type Case = cases::KZGComputeKZGProof<E>;
+impl Handler for KZGComputeKZGProofHandler {
+    type Case = cases::KZGComputeKZGProof;
 
     fn config_name() -> &'static str {
         "general"
@@ -935,10 +922,10 @@ impl<E: EthSpec> Handler for KZGComputeKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyBlobKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGVerifyBlobKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGVerifyBlobKZGProofHandler<E> {
-    type Case = cases::KZGVerifyBlobKZGProof<E>;
+impl Handler for KZGVerifyBlobKZGProofHandler {
+    type Case = cases::KZGVerifyBlobKZGProof;
 
     fn config_name() -> &'static str {
         "general"
@@ -955,10 +942,10 @@ impl<E: EthSpec> Handler for KZGVerifyBlobKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyBlobKZGProofBatchHandler<E>(PhantomData<E>);
+pub struct KZGVerifyBlobKZGProofBatchHandler;
 
-impl<E: EthSpec> Handler for KZGVerifyBlobKZGProofBatchHandler<E> {
-    type Case = cases::KZGVerifyBlobKZGProofBatch<E>;
+impl Handler for KZGVerifyBlobKZGProofBatchHandler {
+    type Case = cases::KZGVerifyBlobKZGProofBatch;
 
     fn config_name() -> &'static str {
         "general"
@@ -975,10 +962,10 @@ impl<E: EthSpec> Handler for KZGVerifyBlobKZGProofBatchHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGVerifyKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGVerifyKZGProofHandler<E> {
-    type Case = cases::KZGVerifyKZGProof<E>;
+impl Handler for KZGVerifyKZGProofHandler {
+    type Case = cases::KZGVerifyKZGProof;
 
     fn config_name() -> &'static str {
         "general"
@@ -995,13 +982,13 @@ impl<E: EthSpec> Handler for KZGVerifyKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct GetCustodyGroupsHandler<E>(PhantomData<E>);
+pub struct GetCustodyGroupsHandler;
 
-impl<E: EthSpec + TypeName> Handler for GetCustodyGroupsHandler<E> {
-    type Case = cases::GetCustodyGroups<E>;
+impl Handler for GetCustodyGroupsHandler {
+    type Case = cases::GetCustodyGroups;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1015,13 +1002,13 @@ impl<E: EthSpec + TypeName> Handler for GetCustodyGroupsHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct ComputeColumnsForCustodyGroupHandler<E>(PhantomData<E>);
+pub struct ComputeColumnsForCustodyGroupHandler;
 
-impl<E: EthSpec + TypeName> Handler for ComputeColumnsForCustodyGroupHandler<E> {
-    type Case = cases::ComputeColumnsForCustodyGroups<E>;
+impl Handler for ComputeColumnsForCustodyGroupHandler {
+    type Case = cases::ComputeColumnsForCustodyGroups;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1033,13 +1020,12 @@ impl<E: EthSpec + TypeName> Handler for ComputeColumnsForCustodyGroupHandler<E> 
     }
 }
 
-pub struct GossipValidationHandler<E> {
+pub struct GossipValidationHandler {
     handler_name: &'static str,
     supported_forks: Vec<ForkName>,
-    _phantom: PhantomData<E>,
 }
 
-impl<E> GossipValidationHandler<E> {
+impl GossipValidationHandler {
     pub fn new(handler_name: &'static str) -> Self {
         Self::for_forks(handler_name, ForkName::list_all())
     }
@@ -1048,7 +1034,6 @@ impl<E> GossipValidationHandler<E> {
         Self {
             handler_name,
             supported_forks,
-            _phantom: PhantomData,
         }
     }
 
@@ -1057,8 +1042,8 @@ impl<E> GossipValidationHandler<E> {
     }
 }
 
-impl<E: EthSpec + TypeName> Handler for GossipValidationHandler<E> {
-    type Case = cases::GossipValidation<E>;
+impl Handler for GossipValidationHandler {
+    type Case = cases::GossipValidation;
 
     fn use_rayon() -> bool {
         // Some gossip validation tests use `block_on` which can cause panics with rayon.
@@ -1066,7 +1051,7 @@ impl<E: EthSpec + TypeName> Handler for GossipValidationHandler<E> {
     }
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1085,10 +1070,10 @@ impl<E: EthSpec + TypeName> Handler for GossipValidationHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeCellsHandler<E>(PhantomData<E>);
+pub struct KZGComputeCellsHandler;
 
-impl<E: EthSpec> Handler for KZGComputeCellsHandler<E> {
-    type Case = cases::KZGComputeCells<E>;
+impl Handler for KZGComputeCellsHandler {
+    type Case = cases::KZGComputeCells;
 
     fn config_name() -> &'static str {
         "general"
@@ -1110,10 +1095,10 @@ impl<E: EthSpec> Handler for KZGComputeCellsHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGComputeCellsAndKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGComputeCellsAndKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGComputeCellsAndKZGProofHandler<E> {
-    type Case = cases::KZGComputeCellsAndKZGProofs<E>;
+impl Handler for KZGComputeCellsAndKZGProofHandler {
+    type Case = cases::KZGComputeCellsAndKZGProofs;
 
     fn config_name() -> &'static str {
         "general"
@@ -1135,10 +1120,10 @@ impl<E: EthSpec> Handler for KZGComputeCellsAndKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGVerifyCellKZGProofBatchHandler<E>(PhantomData<E>);
+pub struct KZGVerifyCellKZGProofBatchHandler;
 
-impl<E: EthSpec> Handler for KZGVerifyCellKZGProofBatchHandler<E> {
-    type Case = cases::KZGVerifyCellKZGProofBatch<E>;
+impl Handler for KZGVerifyCellKZGProofBatchHandler {
+    type Case = cases::KZGVerifyCellKZGProofBatch;
 
     fn config_name() -> &'static str {
         "general"
@@ -1160,10 +1145,10 @@ impl<E: EthSpec> Handler for KZGVerifyCellKZGProofBatchHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KZGRecoverCellsAndKZGProofHandler<E>(PhantomData<E>);
+pub struct KZGRecoverCellsAndKZGProofHandler;
 
-impl<E: EthSpec> Handler for KZGRecoverCellsAndKZGProofHandler<E> {
-    type Case = cases::KZGRecoverCellsAndKZGProofs<E>;
+impl Handler for KZGRecoverCellsAndKZGProofHandler {
+    type Case = cases::KZGRecoverCellsAndKZGProofs;
 
     fn config_name() -> &'static str {
         "general"
@@ -1185,13 +1170,13 @@ impl<E: EthSpec> Handler for KZGRecoverCellsAndKZGProofHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct KzgInclusionMerkleProofValidityHandler<E>(PhantomData<E>);
+pub struct KzgInclusionMerkleProofValidityHandler;
 
-impl<E: EthSpec + TypeName> Handler for KzgInclusionMerkleProofValidityHandler<E> {
-    type Case = cases::KzgInclusionMerkleProofValidity<E>;
+impl Handler for KzgInclusionMerkleProofValidityHandler {
+    type Case = cases::KzgInclusionMerkleProofValidity;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1214,13 +1199,13 @@ impl<E: EthSpec + TypeName> Handler for KzgInclusionMerkleProofValidityHandler<E
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct MerkleProofValidityHandler<E>(PhantomData<E>);
+pub struct MerkleProofValidityHandler;
 
-impl<E: EthSpec + TypeName> Handler for MerkleProofValidityHandler<E> {
-    type Case = cases::GenericMerkleProofValidity<E>;
+impl Handler for MerkleProofValidityHandler {
+    type Case = cases::GenericMerkleProofValidity;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1243,13 +1228,13 @@ impl<E: EthSpec + TypeName> Handler for MerkleProofValidityHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct LightClientUpdateHandler<E>(PhantomData<E>);
+pub struct LightClientUpdateHandler;
 
-impl<E: EthSpec + TypeName> Handler for LightClientUpdateHandler<E> {
-    type Case = cases::LightClientVerifyIsBetterUpdate<E>;
+impl Handler for LightClientUpdateHandler {
+    type Case = cases::LightClientVerifyIsBetterUpdate;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {
@@ -1273,13 +1258,13 @@ impl<E: EthSpec + TypeName> Handler for LightClientUpdateHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
-pub struct OperationsHandler<E, O>(PhantomData<(E, O)>);
+pub struct OperationsHandler<O>(PhantomData<O>);
 
-impl<E: EthSpec + TypeName, O: Operation<E>> Handler for OperationsHandler<E, O> {
-    type Case = cases::Operations<E, O>;
+impl<O: Operation> Handler for OperationsHandler<O> {
+    type Case = cases::Operations<O>;
 
     fn config_name() -> &'static str {
-        E::name()
+        Spec::PRESET_BASE
     }
 
     fn runner_name() -> &'static str {

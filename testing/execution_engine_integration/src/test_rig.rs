@@ -23,31 +23,31 @@ use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use types::execution::BlockProductionVersion;
 use types::{
-    Address, ChainSpec, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader,
-    ForkName, Hash256, MainnetEthSpec, Slot, Uint256,
+    Address, ChainSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader, ForkName,
+    Hash256, Slot, Spec, Uint256,
 };
 
 const EXECUTION_ENGINE_START_TIMEOUT: Duration = Duration::from_secs(60);
 
 const TEST_FORK: ForkName = ForkName::Capella;
 
-struct ExecutionPair<Engine, E: EthSpec> {
+struct ExecutionPair {
     /// The Lighthouse `ExecutionLayer` struct, connected to the `execution_engine` via HTTP.
-    execution_layer: ExecutionLayer<E>,
+    execution_layer: ExecutionLayer,
     /// A handle to external EE process, once this is dropped the process will be killed.
     #[allow(dead_code)]
-    execution_engine: ExecutionEngine<Engine>,
+    execution_engine: ExecutionEngine,
 }
 
 /// A rig that holds two EE processes for testing.
 ///
 /// There are two EEs held here so that we can test out-of-order application of payloads, and other
 /// edge-cases.
-pub struct TestRig<Engine, E: EthSpec = MainnetEthSpec> {
+pub struct TestRig {
     #[allow(dead_code)]
     runtime: Arc<tokio::runtime::Runtime>,
-    ee_a: ExecutionPair<Engine, E>,
-    ee_b: ExecutionPair<Engine, E>,
+    ee_a: ExecutionPair,
+    ee_b: ExecutionPair,
     spec: ChainSpec,
     _runtime_shutdown: async_channel::Sender<()>,
     use_local_signing: bool,
@@ -110,8 +110,8 @@ async fn import_and_unlock(http_url: SensitiveUrl, priv_keys: &[&str], password:
     }
 }
 
-impl<Engine: GenericExecutionEngine> TestRig<Engine> {
-    pub fn new(generic_engine: Engine, use_local_signing: bool) -> Self {
+impl TestRig {
+    pub fn new(use_local_signing: bool) -> Self {
         let runtime = Arc::new(
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -121,7 +121,7 @@ impl<Engine: GenericExecutionEngine> TestRig<Engine> {
         let (runtime_shutdown, exit) = async_channel::bounded(1);
         let (shutdown_tx, _) = futures::channel::mpsc::channel(1);
         let executor = TaskExecutor::new(Arc::downgrade(&runtime), exit, shutdown_tx);
-        let mut spec = TEST_FORK.make_genesis_spec(MainnetEthSpec::default_spec());
+        let mut spec = TEST_FORK.make_genesis_spec(Spec::default_spec());
         spec.terminal_total_difficulty = Uint256::ZERO;
 
         let fee_recipient = None;
@@ -239,7 +239,7 @@ impl<Engine: GenericExecutionEngine> TestRig<Engine> {
         );
 
         // Submit transactions before getting payload
-        let txs = transactions::<MainnetEthSpec>(account1, account2);
+        let txs = transactions(account1, account2);
         let mut pending_txs = Vec::new();
 
         if self.use_local_signing {
@@ -718,10 +718,7 @@ impl<Engine: GenericExecutionEngine> TestRig<Engine> {
 /// Check that the given payload can be re-constructed by fetching it from the EE.
 ///
 /// Panic if payload reconstruction fails.
-async fn check_payload_reconstruction<E: GenericExecutionEngine>(
-    ee: &ExecutionPair<E, MainnetEthSpec>,
-    payload: &ExecutionPayload<MainnetEthSpec>,
-) {
+async fn check_payload_reconstruction(ee: &ExecutionPair, payload: &ExecutionPayload) {
     // check via payload bodies method
     let capabilities = ee
         .execution_layer

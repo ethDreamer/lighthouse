@@ -1,7 +1,8 @@
 use super::*;
+use types::Spec;
 
 fn gloas_spec() -> ChainSpec {
-    let mut spec = MainnetEthSpec::default_spec();
+    let mut spec = Spec::default_spec();
     spec.proposer_score_boost = 50;
     spec.gloas_fork_epoch = Some(Epoch::new(0));
     spec
@@ -1060,7 +1061,7 @@ mod tests {
     use super::*;
 
     fn gloas_fork_boundary_spec() -> ChainSpec {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.proposer_score_boost = 50;
         spec.gloas_fork_epoch = Some(Epoch::new(1));
         spec

@@ -9,8 +9,8 @@ pub(crate) struct Node {
     parent_root: Option<Hash256>,
 }
 
-impl<T: BeaconChainTypes> From<&SingleBlockLookup<T>> for Node {
-    fn from(value: &SingleBlockLookup<T>) -> Self {
+impl From<&SingleBlockLookup> for Node {
+    fn from(value: &SingleBlockLookup) -> Self {
         Self {
             block_root: value.block_root(),
             parent_root: value.awaiting_parent().map(|a| a.parent_root()),

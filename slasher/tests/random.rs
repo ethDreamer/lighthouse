@@ -11,7 +11,7 @@ use slasher::{
 use std::cmp::max;
 use std::sync::Arc;
 use tempfile::{TempDir, tempdir};
-use types::{Epoch, EthSpec};
+use types::{Epoch, Spec};
 
 #[derive(Debug)]
 struct TestConfig {
@@ -32,7 +32,7 @@ impl Default for TestConfig {
     }
 }
 
-fn make_db() -> (TempDir, SlasherDB<E>) {
+fn make_db() -> (TempDir, SlasherDB) {
     let tempdir = tempdir().unwrap();
     let initial_config = Arc::new(Config::new(tempdir.path().into()));
     let spec = chain_spec();
@@ -40,7 +40,7 @@ fn make_db() -> (TempDir, SlasherDB<E>) {
     (tempdir, db)
 }
 
-fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> SlasherDB<E> {
+fn random_test(seed: u64, mut db: SlasherDB, test_config: TestConfig) -> SlasherDB {
     let check_slashings = test_config.check_slashings;
     let num_validators = test_config.num_validators;
     let max_attestations = test_config.max_attestations;
@@ -58,7 +58,7 @@ fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> Slas
     let config = Arc::new(config);
     db.update_config(config.clone());
 
-    let slasher = Slasher::<E>::from_config_and_db(config.clone(), db).unwrap();
+    let slasher = Slasher::from_config_and_db(config.clone(), db).unwrap();
 
     let validators = (0..num_validators as u64).collect::<Vec<u64>>();
 
@@ -103,7 +103,7 @@ fn random_test(seed: u64, mut db: SlasherDB<E>, test_config: TestConfig) -> Slas
         // Maybe add a random block too
         if test_config.add_blocks && rng.random_bool(0.1) {
             let slot =
-                rng.random_range(0..1 + 3 * current_epoch.as_u64() * E::slots_per_epoch() / 2);
+                rng.random_range(0..1 + 3 * current_epoch.as_u64() * Spec::slots_per_epoch() / 2);
             let proposer = rng.random_range(0..num_validators as u64);
             let block_root = rng.random_range(0..2);
             slasher.accept_block_header(block(slot, proposer, block_root));

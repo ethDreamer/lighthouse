@@ -20,7 +20,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tracing::{debug, error};
-use types::EthSpec;
+use types::Spec;
 use types::{Epoch, Hash256, Slot};
 
 /// The number of head syncing chains to sync at a time.
@@ -55,9 +55,9 @@ pub struct ChainCollection<T: BeaconChainTypes> {
     /// The beacon chain for processing.
     beacon_chain: Arc<BeaconChain<T>>,
     /// The set of finalized chains being synced.
-    finalized_chains: FnvHashMap<ChainId, SyncingChain<T>>,
+    finalized_chains: FnvHashMap<ChainId, SyncingChain>,
     /// The set of head chains being synced.
-    head_chains: FnvHashMap<ChainId, SyncingChain<T>>,
+    head_chains: FnvHashMap<ChainId, SyncingChain>,
     /// The current sync state of the process.
     state: RangeSyncState,
     #[cfg(test)]
@@ -139,9 +139,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
     /// Calls `func` on every chain of the collection. If the result is
     /// `ProcessingResult::RemoveChain`, the chain is removed and returned.
     /// NOTE: `func` must not change the syncing state of a chain.
-    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain<T>, RangeSyncType, RemoveChain)>
+    pub fn call_all<F>(&mut self, mut func: F) -> Vec<(SyncingChain, RangeSyncType, RemoveChain)>
     where
-        F: FnMut(&mut SyncingChain<T>) -> ProcessingResult,
+        F: FnMut(&mut SyncingChain) -> ProcessingResult,
     {
         let mut to_remove = Vec::new();
 
@@ -180,9 +180,9 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         &mut self,
         id: ChainId,
         func: F,
-    ) -> Result<(Option<(SyncingChain<T>, RemoveChain)>, RangeSyncType), ()>
+    ) -> Result<(Option<(SyncingChain, RemoveChain)>, RangeSyncType), ()>
     where
-        F: FnOnce(&mut SyncingChain<T>) -> ProcessingResult,
+        F: FnOnce(&mut SyncingChain) -> ProcessingResult,
     {
         if let Entry::Occupied(mut entry) = self.finalized_chains.entry(id) {
             // Search in our finalized chains first
@@ -222,7 +222,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
         // Remove any outdated finalized/head chains
         self.purge_outdated_chains(local, awaiting_head_peers);
 
-        let local_head_epoch = local.head_slot.epoch(T::EthSpec::slots_per_epoch());
+        let local_head_epoch = local.head_slot.epoch(Spec::slots_per_epoch());
         // Choose the best finalized chain if one needs to be selected.
         self.update_finalized_chains(network, local.finalized_epoch, local_head_epoch);
 
@@ -246,7 +246,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
                     .ok_or("Finalized syncing chain not found")?;
                 Ok(Some((
                     RangeSyncType::Finalized,
-                    chain.start_epoch.start_slot(T::EthSpec::slots_per_epoch()),
+                    chain.start_epoch.start_slot(Spec::slots_per_epoch()),
                     chain.target_head_slot,
                 )))
             }
@@ -257,7 +257,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
                         .head_chains
                         .get(id)
                         .ok_or("Head syncing chain not found")?;
-                    let start = chain.start_epoch.start_slot(T::EthSpec::slots_per_epoch());
+                    let start = chain.start_epoch.start_slot(Spec::slots_per_epoch());
                     let target = chain.target_head_slot;
 
                     range = range
@@ -425,7 +425,7 @@ impl<T: BeaconChainTypes> ChainCollection<T> {
     ) {
         let local_finalized_slot = local_info
             .finalized_epoch
-            .start_slot(T::EthSpec::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         let beacon_chain = &self.beacon_chain;
 
