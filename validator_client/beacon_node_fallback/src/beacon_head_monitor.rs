@@ -8,7 +8,6 @@ use std::time::Duration;
 use tokio::sync::{RwLock, broadcast};
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
-use types::EthSpec;
 
 type CacheHashMap = HashMap<usize, SseHead>;
 
@@ -133,7 +132,7 @@ impl Default for BeaconHeadCache {
 }
 
 // Updates the head cache and streams the latest non-optimistic head events from connected BNs.
-pub async fn poll_head_event_from_beacon_nodes<E: EthSpec, T: SlotClock + 'static>(
+pub async fn poll_head_event_from_beacon_nodes<T: SlotClock + 'static>(
     beacon_nodes: Arc<BeaconNodeFallback<T>>,
 ) -> Result<(), String> {
     let head_cache = beacon_nodes
@@ -159,10 +158,7 @@ pub async fn poll_head_event_from_beacon_nodes<E: EthSpec, T: SlotClock + 'stati
     let mut streams = vec![];
 
     for candidate in &candidates {
-        let head_event_stream = candidate
-            .beacon_node
-            .get_events::<E>(&[EventTopic::Head])
-            .await;
+        let head_event_stream = candidate.beacon_node.get_events(&[EventTopic::Head]).await;
 
         let head_event_stream = match head_event_stream {
             Ok(stream) => stream,
@@ -245,7 +241,7 @@ pub async fn poll_head_event_from_beacon_nodes<E: EthSpec, T: SlotClock + 'stati
     Err("Stream ended unexpectedly".into())
 }
 
-pub async fn poll_payload_available_event_from_beacon_nodes<E: EthSpec, T: SlotClock + 'static>(
+pub async fn poll_payload_available_event_from_beacon_nodes<T: SlotClock + 'static>(
     beacon_nodes: Arc<BeaconNodeFallback<T>>,
 ) -> Result<(), String> {
     let payload_available_send = beacon_nodes
@@ -263,7 +259,7 @@ pub async fn poll_payload_available_event_from_beacon_nodes<E: EthSpec, T: SlotC
     for candidate in &candidates {
         let payload_event_stream = candidate
             .beacon_node
-            .get_events::<E>(&[EventTopic::ExecutionPayloadAvailable])
+            .get_events(&[EventTopic::ExecutionPayloadAvailable])
             .await;
         let payload_event_stream = match payload_event_stream {
             Ok(stream) => stream,

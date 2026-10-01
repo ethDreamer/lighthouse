@@ -5,8 +5,8 @@ use crate::Error;
 use safe_arith::SafeArith;
 use std::sync::Arc;
 use types::{
-    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, EthSpec, Hash256,
-    RelativeEpoch, Slot,
+    AttestationShufflingId, BeaconState, ChainSpec, CommitteeCache, Epoch, Hash256, RelativeEpoch,
+    Slot, Spec,
 };
 
 /// One of the three epochs the FCR examines for committee assignments, relative to a beacon
@@ -19,7 +19,7 @@ pub(crate) enum WindowEpoch {
 }
 
 impl WindowEpoch {
-    fn epoch<E: EthSpec>(self, state: &BeaconState<E>) -> Epoch {
+    fn epoch(self, state: &BeaconState) -> Epoch {
         match self {
             Self::PrevPrev => state.previous_epoch().saturating_sub(1u64),
             Self::Previous => state.previous_epoch(),
@@ -27,10 +27,7 @@ impl WindowEpoch {
         }
     }
 
-    fn shuffling_id<E: EthSpec>(
-        self,
-        state: &BeaconState<E>,
-    ) -> Result<AttestationShufflingId, Error> {
+    fn shuffling_id(self, state: &BeaconState) -> Result<AttestationShufflingId, Error> {
         // Block root is only used for genesis so we use zero.
         let block_root = Hash256::ZERO;
         match self {
@@ -44,7 +41,7 @@ impl WindowEpoch {
                 let epoch = self.epoch(state);
                 let shuffling_decision_slot = epoch
                     .saturating_sub(1u64)
-                    .start_slot(E::slots_per_epoch())
+                    .start_slot(Spec::slots_per_epoch())
                     .saturating_sub(1u64);
                 let shuffling_decision_root = state
                     .get_block_root(shuffling_decision_slot)
@@ -60,9 +57,9 @@ impl WindowEpoch {
 
     /// The committee cache for this window position. `Current`/`Previous` are read from the state's
     /// caches; `PrevPrev` has no cached slot in the state, so its shuffling is recomputed.
-    fn committee_cache<E: EthSpec>(
+    fn committee_cache(
         self,
-        state: &BeaconState<E>,
+        state: &BeaconState,
         spec: &ChainSpec,
     ) -> Result<Arc<CommitteeCache>, Error> {
         match self {
@@ -92,8 +89,8 @@ struct SlotAssignment {
 }
 
 /// The attestation shuffling id for `window_epoch` relative to `state`.
-pub(crate) fn attestation_shuffling_id<E: EthSpec>(
-    state: &BeaconState<E>,
+pub(crate) fn attestation_shuffling_id(
+    state: &BeaconState,
     window_epoch: WindowEpoch,
 ) -> Result<AttestationShufflingId, Error> {
     window_epoch.shuffling_id(state)
@@ -102,8 +99,8 @@ pub(crate) fn attestation_shuffling_id<E: EthSpec>(
 impl SlotAssignment {
     /// Build the assignment for `window_epoch` relative to `state`, re-using a matching cache from
     /// `prev` when its shuffling is unchanged (a rebuild rotating the window down an epoch).
-    fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    fn new(
+        state: &BeaconState,
         window_epoch: WindowEpoch,
         spec: &ChainSpec,
         prev: Option<&SlotAssignments>,
@@ -118,8 +115,8 @@ impl SlotAssignment {
         Ok(Self {
             key,
             committee_cache: window_epoch.committee_cache(state, spec)?,
-            epoch_start_slot: epoch.start_slot(E::slots_per_epoch()),
-            epoch_end_slot: epoch.end_slot(E::slots_per_epoch()),
+            epoch_start_slot: epoch.start_slot(Spec::slots_per_epoch()),
+            epoch_end_slot: epoch.end_slot(Spec::slots_per_epoch()),
         })
     }
 }
@@ -134,8 +131,8 @@ impl SlotAssignments {
     /// Build the `[current-2, current]` committee caches for `state`. When `prev` is supplied (a
     /// rebuild triggered by a head change), any cache whose shuffling is unchanged is re-used from
     /// it rather than rebuilt — the common case where we just rotate the window down an epoch.
-    pub(crate) fn new<E: EthSpec>(
-        state: &BeaconState<E>,
+    pub(crate) fn new(
+        state: &BeaconState,
         spec: &ChainSpec,
         prev: Option<&Self>,
     ) -> Result<Self, Error> {
@@ -202,12 +199,10 @@ fn assigned_slot(
 mod tests {
     use super::*;
     use state_processing::{GloasVerificationContext, per_slot_processing};
-    use types::{MinimalEthSpec, Validator};
+    use types::Validator;
 
-    type E = MinimalEthSpec;
-
-    fn genesis_state(n: usize) -> (BeaconState<E>, types::ChainSpec) {
-        let spec = E::default_spec();
+    fn genesis_state(n: usize) -> (BeaconState, types::ChainSpec) {
+        let spec = Spec::default_spec();
         let mut state = BeaconState::new(0, Default::default(), &spec);
         for _ in 0..n {
             state
@@ -231,7 +226,7 @@ mod tests {
         (state, spec)
     }
 
-    fn advance_state(state: &mut BeaconState<E>, target: Slot, spec: &types::ChainSpec) {
+    fn advance_state(state: &mut BeaconState, target: Slot, spec: &types::ChainSpec) {
         while state.slot() < target {
             per_slot_processing(
                 state,
@@ -249,16 +244,16 @@ mod tests {
     #[test]
     fn builds_from_genesis_state() {
         let (state, spec) = genesis_state(64);
-        SlotAssignments::new::<E>(&state, &spec, None).expect("builds from genesis state");
+        SlotAssignments::new(&state, &spec, None).expect("builds from genesis state");
     }
 
     #[test]
     fn every_validator_attests_once_in_current_epoch() {
         let (mut state, spec) = genesis_state(64);
-        let spe = E::slots_per_epoch();
+        let spe = Spec::slots_per_epoch();
         let start = Slot::new(spe * 2);
         advance_state(&mut state, start, &spec);
-        let sa = SlotAssignments::new::<E>(&state, &spec, None).expect("build");
+        let sa = SlotAssignments::new(&state, &spec, None).expect("build");
 
         let end = Slot::new(spe * 2 + spe - 1);
         for val_idx in 0..state.validators().len() {
@@ -272,8 +267,8 @@ mod tests {
     #[test]
     fn is_in_range_returns_false_for_uncovered_epochs() {
         let (state, spec) = genesis_state(64);
-        let sa = SlotAssignments::new::<E>(&state, &spec, None).expect("build");
-        let far = Slot::new(E::slots_per_epoch() * 5);
+        let sa = SlotAssignments::new(&state, &spec, None).expect("build");
+        let far = Slot::new(Spec::slots_per_epoch() * 5);
         for val_idx in 0..state.validators().len() {
             assert!(!sa.is_in_range(val_idx, far, far).unwrap());
         }

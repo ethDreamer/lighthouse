@@ -30,21 +30,21 @@ impl<T: BeaconChainTypes> EnvelopeStreamerBeaconAdapter<T> {
     pub(crate) fn get_payload_envelope_summary(
         &self,
         root: &Hash256,
-    ) -> Result<Option<SignedExecutionPayloadEnvelopeSummary<T::EthSpec>>, store::Error> {
+    ) -> Result<Option<SignedExecutionPayloadEnvelopeSummary>, store::Error> {
         self.chain.store.get_payload_envelope_summary(root)
     }
 
     pub(crate) fn get_payload_body(
         &self,
         root: &Hash256,
-    ) -> Result<Option<ExecutionPayloadBody<T::EthSpec>>, store::Error> {
+    ) -> Result<Option<ExecutionPayloadBody>, store::Error> {
         self.chain.store.get_payload_body(root)
     }
 
     pub(crate) async fn get_payload_bodies_by_hash_v2(
         &self,
         block_hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV2<T::EthSpec>>>, BeaconChainError> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV2>>, BeaconChainError> {
         let execution_layer = self
             .chain
             .execution_layer

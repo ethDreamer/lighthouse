@@ -10,7 +10,6 @@ use crate::{
     },
     proposer_preferences_verification::proposer_preference_cache::GossipVerifiedProposerPreferenceCache,
 };
-use educe::Educe;
 use eth2::types::{EventKind, ForkVersionedResponse};
 use proto_array::{Block as ProtoBlock, PayloadBlockHash};
 use slot_clock::SlotClock;
@@ -19,8 +18,8 @@ use state_processing::signature_sets::{
 };
 use tracing::debug;
 use types::{
-    BeaconState, Builder, ChainSpec, EthSpec, ExecutionPayloadBid, ExecutionRequestsGloas,
-    SignedExecutionPayloadBid, SignedProposerPreferences, Slot,
+    BeaconState, Builder, ChainSpec, ExecutionPayloadBid, ExecutionRequestsGloas,
+    SignedExecutionPayloadBid, SignedProposerPreferences, Slot, Spec,
     consts::gloas::PAYLOAD_BUILDER_VERSION,
 };
 
@@ -32,8 +31,8 @@ pub(crate) fn verify_bid_slot(bid_slot: Slot, current_slot: Slot) -> Result<(), 
     }
 }
 
-fn verify_bid_payment_and_blobs<E: EthSpec>(
-    bid: &ExecutionPayloadBid<E>,
+fn verify_bid_payment_and_blobs(
+    bid: &ExecutionPayloadBid,
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
     // Execution payments are used by off protocol builders. In protocol bids
@@ -54,8 +53,8 @@ fn verify_bid_payment_and_blobs<E: EthSpec>(
 /// `process_execution_payload_bid` enforces this in `per_block_processing`, so every bid intake —
 /// gossip *and* direct (builder-API) — must front-run it: a bid that fails only at block
 /// processing has already won selection and costs the proposer the slot.
-pub(crate) fn verify_bid_block_hash_not_parent<E: EthSpec>(
-    bid: &ExecutionPayloadBid<E>,
+pub(crate) fn verify_bid_block_hash_not_parent(
+    bid: &ExecutionPayloadBid,
 ) -> Result<(), PayloadBidError> {
     if bid.block_hash == bid.parent_block_hash {
         return Err(PayloadBidError::BlockHashEqualsParentBlockHash {
@@ -66,12 +65,9 @@ pub(crate) fn verify_bid_block_hash_not_parent<E: EthSpec>(
     Ok(())
 }
 
-fn verify_bid_blobs<E: EthSpec>(
-    bid: &ExecutionPayloadBid<E>,
-    spec: &ChainSpec,
-) -> Result<(), PayloadBidError> {
+fn verify_bid_blobs(bid: &ExecutionPayloadBid, spec: &ChainSpec) -> Result<(), PayloadBidError> {
     let max_blobs_per_block =
-        spec.max_blobs_per_block(bid.slot.epoch(E::slots_per_epoch())) as usize;
+        spec.max_blobs_per_block(bid.slot.epoch(Spec::slots_per_epoch())) as usize;
 
     if bid.blob_kzg_commitments.len() > max_blobs_per_block {
         return Err(PayloadBidError::InvalidBlobKzgCommitments {
@@ -93,11 +89,11 @@ fn verify_bid_blobs<E: EthSpec>(
 /// order, interleaved with gossip-only work (cache checks, the preferences lookup, fork-choice
 /// rules). A check that must cover both intakes belongs in one of those shared helpers — adding
 /// it only here leaves gossip uncovered.
-pub(crate) fn verify_direct_bid_consistency<E: EthSpec>(
-    bid: &ExecutionPayloadBid<E>,
+pub(crate) fn verify_direct_bid_consistency(
+    bid: &ExecutionPayloadBid,
     current_slot: Slot,
     proposer_preferences: &SignedProposerPreferences,
-    head_state: &BeaconState<E>,
+    head_state: &BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
     verify_bid_slot(bid.slot, current_slot)?;
@@ -122,9 +118,9 @@ pub(crate) fn verify_direct_bid_consistency<E: EthSpec>(
 /// that can go stale between gossip verification and block production (e.g. the builder's balance
 /// dropping). Re-running them against the production state lets bid selection drop a gossip bid that
 /// has since become invalid, rather than committing to it and failing the whole block.
-pub(crate) fn verify_bid_state_conditions<E: EthSpec>(
-    bid: &ExecutionPayloadBid<E>,
-    head_state: &BeaconState<E>,
+pub(crate) fn verify_bid_state_conditions(
+    bid: &ExecutionPayloadBid,
+    head_state: &BeaconState,
     spec: &ChainSpec,
 ) -> Result<(), PayloadBidError> {
     let builder_index = bid.builder_index;
@@ -160,9 +156,9 @@ pub(crate) fn verify_bid_state_conditions<E: EthSpec>(
 /// Returns `true` if the bid builds on the parent's full payload and that payload carries an exit
 /// request for the bid's builder.
 pub(crate) fn parent_payload_exits_builder<T: BeaconChainTypes>(
-    bid: &ExecutionPayloadBid<T::EthSpec>,
+    bid: &ExecutionPayloadBid,
     parent_block: &ProtoBlock,
-    head_state: &BeaconState<T::EthSpec>,
+    head_state: &BeaconState,
     store: &BeaconStore<T>,
 ) -> Result<bool, PayloadBidError> {
     if parent_block.execution_payload_block_hash != Some(bid.parent_block_hash) {
@@ -186,9 +182,9 @@ pub(crate) fn parent_payload_exits_builder<T: BeaconChainTypes>(
     ))
 }
 
-pub(crate) fn builder_exit_requested<E: EthSpec>(
+pub(crate) fn builder_exit_requested(
     builder: &Builder,
-    execution_requests: &ExecutionRequestsGloas<E>,
+    execution_requests: &ExecutionRequestsGloas,
 ) -> bool {
     execution_requests.builder_exits.iter().any(|request| {
         request.pubkey == builder.pubkey && request.source_address == builder.execution_address
@@ -197,9 +193,9 @@ pub(crate) fn builder_exit_requested<E: EthSpec>(
 
 /// Checks if `bid` is compatible with the head branch
 pub(crate) fn is_bid_compatible_with_head<T: BeaconChainTypes>(
-    cached_head: &CachedHead<T::EthSpec>,
+    cached_head: &CachedHead,
     fork_choice_read: &ForkChoiceReadGuard<'_, T>,
-    bid: &ExecutionPayloadBid<T::EthSpec>,
+    bid: &ExecutionPayloadBid,
     spec: &ChainSpec,
 ) -> Result<bool, PayloadBidError> {
     let head_block_root = cached_head.head_block_root();
@@ -213,9 +209,7 @@ pub(crate) fn is_bid_compatible_with_head<T: BeaconChainTypes>(
         })?;
 
     // TODO(post-gloas) this can be removed after the gloas fork
-    let head_is_pre_gloas = !spec
-        .fork_name_at_slot::<T::EthSpec>(head_block.slot)
-        .gloas_enabled();
+    let head_is_pre_gloas = !spec.fork_name_at_slot(head_block.slot).gloas_enabled();
 
     let builds_on_parent_block = Some(bid.parent_block_root) == head_block.parent_root;
     let builds_on_parent_payload = if head_is_pre_gloas {
@@ -263,7 +257,7 @@ pub(crate) fn is_bid_compatible_with_head<T: BeaconChainTypes>(
 pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub canonical_head: &'a CanonicalHead<T>,
     pub observed_execution_payloads: &'a ObservedExecutionPayloads,
-    pub gossip_verified_payload_bid_cache: &'a GossipVerifiedPayloadBidCache<T::EthSpec>,
+    pub gossip_verified_payload_bid_cache: &'a GossipVerifiedPayloadBidCache,
     pub gossip_verified_proposer_preferences_cache: &'a GossipVerifiedProposerPreferenceCache,
     pub slot_clock: &'a T::SlotClock,
     pub spec: &'a ChainSpec,
@@ -272,20 +266,16 @@ pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
 
 /// A wrapper around a `SignedExecutionPayloadBid` that indicates it has been approved for re-gossiping on
 /// the p2p network.
-#[derive(Educe)]
-#[educe(Debug(bound = "E: EthSpec"), Clone(bound = "E: EthSpec"))]
-pub struct GossipVerifiedPayloadBid<E: EthSpec> {
-    pub signed_bid: Arc<SignedExecutionPayloadBid<E>>,
+#[derive(Debug, Clone)]
+pub struct GossipVerifiedPayloadBid {
+    pub signed_bid: Arc<SignedExecutionPayloadBid>,
 }
 
-impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
-    pub fn new<T>(
-        signed_bid: Arc<SignedExecutionPayloadBid<T::EthSpec>>,
+impl GossipVerifiedPayloadBid {
+    pub fn new<T: BeaconChainTypes>(
+        signed_bid: Arc<SignedExecutionPayloadBid>,
         ctx: &GossipVerificationContext<'_, T>,
-    ) -> Result<Self, PayloadBidError>
-    where
-        T: BeaconChainTypes<EthSpec = E>,
-    {
+    ) -> Result<Self, PayloadBidError> {
         let bid_slot = signed_bid.message.slot;
         let bid_parent = BidParent::from_bid(&signed_bid.message);
         let bid_parent_block_root = signed_bid.message.parent_block_root;
@@ -347,10 +337,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
         // use the advanced state instead.
         // TODO(post-gloas) this can be removed after the gloas fork
         let advanced_state;
-        let head_state = if ctx
-            .spec
-            .fork_name_at_slot::<T::EthSpec>(bid_slot)
-            .gloas_enabled()
+        let head_state = if ctx.spec.fork_name_at_slot(bid_slot).gloas_enabled()
             && !snapshot_state.fork_name_unchecked().gloas_enabled()
         {
             let (_, state) = ctx
@@ -381,7 +368,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBid<E> {
 
         // Look up the preferences keyed by the dependent root that is canonical from our head's
         // perspective, so we don't pick up preferences cached for a competing branch's proposer.
-        let proposal_epoch = bid_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = bid_slot.epoch(Spec::slots_per_epoch());
         let dependent_root = head_state.proposer_shuffling_decision_root_at_epoch(
             proposal_epoch,
             cached_head.head_block_root(),
@@ -494,8 +481,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// Returns an `Err` if the given bid was invalid, or an error was encountered during verification.
     pub fn verify_payload_bid_for_gossip(
         &self,
-        bid: Arc<SignedExecutionPayloadBid<T::EthSpec>>,
-    ) -> Result<GossipVerifiedPayloadBid<T::EthSpec>, PayloadBidError> {
+        bid: Arc<SignedExecutionPayloadBid>,
+    ) -> Result<GossipVerifiedPayloadBid, PayloadBidError> {
         let slot = bid.message.slot;
         let parent_block_root = bid.message.parent_block_root;
         let parent_block_hash = bid.message.parent_block_hash;
@@ -515,7 +502,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 {
                     event_handler.register(EventKind::ExecutionPayloadBid(Box::new(
                         ForkVersionedResponse {
-                            version: self.spec.fork_name_at_slot::<T::EthSpec>(slot),
+                            version: self.spec.fork_name_at_slot(slot),
                             metadata: Default::default(),
                             data: (*verified.signed_bid).clone(),
                         },

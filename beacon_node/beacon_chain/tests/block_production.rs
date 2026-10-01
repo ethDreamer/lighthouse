@@ -4,18 +4,15 @@ use beacon_chain::{
 };
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, MinimalEthSpec, Slot,
-    WithdrawalRequest,
+    Address, Epoch, ExecutionRequests, ExecutionRequestsGloas, Hash256, Slot, WithdrawalRequest,
 };
-
-type E = MinimalEthSpec;
 
 /// Parent partial withdrawals must be accounted for when packing voluntary exits.
 /// https://github.com/sigp/lighthouse/issues/9981
 #[tokio::test]
 async fn gloas_block_production_filters_exits_with_parent_partial_withdrawals() {
-    let mut spec = test_spec::<E>();
-    if !spec.fork_name_at_slot::<E>(Slot::new(0)).gloas_enabled() {
+    let mut spec = test_spec();
+    if !spec.fork_name_at_slot(Slot::new(0)).gloas_enabled() {
         return;
     }
 
@@ -26,7 +23,7 @@ async fn gloas_block_production_filters_exits_with_parent_partial_withdrawals() 
     let withdrawal_amount = spec.effective_balance_increment;
     let withdrawal_address = Address::repeat_byte(0xaa);
 
-    let harness = BeaconChainHarness::builder(E::default())
+    let harness = BeaconChainHarness::builder()
         .spec(spec.clone())
         .deterministic_keypairs(64)
         .with_genesis_state_builder(|builder| {
@@ -45,7 +42,7 @@ async fn gloas_block_production_filters_exits_with_parent_partial_withdrawals() 
 
     harness.extend_to_slot(Slot::new(1)).await;
 
-    let mut requests = ExecutionRequestsGloas::<E>::default();
+    let mut requests = ExecutionRequestsGloas::default();
     requests
         .withdrawals
         .push(WithdrawalRequest {

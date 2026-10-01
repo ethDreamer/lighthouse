@@ -2,7 +2,7 @@ use integer_sqrt::IntegerSquareRoot;
 use safe_arith::SafeArith;
 use smallvec::SmallVec;
 use types::{
-    AttestationData, BeaconState, BeaconStateError as Error, ChainSpec, EthSpec, Slot,
+    AttestationData, BeaconState, BeaconStateError as Error, ChainSpec, Slot, Spec,
     consts::altair::{
         NUM_FLAG_INDICES, TIMELY_HEAD_FLAG_INDEX, TIMELY_SOURCE_FLAG_INDEX,
         TIMELY_TARGET_FLAG_INDEX,
@@ -18,8 +18,8 @@ use types::{
 /// state's relevant justified checkpoint.
 ///
 /// This function has been abstracted to work for all forks from Altair to Heze.
-pub fn get_attestation_participation_flag_indices<E: EthSpec>(
-    state: &BeaconState<E>,
+pub fn get_attestation_participation_flag_indices(
+    state: &BeaconState,
     data: &AttestationData,
     parent_slot: Option<Slot>,
     inclusion_delay: u64,
@@ -50,7 +50,7 @@ pub fn get_attestation_participation_flag_indices<E: EthSpec>(
             // For non same-slot attestations, check execution payload availability
             let slot_index = parent_slot
                 .as_usize()
-                .safe_rem(E::slots_per_historical_root())?;
+                .safe_rem(Spec::SLOTS_PER_HISTORICAL_ROOT)?;
             let payload_index = state
                 .execution_payload_availability()?
                 .get(slot_index)
@@ -75,7 +75,7 @@ pub fn get_attestation_participation_flag_indices<E: EthSpec>(
 
     // Participation flag indices
     let mut participation_flag_indices = SmallVec::new();
-    if is_matching_source && inclusion_delay <= E::slots_per_epoch().integer_sqrt() {
+    if is_matching_source && inclusion_delay <= (Spec::slots_per_epoch()).integer_sqrt() {
         participation_flag_indices.push(TIMELY_SOURCE_FLAG_INDEX);
     }
     if state.fork_name_unchecked().deneb_enabled() {
@@ -83,7 +83,7 @@ pub fn get_attestation_participation_flag_indices<E: EthSpec>(
             // [Modified in Deneb:EIP7045]
             participation_flag_indices.push(TIMELY_TARGET_FLAG_INDEX);
         }
-    } else if is_matching_target && inclusion_delay <= E::slots_per_epoch() {
+    } else if is_matching_target && inclusion_delay <= Spec::slots_per_epoch() {
         participation_flag_indices.push(TIMELY_TARGET_FLAG_INDEX);
     }
 

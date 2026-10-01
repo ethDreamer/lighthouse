@@ -19,15 +19,15 @@ use store::{
     consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR},
 };
 use tracing::error;
-use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, EthSpec};
+use types::{AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Spec};
 
 type BeaconBlockSubRewardValue = u64;
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
-    pub fn compute_beacon_block_reward<Payload: AbstractExecPayload<T::EthSpec>>(
+    pub fn compute_beacon_block_reward<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &mut BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &mut BeaconState,
     ) -> Result<StandardBlockReward, BeaconChainError> {
         if block.slot() != state.slot() {
             return Err(BeaconChainError::BlockRewardSlotError);
@@ -51,7 +51,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 let availability_index = parent_bid
                     .slot
                     .as_usize()
-                    .safe_rem(T::EthSpec::slots_per_historical_root())?;
+                    .safe_rem(Spec::SLOTS_PER_HISTORICAL_ROOT)?;
                 state
                     .execution_payload_availability_mut()?
                     .set(availability_index, true)?;
@@ -63,10 +63,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
     // This should only be called after a committee cache has been built
     // for both the previous and current epoch
-    fn compute_beacon_block_reward_with_cache<Payload: AbstractExecPayload<T::EthSpec>>(
+    fn compute_beacon_block_reward_with_cache<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<StandardBlockReward, BeaconChainError> {
         let proposer_index = block.proposer_index();
 
@@ -128,10 +128,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         })
     }
 
-    fn compute_beacon_block_sync_aggregate_reward<Payload: AbstractExecPayload<T::EthSpec>>(
+    fn compute_beacon_block_sync_aggregate_reward<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<BeaconBlockSubRewardValue, BeaconChainError> {
         if let Ok(sync_aggregate) = block.body().sync_aggregate() {
             let (_, proposer_reward_per_bit) = compute_sync_aggregate_rewards(state, &self.spec)
@@ -142,10 +142,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         }
     }
 
-    fn compute_beacon_block_proposer_slashing_reward<Payload: AbstractExecPayload<T::EthSpec>>(
+    fn compute_beacon_block_proposer_slashing_reward<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<BeaconBlockSubRewardValue, BeaconChainError> {
         let mut proposer_slashing_reward = 0;
 
@@ -163,10 +163,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         Ok(proposer_slashing_reward)
     }
 
-    fn compute_beacon_block_attester_slashing_reward<Payload: AbstractExecPayload<T::EthSpec>>(
+    fn compute_beacon_block_attester_slashing_reward<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<BeaconBlockSubRewardValue, BeaconChainError> {
         let mut attester_slashing_reward = 0;
 
@@ -186,10 +186,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         Ok(attester_slashing_reward)
     }
 
-    fn compute_beacon_block_attestation_reward_base<Payload: AbstractExecPayload<T::EthSpec>>(
+    fn compute_beacon_block_attestation_reward_base<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<BeaconBlockSubRewardValue, BeaconChainError> {
         // In phase0, rewards for including attestations are awarded at epoch boundaries when the corresponding
         // attestations are contained in state.previous_epoch_attestations. So, if an attestation within this block has
@@ -211,7 +211,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     Some(next_epoch_end) => next_epoch_end,
                     None => {
                         let state = self.state_at_slot(
-                            epoch.safe_add(1)?.end_slot(T::EthSpec::slots_per_epoch()),
+                            epoch.safe_add(1)?.end_slot(Spec::slots_per_epoch()),
                             StateSkipConfig::WithoutStateRoots,
                         )?;
                         next_epoch_end.get_or_insert(state)
@@ -230,7 +230,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     Some(current_epoch_end) => current_epoch_end,
                     None => {
                         let state = self.state_at_slot(
-                            epoch.end_slot(T::EthSpec::slots_per_epoch()),
+                            epoch.end_slot(Spec::slots_per_epoch()),
                             StateSkipConfig::WithoutStateRoots,
                         )?;
                         current_epoch_end.get_or_insert(state)
@@ -270,12 +270,10 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         Ok(block_reward)
     }
 
-    fn compute_beacon_block_attestation_reward_altair_and_later<
-        Payload: AbstractExecPayload<T::EthSpec>,
-    >(
+    fn compute_beacon_block_attestation_reward_altair_and_later<Payload: AbstractExecPayload>(
         &self,
-        block: BeaconBlockRef<'_, T::EthSpec, Payload>,
-        state: &BeaconState<T::EthSpec>,
+        block: BeaconBlockRef<'_, Payload>,
+        state: &BeaconState,
     ) -> Result<BeaconBlockSubRewardValue, BeaconChainError> {
         let mut total_proposer_reward = 0;
 
@@ -340,9 +338,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     }
 }
 
-fn has_earlier_attestation<E: EthSpec>(
-    state: &BeaconState<E>,
-    processing_epoch_end: &BeaconState<E>,
+fn has_earlier_attestation(
+    state: &BeaconState,
+    processing_epoch_end: &BeaconState,
     inclusion_delay: u64,
     attester: u64,
 ) -> Result<bool, BeaconChainError> {
@@ -352,7 +350,7 @@ fn has_earlier_attestation<E: EthSpec>(
                 let committee =
                     state.get_beacon_committee(epoch_att.data.slot, epoch_att.data.index)?;
                 let earlier_attesters =
-                    get_attesting_indices::<E>(committee.committee, &epoch_att.aggregation_bits)?;
+                    get_attesting_indices(committee.committee, &epoch_att.aggregation_bits)?;
                 if earlier_attesters.contains(&attester) {
                     return Ok(true);
                 }

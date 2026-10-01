@@ -5,7 +5,7 @@ use std::time::Duration;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
-use types::{ChainSpec, EthSpec, Slot};
+use types::{ChainSpec, Slot, Spec};
 
 /// Don't run the attestation simulator if the head slot is this many epochs
 /// behind the wall-clock slot.
@@ -36,11 +36,7 @@ async fn attestation_simulator_service<T: BeaconChainTypes>(
         match chain.slot_clock.now_duration() {
             Some(now_duration) => {
                 let (attestation_slot, Some(time_to_deadline)) =
-                    time_until_attestation_deadline::<T::EthSpec>(
-                        &chain.slot_clock,
-                        &chain.spec,
-                        now_duration,
-                    )
+                    time_until_attestation_deadline(&chain.slot_clock, &chain.spec, now_duration)
                 else {
                     error!("Failed to calculate attestation deadline");
                     sleep(slot_duration).await;
@@ -72,7 +68,7 @@ async fn attestation_simulator_service<T: BeaconChainTypes>(
     }
 }
 
-fn time_until_attestation_deadline<E: EthSpec>(
+fn time_until_attestation_deadline(
     slot_clock: &impl SlotClock,
     chain_spec: &ChainSpec,
     now: Duration,
@@ -83,7 +79,7 @@ fn time_until_attestation_deadline<E: EthSpec>(
     let duration_to_attestation_deadline = slot_clock
         .start_of(attestation_slot)
         .and_then(|slot_start| {
-            slot_start.checked_add(chain_spec.get_attestation_due::<E>(attestation_slot))
+            slot_start.checked_add(chain_spec.get_attestation_due(attestation_slot))
         })
         .and_then(|deadline| deadline.checked_sub(now));
     (attestation_slot, duration_to_attestation_deadline)
@@ -98,7 +94,7 @@ pub fn produce_unaggregated_attestation<T: BeaconChainTypes>(
     //
     // This helps prevent the simulator from becoming a burden by computing
     // committees from old states.
-    let syncing_tolerance_slots = SYNCING_TOLERANCE_EPOCHS * T::EthSpec::slots_per_epoch();
+    let syncing_tolerance_slots = SYNCING_TOLERANCE_EPOCHS * Spec::slots_per_epoch();
     if chain.best_slot() + syncing_tolerance_slots < current_slot {
         return;
     }

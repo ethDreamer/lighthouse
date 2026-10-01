@@ -3,6 +3,13 @@ name = "types"
 version = "0.2.1"
 authors = ["Paul Hauner <paul@paulhauner.com>", "Age Manning <Age@AgeManning.com>"]
 edition = { workspace = true }
+autotests = false
+
+# These dev-dependencies are only used by `types_spec_minimal_tests`, which is
+# hidden behind the `spec-minimal` feature. `make udeps` doesn't see them by
+# default so they are false positives.
+[package.metadata.cargo-udeps.ignore]
+development = ["beacon_chain", "state_processing", "tokio"]
 
 [features]
 default = []
@@ -81,3 +88,12 @@ module_inception = "allow"
 [[bench]]
 name = "benches"
 harness = false
+
+[[test]]
+name = "types_tests"
+path = "tests/main.rs"
+
+[[test]]
+name = "types_spec_minimal_tests"
+path = "tests/spec_minimal.rs"
+required-features = ["spec-minimal"]

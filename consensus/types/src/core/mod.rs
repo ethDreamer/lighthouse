@@ -4,7 +4,6 @@ mod application_domain;
 mod chain_spec;
 mod config_and_preset;
 mod enr_fork_id;
-mod eth_spec;
 mod execution_block_hash;
 mod graffiti;
 mod list_ref;
@@ -30,7 +29,6 @@ pub use config_and_preset::{
     ConfigAndPresetGloas, ConfigAndPresetHeze, get_extra_fields,
 };
 pub use enr_fork_id::EnrForkId;
-pub use eth_spec::{EthSpec, EthSpecId, GNOSIS, GnosisEthSpec, MainnetEthSpec, MinimalEthSpec};
 pub use execution_block_hash::ExecutionBlockHash;
 pub use graffiti::{GRAFFITI_BYTES_LEN, Graffiti, GraffitiString};
 pub use list_ref::ListRef;
@@ -42,8 +40,8 @@ pub use preset::{
 pub use relative_epoch::{Error as RelativeEpochError, RelativeEpoch};
 pub use signing_data::{SignedRoot, SigningData};
 pub use slot_data::SlotData;
-pub use spec::{GnosisSpec, MainnetSpec, MinimalSpec, Spec, SpecId};
 pub use slot_epoch::{Epoch, Slot};
+pub use spec::{GnosisSpec, MainnetSpec, MinimalSpec, Spec, SpecId};
 
 #[cfg(test)]
 pub(crate) use chain_spec::{

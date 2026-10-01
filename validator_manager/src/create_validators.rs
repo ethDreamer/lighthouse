@@ -300,7 +300,7 @@ struct ValidatorsAndDeposits {
 }
 
 impl ValidatorsAndDeposits {
-    async fn new<E: EthSpec>(config: CreateConfig, spec: &ChainSpec) -> Result<Self, String> {
+    async fn new(config: CreateConfig, spec: &ChainSpec) -> Result<Self, String> {
         let CreateConfig {
             // The output path is handled upstream.
             output_path: _,
@@ -361,7 +361,7 @@ impl ValidatorsAndDeposits {
                 eprintln!("Beacon node is on {} network", config_name)
             }
             let bn_spec = bn_config
-                .apply_to_chain_spec::<E>(&E::default_spec())
+                .apply_to_chain_spec(&Spec::default_spec())
                 .ok_or("Beacon node appears to be on an incorrect network")?;
             if bn_spec.genesis_fork_version != spec.genesis_fork_version {
                 if let Some(config_name) = bn_spec.config_name {
@@ -557,7 +557,7 @@ impl ValidatorsAndDeposits {
     }
 }
 
-pub async fn cli_run<E: EthSpec>(
+pub async fn cli_run(
     matches: &ArgMatches,
     spec: &ChainSpec,
     dump_config: DumpConfig,
@@ -566,11 +566,11 @@ pub async fn cli_run<E: EthSpec>(
     if dump_config.should_exit_early(&config)? {
         Ok(())
     } else {
-        run::<E>(config, spec).await
+        run(config, spec).await
     }
 }
 
-async fn run<E: EthSpec>(config: CreateConfig, spec: &ChainSpec) -> Result<(), String> {
+async fn run(config: CreateConfig, spec: &ChainSpec) -> Result<(), String> {
     let output_path = config.output_path.clone();
 
     if !output_path.exists() {
@@ -595,7 +595,7 @@ async fn run<E: EthSpec>(config: CreateConfig, spec: &ChainSpec) -> Result<(), S
         ));
     }
 
-    let validators_and_deposits = ValidatorsAndDeposits::new::<E>(config, spec).await?;
+    let validators_and_deposits = ValidatorsAndDeposits::new(config, spec).await?;
 
     eprintln!("Keystore generation complete");
 
@@ -614,15 +614,17 @@ async fn run<E: EthSpec>(config: CreateConfig, spec: &ChainSpec) -> Result<(), S
 pub mod tests {
     use super::*;
     use bls::SignatureBytes;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use eth2_network_config::Eth2NetworkConfig;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use regex::Regex;
+    #[cfg(not(feature = "spec-non-mainnet"))]
     use std::path::Path;
     use std::str::FromStr;
     use tempfile::{TempDir, tempdir};
     use tree_hash::TreeHash;
 
-    type E = MainnetEthSpec;
-
+    #[cfg(not(feature = "spec-non-mainnet"))]
     const TEST_VECTOR_DEPOSIT_CLI_VERSION: &str = "1.3.0"; // Update to ethstaker-deposit-cli version
 
     fn junk_execution_address() -> Option<Address> {
@@ -638,7 +640,7 @@ pub mod tests {
 
     impl Default for TestBuilder {
         fn default() -> Self {
-            Self::new(E::default_spec())
+            Self::new(Spec::default_spec())
         }
     }
 
@@ -694,7 +696,7 @@ pub mod tests {
                 config,
             } = self;
 
-            let result = run::<E>(config.clone(), &spec).await;
+            let result = run(config.clone(), &spec).await;
 
             if result.is_ok() {
                 let validators_file_contents =
@@ -911,6 +913,9 @@ pub mod tests {
             .assert_err();
     }
 
+    // This test loads hardcoded mainnet/holesky test vectors via `Eth2NetworkConfig::constant()`,
+    // which rejects configs whose `preset_base` doesn't match the compiled `Spec::SPEC_ID`.
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[tokio::test]
     async fn ethstaker_deposit_cli_vectors() {
         let vectors_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -927,6 +932,7 @@ pub mod tests {
         }
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     async fn run_test_vector<P: AsRef<Path>>(name: &str, vectors_path: P) {
         /*
          * Parse the test vector name into a set of test parameters.
@@ -946,7 +952,7 @@ pub mod tests {
         let spec = Eth2NetworkConfig::constant(network)
             .unwrap()
             .unwrap()
-            .chain_spec::<E>()
+            .chain_spec()
             .unwrap();
 
         let test_result = TestBuilder::new(spec)

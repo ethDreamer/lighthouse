@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use safe_arith::{ArithError, SafeArith};
-use types::{BeaconState, EthSpec};
+use types::BeaconState;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct JustifiedBalances {
@@ -20,7 +20,7 @@ pub struct JustifiedBalances {
 }
 
 impl JustifiedBalances {
-    pub fn from_justified_state<E: EthSpec>(state: &BeaconState<E>) -> Result<Self, ArithError> {
+    pub fn from_justified_state(state: &BeaconState) -> Result<Self, ArithError> {
         let current_epoch = state.current_epoch();
         let mut total_effective_balance = 0u64;
         let mut num_active_validators = 0u64;
@@ -76,12 +76,11 @@ impl JustifiedBalances {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{ChainSpec, Epoch, MinimalEthSpec, Validator};
-
-    type E = MinimalEthSpec;
+    use types::Spec;
+    use types::{ChainSpec, Epoch, Validator};
 
     fn push_validator(
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
         effective_balance: u64,
         slashed: bool,
@@ -102,8 +101,8 @@ mod tests {
 
     #[test]
     fn from_justified_state_handles_slashed_and_inactive_validators() {
-        let spec = E::default_spec();
-        let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);
+        let spec = Spec::default_spec();
+        let mut state: BeaconState = BeaconState::new(0, <_>::default(), &spec);
         let epoch = state.current_epoch();
 
         push_validator(&mut state, &spec, 32_000_000_000, false, epoch);

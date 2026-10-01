@@ -13,13 +13,13 @@ use state_processing::builder_deposits_cache::OnboardBuildersCache;
 use std::sync::Arc;
 use tree_hash::TreeHash;
 use types::execution::SignedExecutionProof;
-use types::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot};
+use types::{ChainSpec, Domain, Hash256, SignedRoot, Slot, Spec};
 
 pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub canonical_head: &'a CanonicalHead<T>,
     pub observed_execution_proofs: &'a RwLock<ObservedExecutionProofs>,
-    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache<T>>,
-    pub shuffling_cache: &'a RwLock<ShufflingCache<T::EthSpec>>,
+    pub validator_pubkey_cache: &'a RwLock<ValidatorPubkeyCache>,
+    pub shuffling_cache: &'a RwLock<ShufflingCache>,
     pub store: &'a BeaconStore<T>,
     pub proof_engine: &'a Option<Arc<ProofEngine>>,
     pub builder_onboarding_cache: Option<&'a OnboardBuildersCache>,
@@ -84,7 +84,7 @@ impl GossipVerifiedExecutionProof {
         // [REJECT] The validator is active at the epoch of the referenced block. The committee
         // cache is keyed by the block's shuffling id, so proofs for blocks on non-canonical
         // forks are judged against their own fork's active set without loading a state.
-        let block_epoch = block_slot.epoch(T::EthSpec::slots_per_epoch());
+        let block_epoch = block_slot.epoch(Spec::slots_per_epoch());
         let is_active = with_cached_shuffling(
             ctx.canonical_head,
             ctx.shuffling_cache,
@@ -107,7 +107,7 @@ impl GossipVerifiedExecutionProof {
         }
 
         // [REJECT] The signature is valid with respect to the validator's public key.
-        let fork_name = ctx.spec.fork_name_at_slot::<T::EthSpec>(block_slot);
+        let fork_name = ctx.spec.fork_name_at_slot(block_slot);
         let domain = ctx.spec.compute_domain(
             Domain::ExecutionProof,
             ctx.spec.fork_version_for_name(fork_name),

@@ -50,8 +50,8 @@ struct ExecutionMetadata {
 
 /// Newtype for testing withdrawals.
 #[derive(Debug, Clone, Deserialize)]
-pub struct WithdrawalsPayload<E: EthSpec> {
-    payload: Option<ExecutionPayload<E>>,
+pub struct WithdrawalsPayload {
+    payload: Option<ExecutionPayload>,
 }
 
 /// Newtype for testing voluntary exit churn (Gloas+).
@@ -65,27 +65,27 @@ pub struct VoluntaryExitChurn {
 
 /// Newtype for testing execution payload bids.
 #[derive(Debug, Clone, Deserialize)]
-pub struct ExecutionPayloadBidBlock<E: EthSpec> {
-    signed_bid: SignedExecutionPayloadBid<E>,
+pub struct ExecutionPayloadBidBlock {
+    signed_bid: SignedExecutionPayloadBid,
 }
 
 /// Newtype for testing parent execution payload processing.
 #[derive(Debug, Clone, Deserialize)]
-pub struct ParentExecutionPayloadBlock<E: EthSpec> {
-    block: BeaconBlock<E>,
+pub struct ParentExecutionPayloadBlock {
+    block: BeaconBlock,
 }
 
 #[derive(Debug, Clone)]
-pub struct Operations<E: EthSpec, O: Operation<E>> {
+pub struct Operations<O: Operation> {
     metadata: Metadata,
     config: Option<types::Config>,
     execution_metadata: Option<ExecutionMetadata>,
-    pub pre: BeaconState<E>,
+    pub pre: BeaconState,
     pub operation: Option<Result<O, Error>>,
-    pub post: Option<BeaconState<E>>,
+    pub post: Option<BeaconState>,
 }
 
-pub trait Operation<E: EthSpec>: Debug + Sync + Sized {
+pub trait Operation: Debug + Sync + Sized {
     type Error: Debug;
 
     fn handler_name() -> String;
@@ -102,13 +102,13 @@ pub trait Operation<E: EthSpec>: Debug + Sync + Sized {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), Self::Error>;
 }
 
-impl<E: EthSpec> Operation<E> for Attestation<E> {
+impl Operation for Attestation {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -125,9 +125,9 @@ impl<E: EthSpec> Operation<E> for Attestation<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         initialize_epoch_cache(state, spec)?;
         initialize_progressive_balances_cache(state, spec)?;
@@ -164,7 +164,7 @@ impl<E: EthSpec> Operation<E> for Attestation<E> {
     }
 }
 
-impl<E: EthSpec> Operation<E> for AttesterSlashing<E> {
+impl Operation for AttesterSlashing {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -183,9 +183,9 @@ impl<E: EthSpec> Operation<E> for AttesterSlashing<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(state.slot());
         initialize_progressive_balances_cache(state, spec)?;
@@ -199,7 +199,7 @@ impl<E: EthSpec> Operation<E> for AttesterSlashing<E> {
     }
 }
 
-impl<E: EthSpec> Operation<E> for Deposit {
+impl Operation for Deposit {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -222,15 +222,15 @@ impl<E: EthSpec> Operation<E> for Deposit {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_deposits(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for ProposerSlashing {
+impl Operation for ProposerSlashing {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -243,9 +243,9 @@ impl<E: EthSpec> Operation<E> for ProposerSlashing {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(state.slot());
         initialize_progressive_balances_cache(state, spec)?;
@@ -259,7 +259,7 @@ impl<E: EthSpec> Operation<E> for ProposerSlashing {
     }
 }
 
-impl<E: EthSpec> Operation<E> for SignedVoluntaryExit {
+impl Operation for SignedVoluntaryExit {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -272,9 +272,9 @@ impl<E: EthSpec> Operation<E> for SignedVoluntaryExit {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_exits(
             state,
@@ -285,7 +285,7 @@ impl<E: EthSpec> Operation<E> for SignedVoluntaryExit {
     }
 }
 
-impl<E: EthSpec> Operation<E> for VoluntaryExitChurn {
+impl Operation for VoluntaryExitChurn {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -306,9 +306,9 @@ impl<E: EthSpec> Operation<E> for VoluntaryExitChurn {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_exits(
             state,
@@ -319,7 +319,7 @@ impl<E: EthSpec> Operation<E> for VoluntaryExitChurn {
     }
 }
 
-impl<E: EthSpec> Operation<E> for BeaconBlock<E> {
+impl Operation for BeaconBlock {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -336,9 +336,9 @@ impl<E: EthSpec> Operation<E> for BeaconBlock<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(state.slot());
         process_block_header(
@@ -352,7 +352,7 @@ impl<E: EthSpec> Operation<E> for BeaconBlock<E> {
     }
 }
 
-impl<E: EthSpec> Operation<E> for SyncAggregate<E> {
+impl Operation for SyncAggregate {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -373,16 +373,16 @@ impl<E: EthSpec> Operation<E> for SyncAggregate<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let proposer_index = state.get_beacon_proposer_index(state.slot(), spec)? as u64;
         process_sync_aggregate(state, self, proposer_index, VerifySignatures::True, spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for BeaconBlockBody<E, FullPayload<E>> {
+impl Operation for BeaconBlockBody<FullPayload> {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -412,23 +412,23 @@ impl<E: EthSpec> Operation<E> for BeaconBlockBody<E, FullPayload<E>> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        extra: &Operations<E, Self>,
+        extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let valid = extra
             .execution_metadata
             .as_ref()
             .is_some_and(|e| e.execution_valid);
         if valid {
-            process_execution_payload::<E, FullPayload<E>>(state, self.to_ref(), spec)
+            process_execution_payload::<FullPayload>(state, self.to_ref(), spec)
         } else {
             Err(BlockProcessingError::ExecutionInvalid)
         }
     }
 }
 
-impl<E: EthSpec> Operation<E> for BeaconBlockBody<E, BlindedPayload<E>> {
+impl Operation for BeaconBlockBody<BlindedPayload> {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -447,24 +447,23 @@ impl<E: EthSpec> Operation<E> for BeaconBlockBody<E, BlindedPayload<E>> {
         ssz_decode_file_with(path, |bytes| {
             Ok(match fork_name {
                 ForkName::Bellatrix => {
-                    let inner =
-                        <BeaconBlockBodyBellatrix<E, FullPayload<E>>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyBellatrix<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Bellatrix(inner.clone_as_blinded())
                 }
                 ForkName::Capella => {
-                    let inner = <BeaconBlockBodyCapella<E, FullPayload<E>>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyCapella<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Capella(inner.clone_as_blinded())
                 }
                 ForkName::Deneb => {
-                    let inner = <BeaconBlockBodyDeneb<E, FullPayload<E>>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyDeneb<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Deneb(inner.clone_as_blinded())
                 }
                 ForkName::Electra => {
-                    let inner = <BeaconBlockBodyElectra<E, FullPayload<E>>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyElectra<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Electra(inner.clone_as_blinded())
                 }
                 ForkName::Fulu => {
-                    let inner = <BeaconBlockBodyFulu<E, FullPayload<E>>>::from_ssz_bytes(bytes)?;
+                    let inner = <BeaconBlockBodyFulu<FullPayload>>::from_ssz_bytes(bytes)?;
                     BeaconBlockBody::Fulu(inner.clone_as_blinded())
                 }
                 _ => panic!("Not supported after Gloas"),
@@ -474,23 +473,23 @@ impl<E: EthSpec> Operation<E> for BeaconBlockBody<E, BlindedPayload<E>> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        extra: &Operations<E, Self>,
+        extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let valid = extra
             .execution_metadata
             .as_ref()
             .is_some_and(|e| e.execution_valid);
         if valid {
-            process_execution_payload::<E, BlindedPayload<E>>(state, self.to_ref(), spec)
+            process_execution_payload::<BlindedPayload>(state, self.to_ref(), spec)
         } else {
             Err(BlockProcessingError::ExecutionInvalid)
         }
     }
 }
 
-impl<E: EthSpec> Operation<E> for SignedExecutionPayloadEnvelope<E> {
+impl Operation for SignedExecutionPayloadEnvelope {
     type Error = EnvelopeProcessingError;
 
     fn handler_name() -> String {
@@ -513,9 +512,9 @@ impl<E: EthSpec> Operation<E> for SignedExecutionPayloadEnvelope<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        extra: &Operations<E, Self>,
+        extra: &Operations<Self>,
     ) -> Result<(), Self::Error> {
         let valid = extra
             .execution_metadata
@@ -536,7 +535,7 @@ impl<E: EthSpec> Operation<E> for SignedExecutionPayloadEnvelope<E> {
     }
 }
 
-impl<E: EthSpec> Operation<E> for ExecutionPayloadBidBlock<E> {
+impl Operation for ExecutionPayloadBidBlock {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -557,16 +556,16 @@ impl<E: EthSpec> Operation<E> for ExecutionPayloadBidBlock<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_execution_payload_bid(state, &self.signed_bid, VerifySignatures::True, spec)?;
         Ok(())
     }
 }
 
-impl<E: EthSpec> Operation<E> for ParentExecutionPayloadBlock<E> {
+impl Operation for ParentExecutionPayloadBlock {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -588,15 +587,15 @@ impl<E: EthSpec> Operation<E> for ParentExecutionPayloadBlock<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_parent_execution_payload(state, self.block.to_ref(), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for WithdrawalsPayload<E> {
+impl Operation for WithdrawalsPayload {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -627,15 +626,15 @@ impl<E: EthSpec> Operation<E> for WithdrawalsPayload<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _: &Operations<E, Self>,
+        _: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         if state.fork_name_unchecked().gloas_enabled() {
             withdrawals::gloas::process_withdrawals(state, spec)
         } else {
             let full_payload = FullPayload::from(self.payload.clone().unwrap());
-            withdrawals::capella_electra::process_withdrawals::<_, FullPayload<_>>(
+            withdrawals::capella_electra::process_withdrawals::<FullPayload>(
                 state,
                 full_payload.to_ref(),
                 spec,
@@ -644,7 +643,7 @@ impl<E: EthSpec> Operation<E> for WithdrawalsPayload<E> {
     }
 }
 
-impl<E: EthSpec> Operation<E> for SignedBlsToExecutionChange {
+impl Operation for SignedBlsToExecutionChange {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -665,9 +664,9 @@ impl<E: EthSpec> Operation<E> for SignedBlsToExecutionChange {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_bls_to_execution_changes(
             state,
@@ -678,7 +677,7 @@ impl<E: EthSpec> Operation<E> for SignedBlsToExecutionChange {
     }
 }
 
-impl<E: EthSpec> Operation<E> for WithdrawalRequest {
+impl Operation for WithdrawalRequest {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -695,16 +694,16 @@ impl<E: EthSpec> Operation<E> for WithdrawalRequest {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         state.update_pubkey_cache()?;
         process_withdrawal_requests(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for DepositRequest {
+impl Operation for DepositRequest {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -721,15 +720,15 @@ impl<E: EthSpec> Operation<E> for DepositRequest {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_deposit_requests(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for ConsolidationRequest {
+impl Operation for ConsolidationRequest {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -746,16 +745,16 @@ impl<E: EthSpec> Operation<E> for ConsolidationRequest {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         state.update_pubkey_cache()?;
         process_consolidation_requests(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for BuilderDepositRequest {
+impl Operation for BuilderDepositRequest {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -772,15 +771,15 @@ impl<E: EthSpec> Operation<E> for BuilderDepositRequest {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_builder_deposit_requests(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for BuilderExitRequest {
+impl Operation for BuilderExitRequest {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -797,15 +796,15 @@ impl<E: EthSpec> Operation<E> for BuilderExitRequest {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         process_builder_exit_requests(state, std::slice::from_ref(self), spec)
     }
 }
 
-impl<E: EthSpec> Operation<E> for PayloadAttestation<E> {
+impl Operation for PayloadAttestation {
     type Error = BlockProcessingError;
 
     fn handler_name() -> String {
@@ -822,19 +821,19 @@ impl<E: EthSpec> Operation<E> for PayloadAttestation<E> {
 
     fn apply_to(
         &self,
-        state: &mut BeaconState<E>,
+        state: &mut BeaconState,
         spec: &ChainSpec,
-        _extra: &Operations<E, Self>,
+        _extra: &Operations<Self>,
     ) -> Result<(), BlockProcessingError> {
         let mut ctxt = ConsensusContext::new(state.slot());
         process_payload_attestation(state, self, 0, VerifySignatures::True, &mut ctxt, spec)
     }
 }
 
-impl<E: EthSpec, O: Operation<E>> LoadCase for Operations<E, O> {
+impl<O: Operation> LoadCase for Operations<O> {
     fn load_from_dir(path: &Path, fork_name: ForkName) -> Result<Self, Error> {
         let config = load_config(path)?;
-        let spec = &testing_spec_with_config::<E>(fork_name, config.as_ref())?;
+        let spec = &testing_spec_with_config(fork_name, config.as_ref())?;
         let metadata_path = path.join("meta.yaml");
         let metadata: Metadata = if metadata_path.is_file() {
             yaml_decode_file(&metadata_path)?
@@ -879,7 +878,7 @@ impl<E: EthSpec, O: Operation<E>> LoadCase for Operations<E, O> {
     }
 }
 
-impl<E: EthSpec, O: Operation<E>> Case for Operations<E, O> {
+impl<O: Operation> Case for Operations<O> {
     fn description(&self) -> String {
         self.metadata.description.clone().unwrap_or_default()
     }
@@ -891,9 +890,9 @@ impl<E: EthSpec, O: Operation<E>> Case for Operations<E, O> {
     fn result(&self, _case_index: usize, fork_name: ForkName) -> Result<(), Error> {
         let operation = match self.operation.as_ref().ok_or(Error::SkippedBls)? {
             Ok(operation) => operation,
-            Err(error) => return compare_result::<BeaconState<E>, _>(&Err(error), &self.post),
+            Err(error) => return compare_result::<BeaconState, _>(&Err(error), &self.post),
         };
-        let spec = &testing_spec_with_config::<E>(fork_name, self.config.as_ref())?;
+        let spec = &testing_spec_with_config(fork_name, self.config.as_ref())?;
 
         let mut pre_state = self.pre.clone();
         // Processing requires the committee caches.

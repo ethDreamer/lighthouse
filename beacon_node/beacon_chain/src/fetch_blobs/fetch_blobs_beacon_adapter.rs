@@ -13,7 +13,7 @@ use mockall::automock;
 use std::collections::HashSet;
 use std::sync::Arc;
 use task_executor::TaskExecutor;
-use types::{ChainSpec, ColumnIndex, EthSpec, Hash256, Slot};
+use types::{ChainSpec, ColumnIndex, Hash256, Slot, Spec};
 
 /// An adapter to the `BeaconChain` functionalities to remove `BeaconChain` from direct dependency to enable testing fetch blobs logic.
 pub(crate) struct FetchBlobsBeaconAdapter<T: BeaconChainTypes> {
@@ -40,7 +40,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
         &self.chain.task_executor
     }
 
-    pub(crate) fn partial_assembler(&self) -> Option<Arc<PartialDataColumnAssembler<T::EthSpec>>> {
+    pub(crate) fn partial_assembler(&self) -> Option<Arc<PartialDataColumnAssembler>> {
         self.chain
             .data_availability_checker
             .partial_assembler()
@@ -54,7 +54,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
     pub(crate) async fn get_blobs_v2(
         &self,
         versioned_hashes: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV2<T::EthSpec>>>, FetchEngineBlobError> {
+    ) -> Result<Option<Vec<BlobAndProofV2>>, FetchEngineBlobError> {
         let execution_layer = self
             .chain
             .execution_layer
@@ -70,7 +70,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
     pub(crate) async fn get_blobs_v3(
         &self,
         versioned_hashes: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV3<T::EthSpec>>>, FetchEngineBlobError> {
+    ) -> Result<Option<Vec<BlobAndProofV3>>, FetchEngineBlobError> {
         let execution_layer = self
             .chain
             .execution_layer
@@ -87,7 +87,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
         &self,
         versioned_hashes: Vec<Hash256>,
         custody_columns: CustodyColumnsBitArray,
-    ) -> Result<Option<GetBlobsV4List<T::EthSpec>>, FetchEngineBlobError> {
+    ) -> Result<Option<GetBlobsV4List>, FetchEngineBlobError> {
         let execution_layer = self
             .chain
             .execution_layer
@@ -117,14 +117,14 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
         slot: Slot,
     ) -> Option<Vec<u64>> {
         self.chain
-            .cached_data_column_indexes(block_root, slot.epoch(T::EthSpec::slots_per_epoch()))
+            .cached_data_column_indexes(block_root, slot.epoch(Spec::slots_per_epoch()))
     }
 
     pub(crate) async fn process_engine_blobs_fulu(
         &self,
         slot: Slot,
         block_root: Hash256,
-        blobs: Vec<KzgVerifiedCustodyDataColumn<T::EthSpec>>,
+        blobs: Vec<KzgVerifiedCustodyDataColumn>,
     ) -> Result<AvailabilityProcessingStatus, FetchEngineBlobError> {
         self.chain
             .process_engine_blobs_fulu(slot, block_root, blobs)
@@ -135,7 +135,7 @@ impl<T: BeaconChainTypes> FetchBlobsBeaconAdapter<T> {
     pub(crate) async fn process_payload_envelope_availability(
         &self,
         slot: Slot,
-        availability: Availability<T::EthSpec>,
+        availability: Availability,
     ) -> Result<AvailabilityProcessingStatus, FetchEngineBlobError> {
         self.chain
             .process_payload_envelope_availability(slot, availability, || Ok(()))

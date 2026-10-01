@@ -8,9 +8,9 @@
 
 use ssz_types::{BitVector, ProgressiveVariableList};
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 use tree_hash::TreeHash;
-use types::{ChainSpec, EthSpec, Hash256, InclusionListCommittee, SignedInclusionList, Slot};
+use typenum::U;
+use types::{ChainSpec, Hash256, InclusionListCommittee, SignedInclusionList, Slot, Spec};
 
 /// The shuffling `dependent_root` an inclusion list was produced against.
 pub type DependentRoot = Hash256;
@@ -54,22 +54,21 @@ struct SlotEntry {
     validator_counts: HashMap<u64, usize>,
 }
 
-pub struct InclusionListStore<E: EthSpec> {
+pub struct InclusionListStore {
     slots: HashMap<Slot, SlotEntry>,
     lowest_permissible_slot: Slot,
     /// One more than `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS` requires. A slot `S` payload
     /// envelope reads the slot `S-1` lists, and might not be processed until the clock is at `S+1`.
     slots_retained: u64,
-    _phantom: PhantomData<E>,
 }
 
-impl<E: EthSpec> InclusionListStore<E> {
+impl InclusionListStore {
     pub fn new(spec: &ChainSpec) -> Self {
         // `heze_fork_epoch` holds the far future sentinel when Heze is unscheduled.
         let first_heze_slot = spec
             .heze_fork_epoch
             .filter(|_| spec.is_heze_scheduled())
-            .map(|epoch| epoch.start_slot(E::slots_per_epoch()))
+            .map(|epoch| epoch.start_slot(Spec::slots_per_epoch()))
             .unwrap_or_else(|| Slot::new(0));
         Self {
             slots: HashMap::new(),
@@ -77,7 +76,6 @@ impl<E: EthSpec> InclusionListStore<E> {
             slots_retained: spec
                 .min_slots_for_inclusion_lists_requests
                 .saturating_add(1),
-            _phantom: PhantomData,
         }
     }
 
@@ -209,9 +207,9 @@ impl<E: EthSpec> InclusionListStore<E> {
         &self,
         slot: Slot,
         dependent_root: DependentRoot,
-        il_committee: &InclusionListCommittee<E>,
+        il_committee: &InclusionListCommittee,
         only_timely: bool,
-    ) -> Result<BitVector<E::InclusionListCommitteeSize>, Error> {
+    ) -> Result<BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>, Error> {
         let submitted = self.submitted_validators(slot, dependent_root, only_timely);
 
         let mut bits = BitVector::new();
@@ -229,8 +227,8 @@ impl<E: EthSpec> InclusionListStore<E> {
         &self,
         slot: Slot,
         dependent_root: DependentRoot,
-        il_committee: &InclusionListCommittee<E>,
-        bits: &BitVector<E::InclusionListCommitteeSize>,
+        il_committee: &InclusionListCommittee,
+        bits: &BitVector<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>,
         only_timely: bool,
     ) -> Result<bool, Error> {
         let local =
@@ -284,15 +282,13 @@ mod tests {
     use super::{DependentRoot, InclusionListStore, InsertOutcome};
     use bls::Signature;
     use ssz_types::{BitVector, FixedVector, ProgressiveVariableList};
+    use typenum::U;
     use types::{
-        Epoch, EthSpec, Hash256, InclusionList, InclusionListCommittee, MinimalEthSpec,
-        SignedInclusionList, Slot,
+        Epoch, Hash256, InclusionList, InclusionListCommittee, SignedInclusionList, Slot, Spec,
     };
 
-    type E = MinimalEthSpec;
-
-    fn new_store() -> InclusionListStore<E> {
-        InclusionListStore::new(&E::default_spec())
+    fn new_store() -> InclusionListStore {
+        InclusionListStore::new(&Spec::default_spec())
     }
 
     fn root(byte: u8) -> Hash256 {
@@ -404,8 +400,7 @@ mod tests {
     #[test]
     fn bits_reflect_submitters_and_inclusivity() {
         let mut store = new_store();
-        let il_committee: InclusionListCommittee<E> =
-            FixedVector::new((100..116).collect()).unwrap();
+        let il_committee: InclusionListCommittee = FixedVector::new((100..116).collect()).unwrap();
         let dr = root(1);
 
         store.process_inclusion_list(signed_il(10, il_committee[3], dr, &[0xaa]), true);
@@ -424,7 +419,7 @@ mod tests {
                 .unwrap()
         );
 
-        let mut missing = BitVector::<<E as EthSpec>::InclusionListCommitteeSize>::new();
+        let mut missing = BitVector::<U<{ Spec::INCLUSION_LIST_COMMITTEE_SIZE }>>::new();
         missing.set(7, true).unwrap();
         assert!(
             !store
@@ -497,9 +492,9 @@ mod tests {
     /// A devnet may raise `MIN_SLOTS_FOR_INCLUSION_LISTS_REQUESTS`, which must widen the window.
     #[test]
     fn retention_window_follows_the_spec_value() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.min_slots_for_inclusion_lists_requests = 4;
-        let mut store = InclusionListStore::<E>::new(&spec);
+        let mut store = InclusionListStore::new(&spec);
         let dr = root(1);
         store.process_inclusion_list(signed_il(10, 1, dr, &[0xaa]), true);
 
@@ -520,10 +515,10 @@ mod tests {
 
     #[test]
     fn floor_starts_at_the_first_heze_slot() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(Epoch::new(4));
-        let mut store = InclusionListStore::<E>::new(&spec);
-        let first_heze_slot = Epoch::new(4).start_slot(E::slots_per_epoch());
+        let mut store = InclusionListStore::new(&spec);
+        let first_heze_slot = Epoch::new(4).start_slot(Spec::slots_per_epoch());
         let dr = root(1);
 
         assert_eq!(
@@ -542,9 +537,9 @@ mod tests {
     /// The far future sentinel must not become the floor.
     #[test]
     fn unscheduled_heze_leaves_the_floor_at_zero() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.heze_fork_epoch = Some(spec.far_future_epoch);
-        let mut store = InclusionListStore::<E>::new(&spec);
+        let mut store = InclusionListStore::new(&spec);
 
         assert_eq!(
             store.process_inclusion_list(signed_il(10, 1, root(1), &[0xaa]), true),

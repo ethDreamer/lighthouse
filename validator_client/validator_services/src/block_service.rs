@@ -22,8 +22,8 @@ use tokio::sync::mpsc;
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use tree_hash::TreeHash;
 use types::{
-    BeaconBlock, BlobsList, BlockType, ChainSpec, EthSpec, ExecutionPayloadEnvelope, ForkName,
-    Graffiti, Hash256, KzgProofs, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD,
+    BeaconBlock, BlobsList, BlockType, ChainSpec, ExecutionPayloadEnvelope, ForkName, Graffiti,
+    Hash256, KzgProofs, Slot, Spec, consts::gloas::BUILDER_INDEX_SELF_BUILD,
 };
 use validator_store::{Error as ValidatorStoreError, SignedBlock, UnsignedBlock, ValidatorStore};
 
@@ -284,30 +284,30 @@ pub struct Inner<S, T> {
 }
 
 /// The envelope, KZG proofs and blobs returned with a self-built block when `include_payload=true`.
-struct LocalPayloadContents<E: EthSpec> {
-    envelope: ExecutionPayloadEnvelope<E>,
-    kzg_proofs: KzgProofs<E>,
-    blobs: BlobsList<E>,
+struct LocalPayloadContents {
+    envelope: ExecutionPayloadEnvelope,
+    kzg_proofs: KzgProofs,
+    blobs: BlobsList,
 }
 
 /// What to do about the execution payload envelope once the block is published.
-enum EnvelopeAction<E: EthSpec> {
+enum EnvelopeAction {
     /// Nothing to publish: pre-Gloas or an external builder.
     Skip,
     /// Fetch the envelope from the beacon node by this block root.
     Fetch(Hash256),
     /// Sign and publish the envelope returned with the block.
-    Local(Box<LocalPayloadContents<E>>),
+    Local(Box<LocalPayloadContents>),
 }
 
-impl<E: EthSpec> EnvelopeAction<E> {
+impl EnvelopeAction {
     /// Split a Gloas produce response into the block and the envelope action it implies. Contents
     /// that were not requested are ignored, so the stateful path is unchanged.
     fn from_response(
         include_payload: bool,
-        response: ProduceBlockV4Response<E>,
+        response: ProduceBlockV4Response,
         slot: Slot,
-    ) -> (BeaconBlock<E>, Self) {
+    ) -> (BeaconBlock, Self) {
         match (include_payload, response) {
             (
                 true,
@@ -535,7 +535,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         slot: Slot,
         graffiti: Option<Graffiti>,
         validator_pubkey: &PublicKeyBytes,
-        unsigned_block: UnsignedBlock<S::E>,
+        unsigned_block: UnsignedBlock,
         local_payload_root: Option<Hash256>,
         builder_url: Option<String>,
     ) -> Result<Option<Hash256>, BlockError> {
@@ -624,7 +624,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
 
         let randao_reveal = match self
             .validator_store
-            .randao_reveal(validator_pubkey, slot.epoch(S::E::slots_per_epoch()))
+            .randao_reveal(validator_pubkey, slot.epoch(Spec::slots_per_epoch()))
             .await
         {
             Ok(signature) => signature.into(),
@@ -665,7 +665,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         info!(slot = slot.as_u64(), "Requesting unsigned block");
 
         // Check if Gloas fork is active at this slot
-        let fork_name = self_ref.chain_spec.fork_name_at_slot::<S::E>(slot);
+        let fork_name = self_ref.chain_spec.fork_name_at_slot(slot);
 
         let (block_proposer, unsigned_block, builder_url, envelope_action) = if fork_name
             .gloas_enabled()
@@ -711,7 +711,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                         &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                     );
                     beacon_node
-                        .post_validator_blocks_v4_ssz::<S::E>(
+                        .post_validator_blocks_v4_ssz(
                             slot,
                             randao_reveal_ref,
                             graffiti.as_ref(),
@@ -742,7 +742,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                 &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                             );
                             let (json_block_response, metadata) = beacon_node
-                                .post_validator_blocks_v4::<S::E>(
+                                .post_validator_blocks_v4(
                                     slot,
                                     randao_reveal_ref,
                                     graffiti.as_ref(),
@@ -791,7 +791,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                         &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                     );
                     beacon_node
-                        .get_validator_blocks_v3_ssz::<S::E>(
+                        .get_validator_blocks_v3_ssz(
                             slot,
                             randao_reveal_ref,
                             graffiti.as_ref(),
@@ -818,7 +818,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                                 &[validator_metrics::BEACON_BLOCK_HTTP_GET],
                             );
                             let (json_block_response, _metadata) = beacon_node
-                                .get_validator_blocks_v3::<S::E>(
+                                .get_validator_blocks_v3(
                                     slot,
                                     randao_reveal_ref,
                                     graffiti.as_ref(),
@@ -957,7 +957,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
             .beacon_nodes
             .first_success(|beacon_node| async move {
                 beacon_node
-                    .get_validator_execution_payload_envelopes_ssz::<S::E>(slot, beacon_block_root)
+                    .get_validator_execution_payload_envelopes_ssz(slot, beacon_block_root)
                     .await
                     .map_err(|e| {
                         BlockError::Recoverable(format!(
@@ -991,7 +991,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
             "Signed execution payload envelope, publishing"
         );
 
-        let fork_name = self.chain_spec.fork_name_at_slot::<S::E>(slot);
+        let fork_name = self.chain_spec.fork_name_at_slot(slot);
 
         // Publish the signed envelope
         // TODO(gloas): Use proposer_fallback for the Fetch path once multi-BN is supported (#8313).
@@ -1034,7 +1034,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         proposer_fallback: &ProposerFallback<T>,
         slot: Slot,
         fork_name: ForkName,
-        contents: LocalPayloadContents<S::E>,
+        contents: LocalPayloadContents,
         validator_pubkey: &PublicKeyBytes,
     ) -> Result<(), BlockError> {
         let LocalPayloadContents {
@@ -1096,7 +1096,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
     #[instrument(skip_all)]
     async fn publish_signed_block_contents(
         &self,
-        signed_block: &SignedBlock<S::E>,
+        signed_block: &SignedBlock,
         beacon_node: BeaconNodeHttpClient,
         builder_url: Option<&str>,
     ) -> Result<(), BlockError> {
@@ -1140,8 +1140,8 @@ struct BlockMetadata {
     num_attestations: usize,
 }
 
-impl<E: EthSpec> From<&SignedBlock<E>> for BlockMetadata {
-    fn from(value: &SignedBlock<E>) -> Self {
+impl From<&SignedBlock> for BlockMetadata {
+    fn from(value: &SignedBlock) -> Self {
         match value {
             SignedBlock::Full(block) => BlockMetadata {
                 block_type: BlockType::Full,
@@ -1189,7 +1189,7 @@ mod tests {
     use beacon_node_fallback::{CandidateBeaconNode, Config as BeaconNodeConfig};
     use slot_clock::ManualSlotClock;
     use std::time::Duration;
-    use types::{Blob, KzgProof, MainnetEthSpec};
+    use types::{Blob, KzgProof};
     use validator_test_rig::mock_beacon_node::MockBeaconNode;
     use validator_test_rig::recording_validator_store::RecordingValidatorStore;
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
@@ -1235,8 +1235,8 @@ mod tests {
         }
 
         /// A stateless-mode service that publishes to the returned proposer node first.
-        async fn new_stateless_with_proposer_node() -> (Self, MockBeaconNode<MainnetEthSpec>) {
-            let proposer_node = MockBeaconNode::<MainnetEthSpec>::new().await;
+        async fn new_stateless_with_proposer_node() -> (Self, MockBeaconNode) {
+            let proposer_node = MockBeaconNode::new().await;
             let harness = Self::new(1, true, Some(&proposer_node)).await;
             (harness, proposer_node)
         }
@@ -1244,7 +1244,7 @@ mod tests {
         async fn new(
             num_validators: usize,
             stateless_block_production: bool,
-            proposer_node: Option<&MockBeaconNode<MainnetEthSpec>>,
+            proposer_node: Option<&MockBeaconNode>,
         ) -> Self {
             let harness = ValidatorClientHarness::new(num_validators).await;
 
@@ -1284,11 +1284,11 @@ mod tests {
             }
         }
 
-        fn bn1(&mut self) -> &mut MockBeaconNode<MainnetEthSpec> {
+        fn bn1(&mut self) -> &mut MockBeaconNode {
             &mut self.harness.mock_beacon_node_1
         }
 
-        fn bn2(&mut self) -> &mut MockBeaconNode<MainnetEthSpec> {
+        fn bn2(&mut self) -> &mut MockBeaconNode {
             &mut self.harness.mock_beacon_node_2
         }
 
@@ -1307,11 +1307,7 @@ mod tests {
         }
 
         /// Assert `sign_block` was called once, for `block`, with `local_payload_root`.
-        fn assert_signed_once(
-            &self,
-            block: &BeaconBlock<MainnetEthSpec>,
-            local_payload_root: Option<Hash256>,
-        ) {
+        fn assert_signed_once(&self, block: &BeaconBlock, local_payload_root: Option<Hash256>) {
             let calls = self.service.validator_store.sign_block_calls();
             assert_eq!(calls.len(), 1, "expected exactly one sign_block call");
             assert_eq!(calls[0].validator_pubkey, self.harness.pubkeys[0]);
@@ -1320,12 +1316,12 @@ mod tests {
         }
     }
 
-    fn block_only(block: &BeaconBlock<MainnetEthSpec>) -> ProduceBlockV4Response<MainnetEthSpec> {
+    fn block_only(block: &BeaconBlock) -> ProduceBlockV4Response {
         ProduceBlockV4Response::BlockOnly(block.clone())
     }
 
     /// A Gloas block with a self-built bid.
-    fn self_build_block(spec: &ChainSpec) -> BeaconBlock<MainnetEthSpec> {
+    fn self_build_block(spec: &ChainSpec) -> BeaconBlock {
         let mut block = BeaconBlock::empty(spec);
         let BeaconBlock::Gloas(gloas_block) = &mut block else {
             panic!("expected Gloas block");
@@ -1339,7 +1335,7 @@ mod tests {
     }
 
     /// The `include_payload=true` response for a self-built `block`, with one blob and one proof.
-    fn local_contents(block: &BeaconBlock<MainnetEthSpec>) -> BlockAndEnvelope<MainnetEthSpec> {
+    fn local_contents(block: &BeaconBlock) -> BlockAndEnvelope {
         let mut envelope = ExecutionPayloadEnvelope::empty();
         envelope.payload.slot_number = block.slot();
         envelope.payload.block_number = 7;
@@ -1349,17 +1345,13 @@ mod tests {
         BlockAndEnvelope {
             block: block.clone(),
             execution_payload_envelope: envelope,
-            kzg_proofs: KzgProofs::<MainnetEthSpec>::try_from(vec![KzgProof::empty()]).unwrap(),
-            blobs: BlobsList::<MainnetEthSpec>::try_from(vec![Blob::<MainnetEthSpec>::default()])
-                .unwrap(),
+            kzg_proofs: KzgProofs::try_from(vec![KzgProof::empty()]).unwrap(),
+            blobs: BlobsList::try_from(vec![Blob::default()]).unwrap(),
         }
     }
 
     /// Assert `node` received exactly one envelope publish matching `contents`.
-    fn assert_published_contents(
-        node: &MockBeaconNode<MainnetEthSpec>,
-        contents: &BlockAndEnvelope<MainnetEthSpec>,
-    ) {
+    fn assert_published_contents(node: &MockBeaconNode, contents: &BlockAndEnvelope) {
         let received = node.execution_payload_envelope_contents.lock().unwrap();
         assert_eq!(received.len(), 1, "Expected one envelope contents publish");
         assert_eq!(

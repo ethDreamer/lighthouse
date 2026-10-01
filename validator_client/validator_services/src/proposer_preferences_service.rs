@@ -9,7 +9,7 @@ use std::sync::Arc;
 use task_executor::TaskExecutor;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, Epoch, EthSpec, ForkName, Hash256, ProposerPreferences, Slot};
+use types::{ChainSpec, Epoch, ForkName, Hash256, ProposerPreferences, Slot, Spec};
 use validator_store::{ProposalData, ValidatorStore};
 
 /// `(validator_index, proposal_slot)` duties already published, keyed by epoch and dependent
@@ -93,7 +93,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> ProposerPreferencesSer
             return;
         };
 
-        let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
+        let current_epoch = current_slot.epoch(Spec::slots_per_epoch());
 
         self.poll_and_publish_preferences(current_epoch, published_preferences)
             .await;
@@ -328,9 +328,7 @@ mod tests {
     use futures::FutureExt;
     use slot_clock::ManualSlotClock;
     use std::time::Duration;
-    use types::{
-        Address, ForkName, GasLimitSchedule, GasLimitScheduleEntry, Hash256, MainnetEthSpec, Slot,
-    };
+    use types::{Address, ForkName, GasLimitSchedule, GasLimitScheduleEntry, Hash256, Slot};
     use validator_test_rig::validator_client_harness::{
         S, ValidatorClientHarness, ValidatorStoreConfig,
     };
@@ -398,7 +396,7 @@ mod tests {
 
     impl TestHarness {
         async fn new_with_validators(num_validators: usize) -> Self {
-            let mut spec = MainnetEthSpec::default_spec();
+            let mut spec = Spec::default_spec();
             spec.gloas_fork_epoch = Some(Epoch::new(0));
             Self::new_with_spec(num_validators, spec).await
         }
@@ -458,7 +456,7 @@ mod tests {
                 .map(|(i, pubkey)| ProposerData {
                     pubkey: *pubkey,
                     validator_index: i as u64,
-                    slot: epoch.start_slot(MainnetEthSpec::slots_per_epoch()),
+                    slot: epoch.start_slot(Spec::slots_per_epoch()),
                 })
                 .collect();
             self.service
@@ -757,7 +755,7 @@ mod tests {
     async fn preferences_use_the_gas_limit_scheduled_for_the_proposal_epoch() {
         let scheduled_gas_limit = 70_000_000;
         let next_epoch = Epoch::new(1);
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = Some(Epoch::new(0));
         spec.gas_limit_schedule = GasLimitSchedule::new(vec![GasLimitScheduleEntry {
             epoch: next_epoch,
@@ -784,7 +782,7 @@ mod tests {
         let scheduled_gas_limit = 60_000_000;
         let configured_gas_limit = 70_000_000;
         let current_epoch = Epoch::new(0);
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         spec.gloas_fork_epoch = Some(current_epoch);
         spec.gas_limit_schedule = GasLimitSchedule::new(vec![GasLimitScheduleEntry {
             epoch: current_epoch,

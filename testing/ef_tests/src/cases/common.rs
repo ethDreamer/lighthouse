@@ -3,7 +3,7 @@ use crate::{Error, testing_spec};
 use ssz::Encode;
 use std::fmt::Debug;
 use std::path::Path;
-use types::{ChainSpec, Config, EthSpec, ForkName};
+use types::{ChainSpec, Config, ForkName};
 
 pub(super) fn load_config(path: &Path) -> Result<Option<Config>, Error> {
     let config_path = path.join("config.yaml");
@@ -14,13 +14,13 @@ pub(super) fn load_config(path: &Path) -> Result<Option<Config>, Error> {
     }
 }
 
-pub(super) fn testing_spec_with_config<E: EthSpec>(
+pub(super) fn testing_spec_with_config(
     fork_name: ForkName,
     config: Option<&Config>,
 ) -> Result<ChainSpec, Error> {
-    let spec = testing_spec::<E>(fork_name);
+    let spec = testing_spec(fork_name);
     match config {
-        Some(config) => config.apply_to_chain_spec::<E>(&spec).ok_or_else(|| {
+        Some(config) => config.apply_to_chain_spec(&spec).ok_or_else(|| {
             Error::FailedToParseTest("config does not match the preset or slot duration".into())
         }),
         None => Ok(spec),

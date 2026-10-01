@@ -5,11 +5,11 @@ use futures::{Stream, stream};
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, MainnetEthSpec,
-    PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
-    SignedAggregateAndProof, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData,
+    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
+    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
+    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeMessage,
+    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -47,7 +47,6 @@ impl MockValidatorStore {
 
 impl ValidatorStore for MockValidatorStore {
     type Error = ();
-    type E = MainnetEthSpec;
 
     async fn sign_payload_attestation(
         &self,
@@ -104,10 +103,10 @@ impl ValidatorStore for MockValidatorStore {
     async fn sign_block(
         &self,
         _validator_pubkey: PublicKeyBytes,
-        _block: UnsignedBlock<Self::E>,
+        _block: UnsignedBlock,
         _current_slot: Slot,
         _local_payload_root: Option<Hash256>,
-    ) -> Result<SignedBlock<Self::E>, StoreError<Self::Error>> {
+    ) -> Result<SignedBlock, StoreError<Self::Error>> {
         panic!("MockValidatorStore::sign_block called without a hook")
     }
 
@@ -144,8 +143,8 @@ impl ValidatorStore for MockValidatorStore {
 
     fn sign_aggregate_and_proofs(
         self: &Arc<Self>,
-        _aggregates: Vec<AggregateToSign<Self::E>>,
-    ) -> impl Stream<Item = Result<Vec<SignedAggregateAndProof<Self::E>>, StoreError<Self::Error>>> + Send
+        _aggregates: Vec<AggregateToSign>,
+    ) -> impl Stream<Item = Result<Vec<SignedAggregateAndProof>, StoreError<Self::Error>>> + Send
     {
         stream::empty()
     }
@@ -159,10 +158,9 @@ impl ValidatorStore for MockValidatorStore {
 
     fn sign_sync_committee_contributions(
         self: &Arc<Self>,
-        _contributions: Vec<ContributionToSign<Self::E>>,
-    ) -> impl Stream<
-        Item = Result<Vec<SignedContributionAndProof<Self::E>>, StoreError<Self::Error>>,
-    > + Send {
+        _contributions: Vec<ContributionToSign>,
+    ) -> impl Stream<Item = Result<Vec<SignedContributionAndProof>, StoreError<Self::Error>>> + Send
+    {
         stream::empty()
     }
 
@@ -173,8 +171,8 @@ impl ValidatorStore for MockValidatorStore {
     async fn sign_execution_payload_envelope(
         &self,
         _validator_pubkey: PublicKeyBytes,
-        _envelope: ExecutionPayloadEnvelope<Self::E>,
-    ) -> Result<SignedExecutionPayloadEnvelope<Self::E>, StoreError<Self::Error>> {
+        _envelope: ExecutionPayloadEnvelope,
+    ) -> Result<SignedExecutionPayloadEnvelope, StoreError<Self::Error>> {
         panic!("MockValidatorStore::sign_execution_payload_envelope called without a hook")
     }
 

@@ -12,14 +12,13 @@ use proto_array::JustifiedBalances;
 use safe_arith::ArithError;
 use ssz_derive::{Decode, Encode};
 use std::collections::BTreeSet;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use store::{Error as StoreError, HotColdDB, ItemStore};
 use superstruct::superstruct;
 use tracing::debug;
 use types::{
-    AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Checkpoint, Epoch, EthSpec,
-    Hash256, Slot,
+    AbstractExecPayload, BeaconBlockRef, BeaconState, BeaconStateError, Checkpoint, Epoch, Hash256,
+    Slot, Spec,
 };
 
 #[derive(Debug)]
@@ -65,10 +64,10 @@ impl BalancesCache {
     ///
     /// The caller must pass a `state` at the epoch boundary slot, so that the cached balances
     /// match the checkpoint state exactly (see `on_verified_block`).
-    pub fn insert<E: EthSpec>(
+    pub fn insert(
         &mut self,
         epoch_boundary_root: Hash256,
-        state: &BeaconState<E>,
+        state: &BeaconState,
     ) -> Result<(), Error> {
         let epoch = state.current_epoch();
         if self.position(epoch_boundary_root, epoch).is_none() {
@@ -106,10 +105,10 @@ impl BalancesCache {
 /// Implements `fork_choice::ForkChoiceStore` in order to provide a persistent backing to the
 /// `fork_choice::ForkChoice` struct.
 #[derive(Debug, Educe)]
-#[educe(PartialEq(bound(E: EthSpec, Hot: ItemStore, Cold: ItemStore)))]
-pub struct BeaconForkChoiceStore<E: EthSpec, Hot: ItemStore, Cold: ItemStore> {
+#[educe(PartialEq(bound(Hot: ItemStore, Cold: ItemStore)))]
+pub struct BeaconForkChoiceStore<Hot: ItemStore, Cold: ItemStore> {
     #[educe(PartialEq(ignore))]
-    store: Arc<HotColdDB<E, Hot, Cold>>,
+    store: Arc<HotColdDB<Hot, Cold>>,
     balances_cache: BalancesCache,
     time: Slot,
     finalized_checkpoint: Checkpoint,
@@ -121,12 +120,10 @@ pub struct BeaconForkChoiceStore<E: EthSpec, Hot: ItemStore, Cold: ItemStore> {
     unrealized_finalized_checkpoint: Checkpoint,
     proposer_boost_root: Hash256,
     equivocating_indices: BTreeSet<u64>,
-    _phantom: PhantomData<E>,
 }
 
-impl<E, Hot, Cold> BeaconForkChoiceStore<E, Hot, Cold>
+impl<Hot, Cold> BeaconForkChoiceStore<Hot, Cold>
 where
-    E: EthSpec,
     Hot: ItemStore,
     Cold: ItemStore,
 {
@@ -142,8 +139,8 @@ where
     ///
     /// It is assumed that `anchor` is already persisted in `store`.
     pub fn get_forkchoice_store(
-        store: Arc<HotColdDB<E, Hot, Cold>>,
-        anchor: BeaconSnapshot<E>,
+        store: Arc<HotColdDB<Hot, Cold>>,
+        anchor: BeaconSnapshot,
     ) -> Result<Self, Error> {
         let unadvanced_state_root = anchor.beacon_state_root();
         let mut anchor_state = anchor.beacon_state;
@@ -153,7 +150,7 @@ where
         if !anchor_state
             .slot()
             .as_u64()
-            .is_multiple_of(E::slots_per_epoch())
+            .is_multiple_of(Spec::slots_per_epoch())
         {
             return Err(Error::UnalignedCheckpoint {
                 block_slot: anchor_block_header.slot,
@@ -188,7 +185,6 @@ where
             unrealized_finalized_checkpoint: finalized_checkpoint,
             proposer_boost_root: Hash256::zero(),
             equivocating_indices: BTreeSet::new(),
-            _phantom: PhantomData,
         })
     }
 
@@ -211,7 +207,7 @@ where
     /// Restore `Self` from a previously-generated `PersistedForkChoiceStore`.
     pub fn from_persisted(
         persisted: PersistedForkChoiceStore,
-        store: Arc<HotColdDB<E, Hot, Cold>>,
+        store: Arc<HotColdDB<Hot, Cold>>,
     ) -> Result<Self, Error> {
         let justified_checkpoint = persisted.justified_checkpoint;
         let justified_state_root = persisted.justified_state_root;
@@ -236,14 +232,12 @@ where
             unrealized_finalized_checkpoint: persisted.unrealized_finalized_checkpoint,
             proposer_boost_root: persisted.proposer_boost_root,
             equivocating_indices: persisted.equivocating_indices,
-            _phantom: PhantomData,
         })
     }
 }
 
-impl<E, Hot, Cold> ForkChoiceStore<E> for BeaconForkChoiceStore<E, Hot, Cold>
+impl<Hot, Cold> ForkChoiceStore for BeaconForkChoiceStore<Hot, Cold>
 where
-    E: EthSpec,
     Hot: ItemStore,
     Cold: ItemStore,
 {
@@ -257,14 +251,14 @@ where
         self.time = slot
     }
 
-    fn on_verified_block<Payload: AbstractExecPayload<E>>(
+    fn on_verified_block<Payload: AbstractExecPayload>(
         &mut self,
-        _block: BeaconBlockRef<E, Payload>,
+        _block: BeaconBlockRef<Payload>,
         block_root: Hash256,
-        state: &BeaconState<E>,
+        state: &BeaconState,
     ) -> Result<(), Self::Error> {
         let epoch = state.current_epoch();
-        let epoch_boundary_slot = epoch.start_slot(E::slots_per_epoch());
+        let epoch_boundary_slot = epoch.start_slot(Spec::slots_per_epoch());
 
         if state.slot() == epoch_boundary_slot {
             return self.balances_cache.insert(block_root, state);
@@ -410,14 +404,12 @@ pub struct PersistedForkChoiceStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use types::{MinimalEthSpec, Validator};
-
-    type E = MinimalEthSpec;
+    use types::Validator;
 
     #[test]
     fn balances_cache_hit_matches_justified_state() {
-        let spec = E::default_spec();
-        let mut state: BeaconState<E> = BeaconState::new(0, <_>::default(), &spec);
+        let spec = Spec::default_spec();
+        let mut state: BeaconState = BeaconState::new(0, <_>::default(), &spec);
         for i in 0..4u64 {
             state
                 .validators_mut()

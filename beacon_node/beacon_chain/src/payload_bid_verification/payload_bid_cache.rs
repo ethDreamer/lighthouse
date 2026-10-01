@@ -1,5 +1,4 @@
 use crate::payload_bid_verification::gossip_verified_bid::GossipVerifiedPayloadBid;
-use educe::Educe;
 use parking_lot::RwLock;
 use std::{
     collections::hash_map,
@@ -7,8 +6,7 @@ use std::{
     sync::Arc,
 };
 use types::{
-    BuilderIndex, EthSpec, ExecutionBlockHash, ExecutionPayloadBid, Hash256,
-    SignedExecutionPayloadBid, Slot,
+    BuilderIndex, ExecutionBlockHash, ExecutionPayloadBid, Hash256, SignedExecutionPayloadBid, Slot,
 };
 
 /// The parent a bid builds on: which beacon block, and which payload state of it.
@@ -19,7 +17,7 @@ pub struct BidParent {
 }
 
 impl BidParent {
-    pub fn from_bid<E: EthSpec>(bid: &ExecutionPayloadBid<E>) -> Self {
+    pub fn from_bid(bid: &ExecutionPayloadBid) -> Self {
         Self {
             parent_block_hash: bid.parent_block_hash,
             parent_block_root: bid.parent_block_root,
@@ -31,14 +29,13 @@ impl BidParent {
 ///
 /// Keyed first by `Slot` (in a `BTreeMap` so that stale slots can be pruned cheaply via
 /// `split_off`), then by the [`BidParent`] the bid builds on.
-type HighestBidMap<E> = BTreeMap<Slot, HashMap<BidParent, GossipVerifiedPayloadBid<E>>>;
+type HighestBidMap = BTreeMap<Slot, HashMap<BidParent, GossipVerifiedPayloadBid>>;
 
 /// The mutable state guarded by the cache's lock.
-#[derive(Educe)]
-#[educe(Default(bound = "E: EthSpec"))]
-pub struct GossipBidCacheInner<E: EthSpec> {
+#[derive(Default)]
+pub struct GossipBidCacheInner {
     /// The current best bid for each `(slot, BidParent)`.
-    highest_bid: HighestBidMap<E>,
+    highest_bid: HighestBidMap,
     /// The `(BidParent, BuilderIndex)` pairs for which we have already accepted a gossip-verified
     /// bid, per slot.
     ///
@@ -53,13 +50,12 @@ pub struct GossipBidCacheInner<E: EthSpec> {
 /// set of `(parent, builder)` pairs that have already bid, so that duplicate and lower-value
 /// gossip bids can be rejected. Stale entries are removed via [`prune`](Self::prune) as the chain
 /// advances.
-#[derive(Educe)]
-#[educe(Default(bound = "E: EthSpec"))]
-pub struct GossipVerifiedPayloadBidCache<E: EthSpec> {
-    inner: RwLock<GossipBidCacheInner<E>>,
+#[derive(Default)]
+pub struct GossipVerifiedPayloadBidCache {
+    inner: RwLock<GossipBidCacheInner>,
 }
 
-impl<E: EthSpec> GossipVerifiedPayloadBidCache<E> {
+impl GossipVerifiedPayloadBidCache {
     /// Create a new, empty cache.
     pub fn new() -> Self {
         Self {
@@ -72,7 +68,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBidCache<E> {
         &self,
         slot: Slot,
         bid_parent: BidParent,
-    ) -> Option<Arc<SignedExecutionPayloadBid<E>>> {
+    ) -> Option<Arc<SignedExecutionPayloadBid>> {
         self.inner
             .read()
             .highest_bid
@@ -89,7 +85,7 @@ impl<E: EthSpec> GossipVerifiedPayloadBidCache<E> {
     ///
     /// Returns `true` if the bid became the new highest bid for its parent, or `false` if an
     /// existing cached bid had an equal or greater value and was therefore retained.
-    pub fn observe_bid(&self, bid: GossipVerifiedPayloadBid<E>) -> bool {
+    pub fn observe_bid(&self, bid: GossipVerifiedPayloadBid) -> bool {
         let slot = bid.signed_bid.message.slot;
         let key = BidParent::from_bid(&bid.signed_bid.message);
         let mut inner = self.inner.write();
@@ -145,14 +141,11 @@ mod tests {
 
     use bls::Signature;
     use types::{
-        ExecutionBlockHash, ExecutionPayloadBid, Hash256, MinimalEthSpec,
-        SignedExecutionPayloadBid, Slot,
+        ExecutionBlockHash, ExecutionPayloadBid, Hash256, SignedExecutionPayloadBid, Slot,
     };
 
     use super::{BidParent, GossipVerifiedPayloadBidCache};
     use crate::payload_bid_verification::gossip_verified_bid::GossipVerifiedPayloadBid;
-
-    type E = MinimalEthSpec;
 
     fn make_gossip_verified(
         slot: Slot,
@@ -160,7 +153,7 @@ mod tests {
         parent_block_hash: ExecutionBlockHash,
         parent_block_root: Hash256,
         value: u64,
-    ) -> GossipVerifiedPayloadBid<E> {
+    ) -> GossipVerifiedPayloadBid {
         GossipVerifiedPayloadBid {
             signed_bid: Arc::new(SignedExecutionPayloadBid {
                 message: ExecutionPayloadBid {
@@ -178,7 +171,7 @@ mod tests {
 
     #[test]
     fn seen_builder_for_parent() {
-        let cache = GossipVerifiedPayloadBidCache::<E>::default();
+        let cache = GossipVerifiedPayloadBidCache::default();
         let slot = Slot::new(1);
         let parent_a = BidParent {
             parent_block_hash: ExecutionBlockHash::zero(),
@@ -207,7 +200,7 @@ mod tests {
 
     #[test]
     fn highest_bid_for_parent() {
-        let cache = GossipVerifiedPayloadBidCache::<E>::default();
+        let cache = GossipVerifiedPayloadBidCache::default();
         let slot = Slot::new(1);
         let hash_a = ExecutionBlockHash::zero();
         let root_a = Hash256::ZERO;
@@ -256,7 +249,7 @@ mod tests {
 
     #[test]
     fn prune_removes_old_retains_current() {
-        let cache = GossipVerifiedPayloadBidCache::<E>::default();
+        let cache = GossipVerifiedPayloadBidCache::default();
         let hash = ExecutionBlockHash::zero();
         let root = Hash256::ZERO;
         let bid_parent = BidParent {

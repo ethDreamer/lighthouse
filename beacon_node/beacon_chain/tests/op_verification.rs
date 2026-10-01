@@ -26,12 +26,11 @@ pub const VALIDATOR_COUNT: usize = 24;
 static KEYPAIRS: LazyLock<Vec<Keypair>> =
     LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(VALIDATOR_COUNT));
 
-type E = MinimalEthSpec;
-type TestHarness = BeaconChainHarness<DiskHarnessType<E>>;
-type HotColdDB = store::HotColdDB<E, BeaconNodeBackend, BeaconNodeBackend>;
+type TestHarness = BeaconChainHarness<DiskHarnessType>;
+type HotColdDB = store::HotColdDB<BeaconNodeBackend, BeaconNodeBackend>;
 
 fn get_store(db_path: &TempDir) -> Arc<HotColdDB> {
-    let spec = Arc::new(test_spec::<E>());
+    let spec = Arc::new(test_spec());
     let hot_path = db_path.path().join("hot_db");
     let cold_path = db_path.path().join("cold_db");
     let blobs_path = db_path.path().join("blobs_db");
@@ -48,7 +47,7 @@ fn get_store(db_path: &TempDir) -> Arc<HotColdDB> {
 }
 
 fn get_harness(store: Arc<HotColdDB>, validator_count: usize) -> TestHarness {
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .keypairs(KEYPAIRS[0..validator_count].to_vec())
         .fresh_disk_store(store)
@@ -67,7 +66,7 @@ async fn voluntary_exit() {
 
     harness
         .extend_chain(
-            (E::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
+            (Spec::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -131,7 +130,7 @@ async fn voluntary_exit_duplicate_in_state() {
 
     harness
         .extend_chain(
-            (E::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
+            (Spec::slots_per_epoch() * (spec.shard_committee_period + 1)) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -200,7 +199,7 @@ async fn voluntary_exit_duplicate_in_state() {
     harness.advance_slot();
     harness
         .extend_chain(
-            (epochs_to_advance * E::slots_per_epoch()) as usize,
+            (epochs_to_advance * Spec::slots_per_epoch()) as usize,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -533,9 +532,9 @@ async fn attester_slashing_duplicate_in_state() {
     ));
 }
 
-fn get_fork_harness(fork_name: ForkName) -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    let spec = Arc::new(fork_name.make_genesis_spec(E::default_spec()));
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+fn get_fork_harness(fork_name: ForkName) -> BeaconChainHarness<EphemeralHarnessType> {
+    let spec = Arc::new(fork_name.make_genesis_spec(Spec::default_spec()));
+    let harness = BeaconChainHarness::builder()
         .spec(spec)
         .keypairs(KEYPAIRS.to_vec())
         .fresh_ephemeral_store()
@@ -557,7 +556,7 @@ async fn base_attester_slashing_included_in_electra_block() {
     };
     // Re-type the slashing as Base. The signatures cover the `AttestationData`, so they
     // remain valid.
-    let slashing_base = AttesterSlashing::<E>::Base(AttesterSlashingBase {
+    let slashing_base = AttesterSlashing::Base(AttesterSlashingBase {
         attestation_1: IndexedAttestationBase {
             attesting_indices: ssz_types::VariableList::new(
                 slashing.attestation_1.attesting_indices.to_vec(),
@@ -613,7 +612,7 @@ async fn gloas_attester_slashing_included_in_electra_block() {
     else {
         panic!("expected Electra slashing variant");
     };
-    let slashing_gloas = AttesterSlashing::<E>::Gloas(AttesterSlashingGloas {
+    let slashing_gloas = AttesterSlashing::Gloas(AttesterSlashingGloas {
         attestation_1: IndexedAttestation::Electra(slashing.attestation_1)
             .to_gloas()
             .unwrap(),
@@ -660,7 +659,7 @@ async fn base_attester_slashing_included_in_gloas_block() {
     };
     // Re-type the slashing as Base. The signatures cover the `AttestationData`, so they
     // remain valid.
-    let slashing_base = AttesterSlashing::<E>::Base(AttesterSlashingBase {
+    let slashing_base = AttesterSlashing::Base(AttesterSlashingBase {
         attestation_1: IndexedAttestationBase {
             attesting_indices: ssz_types::VariableList::new(
                 slashing.attestation_1.attesting_indices.to_vec(),
@@ -715,7 +714,7 @@ async fn electra_attester_slashing_included_in_gloas_block() {
     else {
         panic!("expected Gloas slashing variant");
     };
-    let slashing_electra = AttesterSlashing::<E>::Electra(AttesterSlashingElectra {
+    let slashing_electra = AttesterSlashing::Electra(AttesterSlashingElectra {
         attestation_1: IndexedAttestation::Gloas(slashing.attestation_1)
             .to_electra()
             .unwrap(),

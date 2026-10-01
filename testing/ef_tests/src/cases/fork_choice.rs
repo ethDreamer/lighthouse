@@ -9,7 +9,7 @@ use beacon_chain::block_verification_types::LookupBlock;
 use beacon_chain::chain_config::FastConfirmationMode;
 use beacon_chain::data_column_verification::GossipVerifiedDataColumn;
 use beacon_chain::{
-    AvailabilityProcessingStatus, BeaconChainTypes, CachedHead, ChainConfig, NotifyExecutionLayer,
+    AvailabilityProcessingStatus, CachedHead, ChainConfig, NotifyExecutionLayer,
     PayloadVerificationStatus,
     attestation_verification::VerifiedAttestation,
     blob_verification::KzgVerifiedBlob,
@@ -37,6 +37,7 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
+use types::Spec;
 use types::{
     Attestation, AttestationRef, AttesterSlashing, AttesterSlashingRef, BeaconBlock, BeaconState,
     BlobSidecar, BlobsList, BlockImportSource, Checkpoint, DataColumnSidecar,
@@ -211,29 +212,29 @@ pub struct Meta {
 }
 
 #[derive(Debug)]
-pub struct ForkChoiceTest<E: EthSpec> {
+pub struct ForkChoiceTest {
     pub description: String,
     pub config: Option<types::Config>,
     /// True when the case comes from the `fast_confirmation` runner.
     pub fast_confirmation: bool,
-    pub anchor_state: BeaconState<E>,
-    pub anchor_block: BeaconBlock<E>,
+    pub anchor_state: BeaconState,
+    pub anchor_block: BeaconBlock,
     #[allow(clippy::type_complexity)]
     pub steps: Vec<
         Step<
-            SignedBeaconBlock<E>,
-            BlobsList<E>,
-            DataColumnSidecarList<E>,
-            Attestation<E>,
-            AttesterSlashing<E>,
+            SignedBeaconBlock,
+            BlobsList,
+            DataColumnSidecarList,
+            Attestation,
+            AttesterSlashing,
             PowBlock,
-            SignedExecutionPayloadEnvelope<E>,
+            SignedExecutionPayloadEnvelope,
             PayloadAttestationMessage,
         >,
     >,
 }
 
-impl<E: EthSpec> LoadCase for ForkChoiceTest<E> {
+impl LoadCase for ForkChoiceTest {
     fn load_from_dir(path: &Path, fork_name: ForkName) -> Result<Self, Error> {
         let description = path
             .iter()
@@ -246,7 +247,7 @@ impl<E: EthSpec> LoadCase for ForkChoiceTest<E> {
             .iter()
             .any(|component| component == "fast_confirmation");
         let config = load_config(path)?;
-        let spec = &testing_spec_with_config::<E>(fork_name, config.as_ref())?;
+        let spec = &testing_spec_with_config(fork_name, config.as_ref())?;
 
         #[allow(clippy::type_complexity)]
         let steps: Vec<
@@ -430,7 +431,7 @@ impl<E: EthSpec> LoadCase for ForkChoiceTest<E> {
     }
 }
 
-impl<E: EthSpec> Case for ForkChoiceTest<E> {
+impl Case for ForkChoiceTest {
     fn description(&self) -> String {
         self.description.clone()
     }
@@ -455,7 +456,7 @@ impl<E: EthSpec> Case for ForkChoiceTest<E> {
             return Err(Error::SkippedKnownFailure);
         }
 
-        let spec = testing_spec_with_config::<E>(fork_name, self.config.as_ref())?;
+        let spec = testing_spec_with_config(fork_name, self.config.as_ref())?;
         let tester = Tester::new(self, spec)?;
 
         for step in &self.steps {
@@ -645,8 +646,8 @@ impl<E: EthSpec> Case for ForkChoiceTest<E> {
 }
 
 /// A testing rig used to execute a test case.
-struct Tester<E: EthSpec> {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+struct Tester {
+    harness: BeaconChainHarness<EphemeralHarnessType>,
     spec: Arc<ChainSpec>,
     /// Roots of every block this test has imported.
     ///
@@ -658,8 +659,8 @@ struct Tester<E: EthSpec> {
     imported_blocks: RefCell<HashSet<Hash256>>,
 }
 
-impl<E: EthSpec> Tester<E> {
-    pub fn new(case: &ForkChoiceTest<E>, spec: ChainSpec) -> Result<Self, Error> {
+impl Tester {
+    pub fn new(case: &ForkChoiceTest, spec: ChainSpec) -> Result<Self, Error> {
         let spec = Arc::new(spec);
         let genesis_time = case.anchor_state.genesis_time();
 
@@ -675,7 +676,7 @@ impl<E: EthSpec> Tester<E> {
             ));
         }
 
-        let harness = BeaconChainHarness::<EphemeralHarnessType<E>>::builder(E::default())
+        let harness = BeaconChainHarness::<EphemeralHarnessType>::builder()
             .spec(spec.clone())
             .keypairs(vec![])
             .chain_config(ChainConfig {
@@ -761,7 +762,7 @@ impl<E: EthSpec> Tester<E> {
             .ok_or_else(|| Error::InternalError("runtime shutdown".into()))
     }
 
-    fn find_head(&self) -> Result<CachedHead<E>, Error> {
+    fn find_head(&self) -> Result<CachedHead, Error> {
         let chain = self.harness.chain.clone();
         self.block_on_dangerous(chain.recompute_head_at_current_slot())?;
         Ok(self.harness.chain.canonical_head.cached_head())
@@ -786,8 +787,8 @@ impl<E: EthSpec> Tester<E> {
 
     pub fn process_block_and_columns(
         &self,
-        block: SignedBeaconBlock<E>,
-        columns: Option<DataColumnSidecarList<E>>,
+        block: SignedBeaconBlock,
+        columns: Option<DataColumnSidecarList>,
         valid: bool,
     ) -> Result<(), Error> {
         let block_root = block.canonical_root();
@@ -857,8 +858,8 @@ impl<E: EthSpec> Tester<E> {
 
     pub fn process_block_and_blobs(
         &self,
-        block: SignedBeaconBlock<E>,
-        blobs: Option<BlobsList<E>>,
+        block: SignedBeaconBlock,
+        blobs: Option<BlobsList>,
         kzg_proofs: Option<Vec<KzgProof>>,
         valid: bool,
     ) -> Result<(), Error> {
@@ -883,7 +884,7 @@ impl<E: EthSpec> Tester<E> {
             // Zipping will stop when any of the zipped lists runs out, which is what we want. Some
             // of the tests don't provide enough proofs/blobs, and should fail the availability
             // check.
-            let verified_blobs: Vec<KzgVerifiedBlob<E>> = blobs
+            let verified_blobs: Vec<KzgVerifiedBlob> = blobs
                 .into_iter()
                 .zip(proofs)
                 .zip(commitments)
@@ -967,8 +968,8 @@ impl<E: EthSpec> Tester<E> {
 
     fn indexed_attestation_from_target_state(
         &self,
-        attestation: &Attestation<E>,
-    ) -> Result<Option<IndexedAttestation<E>>, Error> {
+        attestation: &Attestation,
+    ) -> Result<Option<IndexedAttestation>, Error> {
         let target_root = attestation.data().target.root;
         let Some(target_block) = self
             .harness
@@ -992,7 +993,7 @@ impl<E: EthSpec> Tester<E> {
             .data()
             .target
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
         complete_state_advance(
             &mut target_state,
             Some(target_block.state_root),
@@ -1011,9 +1012,9 @@ impl<E: EthSpec> Tester<E> {
     }
 
     fn indexed_attestation_from_state(
-        state: &BeaconState<E>,
-        attestation: &Attestation<E>,
-    ) -> Result<IndexedAttestation<E>, Error> {
+        state: &BeaconState,
+        attestation: &Attestation,
+    ) -> Result<IndexedAttestation, Error> {
         match attestation.to_ref() {
             AttestationRef::Base(att) => {
                 let committee = state
@@ -1038,7 +1039,7 @@ impl<E: EthSpec> Tester<E> {
         }
     }
 
-    pub fn process_attestation(&self, attestation: &Attestation<E>) -> Result<(), Error> {
+    pub fn process_attestation(&self, attestation: &Attestation) -> Result<(), Error> {
         let indexed_attestation = self
             .indexed_attestation_from_target_state(attestation)?
             .ok_or_else(|| {
@@ -1047,11 +1048,10 @@ impl<E: EthSpec> Tester<E> {
                     attestation.data().target.root
                 ))
             })?;
-        let verified_attestation: ManuallyVerifiedAttestation<EphemeralHarnessType<E>> =
-            ManuallyVerifiedAttestation {
-                attestation,
-                indexed_attestation,
-            };
+        let verified_attestation: ManuallyVerifiedAttestation = ManuallyVerifiedAttestation {
+            attestation,
+            indexed_attestation,
+        };
 
         self.harness
             .chain
@@ -1061,7 +1061,7 @@ impl<E: EthSpec> Tester<E> {
 
     pub fn process_attester_slashing(
         &self,
-        attester_slashing: AttesterSlashingRef<E>,
+        attester_slashing: AttesterSlashingRef,
     ) -> Result<(), Error> {
         let justified_block = {
             let fork_choice = self.harness.chain.canonical_head.fork_choice_read_lock();
@@ -1270,7 +1270,7 @@ impl<E: EthSpec> Tester<E> {
 
     pub fn process_execution_payload(
         &self,
-        signed_envelope: &SignedExecutionPayloadEnvelope<E>,
+        signed_envelope: &SignedExecutionPayloadEnvelope,
         valid: bool,
     ) -> Result<(), Error> {
         let block_root = signed_envelope.message.beacon_block_root;
@@ -1398,7 +1398,7 @@ impl<E: EthSpec> Tester<E> {
         let actual = fork_choice
             .proto_array()
             .core_proto_array()
-            .filtered_block_tree_leaves_and_weights::<E>(
+            .filtered_block_tree_leaves_and_weights(
                 &justified.root,
                 current_slot,
                 justified,
@@ -1445,10 +1445,10 @@ impl<E: EthSpec> Tester<E> {
         // Determine proposer.
         let cached_head = self.harness.chain.canonical_head.cached_head();
         let next_slot = cached_head.snapshot.beacon_block.slot() + 1;
-        let next_slot_epoch = next_slot.epoch(E::slots_per_epoch());
+        let next_slot_epoch = next_slot.epoch(Spec::slots_per_epoch());
         let (proposer_indices, decision_root, _, _, fork) =
             compute_proposer_duties_from_head(next_slot_epoch, &self.harness.chain).unwrap();
-        let proposer_index = proposer_indices[next_slot.as_usize() % E::slots_per_epoch() as usize];
+        let proposer_index = proposer_indices[next_slot.as_usize() % Spec::SLOTS_PER_EPOCH];
 
         // Ensure the proposer index cache is primed.
         self.harness
@@ -1536,7 +1536,7 @@ impl<E: EthSpec> Tester<E> {
         if let Some(ref fcr_mutex) = self.harness.chain.canonical_head.fast_confirmation {
             let mut fcr = fcr_mutex.lock();
             fcr.confirmed_root = fcr
-                .get_latest_confirmed::<E>(
+                .get_latest_confirmed(
                     head_root,
                     &finalized_cp,
                     &unrealized_justified_cp,
@@ -1647,7 +1647,7 @@ impl<E: EthSpec> Tester<E> {
         });
 
         // Build IndexedPayloadAttestation from the message.
-        let indexed = IndexedPayloadAttestation::<E> {
+        let indexed = IndexedPayloadAttestation {
             attesting_indices: VariableList::new(vec![msg.validator_index]).unwrap(),
             data: msg.data.clone(),
             signature: AggregateSignature::from(&msg.signature),
@@ -1822,18 +1822,18 @@ fn check_equal<T: Debug + PartialEq>(check: &str, result: T, expected: T) -> Res
 /// The `BeaconChain` verification is not appropriate since these tests use `Attestation`s with
 /// multiple participating validators. Therefore, they are neither aggregated or unaggregated
 /// attestations.
-pub struct ManuallyVerifiedAttestation<'a, T: BeaconChainTypes> {
+pub struct ManuallyVerifiedAttestation<'a> {
     #[allow(dead_code)]
-    attestation: &'a Attestation<T::EthSpec>,
-    indexed_attestation: IndexedAttestation<T::EthSpec>,
+    attestation: &'a Attestation,
+    indexed_attestation: IndexedAttestation,
 }
 
-impl<T: BeaconChainTypes> VerifiedAttestation<T> for ManuallyVerifiedAttestation<'_, T> {
-    fn attestation(&self) -> AttestationRef<'_, T::EthSpec> {
+impl VerifiedAttestation for ManuallyVerifiedAttestation<'_> {
+    fn attestation(&self) -> AttestationRef<'_> {
         self.attestation.to_ref()
     }
 
-    fn indexed_attestation(&self) -> &IndexedAttestation<T::EthSpec> {
+    fn indexed_attestation(&self) -> &IndexedAttestation {
         &self.indexed_attestation
     }
 }

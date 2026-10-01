@@ -17,7 +17,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, Instant, sleep, sleep_until};
 use tracing::{Instrument, debug, error, info, info_span, instrument, trace, warn};
 use types::{
-    ChainSpec, EthSpec, Hash256, Slot, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
+    ChainSpec, Hash256, Slot, Spec, SyncCommitteeSubscription, SyncContributionData, SyncDuty,
     SyncSelectionProof, SyncSubnetId,
 };
 use validator_store::{ContributionToSign, SyncMessageToSign, ValidatorStore};
@@ -102,7 +102,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
             .spec
             .altair_fork_epoch
             .and_then(|fork_epoch| {
-                let current_epoch = self.slot_clock.now()?.epoch(S::E::slots_per_epoch());
+                let current_epoch = self.slot_clock.now()?.epoch(Spec::slots_per_epoch());
                 Some(current_epoch >= fork_epoch)
             })
             .unwrap_or(false)
@@ -137,7 +137,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
                     continue;
                 };
                 let (next_slot, Some(duration_to_sync_message_deadline)) =
-                    sync_message_deadline::<S::E>(&self.slot_clock, &self.duties_service.spec, now)
+                    sync_message_deadline(&self.slot_clock, &self.duties_service.spec, now)
                 else {
                     error!("Failed to determine sync message deadline");
                     sleep(slot_duration).await;
@@ -189,16 +189,14 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         let mut slot_duties = self
             .duties_service
             .sync_duties
-            .get_duties_for_slot::<S::E>(slot, spec);
+            .get_duties_for_slot(slot, spec);
 
         // If a head event triggered us before the duties were computed, wait until the sync
         // message deadline and check for duties once more.
         if slot_duties.is_none() && head_event_root.is_some() {
-            let Some(duration_to_deadline) = delay_until_slot_offset(
-                &self.slot_clock,
-                slot,
-                spec.get_sync_message_due::<S::E>(slot),
-            ) else {
+            let Some(duration_to_deadline) =
+                delay_until_slot_offset(&self.slot_clock, slot, spec.get_sync_message_due(slot))
+            else {
                 debug!(%slot, "Skipping sync committee tasks for expired slot");
                 return;
             };
@@ -207,7 +205,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
             slot_duties = self
                 .duties_service
                 .sync_duties
-                .get_duties_for_slot::<S::E>(slot, spec);
+                .get_duties_for_slot(slot, spec);
 
             // The head may have changed while sleeping, so discard the event root and fall
             // back to a fresh head lookup below.
@@ -229,7 +227,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         let Some(contribution_delay) = delay_until_slot_offset(
             &self.slot_clock,
             slot,
-            spec.get_contribution_message_due::<S::E>(slot),
+            spec.get_contribution_message_due(slot),
         ) else {
             debug!(%slot, "Skipping sync committee tasks for expired slot");
             return;
@@ -396,7 +394,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         let Some(slot_duties) = self
             .duties_service
             .sync_duties
-            .get_duties_for_slot::<S::E>(slot, &self.duties_service.spec)
+            .get_duties_for_slot(slot, &self.duties_service.spec)
         else {
             debug!(%slot, "No duties known for slot at contribution deadline");
             return;
@@ -542,10 +540,10 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         // At the start of every epoch during the current period, re-post the subscriptions
         // to the beacon node. This covers the case where the BN has forgotten the subscriptions
         // due to a restart, or where the VC has switched to a fallback BN.
-        let current_period = sync_period_of_slot::<S::E>(slot, spec)?;
+        let current_period = sync_period_of_slot(slot, spec)?;
 
         if !self.first_subscription_done.load(Ordering::Relaxed)
-            || slot.as_u64() % S::E::slots_per_epoch() == 0
+            || slot.as_u64() % Spec::slots_per_epoch() == 0
         {
             duty_slots.push((slot, current_period));
         }
@@ -553,9 +551,9 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
         // Near the end of the current period, push subscriptions for the next period to the
         // beacon node. We aggressively push every slot in the lead-up, as this is the main way
         // that we want to ensure that the BN is subscribed (well in advance).
-        let lookahead_slot = slot + SUBSCRIPTION_LOOKAHEAD_EPOCHS * S::E::slots_per_epoch();
+        let lookahead_slot = slot + SUBSCRIPTION_LOOKAHEAD_EPOCHS * Spec::slots_per_epoch();
 
-        let lookahead_period = sync_period_of_slot::<S::E>(lookahead_slot, spec)?;
+        let lookahead_period = sync_period_of_slot(lookahead_slot, spec)?;
 
         if lookahead_period > current_period {
             duty_slots.push((lookahead_slot, lookahead_period));
@@ -573,7 +571,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
             match self
                 .duties_service
                 .sync_duties
-                .get_duties_for_slot::<S::E>(duty_slot, spec)
+                .get_duties_for_slot(duty_slot, spec)
             {
                 Some(duties) => subscriptions.extend(subscriptions_from_sync_duties(
                     duties.duties,
@@ -637,7 +635,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> SyncCommitteeService<S
     }
 }
 
-fn sync_message_deadline<E: EthSpec>(
+fn sync_message_deadline(
     slot_clock: &impl SlotClock,
     chain_spec: &ChainSpec,
     now: Duration,
@@ -648,14 +646,14 @@ fn sync_message_deadline<E: EthSpec>(
     let duration_to_sync_message_deadline = slot_clock
         .start_of(sync_message_slot)
         .and_then(|slot_start| {
-            slot_start.checked_add(chain_spec.get_sync_message_due::<E>(sync_message_slot))
+            slot_start.checked_add(chain_spec.get_sync_message_due(sync_message_slot))
         })
         .and_then(|deadline| deadline.checked_sub(now));
     (sync_message_slot, duration_to_sync_message_deadline)
 }
 
-fn sync_period_of_slot<E: EthSpec>(slot: Slot, spec: &ChainSpec) -> Result<u64, String> {
-    slot.epoch(E::slots_per_epoch())
+fn sync_period_of_slot(slot: Slot, spec: &ChainSpec) -> Result<u64, String> {
+    slot.epoch(Spec::slots_per_epoch())
         .sync_committee_period(spec)
         .map_err(|e| format!("Error computing sync period: {:?}", e))
 }
@@ -683,10 +681,8 @@ mod tests {
     };
     use bls::FixedBytesExtended;
     use slot_clock::ManualSlotClock;
-    use types::{Epoch, MainnetEthSpec, SignedContributionAndProof, SyncCommitteeContribution};
+    use types::{Epoch, SignedContributionAndProof, SyncCommitteeContribution};
     use validator_test_rig::validator_client_harness::{S, ValidatorClientHarness};
-
-    type E = MainnetEthSpec;
 
     struct TestHarness {
         harness: ValidatorClientHarness,
@@ -696,7 +692,7 @@ mod tests {
 
     impl TestHarness {
         async fn new(head_monitoring: bool) -> Self {
-            let mut spec = E::default_spec();
+            let mut spec = Spec::default_spec();
             spec.altair_fork_epoch = Some(Epoch::new(0));
             Self::new_with_spec(head_monitoring, spec).await
         }
@@ -808,7 +804,7 @@ mod tests {
                 .clone()
         }
 
-        fn contributions(&self) -> Vec<SignedContributionAndProof<E>> {
+        fn contributions(&self) -> Vec<SignedContributionAndProof> {
             self.harness
                 .mock_beacon_node_1
                 .sync_committee_contributions
@@ -818,7 +814,7 @@ mod tests {
         }
 
         /// The contribution a beacon node would build from the first published message.
-        fn contribution(&self) -> SyncCommitteeContribution<E> {
+        fn contribution(&self) -> SyncCommitteeContribution {
             SyncCommitteeContribution::from_message(&self.messages()[0], 0, 0).unwrap()
         }
     }
@@ -860,14 +856,14 @@ mod tests {
 
     #[test]
     fn duration_to_sync_message_deadline_is_fork_aware() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         let gloas_fork_epoch = Epoch::new(1);
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
 
         let slot_duration = spec.get_slot_duration();
         let genesis_time = slot_duration;
         let slot_clock = ManualSlotClock::new(Slot::new(0), genesis_time, slot_duration);
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
         let last_pre_gloas_slot = first_gloas_slot - 1;
 
         let test_cases = [
@@ -893,7 +889,7 @@ mod tests {
 
         for (case, now, expected_slot, expected_duration) in test_cases {
             assert_eq!(
-                sync_message_deadline::<E>(&slot_clock, &spec, now),
+                sync_message_deadline(&slot_clock, &spec, now),
                 (expected_slot, Some(expected_duration)),
                 "{case}"
             );
@@ -902,10 +898,10 @@ mod tests {
 
     #[test]
     fn delay_stays_attached_to_requested_slot() {
-        let spec = E::default_spec();
+        let spec = Spec::default_spec();
         let slot_clock =
             ManualSlotClock::new(Slot::new(0), Duration::ZERO, spec.get_slot_duration());
-        let contribution_due = spec.get_contribution_message_due::<E>(Slot::new(0));
+        let contribution_due = spec.get_contribution_message_due(Slot::new(0));
 
         slot_clock.set_current_time(Duration::from_secs(5));
         assert_eq!(
@@ -1254,7 +1250,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn timer_deadline_is_fork_aware_at_gloas() {
-        let mut spec = E::default_spec();
+        let mut spec = Spec::default_spec();
         spec.altair_fork_epoch = Some(Epoch::new(0));
         spec.gloas_fork_epoch = Some(Epoch::new(0));
         let mut harness = TestHarness::new_with_spec(false, spec).await;

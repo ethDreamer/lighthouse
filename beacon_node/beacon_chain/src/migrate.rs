@@ -11,8 +11,7 @@ use store::{Error, ItemStore, Split, StoreOp};
 pub use store::{HotColdDB, MemoryStore};
 use tracing::{debug, error, info, warn};
 use types::{
-    BeaconState, BeaconStateHash, Checkpoint, Epoch, EthSpec, Hash256, SignedBlindedBeaconBlock,
-    Slot,
+    BeaconState, BeaconStateHash, Checkpoint, Epoch, Hash256, SignedBlindedBeaconBlock, Slot, Spec,
 };
 
 /// Compact at least this frequently, finalization permitting (7 days).
@@ -33,8 +32,8 @@ pub const DEFAULT_EPOCHS_PER_MIGRATION: u64 = 1;
 
 /// The background migrator runs a thread to perform pruning and migrate state from the hot
 /// to the cold database.
-pub struct BackgroundMigrator<E: EthSpec, Hot: ItemStore, Cold: ItemStore> {
-    db: Arc<HotColdDB<E, Hot, Cold>>,
+pub struct BackgroundMigrator<Hot: ItemStore, Cold: ItemStore> {
+    db: Arc<HotColdDB<Hot, Cold>>,
     /// Record of when the last migration ran, for enforcing `epochs_per_migration`.
     prev_migration: Arc<Mutex<PrevMigration>>,
     #[allow(clippy::type_complexity)]
@@ -138,12 +137,12 @@ pub struct FinalizationNotification {
     pub prev_migration: Arc<Mutex<PrevMigration>>,
 }
 
-impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Cold> {
+impl<Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<Hot, Cold> {
     /// Create a new `BackgroundMigrator` and spawn its thread if necessary.
-    pub fn new(db: Arc<HotColdDB<E, Hot, Cold>>, config: MigratorConfig) -> Self {
+    pub fn new(db: Arc<HotColdDB<Hot, Cold>>, config: MigratorConfig) -> Self {
         // Estimate last migration run from DB split slot.
         let prev_migration = Arc::new(Mutex::new(PrevMigration {
-            epoch: db.get_split_slot().epoch(E::slots_per_epoch()),
+            epoch: db.get_split_slot().epoch(Spec::slots_per_epoch()),
             epochs_per_migration: config.epochs_per_migration,
         }));
         let tx_thread = if config.blocking {
@@ -219,7 +218,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     }
 
     pub fn run_reconstruction(
-        db: Arc<HotColdDB<E, Hot, Cold>>,
+        db: Arc<HotColdDB<Hot, Cold>>,
         opt_tx: Option<mpsc::Sender<Notification>>,
     ) {
         match db.reconstruct_historic_states(Some(BLOCKS_PER_RECONSTRUCTION)) {
@@ -245,7 +244,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
         }
     }
 
-    pub fn run_prune_blobs(db: Arc<HotColdDB<E, Hot, Cold>>, data_availability_boundary: Epoch) {
+    pub fn run_prune_blobs(db: Arc<HotColdDB<Hot, Cold>>, data_availability_boundary: Epoch) {
         if let Err(e) = db.try_prune_blobs(false, data_availability_boundary) {
             error!(
                 error = ?e,
@@ -289,10 +288,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
         }
     }
 
-    fn run_manual_migration(
-        db: Arc<HotColdDB<E, Hot, Cold>>,
-        notif: ManualFinalizationNotification,
-    ) {
+    fn run_manual_migration(db: Arc<HotColdDB<Hot, Cold>>, notif: ManualFinalizationNotification) {
         // We create a "dummy" prev migration
         let prev_migration = PrevMigration {
             epoch: Epoch::new(1),
@@ -307,7 +303,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     }
 
     /// Perform the actual work of `process_finalization`.
-    fn run_migration(db: Arc<HotColdDB<E, Hot, Cold>>, notif: FinalizationNotification) {
+    fn run_migration(db: Arc<HotColdDB<Hot, Cold>>, notif: FinalizationNotification) {
         // Do not run too frequently.
         let epoch = notif.finalized_checkpoint.epoch;
         let mut prev_migration = notif.prev_migration.lock();
@@ -419,7 +415,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
         debug!("Database consolidation complete");
     }
 
-    fn run_manual_compaction(db: Arc<HotColdDB<E, Hot, Cold>>) {
+    fn run_manual_compaction(db: Arc<HotColdDB<Hot, Cold>>) {
         debug!("Running manual compaction");
         if let Err(error) = db.compact() {
             warn!(?error, "Database compaction failed");
@@ -432,7 +428,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     ///
     /// Return a channel handle for sending requests to the thread.
     fn spawn_thread(
-        db: Arc<HotColdDB<E, Hot, Cold>>,
+        db: Arc<HotColdDB<Hot, Cold>>,
     ) -> (mpsc::Sender<Notification>, thread::JoinHandle<()>) {
         let (tx, rx) = mpsc::channel();
         let inner_tx = tx.clone();
@@ -507,15 +503,15 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     /// upon because finalization would prohibit it. This is an optimisation intended to save disk
     /// space.
     fn prune_hot_db(
-        store: Arc<HotColdDB<E, Hot, Cold>>,
+        store: Arc<HotColdDB<Hot, Cold>>,
         new_finalized_state_root: Hash256,
-        new_finalized_state: &BeaconState<E>,
+        new_finalized_state: &BeaconState,
         new_finalized_checkpoint: Checkpoint,
         split_prior_to_migration: Split,
     ) -> Result<PruningOutcome, BeaconChainError> {
         let new_finalized_slot = new_finalized_checkpoint
             .epoch
-            .start_slot(E::slots_per_epoch());
+            .start_slot(Spec::slots_per_epoch());
 
         // The finalized state must be for the epoch boundary slot, not the slot of the finalized
         // block.
@@ -773,7 +769,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
             );
         }
 
-        let mut batch: Vec<StoreOp<E>> = blocks_to_prune
+        let mut batch: Vec<StoreOp> = blocks_to_prune
             .into_iter()
             .flat_map(|block_root| {
                 [
@@ -808,23 +804,23 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
             // Approximation of the previous finalized checkpoint. Only used in the compaction to
             // compute time since last compaction.
             old_finalized_checkpoint_epoch: newly_finalized_states_min_slot
-                .epoch(E::slots_per_epoch()),
+                .epoch(Spec::slots_per_epoch()),
         })
     }
 
     fn prune_finalized_payloads(
-        store: &HotColdDB<E, Hot, Cold>,
+        store: &HotColdDB<Hot, Cold>,
         new_finalized_slot: Slot,
         finalized_blocks: &[(Hash256, Slot)],
-        hot_db_ops: &mut Vec<StoreOp<E>>,
+        hot_db_ops: &mut Vec<StoreOp>,
     ) -> Result<(), BeaconChainError> {
         let prune_payloads = store.get_config().prune_payloads;
-        let mut child_block: Option<SignedBlindedBeaconBlock<E>> = None;
+        let mut child_block: Option<SignedBlindedBeaconBlock> = None;
 
         // The input is sorted by slot with duplicates removed. A canonical child's bid commits
         // to its parent's payload status, including when there are skipped slots between them.
         for (block_root, slot) in finalized_blocks.iter().rev() {
-            if store.spec.fork_name_at_slot::<E>(*slot).gloas_enabled() {
+            if store.spec.fork_name_at_slot(*slot).gloas_enabled() {
                 let block = store.get_blinded_block(block_root)?;
 
                 if let Some(block) = &block
@@ -864,7 +860,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
 
     fn prune_non_checkpoint_sync_committee_branches(
         finalized_blocks_desc: &[(Hash256, Slot)],
-        hot_db_ops: &mut Vec<StoreOp<E>>,
+        hot_db_ops: &mut Vec<StoreOp>,
     ) {
         let mut epoch_boundary_blocks = HashSet::new();
         let mut non_checkpoint_block_roots = HashSet::new();
@@ -877,7 +873,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
             // at epoch boundaries by storing them in the `epoch_boundary_blocks` hash set.
             // We then ensure that block roots at the epoch boundary aren't included in the
             // `non_checkpoint_block_roots` hash set.
-            if *slot % E::slots_per_epoch() == 0 {
+            if *slot % Spec::slots_per_epoch() == 0 {
                 epoch_boundary_blocks.insert(block_root);
             } else {
                 non_checkpoint_block_roots.insert(block_root);
@@ -905,7 +901,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> BackgroundMigrator<E, Hot, Col
     /// Compact the database if it has been more than `COMPACTION_PERIOD_SECONDS` since it
     /// was last compacted.
     pub fn run_compaction(
-        db: Arc<HotColdDB<E, Hot, Cold>>,
+        db: Arc<HotColdDB<Hot, Cold>>,
         old_finalized_epoch: Epoch,
         new_finalized_epoch: Epoch,
     ) -> Result<(), Error> {

@@ -66,3 +66,8 @@ tempfile = { workspace = true }
 [[test]]
 name = "lighthouse_network_tests"
 path = "tests/main.rs"
+
+[[test]]
+name = "lighthouse_network_spec_minimal_tests"
+path = "tests/spec_minimal.rs"
+required-features = ["spec-minimal"]

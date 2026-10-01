@@ -7,17 +7,13 @@ use beacon_chain::test_utils::{BeaconChainHarness, EphemeralHarnessType};
 use beacon_chain::{BeaconChainError, WhenSlotSkipped};
 use bls::Signature;
 use ssz_types::ProgressiveVariableList;
-use types::{
-    EthSpec, Hash256, InclusionList, MinimalEthSpec, RelativeEpoch, SignedInclusionList, Slot,
-};
-
-type E = MinimalEthSpec;
+use types::{Hash256, InclusionList, RelativeEpoch, SignedInclusionList, Slot, Spec};
 
 /// 8 validators per slot on minimal, fewer than the committee size, so positions repeat.
 const VALIDATOR_COUNT: usize = 64;
 
-fn get_harness() -> BeaconChainHarness<EphemeralHarnessType<E>> {
-    BeaconChainHarness::builder(E::default())
+fn get_harness() -> BeaconChainHarness<EphemeralHarnessType> {
+    BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(VALIDATOR_COUNT)
         .fresh_ephemeral_store()
@@ -57,7 +53,7 @@ async fn committee_matches_the_state_level_helper() {
         .inclusion_list_committee(block_root, slot)
         .unwrap();
 
-    assert_eq!(committee.len(), E::inclusion_list_committee_size());
+    assert_eq!(committee.len(), Spec::INCLUSION_LIST_COMMITTEE_SIZE);
 
     let mut state = harness.get_current_state();
     state
@@ -81,11 +77,9 @@ async fn committee_matches_the_state_level_helper() {
 #[tokio::test]
 async fn committee_resolves_for_a_slot_in_the_previous_epoch() {
     let harness = get_harness();
-    harness
-        .extend_slots(E::slots_per_epoch() as usize + 1)
-        .await;
+    harness.extend_slots(Spec::SLOTS_PER_EPOCH + 1).await;
 
-    let slot = Slot::new(E::slots_per_epoch() - 1);
+    let slot = Slot::new(Spec::slots_per_epoch() - 1);
     assert!(harness.chain.canonical_head.cached_head().head_slot() > slot);
 
     let block_root = harness

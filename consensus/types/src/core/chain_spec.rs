@@ -15,8 +15,8 @@ use tree_hash::TreeHash;
 use crate::{
     consts::bellatrix::BASIS_POINTS,
     core::{
-        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch, EthSpec,
-        EthSpecId, ExecutionBlockHash, Hash256, MainnetEthSpec, Slot, Uint256,
+        APPLICATION_DOMAIN_BUILDER, Address, ApplicationDomain, EnrForkId, Epoch,
+        ExecutionBlockHash, Hash256, Slot, Spec, SpecId, Uint256,
     },
     fork::{Fork, ForkData, ForkName},
 };
@@ -54,6 +54,11 @@ pub struct ChainSpec {
      * Config name
      */
     pub config_name: Option<String>,
+
+    /*
+     * Preset base
+     */
+    pub preset_base: SpecId,
 
     /*
      * Constants
@@ -365,23 +370,19 @@ pub struct ChainSpec {
 
 impl ChainSpec {
     /// Construct a `ChainSpec` from a standard config.
-    pub fn from_config<E: EthSpec>(config: &Config) -> Option<Self> {
-        let spec = E::default_spec();
-        config.apply_to_chain_spec::<E>(&spec)
+    pub fn from_config(config: &Config) -> Option<Self> {
+        let spec = Spec::default_spec();
+        config.apply_to_chain_spec(&spec)
     }
 
     /// Returns an `EnrForkId` for the given `slot`.
-    pub fn enr_fork_id<E: EthSpec>(
-        &self,
-        slot: Slot,
-        genesis_validators_root: Hash256,
-    ) -> EnrForkId {
+    pub fn enr_fork_id(&self, slot: Slot, genesis_validators_root: Hash256) -> EnrForkId {
         EnrForkId {
             fork_digest: self
-                .compute_fork_digest(genesis_validators_root, slot.epoch(E::slots_per_epoch())),
-            next_fork_version: self.next_fork_version::<E>(slot),
+                .compute_fork_digest(genesis_validators_root, slot.epoch(Spec::slots_per_epoch())),
+            next_fork_version: self.next_fork_version(slot),
             next_fork_epoch: self
-                .next_digest_epoch(slot.epoch(E::slots_per_epoch()))
+                .next_digest_epoch(slot.epoch(Spec::slots_per_epoch()))
                 .unwrap_or(self.far_future_epoch),
         }
     }
@@ -389,26 +390,26 @@ impl ChainSpec {
     /// Returns the `next_fork_version`.
     ///
     /// `next_fork_version = current_fork_version` if no future fork is planned,
-    pub fn next_fork_version<E: EthSpec>(&self, slot: Slot) -> [u8; 4] {
-        match self.next_fork_epoch::<E>(slot) {
+    pub fn next_fork_version(&self, slot: Slot) -> [u8; 4] {
+        match self.next_fork_epoch(slot) {
             Some((fork, _)) => self.fork_version_for_name(fork),
-            None => self.fork_version_for_name(self.fork_name_at_slot::<E>(slot)),
+            None => self.fork_version_for_name(self.fork_name_at_slot(slot)),
         }
     }
 
     /// Returns the epoch of the next scheduled fork along with its corresponding `ForkName`.
     ///
     /// If no future forks are scheduled, this function returns `None`.
-    pub fn next_fork_epoch<E: EthSpec>(&self, slot: Slot) -> Option<(ForkName, Epoch)> {
-        let current_fork_name = self.fork_name_at_slot::<E>(slot);
+    pub fn next_fork_epoch(&self, slot: Slot) -> Option<(ForkName, Epoch)> {
+        let current_fork_name = self.fork_name_at_slot(slot);
         let next_fork_name = current_fork_name.next_fork()?;
         let fork_epoch = self.fork_epoch(next_fork_name)?;
         Some((next_fork_name, fork_epoch))
     }
 
     /// Returns the name of the fork which is active at `slot`.
-    pub fn fork_name_at_slot<E: EthSpec>(&self, slot: Slot) -> ForkName {
-        self.fork_name_at_epoch(slot.epoch(E::slots_per_epoch()))
+    pub fn fork_name_at_slot(&self, slot: Slot) -> ForkName {
+        self.fork_name_at_epoch(slot.epoch(Spec::slots_per_epoch()))
     }
 
     /// Returns the name of the fork which is active at `epoch`.
@@ -871,14 +872,14 @@ impl ChainSpec {
     }
 
     /// Gloas sidecar bounds use the largest blob limit in the entire schedule.
-    pub fn compute_max_data_column_sidecar_size_gloas<E: EthSpec>(&self) -> usize {
-        crate::DataColumnSidecarGloas::<E>::max_size(
+    pub fn compute_max_data_column_sidecar_size_gloas(&self) -> usize {
+        crate::DataColumnSidecarGloas::max_size(
             self.max_blobs_per_block_within_fork(ForkName::Gloas) as usize,
         )
     }
 
-    pub fn compute_max_partial_data_column_sidecar_size_gloas<E: EthSpec>(&self) -> usize {
-        crate::PartialDataColumnSidecarGloas::<E>::max_size(
+    pub fn compute_max_partial_data_column_sidecar_size_gloas(&self) -> usize {
+        crate::PartialDataColumnSidecarGloas::max_size(
             self.max_blobs_per_block_within_fork(ForkName::Gloas) as usize,
         )
     }
@@ -904,19 +905,16 @@ impl ChainSpec {
     }
 
     /// Returns the number of data columns per custody group.
-    pub fn data_columns_per_group<E: EthSpec>(&self) -> u64 {
-        (E::number_of_columns() as u64)
+    pub fn data_columns_per_group(&self) -> u64 {
+        (Spec::number_of_columns())
             .safe_div(self.number_of_custody_groups)
             .expect("Custody group count must be greater than 0")
     }
 
     /// Returns the number of column sidecars to sample per slot.
-    pub fn sampling_size_columns<E: EthSpec>(
-        &self,
-        custody_group_count: u64,
-    ) -> Result<usize, String> {
+    pub fn sampling_size_columns(&self, custody_group_count: u64) -> Result<usize, String> {
         let sampling_size_groups = self.sampling_size_custody_groups(custody_group_count)?;
-        let columns_per_custody_group = self.data_columns_per_group::<E>();
+        let columns_per_custody_group = self.data_columns_per_group();
 
         let sampling_size_columns = columns_per_custody_group
             .safe_mul(sampling_size_groups)
@@ -976,8 +974,8 @@ impl ChainSpec {
     }
 
     /// Spec: `get_attestation_due_ms`. Returns the epoch-appropriate threshold.
-    pub fn get_attestation_due<E: EthSpec>(&self, slot: Slot) -> Duration {
-        if self.fork_name_at_slot::<E>(slot).gloas_enabled() {
+    pub fn get_attestation_due(&self, slot: Slot) -> Duration {
+        if self.fork_name_at_slot(slot).gloas_enabled() {
             self.unaggregated_attestation_due_gloas
         } else {
             self.unaggregated_attestation_due
@@ -995,8 +993,8 @@ impl ChainSpec {
     }
 
     /// Spec: `get_aggregate_attestation_due_ms`. Returns the epoch-appropriate threshold.
-    pub fn get_aggregate_attestation_due<E: EthSpec>(&self, slot: Slot) -> Duration {
-        if self.fork_name_at_slot::<E>(slot).gloas_enabled() {
+    pub fn get_aggregate_attestation_due(&self, slot: Slot) -> Duration {
+        if self.fork_name_at_slot(slot).gloas_enabled() {
             self.aggregate_attestation_due_gloas
         } else {
             self.aggregate_attestation_due
@@ -1004,8 +1002,8 @@ impl ChainSpec {
     }
 
     /// Spec: `get_contribution_due_ms`. Returns the epoch-appropriate threshold.
-    pub fn get_contribution_message_due<E: EthSpec>(&self, slot: Slot) -> Duration {
-        if self.fork_name_at_slot::<E>(slot).gloas_enabled() {
+    pub fn get_contribution_message_due(&self, slot: Slot) -> Duration {
+        if self.fork_name_at_slot(slot).gloas_enabled() {
             self.contribution_and_proof_due_gloas
         } else {
             self.contribution_and_proof_due
@@ -1013,8 +1011,8 @@ impl ChainSpec {
     }
 
     /// Spec: `get_sync_message_due_ms`. Returns the epoch-appropriate threshold.
-    pub fn get_sync_message_due<E: EthSpec>(&self, slot: Slot) -> Duration {
-        if self.fork_name_at_slot::<E>(slot).gloas_enabled() {
+    pub fn get_sync_message_due(&self, slot: Slot) -> Duration {
+        if self.fork_name_at_slot(slot).gloas_enabled() {
             self.sync_message_due_gloas
         } else {
             self.sync_message_due
@@ -1039,10 +1037,10 @@ impl ChainSpec {
     }
 
     /// Set the duration of a slot (in ms).
-    pub fn set_slot_duration_ms<E: EthSpec>(mut self, slot_duration_ms: u64) -> Self {
+    pub fn set_slot_duration_ms(mut self, slot_duration_ms: u64) -> Self {
         self.slot_duration_ms = slot_duration_ms;
         self.seconds_per_slot = slot_duration_ms.saturating_div(1000);
-        self.compute_derived_values::<E>()
+        self.compute_derived_values()
     }
 
     /// Compute values that are derived from other config values.
@@ -1050,7 +1048,7 @@ impl ChainSpec {
     /// Must be called after loading or modifying a ChainSpec's fields.
     ///
     /// Panics if any computation fails (indicates invalid config).
-    pub fn compute_derived_values<E: EthSpec>(mut self) -> Self {
+    pub fn compute_derived_values(mut self) -> Self {
         assert!(
             self.attestation_due_bps <= BASIS_POINTS,
             "invalid chain spec: attestation_due_bps ({}) exceeds slot duration",
@@ -1150,7 +1148,7 @@ impl ChainSpec {
         self.max_blobs_by_root_request =
             max_blobs_by_root_request_common(self.max_request_blob_sidecars);
         self.max_data_columns_by_root_request =
-            max_data_columns_by_root_request_common::<E>(self.max_request_blocks_deneb);
+            max_data_columns_by_root_request_common(self.max_request_blocks_deneb);
         self.max_payload_envelopes_by_root_request =
             max_blocks_by_root_request_common(self.max_request_payloads);
 
@@ -1160,7 +1158,7 @@ impl ChainSpec {
     /// Returns the slot at which the proposer shuffling was decided.
     ///
     /// The block root at this slot can be used to key the proposer shuffling for the given epoch.
-    pub fn proposer_shuffling_decision_slot<E: EthSpec>(&self, epoch: Epoch) -> Slot {
+    pub fn proposer_shuffling_decision_slot(&self, epoch: Epoch) -> Slot {
         // At the Fulu fork epoch itself, the shuffling is computed "the old way" with no lookahead.
         // Therefore for `epoch == fulu_fork_epoch` we must take the `else` branch. Checking if Fulu
         // is enabled at `epoch - 1` accomplishes this neatly.
@@ -1172,7 +1170,7 @@ impl ChainSpec {
             // of epoch N - 2 (note: min_seed_lookahead=1 in all current configs).
             epoch
                 .saturating_sub(self.min_seed_lookahead)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .saturating_sub(1_u64)
         } else {
             // Pre-Fulu the proposer shuffling decision slot for epoch N is the slot at the end of
@@ -1180,7 +1178,7 @@ impl ChainSpec {
             epoch
                 .saturating_add(Epoch::new(1))
                 .saturating_sub(self.min_seed_lookahead)
-                .start_slot(E::slots_per_epoch())
+                .start_slot(Spec::slots_per_epoch())
                 .saturating_sub(1_u64)
         }
     }
@@ -1192,6 +1190,10 @@ impl ChainSpec {
              * Config name
              */
             config_name: Some("mainnet".to_string()),
+            /*
+             * Preset base
+             */
+            preset_base: SpecId::Mainnet,
             /*
              * Constants
              */
@@ -1543,7 +1545,8 @@ impl ChainSpec {
         let boot_nodes = vec![];
 
         Self {
-            config_name: None,
+            config_name: Some("minimal".to_string()),
+            preset_base: SpecId::Minimal,
             max_committees_per_slot: 4,
             target_committee_size: 4,
             min_per_epoch_churn_limit: 2,
@@ -1650,6 +1653,10 @@ impl ChainSpec {
     pub fn gnosis() -> Self {
         Self {
             config_name: Some("gnosis".to_string()),
+            /*
+             * Preset base
+             */
+            preset_base: SpecId::Gnosis,
             /*
              * Constants
              */
@@ -2786,9 +2793,7 @@ pub(crate) fn max_blobs_by_root_request_common(max_request_blob_sidecars: u64) -
 }
 
 // Simplified function which precomputes the size of a `List` of `DataColumnIdentifiers`.
-pub(crate) fn max_data_columns_by_root_request_common<E: EthSpec>(
-    max_request_blocks: u64,
-) -> usize {
+pub(crate) fn max_data_columns_by_root_request_common(max_request_blocks: u64) -> usize {
     // DataColumnsByRootIdentifier is a variable-size struct with two fields:
     // - block_root: Hash256 (32 bytes)
     // - columns: List<ColumnIndex, NumberOfColumns> (4 byte offset + n × 8 bytes)
@@ -2799,7 +2804,7 @@ pub(crate) fn max_data_columns_by_root_request_common<E: EthSpec>(
     let ssz_fixed_size = 40_usize;
 
     let data_columns_by_root_identifier_ssz_size = column_index_ssz_size
-        .safe_mul(E::number_of_columns())
+        .safe_mul(Spec::NUMBER_OF_COLUMNS)
         .and_then(|b| b.safe_add(ssz_fixed_size))
         .expect("should not overflow");
 
@@ -2821,7 +2826,7 @@ fn default_max_blobs_by_root_request() -> usize {
 }
 
 fn default_data_columns_by_root_request() -> usize {
-    max_data_columns_by_root_request_common::<MainnetEthSpec>(default_max_request_blocks_deneb())
+    max_data_columns_by_root_request_common(default_max_request_blocks_deneb())
 }
 
 fn default_max_payload_envelopes_by_root_request() -> usize {
@@ -2834,8 +2839,8 @@ fn default_max_request_payloads() -> u64 {
 
 impl Default for Config {
     fn default() -> Self {
-        let chain_spec = MainnetEthSpec::default_spec();
-        Config::from_chain_spec::<MainnetEthSpec>(&chain_spec)
+        let chain_spec = Spec::default_spec();
+        Config::from_chain_spec(&chain_spec)
     }
 }
 
@@ -2869,22 +2874,22 @@ where
 }
 
 impl Config {
-    /// Maps `self` to an identifier for an `EthSpec` instance.
+    /// Maps `self` to a `SpecId` identifier.
     ///
     /// Returns `None` if there is no match.
-    pub fn eth_spec_id(&self) -> Option<EthSpecId> {
+    pub fn eth_spec_id(&self) -> Option<SpecId> {
         match self.preset_base.as_str() {
-            "minimal" => Some(EthSpecId::Minimal),
-            "mainnet" => Some(EthSpecId::Mainnet),
-            "gnosis" => Some(EthSpecId::Gnosis),
+            "minimal" => Some(SpecId::Minimal),
+            "mainnet" => Some(SpecId::Mainnet),
+            "gnosis" => Some(SpecId::Gnosis),
             _ => None,
         }
     }
 
-    pub fn from_chain_spec<E: EthSpec>(spec: &ChainSpec) -> Self {
+    pub fn from_chain_spec(spec: &ChainSpec) -> Self {
         Self {
             config_name: spec.config_name.clone(),
-            preset_base: E::spec_name().to_string(),
+            preset_base: spec.preset_base.to_string(),
 
             terminal_total_difficulty: spec.terminal_total_difficulty,
             terminal_block_hash: spec.terminal_block_hash,
@@ -3040,7 +3045,7 @@ impl Config {
             .map_err(|e| format!("Error parsing spec at {}: {:?}", filename.display(), e))
     }
 
-    pub fn apply_to_chain_spec<E: EthSpec>(&self, chain_spec: &ChainSpec) -> Option<ChainSpec> {
+    pub fn apply_to_chain_spec(&self, chain_spec: &ChainSpec) -> Option<ChainSpec> {
         // Pattern match here to avoid missing any fields.
         let &Config {
             ref config_name,
@@ -3145,7 +3150,7 @@ impl Config {
             ref gas_limit_schedule,
         } = self;
 
-        if preset_base != E::spec_name().to_string().as_str() {
+        if preset_base != Spec::SPEC_ID.to_string().as_str() {
             return None;
         }
 
@@ -3299,7 +3304,7 @@ impl Config {
 
             ..chain_spec.clone()
         };
-        Some(spec.compute_derived_values::<E>())
+        Some(spec.compute_derived_values())
     }
 }
 
@@ -3348,7 +3353,7 @@ mod tests {
 
     #[test]
     fn test_get_domain() {
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         test_domain(Domain::BeaconProposer, spec.domain_beacon_proposer, &spec);
         test_domain(Domain::BeaconAttester, spec.domain_beacon_attester, &spec);
@@ -3421,7 +3426,7 @@ mod tests {
     // Test that `fork_name_at_epoch` and `fork_epoch` are consistent.
     #[test]
     fn fork_name_at_epoch_consistency() {
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         for fork_name in ForkName::list_all() {
             if let Some(fork_epoch) = spec.fork_epoch(fork_name) {
@@ -3433,26 +3438,24 @@ mod tests {
     // Test that `next_fork_epoch` is consistent with the other functions.
     #[test]
     fn next_fork_epoch_consistency() {
-        type E = MainnetEthSpec;
-        let spec = ChainSpec::mainnet();
+        let spec = Spec::default_spec();
 
         let mut last_fork_slot = Slot::new(0);
 
         for (_, fork) in ForkName::list_all().into_iter().tuple_windows() {
             if let Some(fork_epoch) = spec.fork_epoch(fork) {
-                last_fork_slot = fork_epoch.start_slot(E::slots_per_epoch());
+                last_fork_slot = fork_epoch.start_slot(Spec::slots_per_epoch());
 
                 // Fork is activated at non-zero epoch: check that `next_fork_epoch` returns
                 // the correct result.
                 if let Ok(prior_slot) = last_fork_slot.safe_sub(1) {
-                    let (next_fork, next_fork_epoch) =
-                        spec.next_fork_epoch::<E>(prior_slot).unwrap();
+                    let (next_fork, next_fork_epoch) = spec.next_fork_epoch(prior_slot).unwrap();
                     assert_eq!(fork, next_fork);
                     assert_eq!(spec.fork_epoch(fork).unwrap(), next_fork_epoch);
                 }
             } else {
                 // Fork is not activated, check that `next_fork_epoch` returns `None`.
-                assert_eq!(spec.next_fork_epoch::<E>(last_fork_slot), None);
+                assert_eq!(spec.next_fork_epoch(last_fork_slot), None);
             }
         }
     }
@@ -3468,7 +3471,6 @@ mod tests {
 #[cfg(test)]
 mod yaml_tests {
     use super::*;
-    use crate::core::MinimalEthSpec;
     use paste::paste;
     use std::collections::BTreeSet;
     use std::env;
@@ -3487,7 +3489,7 @@ mod yaml_tests {
             .expect("error opening file");
         let minimal_spec = ChainSpec::minimal();
 
-        let yamlconfig = Config::from_chain_spec::<MinimalEthSpec>(&minimal_spec);
+        let yamlconfig = Config::from_chain_spec(&minimal_spec);
         // write fresh minimal config to file
         yaml_serde::to_writer(writer, &yamlconfig).expect("failed to write or serialize");
 
@@ -3509,8 +3511,8 @@ mod yaml_tests {
             .write(true)
             .open(tmp_file.as_ref())
             .expect("error opening file");
-        let mainnet_spec = ChainSpec::mainnet();
-        let yamlconfig = Config::from_chain_spec::<MainnetEthSpec>(&mainnet_spec);
+        let spec = Spec::default_spec();
+        let yamlconfig = Config::from_chain_spec(&spec);
         yaml_serde::to_writer(writer, &yamlconfig).expect("failed to write or serialize");
 
         let reader = File::options()
@@ -3524,65 +3526,65 @@ mod yaml_tests {
 
     #[test]
     fn slot_duration_fallback_both_fields() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec::<MainnetEthSpec>(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config
-            .apply_to_chain_spec::<MainnetEthSpec>(&mainnet)
-            .unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        let spec = Spec::default_spec();
+        let sps = spec.seconds_per_slot;
+        let sdm = spec.slot_duration_ms;
+        let mut config = Config::from_chain_spec(&spec);
+        config.seconds_per_slot = Some(MaybeQuoted { value: sps });
+        config.slot_duration_ms = Some(MaybeQuoted { value: sdm });
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sps);
+        assert_eq!(result.slot_duration_ms, sdm);
     }
 
     #[test]
     fn slot_duration_fallback_both_fields_inconsistent() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec::<MainnetEthSpec>(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 10 });
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        assert_eq!(config.apply_to_chain_spec::<MainnetEthSpec>(&mainnet), None);
+        let spec = Spec::default_spec();
+        let mut config = Config::from_chain_spec(&spec);
+        // Set seconds_per_slot to a value inconsistent with slot_duration_ms.
+        config.seconds_per_slot = Some(MaybeQuoted {
+            value: spec.seconds_per_slot.saturating_add(1),
+        });
+        config.slot_duration_ms = Some(MaybeQuoted {
+            value: spec.slot_duration_ms,
+        });
+        assert_eq!(config.apply_to_chain_spec(&spec), None);
     }
 
     #[test]
     fn slot_duration_fallback_seconds_only() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec::<MainnetEthSpec>(&mainnet);
-        config.seconds_per_slot = Some(MaybeQuoted { value: 12 });
+        let spec = Spec::default_spec();
+        let sps = spec.seconds_per_slot;
+        let mut config = Config::from_chain_spec(&spec);
+        config.seconds_per_slot = Some(MaybeQuoted { value: sps });
         config.slot_duration_ms = None;
-        let spec = config
-            .apply_to_chain_spec::<MainnetEthSpec>(&mainnet)
-            .unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sps);
+        assert_eq!(result.slot_duration_ms, sps.saturating_mul(1000));
     }
 
     #[test]
     fn slot_duration_fallback_ms_only() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec::<MainnetEthSpec>(&mainnet);
+        let spec = Spec::default_spec();
+        let sdm = spec.slot_duration_ms;
+        let mut config = Config::from_chain_spec(&spec);
         config.seconds_per_slot = None;
-        config.slot_duration_ms = Some(MaybeQuoted { value: 12000 });
-        let spec = config
-            .apply_to_chain_spec::<MainnetEthSpec>(&mainnet)
-            .unwrap();
-        assert_eq!(spec.seconds_per_slot, 12);
-        assert_eq!(spec.slot_duration_ms, 12000);
+        config.slot_duration_ms = Some(MaybeQuoted { value: sdm });
+        let result = config.apply_to_chain_spec(&spec).unwrap();
+        assert_eq!(result.seconds_per_slot, sdm / 1000);
+        assert_eq!(result.slot_duration_ms, sdm);
     }
 
     #[test]
     fn slot_duration_fallback_neither() {
-        let mainnet = ChainSpec::mainnet();
-        let mut config = Config::from_chain_spec::<MainnetEthSpec>(&mainnet);
+        let spec = Spec::default_spec();
+        let mut config = Config::from_chain_spec(&spec);
         config.seconds_per_slot = None;
         config.slot_duration_ms = None;
-        assert!(
-            config
-                .apply_to_chain_spec::<MainnetEthSpec>(&mainnet)
-                .is_none()
-        );
+        assert!(config.apply_to_chain_spec(&spec).is_none());
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn blob_schedule_max_blobs_per_block() {
         let spec_contents = r#"
@@ -3642,8 +3644,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config::<MainnetEthSpec>(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         // test out max_blobs_per_block(epoch)
         assert_eq!(
@@ -3683,12 +3684,9 @@ mod yaml_tests {
             spec.max_blobs_per_block(Epoch::new(18446744073709551615)),
             20
         );
+        assert_eq!(spec.compute_max_data_column_sidecar_size_gloas(), 41976);
         assert_eq!(
-            spec.compute_max_data_column_sidecar_size_gloas::<MainnetEthSpec>(),
-            41976
-        );
-        assert_eq!(
-            spec.compute_max_partial_data_column_sidecar_size_gloas::<MainnetEthSpec>(),
+            spec.compute_max_partial_data_column_sidecar_size_gloas(),
             41935
         );
 
@@ -3744,6 +3742,7 @@ mod yaml_tests {
         );
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn gas_limit_schedule() {
         let spec_contents = r#"
@@ -3797,8 +3796,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config::<MainnetEthSpec>(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         // The schedule does not apply before the Gloas fork epoch.
         assert_eq!(spec.get_scheduled_gas_limit(Epoch::new(0)), None);
@@ -3868,12 +3866,12 @@ mod yaml_tests {
                 epoch: Epoch::new(511),
                 gas_limit: 60000000,
             }]);
-        assert!(ChainSpec::from_config::<MainnetEthSpec>(&early_entry_config).is_none());
+        assert!(ChainSpec::from_config(&early_entry_config).is_none());
 
         // A non-empty schedule is rejected when Gloas is not scheduled.
         let mut no_gloas_config = config.clone();
         no_gloas_config.gloas_fork_epoch = None;
-        assert!(ChainSpec::from_config::<MainnetEthSpec>(&no_gloas_config).is_none());
+        assert!(ChainSpec::from_config(&no_gloas_config).is_none());
 
         // Two entries with the same epoch are rejected.
         let mut duplicate_epoch_config = config.clone();
@@ -3887,9 +3885,10 @@ mod yaml_tests {
                 gas_limit: 75000000,
             },
         ]);
-        assert!(ChainSpec::from_config::<MainnetEthSpec>(&duplicate_epoch_config).is_none());
+        assert!(ChainSpec::from_config(&duplicate_epoch_config).is_none());
     }
 
+    #[cfg(not(feature = "spec-non-mainnet"))]
     #[test]
     fn blob_schedule_fork_digest() {
         let spec_contents = r#"
@@ -3949,8 +3948,7 @@ mod yaml_tests {
         "#;
         let config: Config =
             yaml_serde::from_str(spec_contents).expect("error while deserializing");
-        let spec =
-            ChainSpec::from_config::<MainnetEthSpec>(&config).expect("error while creating spec");
+        let spec = ChainSpec::from_config(&config).expect("error while creating spec");
 
         let genesis_validators_root = Hash256::from_slice(&[0; 32]);
 
@@ -3978,22 +3976,25 @@ mod yaml_tests {
 
     #[test]
     fn apply_to_spec() {
-        let mut spec = ChainSpec::minimal();
-        let yamlconfig = Config::from_chain_spec::<MinimalEthSpec>(&spec);
+        let mut spec = Spec::default_spec();
+        let mut yamlconfig = Config::from_chain_spec(&spec);
 
         // modifying the original spec
         spec.min_genesis_active_validator_count += 1;
         spec.deposit_chain_id += 1;
         spec.deposit_network_id += 1;
-        // Applying a yaml config with incorrect EthSpec should fail
-        let res = yamlconfig.apply_to_chain_spec::<MainnetEthSpec>(&spec);
+        // Applying a yaml config with incorrect preset_base should fail
+        let correct_preset = yamlconfig.preset_base.clone();
+        yamlconfig.preset_base = "wrong_preset".to_string();
+        let res = yamlconfig.apply_to_chain_spec(&spec);
         assert_eq!(res, None);
 
-        // Applying a yaml config with correct EthSpec should NOT fail
+        // Applying a yaml config with correct preset_base should NOT fail
+        yamlconfig.preset_base = correct_preset;
         let new_spec = yamlconfig
-            .apply_to_chain_spec::<MinimalEthSpec>(&spec)
+            .apply_to_chain_spec(&spec)
             .expect("should have applied spec");
-        assert_eq!(new_spec, ChainSpec::minimal());
+        assert_eq!(new_spec, Spec::default_spec());
     }
 
     #[test]
@@ -4085,7 +4086,7 @@ mod yaml_tests {
 
     #[test]
     fn test_max_network_limits_overflow() {
-        let mut spec = MainnetEthSpec::default_spec();
+        let mut spec = Spec::default_spec();
         // Should not overflow
         let _ = spec.max_message_size();
         let _ = spec.max_compressed_len();
@@ -4098,8 +4099,7 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_deneb() {
-        type E = MainnetEthSpec;
-        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(E::default_spec()));
+        let spec = Arc::new(ForkName::Deneb.make_genesis_spec(Spec::default_spec()));
         let blob_retention_epochs = spec.min_epochs_for_blob_sidecars_requests;
 
         // `min_epochs_for_data_sidecar_requests` cannot be earlier than Deneb fork epoch.
@@ -4118,9 +4118,8 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_fulu() {
-        type E = MainnetEthSpec;
         let spec = {
-            let mut spec = ForkName::Deneb.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Deneb.make_genesis_spec(Spec::default_spec());
             // 4096 * 2 = 8192
             spec.fulu_fork_epoch = Some(Epoch::new(spec.min_epochs_for_blob_sidecars_requests * 2));
             // set a different value for testing purpose, 4096 / 2 = 2048
@@ -4161,10 +4160,9 @@ mod yaml_tests {
 
     #[test]
     fn min_epochs_for_data_sidecar_requests_fulu_genesis() {
-        type E = MainnetEthSpec;
         let spec = {
             // fulu active at genesis
-            let mut spec = ForkName::Fulu.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
             // set a different value for testing purpose, 4096 / 2 = 2048
             spec.min_epochs_for_data_column_sidecars_requests =
                 spec.min_epochs_for_blob_sidecars_requests / 2;
@@ -4194,11 +4192,10 @@ mod yaml_tests {
 
     #[test]
     fn proposer_shuffling_decision_root_around_epoch_boundary() {
-        type E = MainnetEthSpec;
         let fulu_fork_epoch = 5;
         let gloas_fork_epoch = 10;
         let spec = {
-            let mut spec = ForkName::Electra.make_genesis_spec(E::default_spec());
+            let mut spec = ForkName::Electra.make_genesis_spec(Spec::default_spec());
             spec.fulu_fork_epoch = Some(Epoch::new(fulu_fork_epoch));
             spec.gloas_fork_epoch = Some(Epoch::new(gloas_fork_epoch));
             Arc::new(spec)
@@ -4208,72 +4205,76 @@ mod yaml_tests {
         // of the previous epoch (i.e. only 1 slot lookahead).
         for epoch in (0..=fulu_fork_epoch).map(Epoch::new) {
             assert_eq!(
-                spec.proposer_shuffling_decision_slot::<E>(epoch),
-                epoch.start_slot(E::slots_per_epoch()) - 1
+                spec.proposer_shuffling_decision_slot(epoch),
+                epoch.start_slot(Spec::slots_per_epoch()) - 1
             );
         }
 
         // For epochs after Fulu, the decision slot is the end of the epoch two epochs prior.
         for epoch in ((fulu_fork_epoch + 1)..=(gloas_fork_epoch + 1)).map(Epoch::new) {
             assert_eq!(
-                spec.proposer_shuffling_decision_slot::<E>(epoch),
-                (epoch - 1).start_slot(E::slots_per_epoch()) - 1
+                spec.proposer_shuffling_decision_slot(epoch),
+                (epoch - 1).start_slot(Spec::slots_per_epoch()) - 1
             );
         }
     }
 
     #[test]
     fn test_slot_component_duration_calculations() {
-        let spec = ChainSpec::mainnet().compute_derived_values::<MainnetEthSpec>();
+        let spec = Spec::default_spec().compute_derived_values();
+        let slot_ms = spec.slot_duration_ms;
 
-        // Test unaggregated attestation (3333 bps = 33.33% of 12s = 4s)
+        // Test unaggregated attestation (3333 bps = 33.33% of slot)
         let unagg_due = spec.unaggregated_attestation_due;
-        assert_eq!(unagg_due, Duration::from_millis(3999)); // 12000 * 3333 / 10000
+        assert_eq!(unagg_due, Duration::from_millis(slot_ms * 3333 / 10000));
 
-        // Test aggregate attestation (6667 bps = 66.67% of 12s = 8s)
-        let agg_due = spec.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0));
-        assert_eq!(agg_due, Duration::from_millis(8000)); // 12000 * 6667 / 10000
+        // Test aggregate attestation (6667 bps = 66.67% of slot)
+        let agg_due = spec.get_aggregate_attestation_due(Slot::new(0));
+        assert_eq!(agg_due, Duration::from_millis(slot_ms * 6667 / 10000));
 
-        // Test sync message (3333 bps = 33.33% of 12s = 4s)
-        let sync_msg_due = spec.get_sync_message_due::<MainnetEthSpec>(Slot::new(0));
-        assert_eq!(sync_msg_due, Duration::from_millis(3999)); // 12000 * 3333 / 10000
+        // Test sync message (3333 bps = 33.33% of slot)
+        let sync_msg_due = spec.get_sync_message_due(Slot::new(0));
+        assert_eq!(sync_msg_due, Duration::from_millis(slot_ms * 3333 / 10000));
 
-        // Test contribution message (6667 bps = 66.67% of 12s = 8s)
-        let contribution_due = spec.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0));
-        assert_eq!(contribution_due, Duration::from_millis(8000)); // 12000 * 6667 / 10000
+        // Test contribution message (6667 bps = 66.67% of slot)
+        let contribution_due = spec.get_contribution_message_due(Slot::new(0));
+        assert_eq!(
+            contribution_due,
+            Duration::from_millis(slot_ms * 6667 / 10000)
+        );
 
         // Test slot duration
         let slot_duration = spec.get_slot_duration();
-        assert_eq!(slot_duration, Duration::from_millis(12000));
+        assert_eq!(slot_duration, Duration::from_millis(slot_ms));
 
         // Test edge cases with custom spec
         let mut custom_spec = spec.clone();
 
         // Edge case: 0 bps should give 0 duration
         custom_spec.attestation_due_bps = 0;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let zero_due = custom_spec.unaggregated_attestation_due;
         assert_eq!(zero_due, Duration::from_millis(0));
 
         // Edge case: 10000 bps (100%) should give full slot duration
         let mut custom_spec = custom_spec;
         custom_spec.attestation_due_bps = 10_000;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let full_due = custom_spec.unaggregated_attestation_due;
-        assert_eq!(full_due, Duration::from_millis(12000));
+        assert_eq!(full_due, Duration::from_millis(slot_ms));
 
         // Edge case: 5000 bps (50%) should give half slot duration
         let mut custom_spec = custom_spec;
         custom_spec.attestation_due_bps = 5_000;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let half_due = custom_spec.unaggregated_attestation_due;
-        assert_eq!(half_due, Duration::from_millis(6000));
+        assert_eq!(half_due, Duration::from_millis(slot_ms / 2));
 
         // Test with different slot duration (Gnosis: 5s slots)
         let mut custom_spec = custom_spec;
         custom_spec.slot_duration_ms = 5000;
         custom_spec.attestation_due_bps = 3333;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let gnosis_due = custom_spec.unaggregated_attestation_due;
         assert_eq!(gnosis_due, Duration::from_millis(1666)); // 5000 * 3333 / 10000
 
@@ -4281,7 +4282,7 @@ mod yaml_tests {
         let mut custom_spec = custom_spec;
         custom_spec.slot_duration_ms = 1000; // 1 second
         custom_spec.attestation_due_bps = 3333;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let small_due = custom_spec.unaggregated_attestation_due;
         assert_eq!(small_due, Duration::from_millis(333)); // 1000 * 3333 / 10000
 
@@ -4289,12 +4290,12 @@ mod yaml_tests {
         let mut custom_spec = custom_spec;
         custom_spec.slot_duration_ms = 12000;
         custom_spec.attestation_due_bps = 1; // 0.01%
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         let tiny_due = custom_spec.unaggregated_attestation_due;
         assert_eq!(tiny_due, Duration::from_millis(1)); // 12000 * 1 / 10000 = 1.2 -> 1
 
         // Test payload due (5000 bps = 50% of 12s = 6s)
-        let spec = ChainSpec::mainnet().compute_derived_values::<MainnetEthSpec>();
+        let spec = ChainSpec::mainnet().compute_derived_values();
         let payload_due = spec.get_payload_due();
         assert_eq!(payload_due, Duration::from_millis(6000)); // 12000 * 5000 / 10000
 
@@ -4311,7 +4312,7 @@ mod yaml_tests {
         // Test gloas with custom bps
         let mut custom_spec = spec;
         custom_spec.attestation_due_bps_gloas = 5000;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         assert_eq!(
             custom_spec.unaggregated_attestation_due_gloas,
             Duration::from_millis(6000)
@@ -4321,9 +4322,9 @@ mod yaml_tests {
         let mut custom_spec = custom_spec;
         custom_spec.aggregate_due_bps_gloas = 4000;
         custom_spec.gloas_fork_epoch = Some(Epoch::new(0));
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         assert_eq!(
-            custom_spec.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            custom_spec.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(4800)
         ); // 12000 * 4000 / 10000
 
@@ -4331,109 +4332,101 @@ mod yaml_tests {
         let mut custom_spec = custom_spec;
         custom_spec.sync_message_due_bps_gloas = 4000;
         custom_spec.contribution_due_bps_gloas = 6000;
-        let custom_spec = custom_spec.compute_derived_values::<MainnetEthSpec>();
+        let custom_spec = custom_spec.compute_derived_values();
         assert_eq!(
-            custom_spec.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            custom_spec.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(4800)
         ); // 12000 * 4000 / 10000
         assert_eq!(
-            custom_spec.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            custom_spec.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(7200)
         ); // 12000 * 6000 / 10000
     }
 
     #[test]
     fn test_attestation_due_is_fork_aware() {
-        type E = MainnetEthSpec;
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
-        let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let spec = spec.compute_derived_values();
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
-            spec.get_attestation_due::<E>(first_gloas_slot - 1),
+            spec.get_attestation_due(first_gloas_slot - 1),
             Duration::from_millis(3999)
         );
         assert_eq!(
-            spec.get_attestation_due::<E>(first_gloas_slot),
+            spec.get_attestation_due(first_gloas_slot),
             Duration::from_millis(3000)
         );
         assert_eq!(
-            spec.get_attestation_due::<E>(first_gloas_slot + 1),
+            spec.get_attestation_due(first_gloas_slot + 1),
             Duration::from_millis(3000)
         );
     }
 
     #[test]
     fn test_aggregate_attestation_due_is_fork_aware() {
-        type E = MainnetEthSpec;
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
-        let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let spec = spec.compute_derived_values();
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
-            spec.get_aggregate_attestation_due::<E>(first_gloas_slot - 1),
+            spec.get_aggregate_attestation_due(first_gloas_slot - 1),
             Duration::from_millis(8000)
         );
         assert_eq!(
-            spec.get_aggregate_attestation_due::<E>(first_gloas_slot),
+            spec.get_aggregate_attestation_due(first_gloas_slot),
             Duration::from_millis(6000)
         );
         assert_eq!(
-            spec.get_aggregate_attestation_due::<E>(first_gloas_slot + 1),
+            spec.get_aggregate_attestation_due(first_gloas_slot + 1),
             Duration::from_millis(6000)
         );
     }
 
     #[test]
     fn test_sync_message_due_is_fork_aware() {
-        type E = MainnetEthSpec;
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
-        let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let spec = spec.compute_derived_values();
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
-            spec.get_sync_message_due::<E>(first_gloas_slot - 1),
+            spec.get_sync_message_due(first_gloas_slot - 1),
             Duration::from_millis(3999)
         );
         assert_eq!(
-            spec.get_sync_message_due::<E>(first_gloas_slot),
+            spec.get_sync_message_due(first_gloas_slot),
             Duration::from_millis(3000)
         );
         assert_eq!(
-            spec.get_sync_message_due::<E>(first_gloas_slot + 1),
+            spec.get_sync_message_due(first_gloas_slot + 1),
             Duration::from_millis(3000)
         );
     }
 
     #[test]
     fn test_contribution_message_due_is_fork_aware() {
-        type E = MainnetEthSpec;
-
         let gloas_fork_epoch = Epoch::new(1);
         let mut spec = ChainSpec::mainnet();
         spec.gloas_fork_epoch = Some(gloas_fork_epoch);
-        let spec = spec.compute_derived_values::<E>();
-        let first_gloas_slot = gloas_fork_epoch.start_slot(E::slots_per_epoch());
+        let spec = spec.compute_derived_values();
+        let first_gloas_slot = gloas_fork_epoch.start_slot(Spec::slots_per_epoch());
 
         assert_eq!(
-            spec.get_contribution_message_due::<E>(first_gloas_slot - 1),
+            spec.get_contribution_message_due(first_gloas_slot - 1),
             Duration::from_millis(8000)
         );
         assert_eq!(
-            spec.get_contribution_message_due::<E>(first_gloas_slot),
+            spec.get_contribution_message_due(first_gloas_slot),
             Duration::from_millis(6000)
         );
         assert_eq!(
-            spec.get_contribution_message_due::<E>(first_gloas_slot + 1),
+            spec.get_contribution_message_due(first_gloas_slot + 1),
             Duration::from_millis(6000)
         );
     }
@@ -4448,15 +4441,15 @@ mod yaml_tests {
             Duration::from_millis(3999)
         );
         assert_eq!(
-            mainnet.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(8000)
         );
         assert_eq!(
-            mainnet.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(3999)
         );
         assert_eq!(
-            mainnet.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(8000)
         );
 
@@ -4475,15 +4468,15 @@ mod yaml_tests {
         let mut mainnet_gloas = mainnet.clone();
         mainnet_gloas.gloas_fork_epoch = Some(Epoch::new(0));
         assert_eq!(
-            mainnet_gloas.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet_gloas.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(6000)
         );
         assert_eq!(
-            mainnet_gloas.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet_gloas.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(3000)
         );
         assert_eq!(
-            mainnet_gloas.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            mainnet_gloas.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(6000)
         );
 
@@ -4494,15 +4487,15 @@ mod yaml_tests {
             Duration::from_millis(1999)
         );
         assert_eq!(
-            minimal.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(4000)
         );
         assert_eq!(
-            minimal.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(1999)
         );
         assert_eq!(
-            minimal.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(4000)
         );
         // Minimal payload due: 6000ms slots, 5000 bps = 3000ms
@@ -4520,15 +4513,15 @@ mod yaml_tests {
         let mut minimal_gloas = minimal.clone();
         minimal_gloas.gloas_fork_epoch = Some(Epoch::new(0));
         assert_eq!(
-            minimal_gloas.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal_gloas.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(3000)
         );
         assert_eq!(
-            minimal_gloas.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal_gloas.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(1500)
         );
         assert_eq!(
-            minimal_gloas.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            minimal_gloas.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(3000)
         );
 
@@ -4539,15 +4532,15 @@ mod yaml_tests {
             Duration::from_millis(1666)
         );
         assert_eq!(
-            gnosis.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(3333)
         );
         assert_eq!(
-            gnosis.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(1666)
         );
         assert_eq!(
-            gnosis.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(3333)
         );
         // Gnosis payload due: 5000ms slots, 5000 bps = 2500ms
@@ -4565,15 +4558,15 @@ mod yaml_tests {
         let mut gnosis_gloas = gnosis.clone();
         gnosis_gloas.gloas_fork_epoch = Some(Epoch::new(0));
         assert_eq!(
-            gnosis_gloas.get_aggregate_attestation_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis_gloas.get_aggregate_attestation_due(Slot::new(0)),
             Duration::from_millis(2500)
         );
         assert_eq!(
-            gnosis_gloas.get_sync_message_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis_gloas.get_sync_message_due(Slot::new(0)),
             Duration::from_millis(1250)
         );
         assert_eq!(
-            gnosis_gloas.get_contribution_message_due::<MainnetEthSpec>(Slot::new(0)),
+            gnosis_gloas.get_contribution_message_due(Slot::new(0)),
             Duration::from_millis(2500)
         );
     }
@@ -4581,10 +4574,10 @@ mod yaml_tests {
     #[test]
     #[should_panic(expected = "exceeds slot duration")]
     fn test_compute_derived_values_panics_on_invalid_bps_values() {
-        let mut spec = ChainSpec::mainnet();
+        let mut spec = Spec::default_spec();
         // 15000 bps = 150% of slot duration, which is invalid
         spec.attestation_due_bps = 15000;
-        spec.compute_derived_values::<MainnetEthSpec>();
+        spec.compute_derived_values();
     }
 
     fn configs_base_path() -> PathBuf {
@@ -4613,7 +4606,7 @@ mod yaml_tests {
     /// 2. Deserializes the upstream YAML as `Config` (which has custom
     ///    deserializers for large values like `TERMINAL_TOTAL_DIFFICULTY`) and
     ///    compares against `Config::from_chain_spec`.
-    fn config_test<E: EthSpec>(spec: &ChainSpec, config_name: &str) {
+    fn config_test(spec: &ChainSpec, config_name: &str) {
         let file_path = configs_base_path().join(format!("{config_name}.yaml"));
         let upstream_yaml = std::fs::read_to_string(&file_path)
             .unwrap_or_else(|e| panic!("failed to read {}: {e}", file_path.display()));
@@ -4640,7 +4633,7 @@ mod yaml_tests {
         // Get the set of keys that Config knows about by serializing and collecting
         // keys. Also include keys for optional fields that may be skipped during
         // serialization (e.g. CONFIG_NAME).
-        let our_config = Config::from_chain_spec::<E>(spec);
+        let our_config = Config::from_chain_spec(spec);
         let our_yaml = yaml_serde::to_string(&our_config).expect("failed to serialize Config");
         let our_mapping: yaml_serde::Mapping =
             yaml_serde::from_str(&our_yaml).expect("failed to re-parse our Config");
@@ -4688,12 +4681,12 @@ mod yaml_tests {
     #[test]
     fn mainnet_config_consistent() {
         let spec = ChainSpec::mainnet();
-        config_test::<MainnetEthSpec>(&spec, "mainnet");
+        config_test(&spec, "mainnet");
     }
 
     #[test]
     fn minimal_config_consistent() {
         let spec = ChainSpec::minimal();
-        config_test::<MinimalEthSpec>(&spec, "minimal");
+        config_test(&spec, "minimal");
     }
 }

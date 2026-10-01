@@ -1,4 +1,3 @@
-use crate::BeaconChainTypes;
 use crate::payload_envelope_verification::gossip_verified_envelope::GossipVerifiedEnvelope;
 use parking_lot::RwLock;
 use std::collections::{BTreeMap, HashSet};
@@ -22,10 +21,7 @@ impl ObservedPayloadEnvelopes {
     /// Observe the verified payload envelope for its `(slot, block_root, builder_index)` tuple
     ///
     /// Returns `true` if the envelope was newly observed, `false` if it had already been seen
-    pub fn observe_envelope<T: BeaconChainTypes>(
-        &self,
-        envelope: &GossipVerifiedEnvelope<T>,
-    ) -> bool {
+    pub fn observe_envelope(&self, envelope: &GossipVerifiedEnvelope) -> bool {
         let message = &envelope.signed_envelope.message;
         self.seen_envelopes
             .write()
@@ -61,22 +57,19 @@ mod tests {
 
     use super::ObservedPayloadEnvelopes;
     use crate::payload_envelope_verification::gossip_verified_envelope::GossipVerifiedEnvelope;
-    use crate::test_utils::EphemeralHarnessType;
     use bls::Signature;
     use std::sync::Arc;
     use types::{
-        BeaconBlock, BuilderIndex, EthSpec, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
-        ExecutionRequestsGloas, Hash256, MinimalEthSpec, SignedBeaconBlock,
-        SignedExecutionPayloadEnvelope, Slot,
+        BeaconBlock, BuilderIndex, ExecutionPayloadEnvelope, ExecutionPayloadGloas,
+        ExecutionRequestsGloas, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
+        Spec,
     };
-
-    type E = MinimalEthSpec;
 
     fn make_verified_envelope(
         slot: Slot,
         block_root: Hash256,
         builder_index: BuilderIndex,
-    ) -> GossipVerifiedEnvelope<EphemeralHarnessType<E>> {
+    ) -> GossipVerifiedEnvelope {
         let signed_envelope = SignedExecutionPayloadEnvelope {
             message: ExecutionPayloadEnvelope {
                 payload: ExecutionPayloadGloas {
@@ -90,7 +83,7 @@ mod tests {
             },
             signature: Signature::empty(),
         };
-        let mut block = BeaconBlock::empty(&E::default_spec());
+        let mut block = BeaconBlock::empty(&Spec::default_spec());
         *block.slot_mut() = slot;
 
         GossipVerifiedEnvelope {

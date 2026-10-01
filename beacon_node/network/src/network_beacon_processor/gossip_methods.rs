@@ -50,12 +50,12 @@ use store::hot_cold_store::HotColdDBError;
 use tracing::{Instrument, Span, debug, error, info, instrument, trace, warn};
 use types::{
     Attestation, AttestationData, AttestationRef, AttesterSlashing, ColumnIndex, DataColumnSidecar,
-    DataColumnSubnetId, EthSpec, Hash256, IndexedAttestation, LightClientFinalityUpdate,
+    DataColumnSubnetId, Hash256, IndexedAttestation, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, PartialDataColumn, PayloadAttestationMessage, ProposerSlashing,
     SignedAggregateAndProof, SignedBeaconBlock, SignedBlsToExecutionChange,
     SignedContributionAndProof, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
     SignedInclusionList, SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, Slot,
-    SubnetId, SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
+    Spec, SubnetId, SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
     execution::SignedExecutionProof,
 };
 
@@ -123,23 +123,23 @@ impl ReprocessAllowance {
 ///
 /// Since this struct implements `beacon_chain::VerifiedAttestation`, it would be a logic error to
 /// construct this from components which have not passed `BeaconChain` validation.
-struct VerifiedUnaggregate<T: BeaconChainTypes> {
-    attestation: Box<Attestation<T::EthSpec>>,
-    indexed_attestation: IndexedAttestation<T::EthSpec>,
+struct VerifiedUnaggregate {
+    attestation: Box<Attestation>,
+    indexed_attestation: IndexedAttestation,
 }
 
 /// This implementation allows `Self` to be imported to fork choice and other functions on the
 /// `BeaconChain`.
-impl<T: BeaconChainTypes> VerifiedAttestation<T> for VerifiedUnaggregate<T> {
-    fn attestation(&self) -> AttestationRef<'_, T::EthSpec> {
+impl VerifiedAttestation for VerifiedUnaggregate {
+    fn attestation(&self) -> AttestationRef<'_> {
         self.attestation.to_ref()
     }
 
-    fn indexed_attestation(&self) -> &IndexedAttestation<T::EthSpec> {
+    fn indexed_attestation(&self) -> &IndexedAttestation {
         &self.indexed_attestation
     }
 
-    fn into_attestation_and_indices(self) -> (Attestation<T::EthSpec>, Vec<u64>) {
+    fn into_attestation_and_indices(self) -> (Attestation, Vec<u64>) {
         let attestation = *self.attestation;
         let attesting_indices = self.indexed_attestation.attesting_indices_to_vec();
         (attestation, attesting_indices)
@@ -156,24 +156,24 @@ struct RejectedUnaggregate {
 ///
 /// Since this struct implements `beacon_chain::VerifiedAttestation`, it would be a logic error to
 /// construct this from components which have not passed `BeaconChain` validation.
-struct VerifiedAggregate<T: BeaconChainTypes> {
-    signed_aggregate: Box<SignedAggregateAndProof<T::EthSpec>>,
-    indexed_attestation: IndexedAttestation<T::EthSpec>,
+struct VerifiedAggregate {
+    signed_aggregate: Box<SignedAggregateAndProof>,
+    indexed_attestation: IndexedAttestation,
 }
 
 /// This implementation allows `Self` to be imported to fork choice and other functions on the
 /// `BeaconChain`.
-impl<T: BeaconChainTypes> VerifiedAttestation<T> for VerifiedAggregate<T> {
-    fn attestation(&self) -> AttestationRef<'_, T::EthSpec> {
+impl VerifiedAttestation for VerifiedAggregate {
+    fn attestation(&self) -> AttestationRef<'_> {
         self.signed_aggregate.message().aggregate()
     }
 
-    fn indexed_attestation(&self) -> &IndexedAttestation<T::EthSpec> {
+    fn indexed_attestation(&self) -> &IndexedAttestation {
         &self.indexed_attestation
     }
 
     /// Efficient clone-free implementation that moves out of the `Box`.
-    fn into_attestation_and_indices(self) -> (Attestation<T::EthSpec>, Vec<u64>) {
+    fn into_attestation_and_indices(self) -> (Attestation, Vec<u64>) {
         let attestation = self.signed_aggregate.into_attestation();
         let attesting_indices = self.indexed_attestation.attesting_indices_to_vec();
         (attestation, attesting_indices)
@@ -181,13 +181,13 @@ impl<T: BeaconChainTypes> VerifiedAttestation<T> for VerifiedAggregate<T> {
 }
 
 /// An attestation that failed validation by the `BeaconChain`.
-struct RejectedAggregate<E: EthSpec> {
-    signed_aggregate: Box<SignedAggregateAndProof<E>>,
+struct RejectedAggregate {
+    signed_aggregate: Box<SignedAggregateAndProof>,
     error: AttnError,
 }
 
 /// Data for an aggregated or unaggregated attestation that failed verification.
-enum FailedAtt<E: EthSpec> {
+enum FailedAtt {
     Unaggregate {
         attestation: Box<SingleAttestation>,
         subnet_id: SubnetId,
@@ -195,12 +195,12 @@ enum FailedAtt<E: EthSpec> {
         seen_timestamp: Duration,
     },
     Aggregate {
-        attestation: Box<SignedAggregateAndProof<E>>,
+        attestation: Box<SignedAggregateAndProof>,
         seen_timestamp: Duration,
     },
 }
 
-impl<E: EthSpec> FailedAtt<E> {
+impl FailedAtt {
     pub fn beacon_block_root(&self) -> &Hash256 {
         &self.attestation_data().beacon_block_root
     }
@@ -387,7 +387,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     #[allow(clippy::too_many_arguments)]
     fn process_gossip_attestation_result(
         self: &Arc<Self>,
-        result: Result<VerifiedUnaggregate<T>, RejectedUnaggregate>,
+        result: Result<VerifiedUnaggregate, RejectedUnaggregate>,
         message_id: MessageId,
         peer_id: PeerId,
         subnet_id: SubnetId,
@@ -494,7 +494,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        aggregate: Box<SignedAggregateAndProof<T::EthSpec>>,
+        aggregate: Box<SignedAggregateAndProof>,
         reprocess_allowance: ReprocessAllowance,
         seen_timestamp: Duration,
     ) {
@@ -526,7 +526,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     pub fn process_gossip_aggregate_batch(
         self: Arc<Self>,
-        packages: Vec<GossipAggregatePackage<T::EthSpec>>,
+        packages: Vec<GossipAggregatePackage>,
         reprocess_allowance: ReprocessAllowance,
     ) {
         let aggregates = packages.iter().map(|package| package.aggregate.as_ref());
@@ -589,7 +589,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     fn process_gossip_aggregate_result(
         self: &Arc<Self>,
-        result: Result<VerifiedAggregate<T>, RejectedAggregate<T::EthSpec>>,
+        result: Result<VerifiedAggregate, RejectedAggregate>,
         beacon_block_root: Hash256,
         message_id: MessageId,
         peer_id: PeerId,
@@ -693,7 +693,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         message_id: MessageId,
         peer_id: PeerId,
         subnet_id: DataColumnSubnetId,
-        column_sidecar: Arc<DataColumnSidecar<T::EthSpec>>,
+        column_sidecar: Arc<DataColumnSidecar>,
         seen_duration: Duration,
         allow_reprocess: bool,
     ) {
@@ -924,7 +924,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     async fn process_gossip_verified_data_column(
         self: &Arc<Self>,
         peer_id: PeerId,
-        verified_data_column: GossipVerifiedDataColumn<T>,
+        verified_data_column: GossipVerifiedDataColumn,
         // This value is not used presently, but it might come in handy for debugging.
         _seen_duration: Duration,
     ) {
@@ -1048,7 +1048,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_gossip_partial_data_column_sidecar(
         self: &Arc<Self>,
         peer_id: PeerId,
-        column: Box<PartialDataColumn<T::EthSpec>>,
+        column: Box<PartialDataColumn>,
         seen_duration: Duration,
         topic: GossipTopic,
     ) {
@@ -1323,7 +1323,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     async fn process_gossip_verified_partial_data_column(
         self: &Arc<Self>,
         _peer_id: PeerId,
-        verified_partial: GossipVerifiedPartialDataColumn<T::EthSpec>,
+        verified_partial: GossipVerifiedPartialDataColumn,
     ) {
         let processing_start_time = Instant::now();
         let slot = verified_partial.slot();
@@ -1367,7 +1367,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
                 // While the local getBlobs fetch is still pending, don't request cells we may get
                 // for free from the EL; once local blobs are known, request everything we lack.
-                let request_cells = |present_cells: &CellBitmap<T::EthSpec>| {
+                let request_cells = |present_cells: &CellBitmap| {
                     if merge_result.local_fetch_settled {
                         // Request all cells that are not available locally.
                         let mut all_one = present_cells.clone_zeroed();
@@ -1487,7 +1487,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         if self
             .chain
             .custody_context
-            .should_attempt_reconstruction(slot.epoch(T::EthSpec::slots_per_epoch()))
+            .should_attempt_reconstruction(slot.epoch(Spec::slots_per_epoch()))
         {
             // Instead of triggering reconstruction immediately, schedule it to be run. If
             // another column arrives, it either completes availability or pushes
@@ -1538,7 +1538,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         message_id: MessageId,
         peer_id: PeerId,
         peer_client: Client,
-        block: Arc<SignedBeaconBlock<T::EthSpec>>,
+        block: Arc<SignedBeaconBlock>,
         duplicate_cache: DuplicateCache,
         invalid_block_storage: InvalidBlockStorage,
         seen_duration: Duration,
@@ -1584,9 +1584,9 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         message_id: MessageId,
         peer_id: PeerId,
         peer_client: Client,
-        block: Arc<SignedBeaconBlock<T::EthSpec>>,
+        block: Arc<SignedBeaconBlock>,
         seen_duration: Duration,
-    ) -> Option<GossipVerifiedBlock<T>> {
+    ) -> Option<GossipVerifiedBlock> {
         let block_delay =
             get_block_delay_ms(seen_duration, block.message(), &self.chain.slot_clock);
         // Log metrics to track delay from other nodes on the network.
@@ -1618,12 +1618,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
         let verified_block = match verification_result {
             Ok(verified_block) => {
-                if block_delay
-                    >= self
-                        .chain
-                        .spec
-                        .get_attestation_due::<T::EthSpec>(block.slot())
-                {
+                if block_delay >= self.chain.spec.get_attestation_due(block.slot()) {
                     metrics::inc_counter(&metrics::BEACON_BLOCK_DELAY_GOSSIP_ARRIVED_LATE_TOTAL);
                     debug!(
                         block_root = ?verified_block.block_root,
@@ -1889,7 +1884,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     async fn process_gossip_verified_block(
         self: Arc<Self>,
         peer_id: PeerId,
-        verified_block: GossipVerifiedBlock<T>,
+        verified_block: GossipVerifiedBlock,
         invalid_block_storage: InvalidBlockStorage,
         _seen_duration: Duration,
     ) {
@@ -2159,7 +2154,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        attester_slashing: AttesterSlashing<T::EthSpec>,
+        attester_slashing: AttesterSlashing,
     ) -> MessageAcceptance {
         let (validation_result, verified_slashing_opt) = match self
             .chain
@@ -2363,7 +2358,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        sync_contribution: SignedContributionAndProof<T::EthSpec>,
+        sync_contribution: SignedContributionAndProof,
         seen_timestamp: Duration,
     ) {
         let contribution_slot = sync_contribution.message.contribution.slot;
@@ -2418,7 +2413,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        light_client_finality_update: LightClientFinalityUpdate<T::EthSpec>,
+        light_client_finality_update: LightClientFinalityUpdate,
         seen_timestamp: Duration,
     ) {
         match self
@@ -2477,7 +2472,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        light_client_optimistic_update: LightClientOptimisticUpdate<T::EthSpec>,
+        light_client_optimistic_update: LightClientOptimisticUpdate,
         allow_reprocess: bool,
         seen_timestamp: Duration,
     ) {
@@ -2602,7 +2597,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         peer_id: PeerId,
         message_id: MessageId,
-        failed_att: FailedAtt<T::EthSpec>,
+        failed_att: FailedAtt,
         reprocess_allowance: ReprocessAllowance,
         error: AttnError,
         seen_timestamp: Duration,
@@ -2641,7 +2636,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                 // network.
                 let seen_clock = &self.chain.slot_clock.freeze_at(seen_timestamp);
                 let hindsight_verification =
-                    attestation_verification::verify_propagation_slot_range::<_, T::EthSpec>(
+                    attestation_verification::verify_propagation_slot_range::<_>(
                         seen_clock,
                         failed_att.attestation_data(),
                         &self.chain.spec,
@@ -3658,11 +3653,11 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     /// timely), propagate it on gossip. Otherwise, ignore it.
     fn propagate_attestation_if_timely(
         &self,
-        attestation: AttestationRef<T::EthSpec>,
+        attestation: AttestationRef,
         message_id: MessageId,
         peer_id: PeerId,
     ) {
-        let is_timely = attestation_verification::verify_propagation_slot_range::<_, T::EthSpec>(
+        let is_timely = attestation_verification::verify_propagation_slot_range::<_>(
             &self.chain.slot_clock,
             attestation.data(),
             &self.chain.spec,
@@ -3711,7 +3706,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         &self,
         invalid_block_storage: &InvalidBlockStorage,
         block_root: Hash256,
-        block: &SignedBeaconBlock<T::EthSpec>,
+        block: &SignedBeaconBlock,
         error: &BlockError,
     ) {
         if let InvalidBlockStorage::Enabled(base_dir) = invalid_block_storage {
@@ -3773,7 +3768,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<SignedExecutionPayloadEnvelope>,
         seen_timestamp: Duration,
     ) {
         if let Some(gossip_verified_envelope) = self
@@ -3805,9 +3800,9 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<SignedExecutionPayloadEnvelope>,
         seen_duration: Duration,
-    ) -> Option<GossipVerifiedEnvelope<T>> {
+    ) -> Option<GossipVerifiedEnvelope> {
         let envelope_delay =
             get_slot_delay_ms(seen_duration, envelope.slot(), &self.chain.slot_clock);
 
@@ -4044,7 +4039,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     async fn process_gossip_verified_execution_payload_envelope(
         self: Arc<Self>,
         peer_id: PeerId,
-        verified_envelope: GossipVerifiedEnvelope<T>,
+        verified_envelope: GossipVerifiedEnvelope,
     ) {
         let _processing_start_time = Instant::now();
         let beacon_block_root = verified_envelope.signed_envelope.beacon_block_root();
@@ -4092,12 +4087,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         block_root: Hash256,
         source: EnvelopeSource,
     ) {
-        if self
-            .chain
-            .spec
-            .fork_name_at_slot::<T::EthSpec>(slot)
-            .gloas_enabled()
-        {
+        if self.chain.spec.fork_name_at_slot(slot).gloas_enabled() {
             self.notify_payload_envelope_imported(block_root, source);
         } else {
             self.notify_block_imported(block_root, source);
@@ -4245,7 +4235,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        bid: Arc<SignedExecutionPayloadBid<T::EthSpec>>,
+        bid: Arc<SignedExecutionPayloadBid>,
     ) {
         let verification_result = self.chain.verify_payload_bid_for_gossip(bid.clone());
 
@@ -4404,7 +4394,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
     fn process_gossip_payload_attestation_result(
         self: &Arc<Self>,
-        result: Result<VerifiedPayloadAttestationMessage<T>, PayloadAttestationError>,
+        result: Result<VerifiedPayloadAttestationMessage, PayloadAttestationError>,
         message_id: MessageId,
         peer_id: PeerId,
         payload_attestation_message: Box<PayloadAttestationMessage>,

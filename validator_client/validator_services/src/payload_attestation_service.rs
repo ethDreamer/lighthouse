@@ -10,7 +10,7 @@ use task_executor::TaskExecutor;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
-use types::{ChainSpec, EthSpec, PayloadAttestationData, Slot};
+use types::{ChainSpec, PayloadAttestationData, Slot, Spec};
 use validator_store::ValidatorStore;
 
 /// The reason payload attestation production was triggered.
@@ -232,7 +232,7 @@ where
 
         if !self
             .chain_spec
-            .fork_name_at_slot::<S::E>(attestation_slot)
+            .fork_name_at_slot(attestation_slot)
             .gloas_enabled()
         {
             let sleep_duration = self
@@ -240,7 +240,7 @@ where
                 .gloas_fork_epoch
                 .and_then(|fork_epoch| {
                     let pre_fork_slot = fork_epoch
-                        .start_slot(S::E::slots_per_epoch())
+                        .start_slot(Spec::slots_per_epoch())
                         .saturating_sub(1u64);
                     self.slot_clock.duration_to_slot(pre_fork_slot)
                 })
@@ -410,7 +410,7 @@ where
         }
 
         let count = messages.len();
-        let fork_name = self.chain_spec.fork_name_at_slot::<S::E>(slot);
+        let fork_name = self.chain_spec.fork_name_at_slot(slot);
         let result = self
             .beacon_nodes
             .first_success(|beacon_node| {

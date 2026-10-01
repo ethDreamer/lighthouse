@@ -14,12 +14,11 @@ use maplit::hashset;
 use std::sync::{Arc, Mutex};
 use task_executor::test_utils::TestRuntime;
 use types::{
-    BeaconBlock, BeaconBlockFulu, EmptyBlock, EthSpec, ForkName, Hash256, MainnetEthSpec,
-    SignedBeaconBlock, SignedBeaconBlockFulu,
+    BeaconBlock, BeaconBlockFulu, EmptyBlock, ForkName, Hash256, SignedBeaconBlock,
+    SignedBeaconBlockFulu, Spec,
 };
 
-type E = MainnetEthSpec;
-type T = EphemeralHarnessType<E>;
+type T = EphemeralHarnessType;
 
 mod get_blobs_v2 {
     use super::*;
@@ -29,7 +28,7 @@ mod get_blobs_v2 {
     async fn test_fetch_blobs_v2_no_blobs_in_block() {
         let mut mock_adapter = mock_beacon_adapter(ForkName::Fulu);
         let (publish_fn, _s) = mock_publish_fn();
-        let block = SignedBeaconBlock::<E>::Fulu(SignedBeaconBlockFulu {
+        let block: SignedBeaconBlock = SignedBeaconBlock::Fulu(SignedBeaconBlockFulu {
             message: BeaconBlockFulu::empty(mock_adapter.spec()),
             signature: Signature::empty(),
         });
@@ -250,7 +249,7 @@ mod get_blobs_v2 {
 
     fn mock_get_blobs_v2_response(
         mock_adapter: &mut MockFetchBlobsBeaconAdapter<T>,
-        blobs_and_proofs_opt: Option<Vec<BlobAndProof<E>>>,
+        blobs_and_proofs_opt: Option<Vec<BlobAndProof>>,
     ) {
         let blobs_and_proofs_v2_opt = blobs_and_proofs_opt.map(|blobs_and_proofs| {
             blobs_and_proofs
@@ -291,13 +290,11 @@ mod get_blobs_v4 {
         num_blobs: usize,
         num_custody_cols: usize,
         present: impl Fn(usize, usize) -> bool,
-    ) -> Option<GetBlobsV4List<E>> {
+    ) -> Option<GetBlobsV4List> {
         let list = (0..num_blobs)
             .map(|blob_idx| {
                 let blob_cells = (0..num_custody_cols)
-                    .map(|col_pos| {
-                        present(blob_idx, col_pos).then(|| JsonCell(Cell::<E>::default()))
-                    })
+                    .map(|col_pos| present(blob_idx, col_pos).then(|| JsonCell(Cell::default())))
                     .collect();
                 let proofs = (0..num_custody_cols)
                     .map(|col_pos| present(blob_idx, col_pos).then(KzgProof::empty))
@@ -308,7 +305,7 @@ mod get_blobs_v4 {
         Some(list)
     }
 
-    fn fulu_header(block: &SignedBeaconBlock<E>) -> PartialHeaderOrBid<E> {
+    fn fulu_header(block: &SignedBeaconBlock) -> PartialHeaderOrBid {
         PartialHeaderOrBid::PartialHeader(Arc::new(
             PartialDataColumnHeader::try_from(block).unwrap(),
         ))
@@ -516,7 +513,7 @@ mod get_blobs_v4 {
         // A Gloas block carries its blob commitments in the execution payload bid.
         let mut u = test_unstructured();
         let (block, _blobs) =
-            generate_rand_block_and_blobs::<E>(ForkName::Gloas, NumBlobs::Number(2), &mut u)
+            generate_rand_block_and_blobs(ForkName::Gloas, NumBlobs::Number(2), &mut u)
                 .expect("generate gloas block");
         let block_root = block.canonical_root();
         let bid = Arc::new(
@@ -537,7 +534,7 @@ mod get_blobs_v4 {
         );
         let custody_context = Arc::new(CustodyContext::<T>::new(
             NodeCustodyType::Supernode,
-            generate_data_column_indices_rand_order::<E>(),
+            generate_data_column_indices_rand_order(),
             slot_clock,
             false,
             spec.clone(),
@@ -593,8 +590,8 @@ mod get_blobs_v4 {
 
 /// Extract the `Vec<KzgVerifiedCustodyDataColumn<E>>` passed to the `publish_fn`.
 fn extract_published_blobs(
-    publish_fn_args: Arc<Mutex<Vec<Vec<KzgVerifiedCustodyDataColumn<E>>>>>,
-) -> Vec<KzgVerifiedCustodyDataColumn<E>> {
+    publish_fn_args: Arc<Mutex<Vec<Vec<KzgVerifiedCustodyDataColumn>>>>,
+) -> Vec<KzgVerifiedCustodyDataColumn> {
     let mut calls = publish_fn_args.lock().unwrap();
     assert_eq!(calls.len(), 1);
     calls.pop().unwrap()
@@ -621,11 +618,11 @@ fn mock_fork_choice_contains_block(
 fn create_test_block_and_blobs(
     mock_adapter: &MockFetchBlobsBeaconAdapter<T>,
     blob_count: usize,
-) -> (Arc<SignedBeaconBlock<E>>, Vec<BlobAndProof<E>>) {
+) -> (Arc<SignedBeaconBlock>, Vec<BlobAndProof>) {
     let mut block =
         SignedBeaconBlock::from_block(BeaconBlock::empty(mock_adapter.spec()), Signature::empty());
     let fork = block.fork_name_unchecked();
-    let (blobs_bundle, _tx) = generate_blobs::<E>(blob_count, fork).unwrap();
+    let (blobs_bundle, _tx) = generate_blobs(blob_count, fork).unwrap();
     let BlobsBundle {
         commitments,
         proofs,
@@ -663,8 +660,8 @@ fn create_test_block_and_blobs(
 
 #[allow(clippy::type_complexity)]
 fn mock_publish_fn() -> (
-    impl Fn(Vec<KzgVerifiedCustodyDataColumn<E>>) + Send + 'static,
-    Arc<Mutex<Vec<Vec<KzgVerifiedCustodyDataColumn<E>>>>>,
+    impl Fn(Vec<KzgVerifiedCustodyDataColumn>) + Send + 'static,
+    Arc<Mutex<Vec<Vec<KzgVerifiedCustodyDataColumn>>>>,
 ) {
     // Keep track of the arguments captured by `publish_fn`.
     let captured_args = Arc::new(Mutex::new(vec![]));
@@ -691,7 +688,7 @@ fn mock_beacon_adapter_with_capabilities(
     supports_get_blobs_v4: bool,
 ) -> MockFetchBlobsBeaconAdapter<T> {
     let test_runtime = TestRuntime::default();
-    let spec = Arc::new(fork_name.make_genesis_spec(E::default_spec()));
+    let spec = Arc::new(fork_name.make_genesis_spec(Spec::default_spec()));
     let kzg = get_kzg(&spec);
     let partial_assembler = PartialDataColumnAssembler::new(32, false);
 

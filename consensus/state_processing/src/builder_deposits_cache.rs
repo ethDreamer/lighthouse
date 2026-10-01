@@ -4,7 +4,7 @@ use lru::LruCache;
 use parking_lot::Mutex;
 use tracing::{debug, instrument};
 use tree_hash::{Hash256, TreeHash};
-use types::{BeaconState, ChainSpec, DepositData, EthSpec, PendingDeposit, new_non_zero_usize};
+use types::{BeaconState, ChainSpec, DepositData, PendingDeposit, new_non_zero_usize};
 
 use std::num::NonZeroUsize;
 
@@ -61,7 +61,7 @@ impl OnboardBuildersCache {
     /// Further block imports that result in additional deposits should be handled by the
     /// [`Self::add_new_pending_deposits`] method.
     #[instrument(skip_all)]
-    pub fn seed_from_state<E: EthSpec>(&self, state: &BeaconState<E>, spec: &ChainSpec) {
+    pub fn seed_from_state(&self, state: &BeaconState, spec: &ChainSpec) {
         let Ok(pending_deposits) = state.pending_deposits() else {
             return;
         };
@@ -81,11 +81,7 @@ impl OnboardBuildersCache {
     /// Gets the new deposits added to the `pending_deposits` queue for `state.slot()`.
     /// Signature verifies and caches them for later use.
     #[instrument(skip_all)]
-    pub fn add_new_pending_deposits<E: EthSpec>(
-        &self,
-        current_state: &BeaconState<E>,
-        spec: &ChainSpec,
-    ) {
+    pub fn add_new_pending_deposits(&self, current_state: &BeaconState, spec: &ChainSpec) {
         let pending_deposits = pending_deposits_to_verify(current_state);
         if pending_deposits.is_empty() {
             return;
@@ -191,7 +187,7 @@ pub fn is_valid_deposit_signature_cached(
 }
 
 /// Returns a list of `pending_deposits` that were added for the same slot as the passed state.
-fn pending_deposits_to_verify<E: EthSpec>(state: &BeaconState<E>) -> Vec<&PendingDeposit> {
+fn pending_deposits_to_verify(state: &BeaconState) -> Vec<&PendingDeposit> {
     let current_slot = state.slot();
     let Ok(pending_deposits) = state.pending_deposits() else {
         return Vec::new();
@@ -223,17 +219,18 @@ mod tests {
     use super::*;
     use bls::{Keypair, SignatureBytes};
     use std::sync::LazyLock;
-    use types::{ForkName, MainnetEthSpec, Slot};
+    use types::Spec;
+    use types::{ForkName, Slot};
 
     static KEYPAIRS: LazyLock<Vec<Keypair>> =
         LazyLock::new(|| types::test_utils::generate_deterministic_keypairs(10));
 
     fn gloas_spec() -> ChainSpec {
-        ForkName::Gloas.make_genesis_spec(MainnetEthSpec::default_spec())
+        ForkName::Gloas.make_genesis_spec(Spec::default_spec())
     }
 
     fn non_gloas_spec() -> ChainSpec {
-        ForkName::Fulu.make_genesis_spec(MainnetEthSpec::default_spec())
+        ForkName::Fulu.make_genesis_spec(Spec::default_spec())
     }
 
     fn builder_credentials(spec: &ChainSpec) -> Hash256 {
@@ -452,7 +449,7 @@ mod tests {
         use super::*;
         use beacon_chain::test_utils::BeaconChainHarness;
         use std::sync::Arc;
-        use types::{Epoch, MinimalEthSpec};
+        use types::Epoch;
 
         /// A Fulu state (gloas scheduled) at the given slot, as `add_new_pending_deposits`
         /// sees it after a block import.
@@ -460,8 +457,8 @@ mod tests {
             slot: Slot,
             deposits: Vec<PendingDeposit>,
             spec: &Arc<ChainSpec>,
-        ) -> types::BeaconState<MinimalEthSpec> {
-            let harness = BeaconChainHarness::builder(MinimalEthSpec)
+        ) -> types::BeaconState {
+            let harness = BeaconChainHarness::builder()
                 .spec(spec.clone())
                 .deterministic_keypairs(4)
                 .fresh_ephemeral_store()
@@ -474,7 +471,7 @@ mod tests {
         }
 
         fn fulu_spec_with_gloas_scheduled() -> Arc<ChainSpec> {
-            let mut spec = ForkName::Fulu.make_genesis_spec(MinimalEthSpec::default_spec());
+            let mut spec = ForkName::Fulu.make_genesis_spec(Spec::default_spec());
             spec.gloas_fork_epoch = Some(Epoch::new(1024));
             Arc::new(spec)
         }

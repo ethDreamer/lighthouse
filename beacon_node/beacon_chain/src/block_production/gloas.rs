@@ -30,12 +30,12 @@ use types::consts::gloas::BUILDER_INDEX_SELF_BUILD;
 use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
     BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
-    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, EthSpec, ExecutionBlockHash,
+    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, ExecutionBlockHash,
     ExecutionPayloadBid, ExecutionPayloadEnvelope, ExecutionRequestsGloas, FullPayload, Graffiti,
     Hash256, IndexedAttestation, KzgProofs, PayloadAttestation, ProgressiveTransactions,
     ProposerSlashing, RelativeEpoch, SignedBeaconBlock, SignedBlsToExecutionChange,
     SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal, Withdrawals,
+    SignedVoluntaryExit, Slot, Spec, SyncAggregate, Uint256, Withdrawal, Withdrawals,
 };
 
 use builder_client::BidRequestContext;
@@ -61,31 +61,27 @@ pub const EXECUTION_PAYMENT_TRUSTLESS_BUILD: u64 = 0;
 
 type ConsensusBlockValue = u64;
 
-pub type PayloadEnvelopeContents<E> = (
-    Arc<ExecutionPayloadEnvelope<E>>,
-    KzgProofs<E>,
-    Arc<BlobsList<E>>,
-);
+pub type PayloadEnvelopeContents = (Arc<ExecutionPayloadEnvelope>, KzgProofs, Arc<BlobsList>);
 
 /// Execution payload value in wei: the local payload's EL value when self-building, or the
 /// bid value when committing to a builder bid.
 type ExecutionPayloadValue = Uint256;
 
-type BlockProductionResult<E> = (
-    BeaconBlock<E>,
-    BeaconState<E>,
+type BlockProductionResult = (
+    BeaconBlock,
+    BeaconState,
     ConsensusBlockValue,
     ExecutionPayloadValue,
-    Option<PayloadEnvelopeContents<E>>,
+    Option<PayloadEnvelopeContents>,
     // The winning builder's URL when a direct builder won, for the `Eth-Builder-Url` response header.
     // Kept as a `SensitiveUrl` (redacted in logs); stringified only at the header boundary.
     Option<SensitiveUrl>,
 );
 
-pub type PreparePayloadResult<E> = Result<BlockProposalContentsGloas<E>, BlockProductionError>;
-pub type PreparePayloadHandle<E> = JoinHandle<Option<PreparePayloadResult<E>>>;
+pub type PreparePayloadResult = Result<BlockProposalContentsGloas, BlockProductionError>;
+pub type PreparePayloadHandle = JoinHandle<Option<PreparePayloadResult>>;
 
-pub struct PartialBeaconBlock<E: EthSpec> {
+pub struct PartialBeaconBlock {
     slot: Slot,
     proposer_index: u64,
     parent_root: Hash256,
@@ -93,12 +89,12 @@ pub struct PartialBeaconBlock<E: EthSpec> {
     eth1_data: Eth1Data,
     graffiti: Graffiti,
     proposer_slashings: Vec<ProposerSlashing>,
-    attester_slashings: Vec<AttesterSlashingGloas<E>>,
-    attestations: Vec<AttestationGloas<E>>,
-    payload_attestations: Vec<PayloadAttestation<E>>,
+    attester_slashings: Vec<AttesterSlashingGloas>,
+    attestations: Vec<AttestationGloas>,
+    payload_attestations: Vec<PayloadAttestation>,
     deposits: Vec<Deposit>,
     voluntary_exits: Vec<SignedVoluntaryExit>,
-    sync_aggregate: SyncAggregate<E>,
+    sync_aggregate: SyncAggregate,
     bls_to_execution_changes: Vec<SignedBlsToExecutionChange>,
 }
 
@@ -107,8 +103,8 @@ pub struct PartialBeaconBlock<E: EthSpec> {
 ///
 /// [`ExecutionPayloadData`] and the selection types ([`BidCandidate`], [`BidSource`]) live in the
 /// fork-agnostic [`bid_selection`](super::bid_selection) module.
-pub struct LocalBuildResult<E: EthSpec> {
-    pub payload_data: ExecutionPayloadData<E>,
+pub struct LocalBuildResult {
+    pub payload_data: ExecutionPayloadData,
     /// EL block value (in wei) of the locally-built payload.
     pub payload_value: types::Uint256,
     /// `true` if the EL signaled `engine_getPayload`'s `shouldOverrideBuilder` flag.
@@ -123,7 +119,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         graffiti_settings: GraffitiSettings,
         verification: ProduceBlockVerification,
         builder_config: BuilderConfig,
-    ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
+    ) -> Result<BlockProductionResult, BlockProductionError> {
         metrics::inc_counter(&metrics::BLOCK_PRODUCTION_REQUESTS);
         let _complete_timer = metrics::start_timer(&metrics::BLOCK_PRODUCTION_TIMES);
         // Part 1/2 (blocking)
@@ -169,17 +165,17 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[allow(clippy::too_many_arguments)]
     pub async fn produce_block_on_state_gloas(
         self: &Arc<Self>,
-        state: BeaconState<T::EthSpec>,
+        state: BeaconState,
         state_root_opt: Option<Hash256>,
         parent_root: Hash256,
         parent_payload_status: PayloadStatus,
-        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope>>,
         produce_at_slot: Slot,
         randao_reveal: Signature,
         graffiti_settings: GraffitiSettings,
         verification: ProduceBlockVerification,
         builder_config: BuilderConfig,
-    ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
+    ) -> Result<BlockProductionResult, BlockProductionError> {
         debug!(
             slot = %produce_at_slot,
             direct_builders = builder_config.builders.len(),
@@ -244,7 +240,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let parent_bid = state.latest_execution_payload_bid()?;
         let parent_is_pre_gloas = !self
             .spec
-            .fork_name_at_slot::<T::EthSpec>(state.latest_block_header().slot)
+            .fork_name_at_slot(state.latest_block_header().slot)
             .gloas_enabled();
         // The payload-chain parent: the latest *executed* ancestor's payload hash — the parent
         // block's own payload when building on FULL, otherwise the payload the parent built on.
@@ -265,12 +261,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             executed_ancestor_hash,
             parent_root,
             proposer_pubkey,
-            fork_name: self.spec.fork_name_at_slot::<T::EthSpec>(produce_at_slot),
+            fork_name: self.spec.fork_name_at_slot(produce_at_slot),
         };
 
         // The proposer's gossip-verified preferences for this slot, needed to validate direct bids.
         // Absent (the proposer never submitted any) => direct bids are skipped.
-        let proposal_epoch = produce_at_slot.epoch(T::EthSpec::slots_per_epoch());
+        let proposal_epoch = produce_at_slot.epoch(Spec::slots_per_epoch());
         let dependent_root = state.proposer_shuffling_decision_root_at_epoch(
             proposal_epoch,
             parent_root,
@@ -355,16 +351,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[instrument(skip_all, level = "debug")]
     fn produce_partial_beacon_block_gloas(
         self: &Arc<Self>,
-        mut state: BeaconState<T::EthSpec>,
+        mut state: BeaconState,
         state_root_opt: Option<Hash256>,
         parent_root: Hash256,
         produce_at_slot: Slot,
         randao_reveal: Signature,
         graffiti: Graffiti,
-        parent_execution_requests: &ExecutionRequestsGloas<T::EthSpec>,
+        parent_execution_requests: &ExecutionRequestsGloas,
         should_build_on_full: bool,
-    ) -> Result<(PartialBeaconBlock<T::EthSpec>, BeaconState<T::EthSpec>), BlockProductionError>
-    {
+    ) -> Result<(PartialBeaconBlock, BeaconState), BlockProductionError> {
         // It is invalid to try to produce a block using a state from a future slot.
         if state.slot() > produce_at_slot {
             return Err(BlockProductionError::StateSlotTooHigh {
@@ -420,7 +415,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             let _unagg_import_timer =
                 metrics::start_timer(&metrics::BLOCK_PRODUCTION_UNAGGREGATED_TIMES);
             for attestation in self.naive_aggregation_pool.read().iter() {
-                let import = |attestation: &Attestation<T::EthSpec>| {
+                let import = |attestation: &Attestation| {
                     let attesting_indices =
                         get_attesting_indices_from_state(&state, attestation.to_ref())?;
                     self.op_pool
@@ -451,19 +446,18 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             // block processing does.
             if should_build_on_full {
                 let parent_slot = state.latest_execution_payload_bid()?.slot;
-                let availability_index =
-                    parent_slot.as_usize() % T::EthSpec::slots_per_historical_root();
+                let availability_index = parent_slot.as_usize() % Spec::SLOTS_PER_HISTORICAL_ROOT;
                 state
                     .execution_payload_availability_mut()?
                     .set(availability_index, true)?;
             }
 
             let mut prev_filter_cache = HashMap::new();
-            let prev_attestation_filter = |att: &CompactAttestationRef<T::EthSpec>| {
+            let prev_attestation_filter = |att: &CompactAttestationRef| {
                 self.filter_op_pool_attestation(&mut prev_filter_cache, att, &state)
             };
             let mut curr_filter_cache = HashMap::new();
-            let curr_attestation_filter = |att: &CompactAttestationRef<T::EthSpec>| {
+            let curr_attestation_filter = |att: &CompactAttestationRef| {
                 self.filter_op_pool_attestation(&mut curr_filter_cache, att, &state)
             };
 
@@ -672,12 +666,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[instrument(skip_all, level = "debug")]
     fn complete_partial_beacon_block_gloas(
         &self,
-        partial_beacon_block: PartialBeaconBlock<T::EthSpec>,
-        winning_bid: BidCandidate<T::EthSpec>,
-        parent_execution_requests: ExecutionRequestsGloas<T::EthSpec>,
-        mut state: BeaconState<T::EthSpec>,
+        partial_beacon_block: PartialBeaconBlock,
+        winning_bid: BidCandidate,
+        parent_execution_requests: ExecutionRequestsGloas,
+        mut state: BeaconState,
         verification: ProduceBlockVerification,
-    ) -> Result<BlockProductionResult<T::EthSpec>, BlockProductionError> {
+    ) -> Result<BlockProductionResult, BlockProductionError> {
         // Read the reported value and `builder_url` (`Some` only for a direct bid, becoming the
         // `Eth-Builder-Url` header) before destructuring the candidate.
         let execution_payload_value = winning_bid.payload_value();
@@ -752,7 +746,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         payload_attestations,
                     )
                     .map_err(BlockProductionError::SszTypesError)?,
-                    _phantom: PhantomData::<FullPayload<T::EthSpec>>,
+                    _phantom: PhantomData::<FullPayload>,
                 },
             }),
             BeaconState::Heze(_) => BeaconBlock::Heze(BeaconBlockHeze {
@@ -786,7 +780,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         payload_attestations,
                     )
                     .map_err(BlockProductionError::SszTypesError)?,
-                    _phantom: PhantomData::<FullPayload<T::EthSpec>>,
+                    _phantom: PhantomData::<FullPayload>,
                 },
             }),
         };
@@ -922,20 +916,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[instrument(level = "debug", skip_all)]
     pub async fn produce_execution_payload_bid(
         self: Arc<Self>,
-        state: &BeaconState<T::EthSpec>,
-        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        state: &BeaconState,
+        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope>>,
         produce_at_slot: Slot,
         bid_value: u64,
         builder_index: BuilderIndex,
         executed_ancestor_hash: ExecutionBlockHash,
         proposer_preferences: Option<&SignedProposerPreferences>,
-    ) -> Result<
-        (
-            SignedExecutionPayloadBid<T::EthSpec>,
-            LocalBuildResult<T::EthSpec>,
-        ),
-        BlockProductionError,
-    > {
+    ) -> Result<(SignedExecutionPayloadBid, LocalBuildResult), BlockProductionError> {
         // TODO(gloas) For non local building, add sanity check on value
         // The builder MUST have enough excess balance to fulfill this bid (i.e. `value`) and all pending payments.
 
@@ -997,7 +985,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         // TODO(gloas) since we are defaulting to local building, execution payment is 0
         // execution payment should only be set to > 0 for trusted building.
-        let bid = ExecutionPayloadBid::<T::EthSpec> {
+        let bid = ExecutionPayloadBid {
             parent_block_hash: executed_ancestor_hash,
             parent_block_root: parent_root,
             block_hash: payload.block_hash,
@@ -1052,9 +1040,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         ctx: BidRequestContext,
         builder_config: &BuilderConfig,
         proposer_preferences: Option<&SignedProposerPreferences>,
-        state: &BeaconState<T::EthSpec>,
-        parent_execution_requests: &ExecutionRequestsGloas<T::EthSpec>,
-    ) -> Vec<BidCandidate<T::EthSpec>> {
+        state: &BeaconState,
+        parent_execution_requests: &ExecutionRequestsGloas,
+    ) -> Vec<BidCandidate> {
         let mut externals = Vec::new();
 
         // Direct bids: only when there are builders to contact and the proposer submitted preferences
@@ -1140,8 +1128,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         ctx: &BidRequestContext,
         builder_config: &BuilderConfig,
         proposer_preferences: &SignedProposerPreferences,
-        state: &BeaconState<T::EthSpec>,
-    ) -> Vec<BidCandidate<T::EthSpec>> {
+        state: &BeaconState,
+    ) -> Vec<BidCandidate> {
         let Some(builders) = self.builders.as_ref() else {
             error!(
                 "Builder service unexpectedly absent during Gloas block production (it is built \
@@ -1248,14 +1236,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 #[allow(clippy::too_many_arguments)]
 fn get_execution_payload_gloas<T: BeaconChainTypes>(
     chain: Arc<BeaconChain<T>>,
-    state: &BeaconState<T::EthSpec>,
+    state: &BeaconState,
     parent_beacon_block_root: Hash256,
     parent_block_hash: ExecutionBlockHash,
-    parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+    parent_envelope: Option<Arc<SignedExecutionPayloadEnvelope>>,
     proposer_index: u64,
     builder_params: BuilderParams,
     preferred_gas_limit: Option<u64>,
-) -> Result<PreparePayloadHandle<T::EthSpec>, BlockProductionError> {
+) -> Result<PreparePayloadHandle, BlockProductionError> {
     // Compute all required values from the `state` now to avoid needing to pass it into a spawned
     // task.
     let spec = &chain.spec;
@@ -1277,12 +1265,11 @@ fn get_execution_payload_gloas<T: BeaconChainTypes>(
                 &envelope.message.execution_requests,
                 spec,
             )?;
-            Withdrawals::<T::EthSpec>::from(get_expected_withdrawals(&withdrawals_state, spec)?)
-                .into()
+            Withdrawals::from(get_expected_withdrawals(&withdrawals_state, spec)?).into()
         } else {
             // No envelope available (e.g. genesis). The parent had no execution requests,
             // so compute withdrawals directly from the current state.
-            Withdrawals::<T::EthSpec>::from(get_expected_withdrawals(state, spec)?).into()
+            Withdrawals::from(get_expected_withdrawals(state, spec)?).into()
         }
     } else {
         // If the previous payload was missed, carry forward the withdrawals from the state.
@@ -1334,12 +1321,12 @@ async fn prepare_execution_payload<T>(
     target_gas_limit: u64,
     withdrawals: Vec<Withdrawal>,
     parent_beacon_block_root: Hash256,
-) -> Result<BlockProposalContentsGloas<T::EthSpec>, BlockProductionError>
+) -> Result<BlockProposalContentsGloas, BlockProductionError>
 where
     T: BeaconChainTypes,
 {
     let spec = &chain.spec;
-    let fork = spec.fork_name_at_slot::<T::EthSpec>(builder_params.slot);
+    let fork = spec.fork_name_at_slot(builder_params.slot);
     let execution_layer = chain
         .execution_layer
         .as_ref()
@@ -1416,9 +1403,9 @@ where
 ///
 /// This filter is conservative: it excludes matching exits even if request processing would
 /// ignore the request after checking the validator's credentials, balance, or other conditions.
-fn filter_voluntary_exits_for_parent_execution_requests<E: EthSpec>(
+fn filter_voluntary_exits_for_parent_execution_requests(
     voluntary_exits: &mut Vec<SignedVoluntaryExit>,
-    parent_execution_requests: &ExecutionRequestsGloas<E>,
+    parent_execution_requests: &ExecutionRequestsGloas,
     pubkey_at_index: impl Fn(u64) -> Option<PublicKeyBytes>,
 ) {
     let mut ineligible_pubkeys = HashSet::with_capacity(
@@ -1447,9 +1434,7 @@ fn filter_voluntary_exits_for_parent_execution_requests<E: EthSpec>(
 mod tests {
     use super::*;
     use ssz_types::ProgressiveVariableList;
-    use types::{ConsolidationRequest, Epoch, MainnetEthSpec, VoluntaryExit, WithdrawalRequest};
-
-    type TestSpec = MainnetEthSpec;
+    use types::{ConsolidationRequest, Epoch, VoluntaryExit, WithdrawalRequest};
 
     fn pubkey(byte: u8) -> PublicKeyBytes {
         PublicKeyBytes::deserialize(&[byte; 48]).expect("valid pubkey byte length")
@@ -1468,7 +1453,7 @@ mod tests {
     fn requests(
         withdrawals: Vec<WithdrawalRequest>,
         consolidations: Vec<ConsolidationRequest>,
-    ) -> ExecutionRequestsGloas<TestSpec> {
+    ) -> ExecutionRequestsGloas {
         ExecutionRequestsGloas {
             deposits: ProgressiveVariableList::empty(),
             withdrawals: ProgressiveVariableList::new(withdrawals).unwrap(),
@@ -1480,7 +1465,7 @@ mod tests {
 
     fn run_filter(
         exits: &mut Vec<SignedVoluntaryExit>,
-        requests: &ExecutionRequestsGloas<TestSpec>,
+        requests: &ExecutionRequestsGloas,
         validator_pubkeys: &[PublicKeyBytes],
     ) {
         filter_voluntary_exits_for_parent_execution_requests(exits, requests, |idx| {
@@ -1490,7 +1475,7 @@ mod tests {
 
     #[test]
     fn full_exit_withdrawal_request_filters_matching_voluntary_exit() {
-        let spec = TestSpec::default_spec();
+        let spec = Spec::default_spec();
         let validators = vec![pubkey(1), pubkey(2)];
         let mut exits = vec![exit(0), exit(1)];
         let reqs = requests(
@@ -1510,7 +1495,7 @@ mod tests {
 
     #[test]
     fn partial_withdrawal_request_filters_matching_voluntary_exit() {
-        let spec = TestSpec::default_spec();
+        let spec = Spec::default_spec();
         let validators = vec![pubkey(1), pubkey(2)];
         let mut exits = vec![exit(0), exit(1)];
         let reqs = requests(

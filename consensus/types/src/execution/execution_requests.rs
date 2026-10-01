@@ -8,27 +8,32 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
 use tree_hash_derive::TreeHash;
+use typenum::U;
 
 use crate::{
     builder::{BuilderDepositRequest, BuilderExitRequest},
     consolidation::ConsolidationRequest,
-    core::{EthSpec, Hash256},
+    core::{Hash256, Spec},
     deposit::DepositRequest,
     fork::{ForkName, ForkVersionDecode},
     state::BeaconStateError,
     withdrawal::WithdrawalRequest,
 };
 
-pub type DepositRequests<E> =
-    VariableList<DepositRequest, <E as EthSpec>::MaxDepositRequestsPerPayload>;
-pub type WithdrawalRequests<E> =
-    VariableList<WithdrawalRequest, <E as EthSpec>::MaxWithdrawalRequestsPerPayload>;
-pub type ConsolidationRequests<E> =
-    VariableList<ConsolidationRequest, <E as EthSpec>::MaxConsolidationRequestsPerPayload>;
-pub type BuilderDepositRequests<E> =
-    VariableList<BuilderDepositRequest, <E as EthSpec>::MaxBuilderDepositRequestsPerPayload>;
-pub type BuilderExitRequests<E> =
-    VariableList<BuilderExitRequest, <E as EthSpec>::MaxBuilderExitRequestsPerPayload>;
+pub type DepositRequests =
+    VariableList<DepositRequest, typenum::U<{ Spec::MAX_DEPOSIT_REQUESTS_PER_PAYLOAD }>>;
+pub type WithdrawalRequests =
+    VariableList<WithdrawalRequest, typenum::U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>>;
+pub type ConsolidationRequests = VariableList<
+    ConsolidationRequest,
+    typenum::U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>,
+>;
+pub type BuilderDepositRequests = VariableList<
+    BuilderDepositRequest,
+    typenum::U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>,
+>;
+pub type BuilderExitRequests =
+    VariableList<BuilderExitRequest, typenum::U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>>;
 
 /// EIP-7685 execution requests.
 ///
@@ -50,13 +55,8 @@ pub type BuilderExitRequests<E> =
             Educe,
         ),
         context_deserialize(ForkName),
-        educe(PartialEq, Eq, Hash(bound(E: EthSpec))),
-        serde(bound = "E: EthSpec"),
-        cfg_attr(
-            feature = "arbitrary",
-            derive(arbitrary::Arbitrary),
-            arbitrary(bound = "E: EthSpec"),
-        ),
+        educe(PartialEq, Eq, Hash),
+        cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary)),
     ),
     specific_variant_attributes(Gloas(tree_hash(
         struct_behaviour = "progressive_container",
@@ -71,57 +71,62 @@ pub type BuilderExitRequests<E> =
         expr = "BeaconStateError::IncorrectStateVariant"
     )
 )]
-#[cfg_attr(
-    feature = "arbitrary",
-    derive(arbitrary::Arbitrary),
-    arbitrary(bound = "E: EthSpec")
-)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(Debug, Clone, Serialize, Encode, TreeHash, Educe)]
-#[educe(PartialEq, Eq, Hash(bound(E: EthSpec)))]
-#[serde(bound = "E: EthSpec", untagged)]
+#[educe(PartialEq, Eq, Hash)]
+#[serde(untagged)]
 #[ssz(enum_behaviour = "transparent")]
 #[tree_hash(enum_behaviour = "transparent")]
-pub struct ExecutionRequests<E: EthSpec> {
+pub struct ExecutionRequests {
     #[superstruct(only(Electra), partial_getter(rename = "deposits_electra"))]
-    pub deposits: DepositRequests<E>,
+    pub deposits: DepositRequests,
     #[superstruct(only(Gloas), partial_getter(rename = "deposits_gloas"))]
     pub deposits: ProgressiveVariableList<DepositRequest>,
     #[superstruct(only(Electra), partial_getter(rename = "withdrawals_electra"))]
-    pub withdrawals: WithdrawalRequests<E>,
+    pub withdrawals: WithdrawalRequests,
     #[superstruct(only(Gloas), partial_getter(rename = "withdrawals_gloas"))]
-    pub withdrawals: ProgressiveVariableList<WithdrawalRequest, E::MaxWithdrawalRequestsPerPayload>,
+    pub withdrawals: ProgressiveVariableList<
+        WithdrawalRequest,
+        U<{ Spec::MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD }>,
+    >,
     #[superstruct(only(Electra), partial_getter(rename = "consolidations_electra"))]
-    pub consolidations: ConsolidationRequests<E>,
+    pub consolidations: ConsolidationRequests,
     #[superstruct(only(Gloas), partial_getter(rename = "consolidations_gloas"))]
-    pub consolidations:
-        ProgressiveVariableList<ConsolidationRequest, E::MaxConsolidationRequestsPerPayload>,
+    pub consolidations: ProgressiveVariableList<
+        ConsolidationRequest,
+        U<{ Spec::MAX_CONSOLIDATION_REQUESTS_PER_PAYLOAD }>,
+    >,
     // [New in Gloas:EIP8282] The builder request lists are only present on the Gloas variant.
     #[superstruct(only(Gloas))]
-    pub builder_deposits:
-        ProgressiveVariableList<BuilderDepositRequest, E::MaxBuilderDepositRequestsPerPayload>,
+    pub builder_deposits: ProgressiveVariableList<
+        BuilderDepositRequest,
+        U<{ Spec::MAX_BUILDER_DEPOSIT_REQUESTS_PER_PAYLOAD }>,
+    >,
     #[superstruct(only(Gloas))]
-    pub builder_exits:
-        ProgressiveVariableList<BuilderExitRequest, E::MaxBuilderExitRequestsPerPayload>,
+    pub builder_exits: ProgressiveVariableList<
+        BuilderExitRequest,
+        U<{ Spec::MAX_BUILDER_EXIT_REQUESTS_PER_PAYLOAD }>,
+    >,
 }
 
-impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for ExecutionRequests<E> {
+impl<'de> ContextDeserialize<'de, ForkName> for ExecutionRequests {
     fn context_deserialize<D>(deserializer: D, context: ForkName) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         if context.gloas_enabled() {
-            ExecutionRequestsGloas::<E>::deserialize(deserializer)
+            ExecutionRequestsGloas::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(ExecutionRequests::Gloas)
         } else {
-            ExecutionRequestsElectra::<E>::deserialize(deserializer)
+            ExecutionRequestsElectra::deserialize(deserializer)
                 .map_err(serde::de::Error::custom)
                 .map(ExecutionRequests::Electra)
         }
     }
 }
 
-impl<E: EthSpec> ForkVersionDecode for ExecutionRequests<E> {
+impl ForkVersionDecode for ExecutionRequests {
     /// SSZ decode with explicit fork variant.
     fn from_ssz_bytes_by_fork(bytes: &[u8], fork_name: ForkName) -> Result<Self, ssz::DecodeError> {
         match fork_name {
@@ -165,7 +170,7 @@ fn execution_requests_hash(requests_list: &[Bytes]) -> Hash256 {
     hasher.finalize().into()
 }
 
-impl<E: EthSpec> ExecutionRequests<E> {
+impl ExecutionRequests {
     /// Returns the encoding according to EIP-7685 to send to the execution layer over the engine
     /// api.
     pub fn get_execution_requests_list(&self) -> Vec<Bytes> {
@@ -181,7 +186,7 @@ impl<E: EthSpec> ExecutionRequests<E> {
     }
 }
 
-impl<'a, E: EthSpec> ExecutionRequestsRef<'a, E> {
+impl ExecutionRequestsRef<'_> {
     /// Returns the encoding according to EIP-7685 to send to the execution layer over the engine
     /// api.
     pub fn get_execution_requests_list(&self) -> Vec<Bytes> {
@@ -197,7 +202,7 @@ impl<'a, E: EthSpec> ExecutionRequestsRef<'a, E> {
     }
 }
 
-impl<E: EthSpec> ExecutionRequestsElectra<E> {
+impl ExecutionRequestsElectra {
     /// EIP-7685 requests list to send to the EL over the engine API.
     pub fn get_execution_requests_list(&self) -> Vec<Bytes> {
         build_execution_requests_list(vec![
@@ -220,7 +225,7 @@ impl<E: EthSpec> ExecutionRequestsElectra<E> {
     }
 }
 
-impl<E: EthSpec> ExecutionRequestsGloas<E> {
+impl ExecutionRequestsGloas {
     /// EIP-7685 requests list to send to the EL over the engine API.
     pub fn get_execution_requests_list(&self) -> Vec<Bytes> {
         build_execution_requests_list(vec![
@@ -255,12 +260,12 @@ impl<E: EthSpec> ExecutionRequestsGloas<E> {
     }
 }
 
-impl<E: EthSpec> TryFrom<&ExecutionRequestsElectra<E>> for ExecutionRequestsGloas<E> {
+impl TryFrom<&ExecutionRequestsElectra> for ExecutionRequestsGloas {
     type Error = ssz_types::Error;
 
     /// Re-type the bounded (Electra) requests as the progressive Gloas variant.
     /// The Gloas-only builder request lists start empty.
-    fn try_from(requests: &ExecutionRequestsElectra<E>) -> Result<Self, Self::Error> {
+    fn try_from(requests: &ExecutionRequestsElectra) -> Result<Self, Self::Error> {
         Ok(Self {
             deposits: ProgressiveVariableList::new(requests.deposits.to_vec())?,
             withdrawals: ProgressiveVariableList::new(requests.withdrawals.to_vec())?,
@@ -306,15 +311,13 @@ impl RequestType {
 #[cfg(test)]
 mod electra_tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(ExecutionRequestsElectra<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(ExecutionRequestsElectra);
 }
 
 #[cfg(test)]
 mod gloas_tests {
     use super::*;
-    use crate::MainnetEthSpec;
 
-    ssz_and_tree_hash_tests!(ExecutionRequestsGloas<MainnetEthSpec>);
+    ssz_and_tree_hash_tests!(ExecutionRequestsGloas);
 }

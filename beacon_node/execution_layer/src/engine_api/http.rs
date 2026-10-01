@@ -16,6 +16,8 @@ use tokio::sync::Mutex;
 use tracing::Span;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use types::ProgressiveTransactions;
+#[cfg(test)]
+use types::Spec;
 
 use std::time::{Duration, Instant};
 
@@ -198,7 +200,7 @@ pub mod deposit_log {
     #[cfg(test)]
     pub mod tests {
         use super::*;
-        use types::{EthSpec, MainnetEthSpec};
+        use types::Spec;
 
         /// The data from a deposit event, using the v0.8.3 version of the deposit contract.
         pub const EXAMPLE_LOG: &[u8] = &[
@@ -233,7 +235,7 @@ pub mod deposit_log {
                 block_number: 42,
                 data: EXAMPLE_LOG.to_vec(),
             };
-            log.to_deposit_log(&MainnetEthSpec::default_spec())
+            log.to_deposit_log(&Spec::default_spec())
                 .expect("should decode log");
         }
     }
@@ -737,10 +739,10 @@ impl HttpJsonRpc {
         }
     }
 
-    pub async fn get_blobs_v2<E: EthSpec>(
+    pub async fn get_blobs_v2(
         &self,
         versioned_hashes: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV2<E>>>, Error> {
+    ) -> Result<Option<Vec<BlobAndProofV2>>, Error> {
         let params = json!([versioned_hashes]);
 
         self.rpc_request(
@@ -751,10 +753,10 @@ impl HttpJsonRpc {
         .await
     }
 
-    pub async fn get_blobs_v3<E: EthSpec>(
+    pub async fn get_blobs_v3(
         &self,
         versioned_hashes: Vec<Hash256>,
-    ) -> Result<Option<Vec<BlobAndProofV3<E>>>, Error> {
+    ) -> Result<Option<Vec<BlobAndProofV3>>, Error> {
         let params = json!([versioned_hashes]);
 
         self.rpc_request(
@@ -765,11 +767,11 @@ impl HttpJsonRpc {
         .await
     }
 
-    pub async fn get_blobs_v4<E: EthSpec>(
+    pub async fn get_blobs_v4(
         &self,
         versioned_hashes: Vec<Hash256>,
         indices_bitarray: CustodyColumnsBitArray,
-    ) -> Result<Option<GetBlobsV4List<E>>, Error> {
+    ) -> Result<Option<GetBlobsV4List>, Error> {
         let params = json!([versioned_hashes, indices_bitarray]);
 
         self.rpc_request(
@@ -804,9 +806,9 @@ impl HttpJsonRpc {
         .await
     }
 
-    pub async fn new_payload_v1<E: EthSpec>(
+    pub async fn new_payload_v1(
         &self,
-        execution_payload: ExecutionPayload<E>,
+        execution_payload: ExecutionPayload,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([JsonExecutionPayload::try_from(execution_payload)?]);
 
@@ -821,9 +823,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v2<E: EthSpec>(
+    pub async fn new_payload_v2(
         &self,
-        execution_payload: ExecutionPayload<E>,
+        execution_payload: ExecutionPayload,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([JsonExecutionPayload::try_from(execution_payload)?]);
 
@@ -838,9 +840,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v3_deneb<E: EthSpec>(
+    pub async fn new_payload_v3_deneb(
         &self,
-        new_payload_request_deneb: NewPayloadRequestDeneb<'_, E>,
+        new_payload_request_deneb: NewPayloadRequestDeneb<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([
             JsonExecutionPayload::Deneb(
@@ -864,9 +866,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v4_electra<E: EthSpec>(
+    pub async fn new_payload_v4_electra(
         &self,
-        new_payload_request_electra: NewPayloadRequestElectra<'_, E>,
+        new_payload_request_electra: NewPayloadRequestElectra<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([
             JsonExecutionPayload::Electra(
@@ -892,9 +894,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v4_fulu<E: EthSpec>(
+    pub async fn new_payload_v4_fulu(
         &self,
-        new_payload_request_fulu: NewPayloadRequestFulu<'_, E>,
+        new_payload_request_fulu: NewPayloadRequestFulu<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([
             JsonExecutionPayload::Fulu(
@@ -920,9 +922,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v5_gloas<E: EthSpec>(
+    pub async fn new_payload_v5_gloas(
         &self,
-        new_payload_request_gloas: NewPayloadRequestGloas<'_, E>,
+        new_payload_request_gloas: NewPayloadRequestGloas<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([
             JsonExecutionPayload::Gloas(
@@ -948,9 +950,9 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn new_payload_v6_heze<E: EthSpec>(
+    pub async fn new_payload_v6_heze(
         &self,
-        new_payload_request_heze: NewPayloadRequestHeze<'_, E>,
+        new_payload_request_heze: NewPayloadRequestHeze<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let params = json!([
             JsonExecutionPayload::Heze(
@@ -975,13 +977,10 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn get_payload_v1<E: EthSpec>(
-        &self,
-        payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    pub async fn get_payload_v1(&self, payload_id: PayloadId) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
-        let payload_v1: JsonExecutionPayloadBellatrix<E> = self
+        let payload_v1: JsonExecutionPayloadBellatrix = self
             .rpc_request(
                 ENGINE_GET_PAYLOAD_V1,
                 params,
@@ -998,16 +997,16 @@ impl HttpJsonRpc {
         }))
     }
 
-    pub async fn get_payload_v2<E: EthSpec>(
+    pub async fn get_payload_v2(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         match fork_name {
             ForkName::Bellatrix => {
-                let response: JsonGetPayloadResponseBellatrix<E> = self
+                let response: JsonGetPayloadResponseBellatrix = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V2,
                         params,
@@ -1019,7 +1018,7 @@ impl HttpJsonRpc {
                     .map_err(Error::BadResponse)
             }
             ForkName::Capella => {
-                let response: JsonGetPayloadResponseCapella<E> = self
+                let response: JsonGetPayloadResponseCapella = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V2,
                         params,
@@ -1037,16 +1036,16 @@ impl HttpJsonRpc {
         }
     }
 
-    pub async fn get_payload_v3<E: EthSpec>(
+    pub async fn get_payload_v3(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         match fork_name {
             ForkName::Deneb => {
-                let response: JsonGetPayloadResponseDeneb<E> = self
+                let response: JsonGetPayloadResponseDeneb = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V3,
                         params,
@@ -1064,16 +1063,16 @@ impl HttpJsonRpc {
         }
     }
 
-    pub async fn get_payload_v4<E: EthSpec>(
+    pub async fn get_payload_v4(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         match fork_name {
             ForkName::Electra => {
-                let response: JsonGetPayloadResponseElectra<E> = self
+                let response: JsonGetPayloadResponseElectra = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V4,
                         params,
@@ -1091,16 +1090,16 @@ impl HttpJsonRpc {
         }
     }
 
-    pub async fn get_payload_v5<E: EthSpec>(
+    pub async fn get_payload_v5(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         match fork_name {
             ForkName::Fulu => {
-                let response: JsonGetPayloadResponseFulu<E> = self
+                let response: JsonGetPayloadResponseFulu = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V5,
                         params,
@@ -1118,18 +1117,18 @@ impl HttpJsonRpc {
         }
     }
 
-    pub async fn get_payload_v6<E: EthSpec>(
+    pub async fn get_payload_v6(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let params = json!([JsonPayloadIdRequest::from(payload_id)]);
 
         match fork_name {
             // TODO(heze): deliberately reusing the Gloas response containers while the Heze
             // payload is identical to the Gloas one. Switch to the Heze types if it diverges
             ForkName::Gloas | ForkName::Heze => {
-                let response: JsonGetPayloadResponseGloas<E> = self
+                let response: JsonGetPayloadResponseGloas = self
                     .rpc_request(
                         ENGINE_GET_PAYLOAD_V6,
                         params,
@@ -1283,13 +1282,13 @@ impl HttpJsonRpc {
         Ok(response.into())
     }
 
-    pub async fn get_payload_bodies_by_hash_v1<E: EthSpec>(
+    pub async fn get_payload_bodies_by_hash_v1(
         &self,
         block_hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV1<E>>>, Error> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV1>>, Error> {
         let params = json!([block_hashes]);
 
-        let response: Vec<Option<JsonExecutionPayloadBodyV1<E>>> = self
+        let response: Vec<Option<JsonExecutionPayloadBodyV1>> = self
             .rpc_request(
                 ENGINE_GET_PAYLOAD_BODIES_BY_HASH_V1,
                 params,
@@ -1307,13 +1306,13 @@ impl HttpJsonRpc {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub async fn get_payload_bodies_by_hash_v2<E: EthSpec>(
+    pub async fn get_payload_bodies_by_hash_v2(
         &self,
         block_hashes: Vec<ExecutionBlockHash>,
-    ) -> Result<Vec<Option<ExecutionPayloadBodyV2<E>>>, Error> {
+    ) -> Result<Vec<Option<ExecutionPayloadBodyV2>>, Error> {
         let params = json!([block_hashes]);
 
-        let response: Vec<Option<JsonExecutionPayloadBodyV2<E>>> = self
+        let response: Vec<Option<JsonExecutionPayloadBodyV2>> = self
             .rpc_request(
                 ENGINE_GET_PAYLOAD_BODIES_BY_HASH_V2,
                 params,
@@ -1465,9 +1464,9 @@ impl HttpJsonRpc {
 
     // automatically selects the latest version of
     // new_payload that the execution engine supports
-    pub async fn new_payload<E: EthSpec>(
+    pub async fn new_payload(
         &self,
-        new_payload_request: NewPayloadRequest<'_, E>,
+        new_payload_request: NewPayloadRequest<'_>,
     ) -> Result<PayloadStatusV1, Error> {
         let engine_capabilities = self.get_engine_capabilities(None).await?;
         match new_payload_request {
@@ -1523,11 +1522,11 @@ impl HttpJsonRpc {
 
     // automatically selects the latest version of
     // get_payload that the execution engine supports
-    pub async fn get_payload<E: EthSpec>(
+    pub async fn get_payload(
         &self,
         fork_name: ForkName,
         payload_id: PayloadId,
-    ) -> Result<GetPayloadResponse<E>, Error> {
+    ) -> Result<GetPayloadResponse, Error> {
         let engine_capabilities = self.get_engine_capabilities(None).await?;
         match fork_name {
             ForkName::Bellatrix | ForkName::Capella => {
@@ -1666,11 +1665,9 @@ mod test {
     use std::future::Future;
     use std::str::FromStr;
     use std::sync::Arc;
-    use typenum::Unsigned;
-    use types::MainnetEthSpec;
 
     struct Tester {
-        server: MockServer<MainnetEthSpec>,
+        server: MockServer,
         rpc_client: Arc<HttpJsonRpc>,
         echo_client: Arc<HttpJsonRpc>,
     }
@@ -1770,10 +1767,10 @@ mod test {
     const LOGS_BLOOM_00: &str = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
     const LOGS_BLOOM_01: &str = "0x01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101";
 
-    fn encode_transactions<E: EthSpec>(
-        transactions: Transactions<E>,
+    fn encode_transactions(
+        transactions: Transactions,
     ) -> Result<serde_json::Value, serde_json::Error> {
-        let ep: JsonExecutionPayload<E> =
+        let ep: JsonExecutionPayload =
             JsonExecutionPayload::Bellatrix(JsonExecutionPayloadBellatrix {
                 transactions,
                 ..<_>::default()
@@ -1782,9 +1779,9 @@ mod test {
         Ok(json.get("transactions").unwrap().clone())
     }
 
-    fn decode_transactions<E: EthSpec>(
+    fn decode_transactions(
         transactions: serde_json::Value,
-    ) -> Result<Transactions<E>, serde_json::Error> {
+    ) -> Result<Transactions, serde_json::Error> {
         let mut json = json!({
             "parentHash": HASH_00,
             "feeRecipient": ADDRESS_01,
@@ -1804,23 +1801,19 @@ mod test {
         json.as_object_mut()
             .unwrap()
             .insert("transactions".into(), transactions);
-        let ep: JsonExecutionPayload<E> = serde_json::from_value(json)?;
+        let ep: JsonExecutionPayload = serde_json::from_value(json)?;
         Ok(ep.transactions_bounded().unwrap().clone())
     }
 
-    fn assert_transactions_serde<E: EthSpec>(
-        name: &str,
-        as_obj: Transactions<E>,
-        as_json: serde_json::Value,
-    ) {
+    fn assert_transactions_serde(name: &str, as_obj: Transactions, as_json: serde_json::Value) {
         assert_eq!(
-            encode_transactions::<E>(as_obj.clone()).unwrap(),
+            encode_transactions(as_obj.clone()).unwrap(),
             as_json,
             "encoding for {}",
             name
         );
         assert_eq!(
-            decode_transactions::<E>(as_json).unwrap(),
+            decode_transactions(as_json).unwrap(),
             as_obj,
             "decoding for {}",
             name
@@ -1828,7 +1821,7 @@ mod test {
     }
 
     /// Example: if `spec == &[1, 1]`, then two one-byte transactions will be created.
-    fn generate_transactions<E: EthSpec>(spec: &[usize]) -> Transactions<E> {
+    fn generate_transactions(spec: &[usize]) -> Transactions {
         let mut txs = VariableList::default();
 
         for &num_bytes in spec {
@@ -1854,34 +1847,26 @@ mod test {
 
     #[test]
     fn transaction_serde() {
-        assert_transactions_serde::<MainnetEthSpec>(
-            "empty",
-            generate_transactions::<MainnetEthSpec>(&[]),
-            json!([]),
-        );
-        assert_transactions_serde::<MainnetEthSpec>(
-            "one empty tx",
-            generate_transactions::<MainnetEthSpec>(&[0]),
-            json!(["0x"]),
-        );
-        assert_transactions_serde::<MainnetEthSpec>(
+        assert_transactions_serde("empty", generate_transactions(&[]), json!([]));
+        assert_transactions_serde("one empty tx", generate_transactions(&[0]), json!(["0x"]));
+        assert_transactions_serde(
             "two empty txs",
-            generate_transactions::<MainnetEthSpec>(&[0, 0]),
+            generate_transactions(&[0, 0]),
             json!(["0x", "0x"]),
         );
-        assert_transactions_serde::<MainnetEthSpec>(
+        assert_transactions_serde(
             "one one-byte tx",
-            generate_transactions::<MainnetEthSpec>(&[1]),
+            generate_transactions(&[1]),
             json!(["0x00"]),
         );
-        assert_transactions_serde::<MainnetEthSpec>(
+        assert_transactions_serde(
             "two one-byte txs",
-            generate_transactions::<MainnetEthSpec>(&[1, 1]),
+            generate_transactions(&[1, 1]),
             json!(["0x00", "0x00"]),
         );
-        assert_transactions_serde::<MainnetEthSpec>(
+        assert_transactions_serde(
             "mixed bag",
-            generate_transactions::<MainnetEthSpec>(&[0, 1, 3, 0]),
+            generate_transactions(&[0, 1, 3, 0]),
             json!(["0x", "0x00", "0x000000", "0x"]),
         );
 
@@ -1889,15 +1874,12 @@ mod test {
          * Check for too many transactions
          */
 
-        let num_max_txs = <MainnetEthSpec as EthSpec>::MaxTransactionsPerPayload::to_usize();
+        let num_max_txs = Spec::MAX_TRANSACTIONS_PER_PAYLOAD;
         let max_txs = (0..num_max_txs).map(|_| "0x00").collect::<Vec<_>>();
         let too_many_txs = (0..=num_max_txs).map(|_| "0x00").collect::<Vec<_>>();
 
-        decode_transactions::<MainnetEthSpec>(serde_json::to_value(max_txs).unwrap()).unwrap();
-        assert!(
-            decode_transactions::<MainnetEthSpec>(serde_json::to_value(too_many_txs).unwrap())
-                .is_err()
-        );
+        decode_transactions(serde_json::to_value(max_txs).unwrap()).unwrap();
+        assert!(decode_transactions(serde_json::to_value(too_many_txs).unwrap()).is_err());
     }
 
     fn assert_inclusion_list_serde(
@@ -2167,7 +2149,7 @@ mod test {
         Tester::new(true)
             .assert_request_equals(
                 |client| async move {
-                    let _ = client.get_payload_v1::<MainnetEthSpec>([42; 8]).await;
+                    let _ = client.get_payload_v1([42; 8]).await;
                 },
                 json!({
                     "id": STATIC_ID,
@@ -2179,9 +2161,7 @@ mod test {
             .await;
 
         Tester::new(false)
-            .assert_auth_failure(|client| async move {
-                client.get_payload_v1::<MainnetEthSpec>([42; 8]).await
-            })
+            .assert_auth_failure(|client| async move { client.get_payload_v1([42; 8]).await })
             .await;
     }
 
@@ -2191,24 +2171,22 @@ mod test {
             .assert_request_equals(
                 |client| async move {
                     let _ = client
-                        .new_payload_v1::<MainnetEthSpec>(ExecutionPayload::Bellatrix(
-                            ExecutionPayloadBellatrix {
-                                parent_hash: ExecutionBlockHash::repeat_byte(0),
-                                fee_recipient: Address::repeat_byte(1),
-                                state_root: Hash256::repeat_byte(1),
-                                receipts_root: Hash256::repeat_byte(0),
-                                logs_bloom: vec![1; 256].try_into().unwrap(),
-                                prev_randao: Hash256::repeat_byte(1),
-                                block_number: 0,
-                                gas_limit: 1,
-                                gas_used: 2,
-                                timestamp: 42,
-                                extra_data: vec![].try_into().unwrap(),
-                                base_fee_per_gas: Uint256::from(1),
-                                block_hash: ExecutionBlockHash::repeat_byte(1),
-                                transactions: vec![].try_into().unwrap(),
-                            },
-                        ))
+                        .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix {
+                            parent_hash: ExecutionBlockHash::repeat_byte(0),
+                            fee_recipient: Address::repeat_byte(1),
+                            state_root: Hash256::repeat_byte(1),
+                            receipts_root: Hash256::repeat_byte(0),
+                            logs_bloom: vec![1; 256].try_into().unwrap(),
+                            prev_randao: Hash256::repeat_byte(1),
+                            block_number: 0,
+                            gas_limit: 1,
+                            gas_used: 2,
+                            timestamp: 42,
+                            extra_data: vec![].try_into().unwrap(),
+                            base_fee_per_gas: Uint256::from(1),
+                            block_hash: ExecutionBlockHash::repeat_byte(1),
+                            transactions: vec![].try_into().unwrap(),
+                        }))
                         .await;
                 },
                 json!({
@@ -2238,24 +2216,22 @@ mod test {
         Tester::new(false)
             .assert_auth_failure(|client| async move {
                 client
-                    .new_payload_v1::<MainnetEthSpec>(ExecutionPayload::Bellatrix(
-                        ExecutionPayloadBellatrix {
-                            parent_hash: ExecutionBlockHash::repeat_byte(0),
-                            fee_recipient: Address::repeat_byte(1),
-                            state_root: Hash256::repeat_byte(1),
-                            receipts_root: Hash256::repeat_byte(0),
-                            logs_bloom: vec![1; 256].try_into().unwrap(),
-                            prev_randao: Hash256::repeat_byte(1),
-                            block_number: 0,
-                            gas_limit: 1,
-                            gas_used: 2,
-                            timestamp: 42,
-                            extra_data: vec![].try_into().unwrap(),
-                            base_fee_per_gas: Uint256::from(1),
-                            block_hash: ExecutionBlockHash::repeat_byte(1),
-                            transactions: vec![].try_into().unwrap(),
-                        },
-                    ))
+                    .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix {
+                        parent_hash: ExecutionBlockHash::repeat_byte(0),
+                        fee_recipient: Address::repeat_byte(1),
+                        state_root: Hash256::repeat_byte(1),
+                        receipts_root: Hash256::repeat_byte(0),
+                        logs_bloom: vec![1; 256].try_into().unwrap(),
+                        prev_randao: Hash256::repeat_byte(1),
+                        block_number: 0,
+                        gas_limit: 1,
+                        gas_used: 2,
+                        timestamp: 42,
+                        extra_data: vec![].try_into().unwrap(),
+                        base_fee_per_gas: Uint256::from(1),
+                        block_hash: ExecutionBlockHash::repeat_byte(1),
+                        transactions: vec![].try_into().unwrap(),
+                    }))
                     .await
             })
             .await;
@@ -2410,7 +2386,7 @@ mod test {
                 // engine_getPayloadV1 REQUEST validation
                 |client| async move {
                     let _ = client
-                        .get_payload_v1::<MainnetEthSpec>(str_to_payload_id("0xa247243752eb10b4"))
+                        .get_payload_v1(str_to_payload_id("0xa247243752eb10b4"))
                         .await;
                 },
                 json!({
@@ -2444,8 +2420,8 @@ mod test {
                     }
                 })],
                 |client| async move {
-                    let payload: ExecutionPayload<_> = client
-                        .get_payload_v1::<MainnetEthSpec>(str_to_payload_id("0xa247243752eb10b4"))
+                    let payload: ExecutionPayload = client
+                        .get_payload_v1(str_to_payload_id("0xa247243752eb10b4"))
                         .await
                         .unwrap()
                         .into();
@@ -2475,7 +2451,7 @@ mod test {
                 // engine_newPayloadV1 REQUEST validation
                 |client| async move {
                     let _ = client
-                        .new_payload_v1::<MainnetEthSpec>(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix{
+                        .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix{
                             parent_hash: ExecutionBlockHash::from_str("0x3b8fb240d288781d4aac94d3fd16809ee413bc99294a085798a589dae51ddd4a").unwrap(),
                             fee_recipient: Address::from_str("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b").unwrap(),
                             state_root: Hash256::from_str("0xca3149fa9e37db08d1cd49c9061db1002ef1cd58db2210f2115c8c989b2bdf45").unwrap(),
@@ -2529,7 +2505,7 @@ mod test {
                 })],
                 |client| async move {
                     let response = client
-                        .new_payload_v1::<MainnetEthSpec>(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix::default()))
+                        .new_payload_v1(ExecutionPayload::Bellatrix(ExecutionPayloadBellatrix::default()))
                         .await
                         .unwrap();
 

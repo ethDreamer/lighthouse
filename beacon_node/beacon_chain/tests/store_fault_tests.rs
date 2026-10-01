@@ -27,20 +27,18 @@ use types::*;
 
 const VALIDATOR_COUNT: usize = 32;
 
-type E = MinimalEthSpec;
-
 fn incompatible_fork() -> bool {
     fork_name_from_env().is_some_and(|f| !f.bellatrix_enabled() || f.gloas_enabled())
 }
 
 struct WedgedChain {
-    harness: BeaconChainHarness<EphemeralHarnessType<E>>,
+    harness: BeaconChainHarness<EphemeralHarnessType>,
     /// Root of the block that is in fork choice but not in the store, i.e. the phantom block.
     phantom_root: Hash256,
     phantom_slot: Slot,
-    phantom_contents: SignedBlockContentsTuple<E>,
+    phantom_contents: SignedBlockContentsTuple,
     /// Post-state of the phantom block, for building a child block.
-    post_state: BeaconState<E>,
+    post_state: BeaconState,
 }
 
 /// Build a chain, then import a block while every store operation fails.
@@ -48,7 +46,7 @@ struct WedgedChain {
 /// The import adds the block to fork choice, then fails the database write. The returned
 /// chain has a fork choice containing `phantom_root` while the store does not.
 async fn wedged_chain() -> WedgedChain {
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(VALIDATOR_COUNT)
         .fresh_ephemeral_store()
@@ -58,7 +56,7 @@ async fn wedged_chain() -> WedgedChain {
     harness.advance_slot();
     harness
         .extend_chain(
-            2 * E::slots_per_epoch() as usize,
+            2 * Spec::SLOTS_PER_EPOCH,
             BlockStrategy::OnCanonicalHead,
             AttestationStrategy::AllValidators,
         )
@@ -204,7 +202,7 @@ async fn restart_after_db_write_failure_recovers() {
 
     // Rebooting from the same database succeeds, resolving the head from the last
     // consistent fork choice on disk.
-    let harness = BeaconChainHarness::builder(MinimalEthSpec)
+    let harness = BeaconChainHarness::builder()
         .default_spec()
         .deterministic_keypairs(VALIDATOR_COUNT)
         .resumed_ephemeral_store(store)
