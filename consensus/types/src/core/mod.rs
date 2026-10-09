@@ -13,6 +13,7 @@ mod preset;
 mod relative_epoch;
 mod signing_data;
 mod slot_data;
+mod spec;
 #[macro_use]
 mod slot_epoch_macros;
 mod slot_epoch;
@@ -41,6 +42,7 @@ pub use preset::{
 pub use relative_epoch::{Error as RelativeEpochError, RelativeEpoch};
 pub use signing_data::{SignedRoot, SigningData};
 pub use slot_data::SlotData;
+pub use spec::{GnosisSpec, MainnetSpec, MinimalSpec, Spec, SpecId};
 pub use slot_epoch::{Epoch, Slot};
 
 #[cfg(test)]
