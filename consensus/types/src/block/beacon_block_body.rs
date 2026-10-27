@@ -14,11 +14,11 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    AttestationEip8453, AttesterSlashingEip8453, HeadVote, ListRef, SignedExecutionPayloadBidGloas,
-    SignedExecutionPayloadBidHeze, SignedExecutionPayloadBidRef,
+    ListRef, SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze,
+    SignedExecutionPayloadBidRef,
     attestation::{
         AttestationBase, AttestationElectra, AttestationGloas, AttestationRef, AttestationRefMut,
-        PayloadAttestation,
+        PayloadAttestation, eip8453,
     },
     complete_kzg_commitment_merkle_proof,
     core::{EthSpec, Graffiti, Hash256},
@@ -175,7 +175,7 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     // [Modified in EIP8453] finality gadget slashing evidence.
     #[superstruct(only(Eip8453), partial_getter(rename = "attester_slashings_eip8453"))]
     pub attester_slashings:
-        ProgressiveVariableList<AttesterSlashingEip8453<E>, E::MaxAttesterSlashingsElectra>,
+        ProgressiveVariableList<eip8453::AttesterSlashing<E>, E::MaxAttesterSlashingsElectra>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb),
         partial_getter(rename = "attestations_base")
@@ -187,7 +187,7 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     pub attestations: ProgressiveVariableList<AttestationGloas<E>, E::MaxAttestationsElectra>,
     // [Modified in EIP8453] finality gadget attestations.
     #[superstruct(only(Eip8453), partial_getter(rename = "attestations_eip8453"))]
-    pub attestations: ProgressiveVariableList<AttestationEip8453<E>, E::MaxAttestationsElectra>,
+    pub attestations: ProgressiveVariableList<eip8453::Attestation<E>, E::MaxAttestationsElectra>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "deposits_basic")
@@ -262,7 +262,7 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     pub parent_execution_requests: ExecutionRequestsGloas<E>,
     // [New in EIP8453] head votes of the available chain.
     #[superstruct(only(Eip8453))]
-    pub head_votes: ProgressiveVariableList<HeadVote<E>, E::MaxHeadVotes>,
+    pub head_votes: ProgressiveVariableList<eip8453::HeadVote<E>, E::MaxHeadVotes>,
     // [New in EIP8453] one bit per head vote, set when the proposer counted it as support.
     #[superstruct(only(Eip8453))]
     pub head_vote_support_bits: ProgressiveBitList,

@@ -2,7 +2,7 @@ use milhouse::ProgressiveList;
 use std::mem;
 use types::{
     BeaconState, BeaconStateEip8453, BeaconStateError as Error, ChainSpec, EthSpec, Fork,
-    HeightCheckpoint, ParticipationFlags,
+    ParticipationFlags, eip8453::HeightCheckpoint,
 };
 
 /// Transform a `Heze` state into an `Eip8453` state.

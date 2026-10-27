@@ -26,8 +26,8 @@ use crate::{
     ExecutionBlockHash, ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadBidRef,
     ExecutionPayloadBidRefMut, Withdrawal,
     attestation::{
-        AttestationData, AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex,
-        HeightCheckpoint, PTC, ParticipationFlags, PendingAttestation, PendingFinality,
+        AttestationData, AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex, PTC,
+        ParticipationFlags, PendingAttestation, eip8453,
     },
     block::{BeaconBlock, BeaconBlockHeader, SignedBeaconBlockHash},
     builder::{Builder, BuilderIndex, BuilderPendingPayment, BuilderPendingWithdrawal},
@@ -875,16 +875,16 @@ where
     // Finality gadget [New in EIP8453]
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
-    pub target_checkpoint: HeightCheckpoint,
+    pub target_checkpoint: eip8453::HeightCheckpoint,
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
-    pub justified_checkpoint: HeightCheckpoint,
+    pub justified_checkpoint: eip8453::HeightCheckpoint,
     #[superstruct(
         only(Eip8453),
         partial_getter(copy, rename = "finalized_checkpoint_eip8453")
     )]
     #[metastruct(exclude_from(tree_lists))]
-    pub finalized_checkpoint: HeightCheckpoint,
+    pub finalized_checkpoint: eip8453::HeightCheckpoint,
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     pub target_slot: Slot,
@@ -908,7 +908,8 @@ where
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Eip8453))]
     #[metastruct(exclude_from(tree_lists))]
-    pub pending_finality: ssz_types::VariableList<PendingFinality<E>, E::PendingFinalityWindow>,
+    pub pending_finality:
+        ssz_types::VariableList<eip8453::PendingFinality<E>, E::PendingFinalityWindow>,
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Eip8453))]
     #[metastruct(exclude_from(tree_lists))]
