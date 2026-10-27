@@ -390,6 +390,45 @@ impl HezePreset {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub struct Eip8453Preset {
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub pending_finality_window: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub slots_per_round: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub attestation_committees_per_round: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub max_validators_per_aggregate: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub head_vote_committee_size: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub round_reward_factor: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub min_rounds_to_inactivity_leak: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub ejection_inactivity_score: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub max_head_votes: u64,
+}
+
+impl Eip8453Preset {
+    pub fn from_chain_spec<E: EthSpec>(_spec: &ChainSpec) -> Self {
+        Self {
+            pending_finality_window: E::pending_finality_window() as u64,
+            slots_per_round: E::slots_per_round(),
+            attestation_committees_per_round: E::attestation_committees_per_round() as u64,
+            max_validators_per_aggregate: E::max_validators_per_aggregate() as u64,
+            head_vote_committee_size: E::head_vote_committee_size() as u64,
+            round_reward_factor: E::round_reward_factor(),
+            min_rounds_to_inactivity_leak: E::min_rounds_to_inactivity_leak(),
+            ejection_inactivity_score: E::ejection_inactivity_score(),
+            max_head_votes: E::max_head_votes() as u64,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -443,6 +482,9 @@ mod test {
 
         let heze: HezePreset = preset_from_file(&preset_name, "heze.yaml");
         assert_eq!(heze, HezePreset::from_chain_spec::<E>(&spec));
+
+        let eip8453: Eip8453Preset = preset_from_file(&preset_name, "eip8453.yaml");
+        assert_eq!(eip8453, Eip8453Preset::from_chain_spec::<E>(&spec));
     }
 
     #[test]

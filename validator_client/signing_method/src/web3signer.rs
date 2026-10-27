@@ -38,6 +38,7 @@ pub enum ForkName {
     Fulu,
     Gloas,
     Heze,
+    Eip8453,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -149,6 +150,11 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> Web3SignerObject<'a, E, Pa
             }),
             BeaconBlock::Heze(_) => Ok(Web3SignerObject::BeaconBlock {
                 version: ForkName::Heze,
+                block: None,
+                block_header: Some(block.block_header()),
+            }),
+            BeaconBlock::Eip8453(_) => Ok(Web3SignerObject::BeaconBlock {
+                version: ForkName::Eip8453,
                 block: None,
                 block_header: Some(block.block_header()),
             }),

@@ -1,0 +1,37 @@
+# Minimal preset - EIP8453
+
+# Finality gadget
+# ---------------------------------------------------------------
+# 2**2 (= 4)
+PENDING_FINALITY_WINDOW: 4
+
+# Rounds
+# ---------------------------------------------------------------
+# [customized] 2**2 (= 4)
+SLOTS_PER_ROUND: 4
+# [customized] 2**3 (= 8)
+ATTESTATION_COMMITTEES_PER_ROUND: 8
+# [customized] 2**9 (= 512)
+MAX_VALIDATORS_PER_AGGREGATE: 512
+
+# Head votes
+# ---------------------------------------------------------------
+# [customized] 2**4 (= 16)
+HEAD_VOTE_COMMITTEE_SIZE: 16
+
+# Rewards
+# ---------------------------------------------------------------
+# [customized] 2**5 (= 32)
+ROUND_REWARD_FACTOR: 32
+
+# Inactivity leak
+# ---------------------------------------------------------------
+# [customized] 2**3 (= 8)
+MIN_ROUNDS_TO_INACTIVITY_LEAK: 8
+# 2**16 (= 65,536)
+EJECTION_INACTIVITY_SCORE: 65536
+
+# Max operations per block
+# ---------------------------------------------------------------
+# 2**3 (= 8)
+MAX_HEAD_VOTES: 8

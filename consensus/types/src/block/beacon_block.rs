@@ -18,9 +18,10 @@ use crate::{
     attestation::{AttestationBase, AttestationData, IndexedAttestationBase},
     block::{
         BeaconBlockBodyAltair, BeaconBlockBodyBase, BeaconBlockBodyBellatrix,
-        BeaconBlockBodyCapella, BeaconBlockBodyDeneb, BeaconBlockBodyElectra, BeaconBlockBodyFulu,
-        BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
-        BeaconBlockHeader, SignedBeaconBlock, SignedBeaconBlockHeader,
+        BeaconBlockBodyCapella, BeaconBlockBodyDeneb, BeaconBlockBodyEip8453,
+        BeaconBlockBodyElectra, BeaconBlockBodyFulu, BeaconBlockBodyGloas, BeaconBlockBodyHeze,
+        BeaconBlockBodyRef, BeaconBlockBodyRefMut, BeaconBlockHeader, SignedBeaconBlock,
+        SignedBeaconBlockHeader,
     },
     core::{ChainSpec, Domain, Epoch, EthSpec, Graffiti, Hash256, SignedRoot, Slot},
     deposit::{Deposit, DepositData},
@@ -37,7 +38,7 @@ use crate::{
 
 /// A block of the `BeaconChain`.
 #[superstruct(
-    variants(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+    variants(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze, Eip8453),
     variant_attributes(
         derive(
             Debug,
@@ -106,6 +107,8 @@ pub struct BeaconBlock<E: EthSpec, Payload: AbstractExecPayload<E> = FullPayload
     pub body: BeaconBlockBodyGloas<E, Payload>,
     #[superstruct(only(Heze), partial_getter(rename = "body_heze"))]
     pub body: BeaconBlockBodyHeze<E, Payload>,
+    #[superstruct(only(Eip8453), partial_getter(rename = "body_eip8453"))]
+    pub body: BeaconBlockBodyEip8453<E, Payload>,
 }
 
 pub type BlindedBeaconBlock<E> = BeaconBlock<E, BlindedPayload<E>>;
@@ -264,6 +267,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockRef<'a, E, Payl
             BeaconBlockRef::Fulu { .. } => ForkName::Fulu,
             BeaconBlockRef::Gloas { .. } => ForkName::Gloas,
             BeaconBlockRef::Heze { .. } => ForkName::Heze,
+            BeaconBlockRef::Eip8453 { .. } => ForkName::Eip8453,
         }
     }
 
@@ -330,6 +334,14 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockRef<'a, E, Payl
                     .as_ref(),
             ),
             BeaconBlockRef::Heze(block) => Some(
+                block
+                    .body
+                    .signed_execution_payload_bid
+                    .message
+                    .blob_kzg_commitments
+                    .as_ref(),
+            ),
+            BeaconBlockRef::Eip8453(block) => Some(
                 block
                     .body
                     .signed_execution_payload_bid
@@ -771,6 +783,38 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> EmptyBlock for BeaconBlockHeze
     }
 }
 
+impl<E: EthSpec, Payload: AbstractExecPayload<E>> EmptyBlock for BeaconBlockEip8453<E, Payload> {
+    /// Returns an empty EIP-8453 block to be used during genesis.
+    fn empty(spec: &ChainSpec) -> Self {
+        BeaconBlockEip8453 {
+            slot: spec.genesis_slot,
+            proposer_index: 0,
+            parent_root: Hash256::zero(),
+            state_root: Hash256::zero(),
+            body: BeaconBlockBodyEip8453 {
+                randao_reveal: Signature::empty(),
+                eth1_data: Eth1Data {
+                    deposit_root: Hash256::zero(),
+                    block_hash: Hash256::zero(),
+                    deposit_count: 0,
+                },
+                graffiti: Graffiti::default(),
+                proposer_slashings: ProgressiveVariableList::empty(),
+                attester_slashings: ProgressiveVariableList::empty(),
+                attestations: ProgressiveVariableList::empty(),
+                deposits: ProgressiveVariableList::empty(),
+                voluntary_exits: ProgressiveVariableList::empty(),
+                sync_aggregate: SyncAggregate::empty(),
+                bls_to_execution_changes: ProgressiveVariableList::empty(),
+                parent_execution_requests: ExecutionRequestsGloas::default(),
+                signed_execution_payload_bid: SignedExecutionPayloadBidHeze::empty(),
+                payload_attestations: ProgressiveVariableList::empty(),
+                _phantom: PhantomData,
+            },
+        }
+    }
+}
+
 // TODO(EIP-7732) Mark's branch had the following implementation but not sure if it's needed so will just add header below for reference
 // impl<E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockEIP7732<E, Payload> {
 
@@ -811,6 +855,28 @@ impl<E: EthSpec> From<BeaconBlockHeze<E, BlindedPayload<E>>>
         } = block;
 
         BeaconBlockHeze {
+            slot,
+            proposer_index,
+            parent_root,
+            state_root,
+            body: body.into(),
+        }
+    }
+}
+
+impl<E: EthSpec> From<BeaconBlockEip8453<E, BlindedPayload<E>>>
+    for BeaconBlockEip8453<E, FullPayload<E>>
+{
+    fn from(block: BeaconBlockEip8453<E, BlindedPayload<E>>) -> Self {
+        let BeaconBlockEip8453 {
+            slot,
+            proposer_index,
+            parent_root,
+            state_root,
+            body,
+        } = block;
+
+        BeaconBlockEip8453 {
             slot,
             proposer_index,
             parent_root,
@@ -904,6 +970,7 @@ impl_from!(BeaconBlockElectra, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |bod
 impl_from!(BeaconBlockFulu, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyFulu<_, _>| body.into());
 impl_from!(BeaconBlockGloas, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyGloas<_, _>| body.into());
 impl_from!(BeaconBlockHeze, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyHeze<_, _>| body.into());
+impl_from!(BeaconBlockEip8453, <E, FullPayload<E>>, <E, BlindedPayload<E>>, |body: BeaconBlockBodyEip8453<_, _>| body.into());
 
 // We can clone blocks with payloads to blocks without payloads, without cloning the payload.
 macro_rules! impl_clone_as_blinded {
@@ -940,6 +1007,7 @@ impl_clone_as_blinded!(BeaconBlockElectra, <E, FullPayload<E>>, <E, BlindedPaylo
 impl_clone_as_blinded!(BeaconBlockFulu, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockGloas, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 impl_clone_as_blinded!(BeaconBlockHeze, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
+impl_clone_as_blinded!(BeaconBlockEip8453, <E, FullPayload<E>>, <E, BlindedPayload<E>>);
 
 // A reference to a full beacon block can be cloned into a blinded beacon block, without cloning the
 // execution payload.

@@ -215,6 +215,7 @@ impl<'a, E: EthSpec> TryFrom<BeaconBlockRef<'a, E>> for NewPayloadRequest<'a, E>
             })),
             BeaconBlockRef::Gloas(_) => Err(Self::Error::IncorrectStateVariant),
             BeaconBlockRef::Heze(_) => Err(Self::Error::IncorrectStateVariant),
+            BeaconBlockRef::Eip8453(_) => Err(Self::Error::IncorrectStateVariant),
         }
     }
 }
@@ -238,6 +239,7 @@ impl<'a, E: EthSpec> TryFrom<ExecutionPayloadRef<'a, E>> for NewPayloadRequest<'
             //TODO(EIP7732): Probably time to just get rid of this
             ExecutionPayloadRef::Gloas(_) => Err(Self::Error::IncorrectStateVariant),
             ExecutionPayloadRef::Heze(_) => Err(Self::Error::IncorrectStateVariant),
+            ExecutionPayloadRef::Eip8453(_) => Err(Self::Error::IncorrectStateVariant),
         }
     }
 }

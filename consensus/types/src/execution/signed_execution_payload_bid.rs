@@ -138,7 +138,9 @@ impl<E: EthSpec> ForkVersionDecode for SignedExecutionPayloadBid<E> {
             ForkName::Gloas => {
                 SignedExecutionPayloadBidGloas::from_ssz_bytes(bytes).map(Self::Gloas)
             }
-            ForkName::Heze => SignedExecutionPayloadBidHeze::from_ssz_bytes(bytes).map(Self::Heze),
+            ForkName::Heze | ForkName::Eip8453 => {
+                SignedExecutionPayloadBidHeze::from_ssz_bytes(bytes).map(Self::Heze)
+            }
         }
     }
 }
@@ -170,7 +172,7 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for SignedExecutionPaylo
             ForkName::Gloas => {
                 Self::Gloas(Deserialize::deserialize(deserializer).map_err(convert_err)?)
             }
-            ForkName::Heze => {
+            ForkName::Heze | ForkName::Eip8453 => {
                 Self::Heze(Deserialize::deserialize(deserializer).map_err(convert_err)?)
             }
         })

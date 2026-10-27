@@ -31,6 +31,7 @@ macro_rules! map_execution_payload_into_full_payload {
             }
             ExecutionPayload::Gloas(_) => panic!("FullPayload::Gloas does not exist!"),
             ExecutionPayload::Heze(_) => panic!("FullPayload::Heze does not exist!"),
+            ExecutionPayload::Eip8453(_) => panic!("FullPayload::Eip8453 does not exist!"),
         }
     };
 }
@@ -61,6 +62,7 @@ macro_rules! map_execution_payload_into_blinded_payload {
             }
             ExecutionPayload::Gloas(_) => panic!("BlindedPayload::Gloas does not exist!"),
             ExecutionPayload::Heze(_) => panic!("BlindedPayload::Heze does not exist!"),
+            ExecutionPayload::Eip8453(_) => panic!("BlindedPayload::Eip8453 does not exist!"),
         }
     };
 }
@@ -106,6 +108,9 @@ macro_rules! map_execution_payload_ref_into_execution_payload_header {
             }
             ExecutionPayloadRef::Gloas(_) => panic!("ExecutionPayloadHeader::Gloas does not exist!"),
             ExecutionPayloadRef::Heze(_) => panic!("ExecutionPayloadHeader::Heze does not exist!"),
+            ExecutionPayloadRef::Eip8453(_) => {
+                panic!("ExecutionPayloadHeader::Eip8453 does not exist!")
+            }
         }
     }
 }

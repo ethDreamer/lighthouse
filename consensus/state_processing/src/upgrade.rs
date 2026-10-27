@@ -2,10 +2,12 @@ pub mod altair;
 pub mod bellatrix;
 pub mod capella;
 pub mod deneb;
+pub mod eip8453;
 pub mod electra;
 pub mod fulu;
 pub mod gloas;
 pub mod heze;
+pub use eip8453::upgrade_to_eip8453;
 
 pub use altair::upgrade_to_altair;
 pub use bellatrix::upgrade_to_bellatrix;

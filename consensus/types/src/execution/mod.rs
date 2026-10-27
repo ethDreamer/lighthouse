@@ -22,9 +22,10 @@ pub use eth1_data::Eth1Data;
 pub use execution_block_header::{EncodableExecutionBlockHeader, ExecutionBlockHeader};
 pub use execution_payload::{
     BlockAccessList, ExecutionPayload, ExecutionPayloadBellatrix, ExecutionPayloadCapella,
-    ExecutionPayloadDeneb, ExecutionPayloadElectra, ExecutionPayloadFulu, ExecutionPayloadGloas,
-    ExecutionPayloadHeze, ExecutionPayloadRef, ProgressiveTransactions, ProgressiveWithdrawals,
-    Transaction, Transactions, TransactionsIter, TransactionsRef, WithdrawalsRef,
+    ExecutionPayloadDeneb, ExecutionPayloadEip8453, ExecutionPayloadElectra, ExecutionPayloadFulu,
+    ExecutionPayloadGloas, ExecutionPayloadHeze, ExecutionPayloadRef, ProgressiveTransactions,
+    ProgressiveWithdrawals, Transaction, Transactions, TransactionsIter, TransactionsRef,
+    WithdrawalsRef,
 };
 pub use execution_payload_bid::{
     EXECUTION_PAYLOAD_BID_GLOAS_ACTIVE_FIELDS, EXECUTION_PAYLOAD_BID_HEZE_ACTIVE_FIELDS,

@@ -1,6 +1,6 @@
 use crate::upgrade::{
     upgrade_to_altair, upgrade_to_bellatrix, upgrade_to_capella, upgrade_to_deneb,
-    upgrade_to_electra, upgrade_to_fulu, upgrade_to_gloas, upgrade_to_heze,
+    upgrade_to_eip8453, upgrade_to_electra, upgrade_to_fulu, upgrade_to_gloas, upgrade_to_heze,
 };
 use crate::{per_epoch_processing::EpochProcessingSummary, *};
 use fixed_bytes::FixedBytesExtended;
@@ -107,6 +107,11 @@ pub fn per_slot_processing<E: EthSpec>(
         // Heze.
         if spec.heze_fork_epoch == Some(state.current_epoch()) {
             upgrade_to_heze(state, spec)?;
+        }
+
+        // EIP-8453.
+        if spec.eip8453_fork_epoch == Some(state.current_epoch()) {
+            upgrade_to_eip8453(state, spec)?;
         }
 
         // Additionally build all caches so that all valid states that are advanced always have

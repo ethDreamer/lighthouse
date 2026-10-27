@@ -311,6 +311,37 @@ impl<E: EthSpec> TryFrom<ExecutionPayloadHeze<E>> for JsonExecutionPayloadHeze<E
     }
 }
 
+// EIP8453-STUB: the execution payload is unchanged in EIP-8453, reuse the Heze JSON format.
+impl<E: EthSpec> TryFrom<ExecutionPayloadEip8453<E>> for JsonExecutionPayloadHeze<E> {
+    type Error = ssz_types::Error;
+
+    fn try_from(payload: ExecutionPayloadEip8453<E>) -> Result<Self, Self::Error> {
+        Ok(JsonExecutionPayloadHeze {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions: payload.transactions,
+            withdrawals: ProgressiveVariableList::try_from_iter(
+                payload.withdrawals.into_iter().map(Into::into),
+            )?,
+            blob_gas_used: payload.blob_gas_used,
+            excess_blob_gas: payload.excess_blob_gas,
+            block_access_list: payload.block_access_list,
+            slot_number: payload.slot_number.into(),
+        })
+    }
+}
+
 impl<E: EthSpec> TryFrom<ExecutionPayload<E>> for JsonExecutionPayload<E> {
     type Error = ssz_types::Error;
 
@@ -333,6 +364,9 @@ impl<E: EthSpec> TryFrom<ExecutionPayload<E>> for JsonExecutionPayload<E> {
                 Ok(JsonExecutionPayload::Gloas(payload.try_into()?))
             }
             ExecutionPayload::Heze(payload) => Ok(JsonExecutionPayload::Heze(payload.try_into()?)),
+            ExecutionPayload::Eip8453(payload) => {
+                Ok(JsonExecutionPayload::Heze(payload.try_into()?))
+            }
         }
     }
 }

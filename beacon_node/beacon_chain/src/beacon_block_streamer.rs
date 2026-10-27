@@ -10,8 +10,9 @@ use types::{
     SignedBlindedBeaconBlock,
 };
 use types::{
-    ExecutionPayload, ExecutionPayloadBellatrix, ExecutionPayloadCapella, ExecutionPayloadElectra,
-    ExecutionPayloadFulu, ExecutionPayloadGloas, ExecutionPayloadHeader, ExecutionPayloadHeze,
+    ExecutionPayload, ExecutionPayloadBellatrix, ExecutionPayloadCapella, ExecutionPayloadEip8453,
+    ExecutionPayloadElectra, ExecutionPayloadFulu, ExecutionPayloadGloas, ExecutionPayloadHeader,
+    ExecutionPayloadHeze,
 };
 
 #[derive(PartialEq)]
@@ -83,6 +84,7 @@ fn reconstruct_default_header_block<E: EthSpec>(
         ForkName::Fulu => ExecutionPayloadFulu::default().into(),
         ForkName::Gloas => ExecutionPayloadGloas::default().into(),
         ForkName::Heze => ExecutionPayloadHeze::default().into(),
+        ForkName::Eip8453 => ExecutionPayloadEip8453::default().into(),
         ForkName::Base | ForkName::Altair => {
             return Err(Error::PayloadReconstruction(format!(
                 "Block with fork variant {} has execution payload",

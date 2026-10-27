@@ -1,0 +1,37 @@
+# Gnosis preset - EIP8453
+
+# Finality gadget
+# ---------------------------------------------------------------
+# 2**2 (= 4)
+PENDING_FINALITY_WINDOW: 4
+
+# Rounds
+# ---------------------------------------------------------------
+# 2**3 (= 8)
+SLOTS_PER_ROUND: 8
+# 2**11 (= 2,048)
+ATTESTATION_COMMITTEES_PER_ROUND: 2048
+# 2**17 (= 131,072)
+MAX_VALIDATORS_PER_AGGREGATE: 131072
+
+# Head votes
+# ---------------------------------------------------------------
+# 2**10 (= 1,024)
+HEAD_VOTE_COMMITTEE_SIZE: 1024
+
+# Rewards
+# ---------------------------------------------------------------
+# 2**4 (= 16)
+ROUND_REWARD_FACTOR: 16
+
+# Inactivity leak
+# ---------------------------------------------------------------
+# 2**4 (= 16)
+MIN_ROUNDS_TO_INACTIVITY_LEAK: 16
+# 2**16 (= 65,536)
+EJECTION_INACTIVITY_SCORE: 65536
+
+# Max operations per block
+# ---------------------------------------------------------------
+# 2**3 (= 8)
+MAX_HEAD_VOTES: 8

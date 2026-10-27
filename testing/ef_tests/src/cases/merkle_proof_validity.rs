@@ -5,9 +5,9 @@ use ssz_types::FixedVector;
 use tree_hash::Hash256;
 use typenum::Unsigned;
 use types::{
-    BeaconBlockBody, BeaconBlockBodyCapella, BeaconBlockBodyDeneb, BeaconBlockBodyElectra,
-    BeaconBlockBodyFulu, BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconState, FullPayload,
-    light_client,
+    BeaconBlockBody, BeaconBlockBodyCapella, BeaconBlockBodyDeneb, BeaconBlockBodyEip8453,
+    BeaconBlockBodyElectra, BeaconBlockBodyFulu, BeaconBlockBodyGloas, BeaconBlockBodyHeze,
+    BeaconState, FullPayload, light_client,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -184,6 +184,10 @@ impl<E: EthSpec> LoadCase for KzgInclusionMerkleProofValidity<E> {
             ForkName::Heze => {
                 ssz_decode_file::<BeaconBlockBodyHeze<E>>(&path.join("object.ssz_snappy"))?.into()
             }
+            ForkName::Eip8453 => {
+                ssz_decode_file::<BeaconBlockBodyEip8453<E>>(&path.join("object.ssz_snappy"))?
+                    .into()
+            }
         };
         let merkle_proof = yaml_decode_file(&path.join("proof.yaml"))?;
         // Metadata does not exist in these tests but it is left like this just in case.
@@ -307,6 +311,10 @@ impl<E: EthSpec> LoadCase for BeaconBlockBodyMerkleProofValidity<E> {
             }
             ForkName::Heze => {
                 ssz_decode_file::<BeaconBlockBodyHeze<E>>(&path.join("object.ssz_snappy"))?.into()
+            }
+            ForkName::Eip8453 => {
+                ssz_decode_file::<BeaconBlockBodyEip8453<E>>(&path.join("object.ssz_snappy"))?
+                    .into()
             }
         };
         let merkle_proof = yaml_decode_file(&path.join("proof.yaml"))?;

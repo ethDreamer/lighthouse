@@ -184,6 +184,19 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
      */
     type InclusionListCommitteeSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
+    /*
+     * New in EIP-8453
+     */
+    type SlotsPerRound: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type AttestationCommitteesPerRound: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type MaxValidatorsPerAggregate: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type HeadVoteCommitteeSize: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type PendingFinalityWindow: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type MaxHeadVotes: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type RoundRewardFactor: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type MinRoundsToInactivityLeak: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type EjectionInactivityScore: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+
     fn default_spec() -> ChainSpec;
 
     fn spec_name() -> EthSpecId;
@@ -480,6 +493,51 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     fn inclusion_list_committee_size() -> usize {
         Self::InclusionListCommitteeSize::to_usize()
     }
+
+    /// Returns the `SLOTS_PER_ROUND` constant for this specification.
+    fn slots_per_round() -> u64 {
+        Self::SlotsPerRound::to_u64()
+    }
+
+    /// Returns the `ATTESTATION_COMMITTEES_PER_ROUND` constant for this specification.
+    fn attestation_committees_per_round() -> usize {
+        Self::AttestationCommitteesPerRound::to_usize()
+    }
+
+    /// Returns the `MAX_VALIDATORS_PER_AGGREGATE` constant for this specification.
+    fn max_validators_per_aggregate() -> usize {
+        Self::MaxValidatorsPerAggregate::to_usize()
+    }
+
+    /// Returns the `HEAD_VOTE_COMMITTEE_SIZE` constant for this specification.
+    fn head_vote_committee_size() -> usize {
+        Self::HeadVoteCommitteeSize::to_usize()
+    }
+
+    /// Returns the `PENDING_FINALITY_WINDOW` constant for this specification.
+    fn pending_finality_window() -> usize {
+        Self::PendingFinalityWindow::to_usize()
+    }
+
+    /// Returns the `MAX_HEAD_VOTES` constant for this specification.
+    fn max_head_votes() -> usize {
+        Self::MaxHeadVotes::to_usize()
+    }
+
+    /// Returns the `ROUND_REWARD_FACTOR` constant for this specification.
+    fn round_reward_factor() -> u64 {
+        Self::RoundRewardFactor::to_u64()
+    }
+
+    /// Returns the `MIN_ROUNDS_TO_INACTIVITY_LEAK` constant for this specification.
+    fn min_rounds_to_inactivity_leak() -> u64 {
+        Self::MinRoundsToInactivityLeak::to_u64()
+    }
+
+    /// Returns the `EJECTION_INACTIVITY_SCORE` constant for this specification.
+    fn ejection_inactivity_score() -> u64 {
+        Self::EjectionInactivityScore::to_u64()
+    }
 }
 
 /// Macro to inherit some type values from another EthSpec.
@@ -557,6 +615,15 @@ impl EthSpec for MainnetEthSpec {
     type MaxBuilderDepositRequestsPerPayload = U64;
     type MaxBuilderExitRequestsPerPayload = U16;
     type InclusionListCommitteeSize = U16;
+    type SlotsPerRound = U8;
+    type AttestationCommitteesPerRound = U2048;
+    type MaxValidatorsPerAggregate = U131072;
+    type HeadVoteCommitteeSize = U1024;
+    type PendingFinalityWindow = U4;
+    type MaxHeadVotes = U8;
+    type RoundRewardFactor = U16;
+    type MinRoundsToInactivityLeak = U16;
+    type EjectionInactivityScore = U65536;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -623,6 +690,12 @@ impl EthSpec for MinimalEthSpec {
     type PTCSize = U16;
     type PtcWindowLength = U24; // (2 + MIN_SEED_LOOKAHEAD) * SLOTS_PER_EPOCH
     type MaxBuildersPerWithdrawalsSweep = U16;
+    type SlotsPerRound = U4;
+    type AttestationCommitteesPerRound = U8;
+    type MaxValidatorsPerAggregate = U512;
+    type HeadVoteCommitteeSize = U16;
+    type RoundRewardFactor = U32;
+    type MinRoundsToInactivityLeak = U8;
 
     params_from_eth_spec!(MainnetEthSpec {
         JustificationBitsLength,
@@ -655,7 +728,10 @@ impl EthSpec for MinimalEthSpec {
         MaxPayloadAttestations,
         MaxBuilderDepositRequestsPerPayload,
         MaxBuilderExitRequestsPerPayload,
-        InclusionListCommitteeSize
+        InclusionListCommitteeSize,
+        PendingFinalityWindow,
+        MaxHeadVotes,
+        EjectionInactivityScore
     });
 
     fn default_spec() -> ChainSpec {
@@ -754,6 +830,15 @@ impl EthSpec for GnosisEthSpec {
     type MaxBuilderDepositRequestsPerPayload = U64;
     type MaxBuilderExitRequestsPerPayload = U16;
     type InclusionListCommitteeSize = U16;
+    type SlotsPerRound = U8;
+    type AttestationCommitteesPerRound = U2048;
+    type MaxValidatorsPerAggregate = U131072;
+    type HeadVoteCommitteeSize = U1024;
+    type PendingFinalityWindow = U4;
+    type MaxHeadVotes = U8;
+    type RoundRewardFactor = U16;
+    type MinRoundsToInactivityLeak = U16;
+    type EjectionInactivityScore = U65536;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

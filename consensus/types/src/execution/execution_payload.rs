@@ -109,7 +109,7 @@ impl<'a, E: EthSpec> Iterator for TransactionsIter<'a, E> {
 pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, <E as EthSpec>::MaxWithdrawalsPerPayload>;
 
 #[superstruct(
-    variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+    variants(Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze, Eip8453),
     variant_attributes(
         derive(
             Default,
@@ -137,6 +137,10 @@ pub type WithdrawalsRef<'a, E> = ListRef<'a, Withdrawal, <E as EthSpec>::MaxWith
             active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
         )),
         Heze(tree_hash(
+            struct_behaviour = "progressive_container",
+            active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        )),
+        Eip8453(tree_hash(
             struct_behaviour = "progressive_container",
             active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
         ))
@@ -200,26 +204,32 @@ pub struct ExecutionPayload<E: EthSpec> {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<E>,
     #[serde(with = "ssz_types::serde_utils::prog_list_of_hex_prog_var_list")]
-    #[superstruct(only(Gloas, Heze), partial_getter(rename = "transactions_progressive"))]
+    #[superstruct(
+        only(Gloas, Heze, Eip8453),
+        partial_getter(rename = "transactions_progressive")
+    )]
     pub transactions: ProgressiveTransactions,
     #[superstruct(
         only(Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "withdrawals_bounded")
     )]
     pub withdrawals: Withdrawals<E>,
-    #[superstruct(only(Gloas, Heze), partial_getter(rename = "withdrawals_progressive"))]
+    #[superstruct(
+        only(Gloas, Heze, Eip8453),
+        partial_getter(rename = "withdrawals_progressive")
+    )]
     pub withdrawals: ProgressiveWithdrawals<E>,
-    #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze), partial_getter(copy))]
+    #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze, Eip8453), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub blob_gas_used: u64,
-    #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze), partial_getter(copy))]
+    #[superstruct(only(Deneb, Electra, Fulu, Gloas, Heze, Eip8453), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub excess_blob_gas: u64,
     /// EIP-7928: Block access list
     #[serde(with = "ssz_types::serde_utils::hex_prog_var_list")]
-    #[superstruct(only(Gloas, Heze))]
+    #[superstruct(only(Gloas, Heze, Eip8453))]
     pub block_access_list: BlockAccessList,
-    #[superstruct(only(Gloas, Heze), partial_getter(copy))]
+    #[superstruct(only(Gloas, Heze, Eip8453), partial_getter(copy))]
     pub slot_number: Slot,
 }
 
@@ -250,6 +260,7 @@ impl<'a, E: EthSpec> ExecutionPayloadRef<'a, E> {
             Self::Fulu(payload) => Ok(ListRef::Basic(&payload.withdrawals)),
             Self::Gloas(payload) => Ok(ListRef::Progressive(&payload.withdrawals)),
             Self::Heze(payload) => Ok(ListRef::Progressive(&payload.withdrawals)),
+            Self::Eip8453(payload) => Ok(ListRef::Progressive(&payload.withdrawals)),
         }
     }
 }
@@ -282,6 +293,7 @@ impl<E: EthSpec> ForkVersionDecode for ExecutionPayload<E> {
             ForkName::Fulu => ExecutionPayloadFulu::from_ssz_bytes(bytes).map(Self::Fulu),
             ForkName::Gloas => ExecutionPayloadGloas::from_ssz_bytes(bytes).map(Self::Gloas),
             ForkName::Heze => ExecutionPayloadHeze::from_ssz_bytes(bytes).map(Self::Heze),
+            ForkName::Eip8453 => ExecutionPayloadEip8453::from_ssz_bytes(bytes).map(Self::Eip8453),
         }
     }
 }
@@ -336,6 +348,9 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for ExecutionPayload<E> 
             ForkName::Heze => {
                 Self::Heze(Deserialize::deserialize(deserializer).map_err(convert_err)?)
             }
+            ForkName::Eip8453 => {
+                Self::Eip8453(Deserialize::deserialize(deserializer).map_err(convert_err)?)
+            }
         })
     }
 }
@@ -350,6 +365,7 @@ impl<E: EthSpec> ExecutionPayload<E> {
             ExecutionPayload::Fulu(_) => ForkName::Fulu,
             ExecutionPayload::Gloas(_) => ForkName::Gloas,
             ExecutionPayload::Heze(_) => ForkName::Heze,
+            ExecutionPayload::Eip8453(_) => ForkName::Eip8453,
         }
     }
 }

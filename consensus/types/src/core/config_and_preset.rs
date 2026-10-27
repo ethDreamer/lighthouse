@@ -6,14 +6,14 @@ use superstruct::superstruct;
 
 use crate::core::{
     AltairPreset, BasePreset, BellatrixPreset, CapellaPreset, ChainSpec, Config, DenebPreset,
-    ElectraPreset, EthSpec, FuluPreset, GloasPreset, HezePreset, consts,
+    Eip8453Preset, ElectraPreset, EthSpec, FuluPreset, GloasPreset, HezePreset, consts,
 };
 
 /// Fusion of a runtime-config with the compile-time preset values.
 ///
 /// Mostly useful for the API.
 #[superstruct(
-    variants(Deneb, Electra, Fulu, Gloas, Heze),
+    variants(Deneb, Electra, Fulu, Gloas, Heze, Eip8453),
     variant_attributes(derive(Serialize, Deserialize, Debug, PartialEq, Clone))
 )]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -32,18 +32,21 @@ pub struct ConfigAndPreset {
     pub capella_preset: CapellaPreset,
     #[serde(flatten)]
     pub deneb_preset: DenebPreset,
-    #[superstruct(only(Electra, Fulu, Gloas, Heze))]
+    #[superstruct(only(Electra, Fulu, Gloas, Heze, Eip8453))]
     #[serde(flatten)]
     pub electra_preset: ElectraPreset,
-    #[superstruct(only(Fulu, Gloas, Heze))]
+    #[superstruct(only(Fulu, Gloas, Heze, Eip8453))]
     #[serde(flatten)]
     pub fulu_preset: FuluPreset,
-    #[superstruct(only(Gloas, Heze))]
+    #[superstruct(only(Gloas, Heze, Eip8453))]
     #[serde(flatten)]
     pub gloas_preset: GloasPreset,
-    #[superstruct(only(Heze))]
+    #[superstruct(only(Heze, Eip8453))]
     #[serde(flatten)]
     pub heze_preset: HezePreset,
+    #[superstruct(only(Eip8453))]
+    #[serde(flatten)]
+    pub eip8453_preset: Eip8453Preset,
     /// The `extra_fields` map allows us to gracefully decode fields intended for future hard forks.
     #[serde(flatten)]
     pub extra_fields: HashMap<String, Value>,
@@ -64,7 +67,28 @@ impl ConfigAndPreset {
             config.gas_limit_schedule.set_skip_serializing();
         }
 
-        if spec.is_heze_scheduled() {
+        if spec.is_eip8453_scheduled() {
+            let electra_preset = ElectraPreset::from_chain_spec::<E>(spec);
+            let fulu_preset = FuluPreset::from_chain_spec::<E>(spec);
+            let gloas_preset = GloasPreset::from_chain_spec::<E>(spec);
+            let heze_preset = HezePreset::from_chain_spec::<E>(spec);
+            let eip8453_preset = Eip8453Preset::from_chain_spec::<E>(spec);
+
+            ConfigAndPreset::Eip8453(ConfigAndPresetEip8453 {
+                config,
+                base_preset,
+                altair_preset,
+                bellatrix_preset,
+                capella_preset,
+                deneb_preset,
+                electra_preset,
+                fulu_preset,
+                gloas_preset,
+                heze_preset,
+                eip8453_preset,
+                extra_fields,
+            })
+        } else if spec.is_heze_scheduled() {
             let electra_preset = ElectraPreset::from_chain_spec::<E>(spec);
             let fulu_preset = FuluPreset::from_chain_spec::<E>(spec);
             let gloas_preset = GloasPreset::from_chain_spec::<E>(spec);

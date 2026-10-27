@@ -115,7 +115,7 @@ impl<E: EthSpec> LightClientBootstrap<E> {
             ForkName::Electra => Self::Electra(LightClientBootstrapElectra::from_ssz_bytes(bytes)?),
             ForkName::Fulu => Self::Fulu(LightClientBootstrapFulu::from_ssz_bytes(bytes)?),
             ForkName::Gloas => Self::Gloas(LightClientBootstrapGloas::from_ssz_bytes(bytes)?),
-            ForkName::Base | ForkName::Heze => {
+            ForkName::Base | ForkName::Heze | ForkName::Eip8453 => {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "LightClientBootstrap decoding for {fork_name} not implemented"
                 )));
@@ -137,7 +137,9 @@ impl<E: EthSpec> LightClientBootstrap<E> {
             ForkName::Electra => <LightClientBootstrapElectra<E> as Encode>::ssz_fixed_len(),
             ForkName::Fulu => <LightClientBootstrapFulu<E> as Encode>::ssz_fixed_len(),
             ForkName::Gloas => <LightClientBootstrapGloas<E> as Encode>::ssz_fixed_len(),
-            ForkName::Heze => <LightClientBootstrapAltair<E> as Encode>::ssz_fixed_len(),
+            ForkName::Heze | ForkName::Eip8453 => {
+                <LightClientBootstrapAltair<E> as Encode>::ssz_fixed_len()
+            }
         };
         fixed_len + LightClientHeader::<E>::ssz_max_var_len_for_fork(fork_name)
     }
@@ -196,6 +198,7 @@ impl<E: EthSpec> LightClientBootstrap<E> {
                     .map_err(LightClientError::SszTypesError)?,
             }),
             ForkName::Heze => return Err(LightClientError::HezeNotImplemented),
+            ForkName::Eip8453 => return Err(LightClientError::Eip8453NotImplemented),
         };
 
         Ok(light_client_bootstrap)
@@ -257,6 +260,7 @@ impl<E: EthSpec> LightClientBootstrap<E> {
                     .map_err(LightClientError::SszTypesError)?,
             }),
             ForkName::Heze => return Err(LightClientError::HezeNotImplemented),
+            ForkName::Eip8453 => return Err(LightClientError::Eip8453NotImplemented),
         };
 
         Ok(light_client_bootstrap)
@@ -299,7 +303,7 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for LightClientBootstrap
             ForkName::Gloas => {
                 Self::Gloas(Deserialize::deserialize(deserializer).map_err(convert_err)?)
             }
-            ForkName::Heze => {
+            ForkName::Heze | ForkName::Eip8453 => {
                 return Err(serde::de::Error::custom(format!(
                     "LightClientBootstrap failed to deserialize: unsupported fork '{}'",
                     context

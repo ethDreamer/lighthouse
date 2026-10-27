@@ -110,6 +110,7 @@ impl<E: EthSpec> LightClientHeader<E> {
                 LightClientHeaderGloas::block_to_light_client_header(block)?,
             ),
             ForkName::Heze => return Err(LightClientError::HezeNotImplemented),
+            ForkName::Eip8453 => return Err(LightClientError::Eip8453NotImplemented),
         };
         Ok(header)
     }
@@ -134,7 +135,7 @@ impl<E: EthSpec> LightClientHeader<E> {
             ForkName::Gloas => {
                 LightClientHeader::Gloas(LightClientHeaderGloas::from_ssz_bytes(bytes)?)
             }
-            ForkName::Base | ForkName::Heze => {
+            ForkName::Base | ForkName::Heze | ForkName::Eip8453 => {
                 return Err(ssz::DecodeError::BytesInvalid(format!(
                     "LightClientHeader decoding for {fork_name} not implemented"
                 )));
@@ -407,7 +408,7 @@ impl<'de, E: EthSpec> ContextDeserialize<'de, ForkName> for LightClientHeader<E>
             ))
         };
         Ok(match context {
-            ForkName::Base | ForkName::Heze => {
+            ForkName::Base | ForkName::Heze | ForkName::Eip8453 => {
                 return Err(serde::de::Error::custom(format!(
                     "LightClientFinalityUpdate failed to deserialize: unsupported fork '{}'",
                     context

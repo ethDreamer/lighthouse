@@ -236,6 +236,10 @@ pub fn genesis_block<E: EthSpec>(
             heze_block.body.signed_execution_payload_bid.message =
                 state.latest_execution_payload_bid_heze()?.clone();
         }
+        BeaconBlock::Eip8453(eip8453_block) => {
+            eip8453_block.body.signed_execution_payload_bid.message =
+                state.latest_execution_payload_bid_heze()?.clone();
+        }
     }
     Ok(block)
 }

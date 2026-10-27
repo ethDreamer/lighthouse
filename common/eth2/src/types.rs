@@ -1352,7 +1352,8 @@ impl<'de> ContextDeserialize<'de, ForkName> for SsePayloadAttributes {
             | ForkName::Electra
             | ForkName::Fulu
             | ForkName::Gloas
-            | ForkName::Heze => {
+            | ForkName::Heze
+            | ForkName::Eip8453 => {
                 Self::V3(Deserialize::deserialize(deserializer).map_err(convert_err)?)
             }
         })
@@ -2935,6 +2936,9 @@ mod test {
             ExecutionPayload::Heze(
                 ExecutionPayloadHeze::<MainnetEthSpec>::arbitrary(&mut u).unwrap(),
             ),
+            ExecutionPayload::Eip8453(
+                ExecutionPayloadEip8453::<MainnetEthSpec>::arbitrary(&mut u).unwrap(),
+            ),
         ];
         let merged_forks = &ForkName::list_all()[2..];
         assert_eq!(
@@ -2999,6 +3003,16 @@ mod test {
             {
                 let execution_payload = ExecutionPayload::Heze(
                     ExecutionPayloadHeze::<MainnetEthSpec>::arbitrary(&mut u).unwrap(),
+                );
+                let blobs_bundle = BlobsBundle::<MainnetEthSpec>::arbitrary(&mut u).unwrap();
+                ExecutionPayloadAndBlobs {
+                    execution_payload,
+                    blobs_bundle,
+                }
+            },
+            {
+                let execution_payload = ExecutionPayload::Eip8453(
+                    ExecutionPayloadEip8453::<MainnetEthSpec>::arbitrary(&mut u).unwrap(),
                 );
                 let blobs_bundle = BlobsBundle::<MainnetEthSpec>::arbitrary(&mut u).unwrap();
                 ExecutionPayloadAndBlobs {

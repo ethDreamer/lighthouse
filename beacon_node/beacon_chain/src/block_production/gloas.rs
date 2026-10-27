@@ -28,15 +28,16 @@ use tree_hash::TreeHash;
 use types::consts::gloas::BUILDER_INDEX_SELF_BUILD;
 use types::{
     Address, Attestation, AttestationGloas, AttesterSlashing, AttesterSlashingGloas, BeaconBlock,
-    BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
-    BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, EthSpec, ExecutionBlockHash,
-    ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadEnvelope,
-    ExecutionRequestsGloas, FullPayload, Graffiti, Hash256, IndexedAttestation, KzgProofs,
-    PayloadAttestation, ProgressiveTransactions, ProposerSlashing, RelativeEpoch,
-    SignedBeaconBlock, SignedBlsToExecutionChange, SignedExecutionPayloadBid,
-    SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze, SignedExecutionPayloadEnvelope,
-    SignedExecutionPayloadEnvelopeSummary, SignedProposerPreferences, SignedVoluntaryExit, Slot,
-    SyncAggregate, Uint256, Withdrawal, Withdrawals,
+    BeaconBlockBodyEip8453, BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockEip8453,
+    BeaconBlockGloas, BeaconBlockHeze, BeaconState, BeaconStateError, BlobsList, BuilderIndex,
+    Deposit, Eth1Data, EthSpec, ExecutionBlockHash, ExecutionPayloadBidGloas,
+    ExecutionPayloadBidHeze, ExecutionPayloadEnvelope, ExecutionRequestsGloas, FullPayload,
+    Graffiti, Hash256, IndexedAttestation, KzgProofs, PayloadAttestation, ProgressiveTransactions,
+    ProposerSlashing, RelativeEpoch, SignedBeaconBlock, SignedBlsToExecutionChange,
+    SignedExecutionPayloadBid, SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze,
+    SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary,
+    SignedProposerPreferences, SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal,
+    Withdrawals,
 };
 
 use builder_client::BidRequestContext;
@@ -833,6 +834,55 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     },
                 })
             }
+            BeaconState::Eip8453(_) => {
+                let SignedExecutionPayloadBid::Heze(signed_execution_payload_bid) =
+                    signed_execution_payload_bid
+                else {
+                    return Err(BlockProductionError::InvalidBlockVariant(
+                        "Cannot construct an Eip8453 block with an incompatible execution payload bid"
+                            .to_string(),
+                    ));
+                };
+
+                BeaconBlock::Eip8453(BeaconBlockEip8453 {
+                    slot,
+                    proposer_index,
+                    parent_root,
+                    state_root: Hash256::ZERO,
+                    body: BeaconBlockBodyEip8453 {
+                        randao_reveal,
+                        eth1_data,
+                        graffiti,
+                        // The operation list lengths are bounded by the op pool packing limits above.
+                        proposer_slashings: ProgressiveVariableList::try_from_iter(
+                            proposer_slashings,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
+                        attester_slashings: ProgressiveVariableList::try_from_iter(
+                            attester_slashings,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
+                        attestations: ProgressiveVariableList::try_from_iter(attestations)
+                            .map_err(BlockProductionError::SszTypesError)?,
+                        deposits: ProgressiveVariableList::try_from_iter(deposits)
+                            .map_err(BlockProductionError::SszTypesError)?,
+                        voluntary_exits: ProgressiveVariableList::try_from_iter(voluntary_exits)
+                            .map_err(BlockProductionError::SszTypesError)?,
+                        sync_aggregate,
+                        bls_to_execution_changes: ProgressiveVariableList::try_from_iter(
+                            bls_to_execution_changes,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
+                        parent_execution_requests,
+                        signed_execution_payload_bid,
+                        payload_attestations: ProgressiveVariableList::try_from_iter(
+                            payload_attestations,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
+                        _phantom: PhantomData::<FullPayload<T::EthSpec>>,
+                    },
+                })
+            }
         };
 
         let signed_beacon_block = SignedBeaconBlock::from_block(
@@ -1058,6 +1108,29 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 })
             }
             BeaconState::Heze(_) => {
+                let bid = ExecutionPayloadBidHeze::<T::EthSpec> {
+                    parent_block_hash: executed_ancestor_hash,
+                    parent_block_root: parent_root,
+                    block_hash: payload.block_hash,
+                    prev_randao: payload.prev_randao,
+                    fee_recipient: Address::ZERO,
+                    gas_limit: payload.gas_limit,
+                    builder_index,
+                    slot: produce_at_slot,
+                    value: bid_value,
+                    execution_payment: EXECUTION_PAYMENT_TRUSTLESS_BUILD,
+                    blob_kzg_commitments,
+                    execution_requests_root: execution_requests.tree_hash_root(),
+                    // TODO(heze): set the bits based on the IL committee members whose
+                    // inclusion lists were considered when building the payload
+                    inclusion_list_bits: BitVector::new(),
+                };
+                SignedExecutionPayloadBid::Heze(SignedExecutionPayloadBidHeze {
+                    message: bid,
+                    signature,
+                })
+            }
+            BeaconState::Eip8453(_) => {
                 let bid = ExecutionPayloadBidHeze::<T::EthSpec> {
                     parent_block_hash: executed_ancestor_hash,
                     parent_block_root: parent_root,

@@ -26,8 +26,8 @@ pub use chain_spec::{
     GasLimitSchedule, GasLimitScheduleEntry,
 };
 pub use config_and_preset::{
-    ConfigAndPreset, ConfigAndPresetDeneb, ConfigAndPresetElectra, ConfigAndPresetFulu,
-    ConfigAndPresetGloas, ConfigAndPresetHeze, get_extra_fields,
+    ConfigAndPreset, ConfigAndPresetDeneb, ConfigAndPresetEip8453, ConfigAndPresetElectra,
+    ConfigAndPresetFulu, ConfigAndPresetGloas, ConfigAndPresetHeze, get_extra_fields,
 };
 pub use enr_fork_id::EnrForkId;
 pub use eth_spec::{EthSpec, EthSpecId, GNOSIS, GnosisEthSpec, MainnetEthSpec, MinimalEthSpec};
@@ -36,8 +36,8 @@ pub use graffiti::{GRAFFITI_BYTES_LEN, Graffiti, GraffitiString};
 pub use list_ref::ListRef;
 pub use non_zero_usize::new_non_zero_usize;
 pub use preset::{
-    AltairPreset, BasePreset, BellatrixPreset, CapellaPreset, DenebPreset, ElectraPreset,
-    FuluPreset, GloasPreset, HezePreset,
+    AltairPreset, BasePreset, BellatrixPreset, CapellaPreset, DenebPreset, Eip8453Preset,
+    ElectraPreset, FuluPreset, GloasPreset, HezePreset,
 };
 pub use relative_epoch::{Error as RelativeEpochError, RelativeEpoch};
 pub use signing_data::{SignedRoot, SigningData};

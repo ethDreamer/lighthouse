@@ -47,7 +47,9 @@ pub trait Handler {
         for fork_name in ForkName::list_all() {
             // TODO(heze): remove this skip once Heze spec test vectors are published in
             // consensus-spec-tests.
-            if fork_name == ForkName::Heze {
+            // EIP8453-STUB: no eip8453 spec test vectors exist yet; locally generated vectors
+            // are run via `run_for_fork`/`run_for_feature` directly.
+            if fork_name == ForkName::Heze || fork_name == ForkName::Eip8453 {
                 continue;
             }
             if !self.disabled_forks().contains(&fork_name) && self.is_enabled_for_fork(fork_name) {
@@ -312,6 +314,10 @@ impl<T, E> SszStaticHandler<T, E> {
 
     pub fn heze_only() -> Self {
         Self::for_forks(vec![ForkName::Heze])
+    }
+
+    pub fn eip8453_only() -> Self {
+        Self::for_forks(vec![ForkName::Eip8453])
     }
 
     pub fn altair_and_later() -> Self {
