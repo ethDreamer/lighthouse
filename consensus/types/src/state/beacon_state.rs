@@ -26,8 +26,8 @@ use crate::{
     ExecutionBlockHash, ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadBidRef,
     ExecutionPayloadBidRefMut, Withdrawal,
     attestation::{
-        AttestationData, AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex, PTC,
-        ParticipationFlags, PendingAttestation,
+        AttestationData, AttestationDuty, BeaconCommittee, Checkpoint, CommitteeIndex,
+        HeightCheckpoint, PTC, ParticipationFlags, PendingAttestation, PendingFinality,
     },
     block::{BeaconBlock, BeaconBlockHeader, SignedBeaconBlockHash},
     builder::{Builder, BuilderIndex, BuilderPendingPayment, BuilderPendingWithdrawal},
@@ -492,9 +492,11 @@ impl From<BeaconStateHash> for Hash256 {
             ),
             tree_hash(
                 struct_behaviour = "progressive_container",
+                // [Modified in EIP8453] gaps at the removed eth1 (8-10), epoch participation
+                // (15-16), Casper FFG (17-20) and deposit_requests_start_index (28) positions.
                 active_fields(
-                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+                    1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
+                    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
                 )
             )
         )
@@ -552,11 +554,17 @@ where
     pub historical_roots: List<Hash256, E::HistoricalRootsLimit>,
 
     // Ethereum 1.0 chain data
+    // [Modified in EIP8453] removed (spec: removed in Heze via EIP-8015).
+    #[superstruct(only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     #[metastruct(exclude_from(tree_lists))]
     pub eth1_data: Eth1Data,
+    #[superstruct(only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub eth1_data_votes: List<Eth1Data, E::SlotsPerEth1VotingPeriod>,
-    #[superstruct(getter(copy))]
+    #[superstruct(
+        only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+        partial_getter(copy)
+    )]
     #[metastruct(exclude_from(tree_lists))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub eth1_deposit_index: u64,
@@ -620,7 +628,7 @@ where
     pub previous_epoch_participation: List<ParticipationFlags, E::ValidatorRegistryLimit>,
     #[compare_fields(as_iter)]
     #[superstruct(
-        only(Gloas, Heze, Eip8453),
+        only(Gloas, Heze),
         partial_getter(rename = "previous_epoch_participation_progressive")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
@@ -632,23 +640,35 @@ where
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub current_epoch_participation: List<ParticipationFlags, E::ValidatorRegistryLimit>,
     #[superstruct(
-        only(Gloas, Heze, Eip8453),
+        only(Gloas, Heze),
         partial_getter(rename = "current_epoch_participation_progressive")
     )]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     pub current_epoch_participation: ProgressiveList<ParticipationFlags>,
 
     // Finality
+    // [Modified in EIP8453] Casper FFG is replaced by the finality gadget; these fields are
+    // removed and their positions become progressive-container gaps.
+    #[superstruct(only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[metastruct(exclude_from(tree_lists))]
     pub justification_bits: BitVector<E::JustificationBitsLength>,
-    #[superstruct(getter(copy))]
+    #[superstruct(
+        only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+        partial_getter(copy, rename = "previous_justified_checkpoint_legacy")
+    )]
     #[metastruct(exclude_from(tree_lists))]
     pub previous_justified_checkpoint: Checkpoint,
-    #[superstruct(getter(copy))]
+    #[superstruct(
+        only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+        partial_getter(copy, rename = "current_justified_checkpoint_legacy")
+    )]
     #[metastruct(exclude_from(tree_lists))]
     pub current_justified_checkpoint: Checkpoint,
-    #[superstruct(getter(copy))]
+    #[superstruct(
+        only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze),
+        partial_getter(copy, rename = "finalized_checkpoint_legacy")
+    )]
     #[metastruct(exclude_from(tree_lists))]
     pub finalized_checkpoint: Checkpoint,
 
@@ -731,7 +751,8 @@ where
     pub historical_summaries: List<HistoricalSummary, E::HistoricalRootsLimit>,
 
     // Electra
-    #[superstruct(only(Electra, Fulu, Gloas, Heze, Eip8453), partial_getter(copy))]
+    // [Modified in EIP8453] removed (spec: removed in Heze via EIP-8015).
+    #[superstruct(only(Electra, Fulu, Gloas, Heze), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub deposit_requests_start_index: u64,
@@ -850,6 +871,49 @@ where
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Gloas, Heze, Eip8453))]
     pub ptc_window: Vector<FixedVector<u64, E::PTCSize>, E::PtcWindowLength>,
+
+    // Finality gadget [New in EIP8453]
+    #[superstruct(only(Eip8453), partial_getter(copy))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub target_checkpoint: HeightCheckpoint,
+    #[superstruct(only(Eip8453), partial_getter(copy))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub justified_checkpoint: HeightCheckpoint,
+    #[superstruct(
+        only(Eip8453),
+        partial_getter(copy, rename = "finalized_checkpoint_eip8453")
+    )]
+    #[metastruct(exclude_from(tree_lists))]
+    pub finalized_checkpoint: HeightCheckpoint,
+    #[superstruct(only(Eip8453), partial_getter(copy))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub target_slot: Slot,
+    #[superstruct(only(Eip8453), partial_getter(copy))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub finalized_slot: Slot,
+    #[compare_fields(as_iter)]
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    pub target_participation: ProgressiveList<bool>,
+    #[compare_fields(as_iter)]
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    pub progress_participation: ProgressiveList<bool>,
+    #[compare_fields(as_iter)]
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    pub round_participation: ProgressiveList<ParticipationFlags>,
+    // A short list (PENDING_FINALITY_WINDOW) of containers each holding a per-validator
+    // participation list. Stored as a plain SSZ value outside the milhouse tree lists.
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub pending_finality: ssz_types::VariableList<PendingFinality<E>, E::PendingFinalityWindow>,
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub head_vote_participation:
+        FixedVector<BitVector<E::HeadVoteCommitteeSize>, E::HeadVoteParticipationLimit>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -973,8 +1037,8 @@ impl<E: EthSpec> BeaconState<E> {
         AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
         AnyListMut<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
         basic(Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
-        progressive(Gloas, Heze, Eip8453),
-        absent(Base)
+        progressive(Gloas, Heze),
+        absent(Base, Eip8453)
     );
 
     impl_any_list_accessors!(
@@ -983,8 +1047,8 @@ impl<E: EthSpec> BeaconState<E> {
         AnyListRef<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
         AnyListMut<'_, ParticipationFlags, E::ValidatorRegistryLimit>,
         basic(Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
-        progressive(Gloas, Heze, Eip8453),
-        absent(Base)
+        progressive(Gloas, Heze),
+        absent(Base, Eip8453)
     );
 
     impl_any_list_accessors!(
@@ -1122,6 +1186,54 @@ impl<E: EthSpec> BeaconState<E> {
             BeaconState::Gloas { .. } => ForkName::Gloas,
             BeaconState::Heze { .. } => ForkName::Heze,
             BeaconState::Eip8453 { .. } => ForkName::Eip8453,
+        }
+    }
+
+    /// The finalized checkpoint, in the pre-EIP-8453 (Casper FFG) representation.
+    ///
+    /// EIP8453-STUB: for EIP-8453 states this is *synthesized* from the finality gadget's
+    /// `finalized_slot`/`finalized_checkpoint` so that existing fork choice, pruning and API
+    /// consumers keep working. The height-based checkpoint is available via
+    /// `finalized_checkpoint_eip8453()`.
+    pub fn finalized_checkpoint(&self) -> Checkpoint {
+        match self {
+            Self::Eip8453(state) => Checkpoint {
+                epoch: state.finalized_slot.epoch(E::slots_per_epoch()),
+                root: state.finalized_checkpoint.root,
+            },
+            // All pre-EIP-8453 variants have the legacy field, so this cannot fail.
+            _ => self.finalized_checkpoint_legacy().unwrap_or_default(),
+        }
+    }
+
+    /// The current justified checkpoint, in the pre-EIP-8453 (Casper FFG) representation.
+    ///
+    /// EIP8453-STUB: synthesized for EIP-8453 states; the justified height has no associated
+    /// slot in the state, so the finalized slot's epoch is used as a placeholder.
+    pub fn current_justified_checkpoint(&self) -> Checkpoint {
+        match self {
+            Self::Eip8453(state) => Checkpoint {
+                epoch: state.finalized_slot.epoch(E::slots_per_epoch()),
+                root: state.justified_checkpoint.root,
+            },
+            // All pre-EIP-8453 variants have the legacy field, so this cannot fail.
+            _ => self
+                .current_justified_checkpoint_legacy()
+                .unwrap_or_default(),
+        }
+    }
+
+    /// The previous justified checkpoint, in the pre-EIP-8453 (Casper FFG) representation.
+    ///
+    /// EIP8453-STUB: for EIP-8453 states this is the same synthesized value as
+    /// `current_justified_checkpoint`.
+    pub fn previous_justified_checkpoint(&self) -> Checkpoint {
+        match self {
+            Self::Eip8453(_) => self.current_justified_checkpoint(),
+            // All pre-EIP-8453 variants have the legacy field, so this cannot fail.
+            _ => self
+                .previous_justified_checkpoint_legacy()
+                .unwrap_or_default(),
         }
     }
 
@@ -2232,7 +2344,9 @@ impl<E: EthSpec> BeaconState<E> {
             BeaconState::Fulu(state) => mutable_validator_fields!(state, Basic),
             BeaconState::Gloas(state) => mutable_validator_fields!(state, Progressive),
             BeaconState::Heze(state) => mutable_validator_fields!(state, Progressive),
-            BeaconState::Eip8453(state) => mutable_validator_fields!(state, Progressive),
+            // [Modified in EIP8453] epoch participation removed; single-pass epoch
+            // processing does not run for EIP-8453 states.
+            BeaconState::Eip8453(_) => Err(BeaconStateError::IncorrectStateVariant),
         }
     }
 
@@ -2366,13 +2480,9 @@ impl<E: EthSpec> BeaconState<E> {
                     std::iter::repeat_n(ParticipationFlags::default(), num_validators),
                 )?;
             }
-            Self::Eip8453(state) => {
-                state.previous_epoch_participation =
-                    std::mem::take(&mut state.current_epoch_participation);
-                state.current_epoch_participation = ProgressiveList::try_from_iter(
-                    std::iter::repeat_n(ParticipationFlags::default(), num_validators),
-                )?;
-            }
+            // [Modified in EIP8453] epoch participation is replaced by round participation,
+            // which is rotated in `process_round` rather than at the epoch boundary.
+            Self::Eip8453(_) => return Err(BeaconStateError::IncorrectStateVariant),
         }
         Ok(())
     }

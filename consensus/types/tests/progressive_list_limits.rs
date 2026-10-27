@@ -147,7 +147,7 @@ fn progressive_block_body_errors_propagate() {
             Err(BeaconStateError::SszTypesError(_))
         ));
         assert_eq!(
-            block.body().deposits().len(),
+            block.body().deposits().expect("pre-EIP-8453 body").len(),
             <E as EthSpec>::MaxDeposits::to_usize()
         );
     }

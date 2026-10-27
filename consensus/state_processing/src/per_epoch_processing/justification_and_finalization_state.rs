@@ -36,7 +36,7 @@ impl<E: EthSpec> JustificationAndFinalizationState<E> {
             previous_justified_checkpoint: state.previous_justified_checkpoint(),
             current_justified_checkpoint: state.current_justified_checkpoint(),
             finalized_checkpoint: state.finalized_checkpoint(),
-            justification_bits: state.justification_bits().clone(),
+            justification_bits: state.justification_bits().cloned().unwrap_or_default(),
         }
     }
 
@@ -58,10 +58,20 @@ impl<E: EthSpec> JustificationAndFinalizationState<E> {
             justification_bits,
         } = self;
 
-        *state.previous_justified_checkpoint_mut() = previous_justified_checkpoint;
-        *state.current_justified_checkpoint_mut() = current_justified_checkpoint;
-        *state.finalized_checkpoint_mut() = finalized_checkpoint;
-        *state.justification_bits_mut() = justification_bits;
+        // Casper FFG fields only exist pre-EIP-8453; justification and finalization
+        // processing is not run for EIP-8453 states.
+        if let Ok(checkpoint) = state.previous_justified_checkpoint_legacy_mut() {
+            *checkpoint = previous_justified_checkpoint;
+        }
+        if let Ok(checkpoint) = state.current_justified_checkpoint_legacy_mut() {
+            *checkpoint = current_justified_checkpoint;
+        }
+        if let Ok(checkpoint) = state.finalized_checkpoint_legacy_mut() {
+            *checkpoint = finalized_checkpoint;
+        }
+        if let Ok(bits) = state.justification_bits_mut() {
+            *bits = justification_bits;
+        }
     }
 
     pub fn previous_epoch(&self) -> Epoch {

@@ -196,6 +196,8 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     type RoundRewardFactor: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MinRoundsToInactivityLeak: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type EjectionInactivityScore: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    /// Length of `head_vote_participation`: `2 * SLOTS_PER_EPOCH`.
+    type HeadVoteParticipationLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     fn default_spec() -> ChainSpec;
 
@@ -624,6 +626,7 @@ impl EthSpec for MainnetEthSpec {
     type RoundRewardFactor = U16;
     type MinRoundsToInactivityLeak = U16;
     type EjectionInactivityScore = U65536;
+    type HeadVoteParticipationLimit = U64; // 2 * SLOTS_PER_EPOCH = 2 * 32 = 64
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -696,6 +699,7 @@ impl EthSpec for MinimalEthSpec {
     type HeadVoteCommitteeSize = U16;
     type RoundRewardFactor = U32;
     type MinRoundsToInactivityLeak = U8;
+    type HeadVoteParticipationLimit = U16; // 2 * SLOTS_PER_EPOCH = 2 * 8 = 16
 
     params_from_eth_spec!(MainnetEthSpec {
         JustificationBitsLength,
@@ -839,6 +843,7 @@ impl EthSpec for GnosisEthSpec {
     type RoundRewardFactor = U16;
     type MinRoundsToInactivityLeak = U16;
     type EjectionInactivityScore = U65536;
+    type HeadVoteParticipationLimit = U32; // 2 * SLOTS_PER_EPOCH = 2 * 16 = 32
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

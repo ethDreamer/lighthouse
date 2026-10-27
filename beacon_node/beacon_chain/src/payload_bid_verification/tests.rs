@@ -118,7 +118,9 @@ impl TestContext {
 
         // Bump finalized checkpoint epoch so builders are considered active
         // (is_active_builder requires deposit_epoch < finalized_checkpoint.epoch).
-        *state.finalized_checkpoint_mut() = Checkpoint {
+        *state
+            .finalized_checkpoint_legacy_mut()
+            .expect("pre-EIP-8453 state") = Checkpoint {
             epoch: Epoch::new(1),
             root: Hash256::ZERO,
         };

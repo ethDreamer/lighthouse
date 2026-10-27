@@ -1844,7 +1844,7 @@ where
             state_root: Hash256::zero(),
             body: BeaconBlockBodyBellatrix {
                 randao_reveal,
-                eth1_data: state.eth1_data().clone(),
+                eth1_data: state.eth1_data().expect("pre-EIP-8453 state").clone(),
                 graffiti: Graffiti::default(),
                 proposer_slashings: VariableList::empty(),
                 attester_slashings: VariableList::empty(),
@@ -3301,9 +3301,10 @@ where
         let deposit_data_list = VariableList::<_, U4294967296>::try_from(leaves.clone()).unwrap();
 
         // Setting the deposit_root to be the tree_hash_root of the VarList
-        state.eth1_data_mut().deposit_root = deposit_data_list.tree_hash_root();
-        state.eth1_data_mut().deposit_count = num_deposits as u64;
-        *state.eth1_deposit_index_mut() = 0;
+        let eth1_data = state.eth1_data_mut().expect("pre-EIP-8453 state");
+        eth1_data.deposit_root = deposit_data_list.tree_hash_root();
+        eth1_data.deposit_count = num_deposits as u64;
+        *state.eth1_deposit_index_mut().expect("pre-EIP-8453 state") = 0;
 
         // Building the merkle tree used for generating proofs
         let tree = MerkleTree::create(&leaves[..], self.spec.deposit_contract_tree_depth as usize);

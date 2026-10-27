@@ -6,6 +6,7 @@ use educe::Educe;
 use merkle_proof::MerkleTree;
 use metastruct::metastruct;
 use serde::{Deserialize, Deserializer, Serialize};
+use ssz::ProgressiveBitList;
 use ssz_derive::{Decode, Encode};
 use ssz_types::{FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
@@ -13,8 +14,8 @@ use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    ListRef, SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze,
-    SignedExecutionPayloadBidRef,
+    AttestationEip8453, AttesterSlashingEip8453, HeadVote, ListRef, SignedExecutionPayloadBidGloas,
+    SignedExecutionPayloadBidHeze, SignedExecutionPayloadBidRef,
     attestation::{
         AttestationBase, AttestationElectra, AttestationGloas, AttestationRef, AttestationRefMut,
         PayloadAttestation,
@@ -116,7 +117,9 @@ pub const BEACON_BLOCK_BODY_ACTIVE_FIELDS: [bool; 13] = [true; 13];
             metastruct(mappings(beacon_block_body_eip8453_fields(groups(fields)))),
             tree_hash(
                 struct_behaviour = "progressive_container",
-                active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+                // [Modified in EIP8453] `eth1_data` (index 1) and `deposits` (index 6) were
+                // removed in the spec's Heze; their positions are gaps.
+                active_fields(1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1)
             )
         ),
     ),
@@ -141,6 +144,8 @@ pub const BEACON_BLOCK_BODY_ACTIVE_FIELDS: [bool; 13] = [true; 13];
 #[tree_hash(enum_behaviour = "transparent")]
 pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPayload<E>> {
     pub randao_reveal: Signature,
+    // [Modified in EIP8453] removed (spec: removed in Heze via EIP-8015).
+    #[superstruct(only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu, Gloas, Heze))]
     pub eth1_data: Eth1Data,
     pub graffiti: Graffiti,
     #[superstruct(
@@ -164,12 +169,13 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     )]
     pub attester_slashings:
         VariableList<AttesterSlashingElectra<E>, E::MaxAttesterSlashingsElectra>,
-    #[superstruct(
-        only(Gloas, Heze, Eip8453),
-        partial_getter(rename = "attester_slashings_gloas")
-    )]
+    #[superstruct(only(Gloas, Heze), partial_getter(rename = "attester_slashings_gloas"))]
     pub attester_slashings:
         ProgressiveVariableList<AttesterSlashingGloas<E>, E::MaxAttesterSlashingsElectra>,
+    // [Modified in EIP8453] finality gadget slashing evidence.
+    #[superstruct(only(Eip8453), partial_getter(rename = "attester_slashings_eip8453"))]
+    pub attester_slashings:
+        ProgressiveVariableList<AttesterSlashingEip8453<E>, E::MaxAttesterSlashingsElectra>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb),
         partial_getter(rename = "attestations_base")
@@ -177,20 +183,18 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     pub attestations: VariableList<AttestationBase<E>, E::MaxAttestations>,
     #[superstruct(only(Electra, Fulu), partial_getter(rename = "attestations_electra"))]
     pub attestations: VariableList<AttestationElectra<E>, E::MaxAttestationsElectra>,
-    #[superstruct(
-        only(Gloas, Heze, Eip8453),
-        partial_getter(rename = "attestations_gloas")
-    )]
+    #[superstruct(only(Gloas, Heze), partial_getter(rename = "attestations_gloas"))]
     pub attestations: ProgressiveVariableList<AttestationGloas<E>, E::MaxAttestationsElectra>,
+    // [Modified in EIP8453] finality gadget attestations.
+    #[superstruct(only(Eip8453), partial_getter(rename = "attestations_eip8453"))]
+    pub attestations: ProgressiveVariableList<AttestationEip8453<E>, E::MaxAttestationsElectra>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
         partial_getter(rename = "deposits_basic")
     )]
     pub deposits: VariableList<Deposit, E::MaxDeposits>,
-    #[superstruct(
-        only(Gloas, Heze, Eip8453),
-        partial_getter(rename = "deposits_progressive")
-    )]
+    // [Modified in EIP8453] removed (spec: removed in Heze via EIP-8015).
+    #[superstruct(only(Gloas, Heze), partial_getter(rename = "deposits_progressive"))]
     pub deposits: ProgressiveVariableList<Deposit, E::MaxDeposits>,
     #[superstruct(
         only(Base, Altair, Bellatrix, Capella, Deneb, Electra, Fulu),
@@ -256,6 +260,16 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
         ProgressiveVariableList<PayloadAttestation<E>, E::MaxPayloadAttestations>,
     #[superstruct(only(Gloas, Heze, Eip8453))]
     pub parent_execution_requests: ExecutionRequestsGloas<E>,
+    // [New in EIP8453] head votes of the available chain.
+    #[superstruct(only(Eip8453))]
+    pub head_votes: ProgressiveVariableList<HeadVote<E>, E::MaxHeadVotes>,
+    // [New in EIP8453] one bit per head vote, set when the proposer counted it as support.
+    #[superstruct(only(Eip8453))]
+    pub head_vote_support_bits: ProgressiveBitList,
+    // [New in EIP8453] slashings of attestations made before the EIP-8453 fork.
+    #[superstruct(only(Eip8453))]
+    pub legacy_attester_slashings:
+        ProgressiveVariableList<AttesterSlashingGloas<E>, E::MaxAttesterSlashingsElectra>,
     #[superstruct(only(Base, Altair, Gloas, Heze, Eip8453))]
     #[metastruct(exclude_from(fields))]
     #[ssz(skip_serializing, skip_deserializing)]
@@ -274,7 +288,7 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBody<E, Payload> {
         self.to_ref().proposer_slashings()
     }
 
-    pub fn deposits(&self) -> ListRef<'_, Deposit, E::MaxDeposits> {
+    pub fn deposits(&self) -> Result<ListRef<'_, Deposit, E::MaxDeposits>, BeaconStateError> {
         self.to_ref().deposits()
     }
 
@@ -549,11 +563,20 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         })
     }
 
-    pub fn deposits(&self) -> ListRef<'a, Deposit, E::MaxDeposits> {
-        map_beacon_block_body_ref!(&'a _, self, |inner, cons| {
-            cons(inner);
-            ListRef::from(&inner.deposits)
-        })
+    pub fn deposits(&self) -> Result<ListRef<'a, Deposit, E::MaxDeposits>, BeaconStateError> {
+        match self {
+            Self::Base(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Altair(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Bellatrix(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Capella(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Deneb(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Electra(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Fulu(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Gloas(body) => Ok(ListRef::from(&body.deposits)),
+            Self::Heze(body) => Ok(ListRef::from(&body.deposits)),
+            // [Modified in EIP8453] the body has no deposits.
+            Self::Eip8453(_) => Err(BeaconStateError::IncorrectStateVariant),
+        }
     }
 
     pub fn voluntary_exits(&self) -> ListRef<'a, SignedVoluntaryExit, E::MaxVoluntaryExits> {
@@ -583,18 +606,44 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRef<'a, E, 
         }
     }
 
+    /// Iterate over the body's pre-EIP-8453 attestations.
+    ///
+    /// EIP8453-STUB: finality gadget attestations are a standalone type and are deliberately NOT
+    /// yielded here; use `attestations_eip8453()` instead. Pre-fork consumers of this iterator
+    /// (op pool, observed attesters, metrics) see an empty list for EIP-8453 blocks.
     pub fn attestations(&self) -> Box<dyn Iterator<Item = AttestationRef<'a, E>> + 'a> {
-        map_beacon_block_body_ref!(&'a _, self, |inner, cons| {
-            cons(inner);
-            Box::new(inner.attestations.iter().map(Into::into)) as Box<dyn Iterator<Item = _>>
-        })
+        match self {
+            Self::Base(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Altair(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Bellatrix(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Capella(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Deneb(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Electra(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Fulu(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Gloas(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Heze(body) => Box::new(body.attestations.iter().map(Into::into)),
+            Self::Eip8453(_) => Box::new(std::iter::empty()),
+        }
     }
 
+    /// Iterate over the body's pre-EIP-8453 attester slashings.
+    ///
+    /// EIP8453-STUB: for EIP-8453 bodies this yields the `legacy_attester_slashings` (pre-fork
+    /// Casper FFG evidence, which uses the unchanged Gloas type); the new finality gadget
+    /// slashings are available via `attester_slashings_eip8453()`.
     pub fn attester_slashings(&self) -> Box<dyn Iterator<Item = AttesterSlashingRef<'a, E>> + 'a> {
-        map_beacon_block_body_ref!(&'a _, self, |inner, cons| {
-            cons(inner);
-            Box::new(inner.attester_slashings.iter().map(Into::into)) as Box<dyn Iterator<Item = _>>
-        })
+        match self {
+            Self::Base(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Altair(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Bellatrix(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Capella(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Deneb(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Electra(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Fulu(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Gloas(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Heze(body) => Box::new(body.attester_slashings.iter().map(Into::into)),
+            Self::Eip8453(body) => Box::new(body.legacy_attester_slashings.iter().map(Into::into)),
+        }
     }
 }
 
@@ -628,9 +677,9 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRefMut<'a, 
             Self::Heze(body) => {
                 Box::new(body.attestations.iter_mut().map(AttestationRefMut::Gloas))
             }
-            Self::Eip8453(body) => {
-                Box::new(body.attestations.iter_mut().map(AttestationRefMut::Gloas))
-            }
+            // EIP8453-STUB: FG attestations are a standalone type, not part of
+            // `AttestationRefMut`.
+            Self::Eip8453(_) => Box::new(std::iter::empty()),
         }
     }
 
@@ -771,10 +820,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRefMut<'a, 
                 .deposits
                 .push(deposit)
                 .map_err(BeaconStateError::SszTypesError),
-            Self::Eip8453(body) => body
-                .deposits
-                .push(deposit)
-                .map_err(BeaconStateError::SszTypesError),
+            Self::Eip8453(_) => Err(BeaconStateError::IncorrectStateVariant),
         }
     }
 
@@ -820,10 +866,7 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> BeaconBlockBodyRefMut<'a, 
                 body.deposits = ssz::TryFromIter::try_from_iter(deposits)
                     .map_err(BeaconStateError::SszTypesError)?;
             }
-            Self::Eip8453(body) => {
-                body.deposits = ssz::TryFromIter::try_from_iter(deposits)
-                    .map_err(BeaconStateError::SszTypesError)?;
-            }
+            Self::Eip8453(_) => return Err(BeaconStateError::IncorrectStateVariant),
         }
         Ok(())
     }
@@ -1008,35 +1051,37 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, BlindedPayload<E>>>
     fn from(body: BeaconBlockBodyEip8453<E, BlindedPayload<E>>) -> Self {
         let BeaconBlockBodyEip8453 {
             randao_reveal,
-            eth1_data,
             graffiti,
             proposer_slashings,
             attester_slashings,
             attestations,
-            deposits,
             voluntary_exits,
             sync_aggregate,
             bls_to_execution_changes,
             parent_execution_requests,
             signed_execution_payload_bid,
             payload_attestations,
+            head_votes,
+            head_vote_support_bits,
+            legacy_attester_slashings,
             _phantom,
         } = body;
 
         BeaconBlockBodyEip8453 {
             randao_reveal,
-            eth1_data,
             graffiti,
             proposer_slashings,
             attester_slashings,
             attestations,
-            deposits,
             voluntary_exits,
             sync_aggregate,
             bls_to_execution_changes,
             parent_execution_requests,
             signed_execution_payload_bid,
             payload_attestations,
+            head_votes,
+            head_vote_support_bits,
+            legacy_attester_slashings,
             _phantom: PhantomData,
         }
     }
@@ -1436,36 +1481,38 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, FullPayload<E>>>
     fn from(body: BeaconBlockBodyEip8453<E, FullPayload<E>>) -> Self {
         let BeaconBlockBodyEip8453 {
             randao_reveal,
-            eth1_data,
             graffiti,
             proposer_slashings,
             attester_slashings,
             attestations,
-            deposits,
             voluntary_exits,
             sync_aggregate,
             bls_to_execution_changes,
             parent_execution_requests,
             signed_execution_payload_bid,
             payload_attestations,
+            head_votes,
+            head_vote_support_bits,
+            legacy_attester_slashings,
             _phantom,
         } = body;
 
         (
             BeaconBlockBodyEip8453 {
                 randao_reveal,
-                eth1_data,
                 graffiti,
                 proposer_slashings,
                 attester_slashings,
                 attestations,
-                deposits,
                 voluntary_exits,
                 sync_aggregate,
                 bls_to_execution_changes,
                 parent_execution_requests,
                 signed_execution_payload_bid,
                 payload_attestations,
+                head_votes,
+                head_vote_support_bits,
+                legacy_attester_slashings,
                 _phantom: PhantomData,
             },
             None,

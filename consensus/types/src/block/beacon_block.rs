@@ -5,7 +5,7 @@ use context_deserialize::ContextDeserialize;
 use educe::Educe;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Deserializer, Serialize};
-use ssz::{Decode, DecodeError};
+use ssz::{Decode, DecodeError, ProgressiveBitList};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{BitList, BitVector, FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
@@ -793,22 +793,19 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> EmptyBlock for BeaconBlockEip8
             state_root: Hash256::zero(),
             body: BeaconBlockBodyEip8453 {
                 randao_reveal: Signature::empty(),
-                eth1_data: Eth1Data {
-                    deposit_root: Hash256::zero(),
-                    block_hash: Hash256::zero(),
-                    deposit_count: 0,
-                },
                 graffiti: Graffiti::default(),
                 proposer_slashings: ProgressiveVariableList::empty(),
                 attester_slashings: ProgressiveVariableList::empty(),
                 attestations: ProgressiveVariableList::empty(),
-                deposits: ProgressiveVariableList::empty(),
                 voluntary_exits: ProgressiveVariableList::empty(),
                 sync_aggregate: SyncAggregate::empty(),
                 bls_to_execution_changes: ProgressiveVariableList::empty(),
                 parent_execution_requests: ExecutionRequestsGloas::default(),
                 signed_execution_payload_bid: SignedExecutionPayloadBidHeze::empty(),
                 payload_attestations: ProgressiveVariableList::empty(),
+                head_votes: ProgressiveVariableList::empty(),
+                head_vote_support_bits: ProgressiveBitList::with_capacity(0),
+                legacy_attester_slashings: ProgressiveVariableList::empty(),
                 _phantom: PhantomData,
             },
         }

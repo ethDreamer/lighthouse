@@ -4,6 +4,7 @@ mod attestation_data;
 mod attestation_duty;
 mod beacon_committee;
 mod checkpoint;
+mod eip8453;
 mod indexed_attestation;
 mod indexed_payload_attestation;
 mod participation_flags;
@@ -30,6 +31,12 @@ pub use attestation_data::AttestationData;
 pub use attestation_duty::AttestationDuty;
 pub use beacon_committee::{BeaconCommittee, OwnedBeaconCommittee};
 pub use checkpoint::Checkpoint;
+pub use eip8453::{
+    AttestationDataEip8453, AttestationEip8453, AttesterSlashingEip8453, HeadVote, HeadVoteData,
+    HeadVoteMessage, HeightCheckpoint, IndexedAttestationEip8453, PendingFinality,
+    SingleAttestationEip8453, is_conflicting_with_finality_pair, is_double_target_vote,
+    is_slashable_attestation_data_eip8453,
+};
 pub use indexed_attestation::{
     IndexedAttestation, IndexedAttestationBase, IndexedAttestationElectra, IndexedAttestationGloas,
     IndexedAttestationRef,

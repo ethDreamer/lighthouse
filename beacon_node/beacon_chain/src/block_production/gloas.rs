@@ -421,7 +421,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         drop(slashings_and_exits_span);
 
-        let eth1_data = state.eth1_data().clone();
+        // EIP8453-STUB: EIP-8453 bodies have no eth1 data; a default value is threaded
+        // through `PartialBeaconBlock` and never included in the block.
+        let eth1_data = state.eth1_data().cloned().unwrap_or_default();
 
         let deposits = vec![];
 
@@ -851,21 +853,17 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     state_root: Hash256::ZERO,
                     body: BeaconBlockBodyEip8453 {
                         randao_reveal,
-                        eth1_data,
                         graffiti,
                         // The operation list lengths are bounded by the op pool packing limits above.
                         proposer_slashings: ProgressiveVariableList::try_from_iter(
                             proposer_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
-                        attester_slashings: ProgressiveVariableList::try_from_iter(
-                            attester_slashings,
-                        )
-                        .map_err(BlockProductionError::SszTypesError)?,
-                        attestations: ProgressiveVariableList::try_from_iter(attestations)
-                            .map_err(BlockProductionError::SszTypesError)?,
-                        deposits: ProgressiveVariableList::try_from_iter(deposits)
-                            .map_err(BlockProductionError::SszTypesError)?,
+                        // EIP8453-STUB: no finality gadget attestation pool exists yet, so the
+                        // new-style operation lists are empty. Pre-fork (Casper FFG) slashing
+                        // evidence from the op pool goes into `legacy_attester_slashings`.
+                        attester_slashings: ProgressiveVariableList::empty(),
+                        attestations: ProgressiveVariableList::empty(),
                         voluntary_exits: ProgressiveVariableList::try_from_iter(voluntary_exits)
                             .map_err(BlockProductionError::SszTypesError)?,
                         sync_aggregate,
@@ -877,6 +875,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         signed_execution_payload_bid,
                         payload_attestations: ProgressiveVariableList::try_from_iter(
                             payload_attestations,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
+                        head_votes: ProgressiveVariableList::empty(),
+                        head_vote_support_bits: ProgressiveBitList::with_capacity(0),
+                        legacy_attester_slashings: ProgressiveVariableList::try_from_iter(
+                            attester_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
                         _phantom: PhantomData::<FullPayload<T::EthSpec>>,
