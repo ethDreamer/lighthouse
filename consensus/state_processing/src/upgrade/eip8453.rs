@@ -1,25 +1,21 @@
-use milhouse::ProgressiveList;
+use milhouse::{ProgressiveList, Vector};
+use safe_arith::SafeArith;
+use ssz_types::FixedVector;
 use std::mem;
+use tree_hash::TreeHash;
 use types::{
     BeaconState, BeaconStateEip8453, BeaconStateError as Error, ChainSpec, EthSpec, Fork,
-    ParticipationFlags, eip8453::HeightCheckpoint,
+    ParticipationFlags, Slot, eip8453::HeightCheckpoint,
 };
 
 /// Transform a `Heze` state into an `Eip8453` state.
 ///
-/// EIP8453-STUB: the spec's upgrade function is not yet defined (fork.md: "the upgrade function,
-/// which sets the initial state of the finality gadget, is not yet specified"). Every choice
-/// below about the initial finality gadget state is therefore an invention to report back to the
-/// spec authors:
-///
-/// - `target_checkpoint` starts at height 1 with an empty root, which the next `process_slot`
-///   back-fills with the latest block root (mirroring `advance_height`).
-/// - `target_slot` is the slot of the latest block header.
-/// - `justified_checkpoint` and `finalized_checkpoint` start at height 0 with the pre-fork
-///   finalized root, and `finalized_slot` is the start slot of the pre-fork finalized epoch, so
-///   that deposit/activation processing keyed on `finalized_slot` continues from the Casper FFG
-///   finality at the fork.
-/// - All participation is empty and `pending_finality` starts empty.
+/// `upgrade_to_eip8453` from fork.md: the finality gadget starts at height 0 from the last
+/// finalized Casper FFG checkpoint, and the target of height 1 is the latest block before the
+/// upgrade. `finalized_slot` is the start slot of the pre-fork finalized epoch, so that
+/// deposit/activation processing keyed on `finalized_slot` continues from Casper FFG finality.
+/// Participation in the last pre-fork epoch is not rewarded. Inactivity scores carry over
+/// unchanged despite their semantics changing to per-round updates.
 pub fn upgrade_to_eip8453<E: EthSpec>(
     pre_state: &mut BeaconState<E>,
     spec: &ChainSpec,
@@ -47,7 +43,7 @@ pub fn upgrade_state_to_eip8453<E: EthSpec>(
     //
     // Fixed size vectors get cloned because replacing them would require the same size
     // allocation as cloning.
-    let post = BeaconState::Eip8453(BeaconStateEip8453 {
+    let mut post = BeaconState::Eip8453(BeaconStateEip8453 {
         // Versioning
         genesis_time: pre.genesis_time,
         genesis_validators_root: pre.genesis_validators_root,
@@ -106,8 +102,9 @@ pub fn upgrade_state_to_eip8453<E: EthSpec>(
         // Finality gadget [New in EIP8453]
         target_checkpoint: HeightCheckpoint {
             height: 1,
-            // Back-filled with the latest block root by the next `process_slot`.
-            root: Default::default(),
+            // The root of the latest block before the upgrade. The header's state root has
+            // already been back-filled by `process_slot`, so this is the true block root.
+            root: pre.latest_block_header.tree_hash_root(),
         },
         justified_checkpoint: HeightCheckpoint {
             height: 0,
@@ -133,6 +130,8 @@ pub fn upgrade_state_to_eip8453<E: EthSpec>(
         ))?,
         pending_finality: Default::default(),
         head_vote_participation: Default::default(),
+        // Placeholder, initialized below once the post-state exists.
+        head_vote_committee_window: Vector::from_elem(FixedVector::from_elem(0))?,
         // Caches
         total_active_balance: pre.total_active_balance,
         progressive_balances_cache: mem::take(&mut pre.progressive_balances_cache),
@@ -143,5 +142,39 @@ pub fn upgrade_state_to_eip8453<E: EthSpec>(
         epoch_cache: mem::take(&mut pre.epoch_cache),
     });
 
+    initialize_head_vote_committee_window(&mut post, spec)?;
+
     Ok(post)
+}
+
+/// Initialize the `head_vote_committee_window` field at the fork transition.
+///
+/// `initialize_head_vote_committee_window` from fork.md: one epoch of empty (all-zero) entries
+/// for the previous epoch, then committees computed for the current epoch through
+/// `MIN_SEED_LOOKAHEAD` epochs of lookahead.
+fn initialize_head_vote_committee_window<E: EthSpec>(
+    state: &mut BeaconState<E>,
+    spec: &ChainSpec,
+) -> Result<(), Error> {
+    let slots_per_epoch = E::slots_per_epoch() as usize;
+
+    let empty_previous_epoch =
+        vec![FixedVector::<u64, E::HeadVoteCommitteeSize>::from_elem(0); slots_per_epoch];
+    let mut committees = empty_previous_epoch;
+
+    let current_epoch = state.current_epoch();
+    for e in 0..=spec.min_seed_lookahead.as_u64() {
+        let epoch = current_epoch.safe_add(e)?;
+        let start_slot = epoch.start_slot(E::slots_per_epoch());
+        for i in 0..slots_per_epoch {
+            let slot = start_slot.safe_add(Slot::new(i as u64))?;
+            let committee = state.compute_head_vote_committee(slot, spec)?;
+            let committee_u64: Vec<u64> = committee.into_iter().map(|v| v as u64).collect();
+            committees.push(FixedVector::new(committee_u64)?);
+        }
+    }
+
+    *state.head_vote_committee_window_mut()? = Vector::new(committees)?;
+
+    Ok(())
 }

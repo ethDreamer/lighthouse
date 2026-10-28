@@ -41,6 +41,9 @@ pub enum Domain {
     BuilderDeposit,
     InclusionListCommittee,
     ExecutionProof,
+    HeadVote,
+    HeadVoteCommittee,
+    FinalityAttester,
     ApplicationMask(ApplicationDomain),
 }
 
@@ -162,6 +165,9 @@ pub struct ChainSpec {
     pub(crate) domain_builder_deposit: u32,
     pub(crate) domain_inclusion_list_committee: u32,
     pub(crate) domain_execution_proof: u32,
+    pub(crate) domain_head_vote: u32,
+    pub(crate) domain_head_vote_committee: u32,
+    pub(crate) domain_finality_attester: u32,
 
     /*
      * Fork choice
@@ -593,6 +599,9 @@ impl ChainSpec {
             Domain::BuilderDeposit => self.domain_builder_deposit,
             Domain::InclusionListCommittee => self.domain_inclusion_list_committee,
             Domain::ExecutionProof => self.domain_execution_proof,
+            Domain::HeadVote => self.domain_head_vote,
+            Domain::HeadVoteCommittee => self.domain_head_vote_committee,
+            Domain::FinalityAttester => self.domain_finality_attester,
             Domain::SyncCommittee => self.domain_sync_committee,
             Domain::ContributionAndProof => self.domain_contribution_and_proof,
             Domain::SyncCommitteeSelectionProof => self.domain_sync_committee_selection_proof,
@@ -1339,6 +1348,9 @@ impl ChainSpec {
             domain_builder_deposit: 0x0E,
             domain_inclusion_list_committee: 0x10,
             domain_execution_proof: 0x0F,
+            domain_head_vote: 0x12,
+            domain_head_vote_committee: 0x13,
+            domain_finality_attester: 0x14,
 
             /*
              * Fork choice
@@ -1804,6 +1816,9 @@ impl ChainSpec {
             domain_builder_deposit: 0x0E,
             domain_inclusion_list_committee: 0x10,
             domain_execution_proof: 0x0F,
+            domain_head_vote: 0x12,
+            domain_head_vote_committee: 0x13,
+            domain_finality_attester: 0x14,
 
             /*
              * Fork choice

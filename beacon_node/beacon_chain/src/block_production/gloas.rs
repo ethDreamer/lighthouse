@@ -878,7 +878,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
                         head_votes: ProgressiveVariableList::empty(),
-                        head_vote_support_bits: ProgressiveBitList::with_capacity(0),
+                        head_vote_support: ProgressiveVariableList::empty(),
                         legacy_attester_slashings: ProgressiveVariableList::try_from_iter(
                             attester_slashings,
                         )

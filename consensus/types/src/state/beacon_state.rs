@@ -492,11 +492,12 @@ impl From<BeaconStateHash> for Hash256 {
             ),
             tree_hash(
                 struct_behaviour = "progressive_container",
-                // [Modified in EIP8453] gaps at the removed eth1 (8-10), epoch participation
-                // (15-16), Casper FFG (17-20) and deposit_requests_start_index (28) positions.
+                // [Modified in EIP8453] width 57; gaps at the removed eth1 (8-10), epoch
+                // participation (15-16), Casper FFG (17-20) and deposit_requests_start_index
+                // (28) positions.
                 active_fields(
                     1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
-                    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+                    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
                 )
             )
         )
@@ -915,6 +916,14 @@ where
     #[metastruct(exclude_from(tree_lists))]
     pub head_vote_participation:
         FixedVector<BitVector<E::HeadVoteCommitteeSize>, E::HeadVoteParticipationLimit>,
+    // Rolling window of head vote committees for the previous, current and lookahead epochs.
+    // The spec's `HeadVoteCommitteeWindow` length `(MIN_SEED_LOOKAHEAD + 2) * SLOTS_PER_EPOCH`
+    // is the same formula as `PtcWindowLength`, so that typenum is reused here.
+    #[compare_fields(as_iter)]
+    #[cfg_attr(feature = "arbitrary", arbitrary(default))]
+    #[superstruct(only(Eip8453))]
+    pub head_vote_committee_window:
+        Vector<FixedVector<u64, E::HeadVoteCommitteeSize>, E::PtcWindowLength>,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -3893,6 +3902,77 @@ impl<E: EthSpec> BeaconState<E> {
         Ok(None)
     }
 
+    /// Read the head vote committee for `slot` from the state's cached window [New in EIP8453].
+    ///
+    /// `get_head_vote_committee` from the spec: previous-epoch slots map to the first epoch of
+    /// the window, current and lookahead epochs after it.
+    pub fn get_head_vote_committee(
+        &self,
+        slot: Slot,
+        spec: &ChainSpec,
+    ) -> Result<Vec<usize>, BeaconStateError> {
+        let window = self.head_vote_committee_window()?;
+        let epoch = slot.epoch(E::slots_per_epoch());
+        if spec
+            .eip8453_fork_epoch
+            .is_none_or(|fork_epoch| epoch < fork_epoch)
+        {
+            return Err(BeaconStateError::SlotOutOfBounds);
+        }
+        let state_epoch = self.current_epoch();
+        let slots_per_epoch = E::slots_per_epoch() as usize;
+        let slot_in_epoch = slot.as_usize().safe_rem(slots_per_epoch)?;
+
+        let index = if epoch < state_epoch {
+            if epoch.safe_add(1)? != state_epoch {
+                return Err(BeaconStateError::SlotOutOfBounds);
+            }
+            slot_in_epoch
+        } else {
+            if epoch > state_epoch.safe_add(spec.min_seed_lookahead)? {
+                return Err(BeaconStateError::SlotOutOfBounds);
+            }
+            let offset = epoch
+                .safe_sub(state_epoch)?
+                .safe_add(1)?
+                .as_usize()
+                .safe_mul(slots_per_epoch)?;
+            offset.safe_add(slot_in_epoch)?
+        };
+
+        let entry = window.get(index).ok_or(BeaconStateError::SlotOutOfBounds)?;
+        Ok(entry.iter().map(|&v| v as usize).collect())
+    }
+
+    /// Compute the head vote committee for `slot` from scratch [New in EIP8453].
+    ///
+    /// `compute_head_vote_committee` from the spec: a balance-weighted sample (with possible
+    /// duplicates) of the active validators of the slot's epoch. Unlike the PTC, no committee
+    /// cache is required.
+    pub fn compute_head_vote_committee(
+        &self,
+        slot: Slot,
+        spec: &ChainSpec,
+    ) -> Result<Vec<usize>, BeaconStateError> {
+        let epoch = slot.epoch(E::slots_per_epoch());
+        let seed = {
+            let mut preimage = self
+                .get_seed(epoch, Domain::HeadVoteCommittee, spec)?
+                .as_slice()
+                .to_vec();
+            preimage.append(&mut int_to_bytes8(slot.as_u64()));
+            hash(&preimage)
+        };
+        let indices = self.get_active_validator_indices(epoch, spec)?;
+        self.compute_balance_weighted_selection(
+            &indices,
+            &seed,
+            E::head_vote_committee_size(),
+            true,
+            spec,
+        )
+    }
+
     /// Return size indices sampled by effective balance, using indices as candidates.
     ///
     /// If shuffle_indices is True, candidate indices are themselves sampled from indices
@@ -4001,6 +4081,26 @@ impl<E: EthSpec> ForkVersionDecode for BeaconState<E> {
 ///
 /// Must match the `active_fields` attribute on the Gloas and Heze variants.
 pub const BEACON_STATE_ACTIVE_FIELDS: [bool; 46] = [true; 46];
+
+/// The `active_fields` of the EIP-8453 `BeaconState` variant.
+///
+/// Must match the `active_fields` attribute on the Eip8453 variant: width 57 with gaps at the
+/// removed eth1 (8-10), epoch participation (15-16), Casper FFG (17-20) and
+/// deposit_requests_start_index (28) positions.
+#[rustfmt::skip]
+pub const BEACON_STATE_ACTIVE_FIELDS_EIP8453: [bool; 57] = [
+    true, true, true, true, true, true, true, true,          // 0-7
+    false, false, false,                                     // 8-10: eth1
+    true, true, true, true,                                  // 11-14
+    false, false,                                            // 15-16: epoch participation
+    false, false, false, false,                              // 17-20: Casper FFG
+    true, true, true, true, true, true, true,                // 21-27
+    false,                                                   // 28: deposit_requests_start_index
+    true, true, true, true, true, true, true, true, true,    // 29-37
+    true, true, true, true, true, true, true, true, true,    // 38-46
+    true, true, true, true, true, true, true, true, true,    // 47-55
+    true,                                                    // 56
+];
 
 impl<E: EthSpec> BeaconState<E> {
     /// The number of fields of the `BeaconState` rounded up to the nearest power of two.
@@ -4148,9 +4248,15 @@ impl<E: EthSpec> BeaconState<E> {
 
         // [Modified in Gloas:EIP7688] the state is a progressive container.
         if self.fork_name_unchecked().gloas_enabled() {
+            // [Modified in EIP8453] the removed-field positions become gaps.
+            let active_fields: &[bool] = if self.fork_name_unchecked().eip8453_enabled() {
+                &BEACON_STATE_ACTIVE_FIELDS_EIP8453
+            } else {
+                &BEACON_STATE_ACTIVE_FIELDS
+            };
             return Ok(merkle_proof::progressive_container_proof(
                 leaves,
-                &BEACON_STATE_ACTIVE_FIELDS,
+                active_fields,
                 field_index,
             )?);
         }
@@ -4349,8 +4455,12 @@ mod progressive_container_tests {
             BEACON_STATE_ACTIVE_FIELDS.len(),
             BeaconStateHeze::<MainnetEthSpec>::NUM_FIELDS
         );
+        // The Eip8453 variant has gaps: its field count is the number of ACTIVE positions.
         assert_eq!(
-            BEACON_STATE_ACTIVE_FIELDS.len(),
+            BEACON_STATE_ACTIVE_FIELDS_EIP8453
+                .iter()
+                .filter(|active| **active)
+                .count(),
             BeaconStateEip8453::<MainnetEthSpec>::NUM_FIELDS
         );
     }

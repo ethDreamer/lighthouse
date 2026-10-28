@@ -5,7 +5,7 @@ use context_deserialize::ContextDeserialize;
 use educe::Educe;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Deserializer, Serialize};
-use ssz::{Decode, DecodeError, ProgressiveBitList};
+use ssz::{Decode, DecodeError};
 use ssz_derive::{Decode, Encode};
 use ssz_types::{BitList, BitVector, FixedVector, ProgressiveVariableList, VariableList};
 use superstruct::superstruct;
@@ -804,7 +804,7 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> EmptyBlock for BeaconBlockEip8
                 signed_execution_payload_bid: SignedExecutionPayloadBidHeze::empty(),
                 payload_attestations: ProgressiveVariableList::empty(),
                 head_votes: ProgressiveVariableList::empty(),
-                head_vote_support_bits: ProgressiveBitList::with_capacity(0),
+                head_vote_support: ProgressiveVariableList::empty(),
                 legacy_attester_slashings: ProgressiveVariableList::empty(),
                 _phantom: PhantomData,
             },

@@ -472,6 +472,9 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     /// Returns the `MAX_ATTESTER_SLASHING_SIZE` constant for this specification.
     fn max_attester_slashing_size() -> usize;
 
+    /// Returns the `MAX_ATTESTER_SLASHING_SIZE_EIP8453` constant for this specification.
+    fn max_attester_slashing_size_eip8453() -> usize;
+
     /// Returns the `MAX_SIGNED_EXECUTION_PAYLOAD_BID_SIZE` constant for this specification.
     fn max_signed_execution_payload_bid_size() -> usize;
 
@@ -644,6 +647,10 @@ impl EthSpec for MainnetEthSpec {
         2097616
     }
 
+    fn max_attester_slashing_size_eip8453() -> usize {
+        2097538
+    }
+
     fn max_signed_execution_payload_bid_size() -> usize {
         196932
     }
@@ -754,6 +761,10 @@ impl EthSpec for MinimalEthSpec {
         131536
     }
 
+    fn max_attester_slashing_size_eip8453() -> usize {
+        8578
+    }
+
     fn max_signed_execution_payload_bid_size() -> usize {
         196932
     }
@@ -859,6 +870,10 @@ impl EthSpec for GnosisEthSpec {
 
     fn max_attester_slashing_size() -> usize {
         2097616
+    }
+
+    fn max_attester_slashing_size_eip8453() -> usize {
+        2097538
     }
 
     fn max_signed_execution_payload_bid_size() -> usize {

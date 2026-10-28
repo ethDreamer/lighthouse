@@ -263,9 +263,10 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     // [New in EIP8453] head votes of the available chain.
     #[superstruct(only(Eip8453))]
     pub head_votes: ProgressiveVariableList<eip8453::HeadVote<E>, E::MaxHeadVotes>,
-    // [New in EIP8453] one bit per head vote, set when the proposer counted it as support.
+    // [New in EIP8453] one `HeadVoteSupportBits` per head vote (same order), holding one bit per
+    // voter of that vote (in `voter_indices` order), set when the proposer counted it as support.
     #[superstruct(only(Eip8453))]
-    pub head_vote_support_bits: ProgressiveBitList,
+    pub head_vote_support: ProgressiveVariableList<ProgressiveBitList, E::MaxHeadVotes>,
     // [New in EIP8453] slashings of attestations made before the EIP-8453 fork.
     #[superstruct(only(Eip8453))]
     pub legacy_attester_slashings:
@@ -1062,7 +1063,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, BlindedPayload<E>>>
             signed_execution_payload_bid,
             payload_attestations,
             head_votes,
-            head_vote_support_bits,
+            head_vote_support,
             legacy_attester_slashings,
             _phantom,
         } = body;
@@ -1080,7 +1081,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, BlindedPayload<E>>>
             signed_execution_payload_bid,
             payload_attestations,
             head_votes,
-            head_vote_support_bits,
+            head_vote_support,
             legacy_attester_slashings,
             _phantom: PhantomData,
         }
@@ -1492,7 +1493,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, FullPayload<E>>>
             signed_execution_payload_bid,
             payload_attestations,
             head_votes,
-            head_vote_support_bits,
+            head_vote_support,
             legacy_attester_slashings,
             _phantom,
         } = body;
@@ -1511,7 +1512,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, FullPayload<E>>>
                 signed_execution_payload_bid,
                 payload_attestations,
                 head_votes,
-                head_vote_support_bits,
+                head_vote_support,
                 legacy_attester_slashings,
                 _phantom: PhantomData,
             },

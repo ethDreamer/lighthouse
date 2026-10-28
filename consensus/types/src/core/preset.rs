@@ -411,6 +411,8 @@ pub struct Eip8453Preset {
     pub ejection_inactivity_score: u64,
     #[serde(with = "serde_utils::quoted_u64")]
     pub max_head_votes: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub max_attester_slashing_size_eip8453: u64,
 }
 
 impl Eip8453Preset {
@@ -425,6 +427,7 @@ impl Eip8453Preset {
             min_rounds_to_inactivity_leak: E::min_rounds_to_inactivity_leak(),
             ejection_inactivity_score: E::ejection_inactivity_score(),
             max_head_votes: E::max_head_votes() as u64,
+            max_attester_slashing_size_eip8453: E::max_attester_slashing_size_eip8453() as u64,
         }
     }
 }

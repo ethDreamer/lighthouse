@@ -2,8 +2,8 @@ use bls::AggregateSignature;
 use context_deserialize::context_deserialize;
 use educe::Educe;
 use serde::{Deserialize, Serialize};
-use ssz::BitVector;
 use ssz_derive::{Decode, Encode};
+use ssz_types::VariableList;
 use tree_hash_derive::TreeHash;
 
 use super::HeadVoteData;
@@ -18,8 +18,10 @@ use crate::{core::EthSpec, fork::ForkName};
 #[context_deserialize(ForkName)]
 #[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1))]
 pub struct HeadVote<E: EthSpec> {
-    /// The participation bits of the head vote committee, one bit per seat in committee order.
-    pub aggregation_bits: BitVector<E::HeadVoteCommitteeSize>,
+    /// The indices of the voting validators, sorted and unique. A validator holding several
+    /// committee seats is listed (and signs) once; its vote counts for each of its seats.
+    #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
+    pub voter_indices: VariableList<u64, E::HeadVoteCommitteeSize>,
     pub data: HeadVoteData,
     pub signature: AggregateSignature,
 }

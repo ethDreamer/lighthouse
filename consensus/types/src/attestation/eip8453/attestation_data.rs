@@ -66,7 +66,12 @@ impl AttestationData {
         genesis_validators_root: Hash256,
         spec: &ChainSpec,
     ) -> Hash256 {
-        let domain = spec.get_domain(epoch, Domain::BeaconAttester, fork, genesis_validators_root);
+        let domain = spec.get_domain(
+            epoch,
+            Domain::FinalityAttester,
+            fork,
+            genesis_validators_root,
+        );
         self.signing_root(domain)
     }
 }

@@ -13,9 +13,10 @@ use crate::{
 
 /// A justification of the finality gadget that is not yet finalized [New in EIP8453].
 ///
-/// `participation` marks, per validator index, whether a finality pair for this checkpoint has
-/// been counted. Note the nested per-validator list: lives inside the state's `pending_finality`
-/// list and is mutated per attestation (a known tree-states performance concern to measure).
+/// `participation` (the spec's `HeightParticipation`) marks, per validator index, whether a
+/// finality pair for this checkpoint has been counted. Note the nested per-validator list: lives
+/// inside the state's `pending_finality` list and is mutated per attestation (a known
+/// tree-states performance concern to measure).
 #[derive(TreeHash, Debug, Clone, Encode, Decode, Serialize, Deserialize, Educe)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[serde(bound = "E: EthSpec", deny_unknown_fields)]

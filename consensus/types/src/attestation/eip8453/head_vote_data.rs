@@ -4,11 +4,14 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Hash256, SignedRoot, Slot},
+    core::{Hash256, SignedRoot, Slot, consts::gloas::PayloadStatus},
     fork::ForkName,
 };
 
 /// The data of a head vote [New in EIP8453]: the available chain's vote for the head block.
+///
+/// `payload_status` is one of the Gloas fork-choice `PAYLOAD_STATUS_*` values: `PENDING` for a
+/// same-slot vote, `EMPTY`/`FULL` for a vote on an earlier block.
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[derive(
     Debug,
@@ -28,6 +31,7 @@ use crate::{
 pub struct HeadVoteData {
     pub slot: Slot,
     pub beacon_block_root: Hash256,
+    pub payload_status: PayloadStatus,
 }
 
 impl SignedRoot for HeadVoteData {}

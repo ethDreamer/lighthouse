@@ -188,6 +188,9 @@ pub fn get_extra_fields(spec: &ChainSpec) -> HashMap<String, Value> {
         "domain_bls_to_execution_change".to_uppercase() => u32_hex(spec.domain_bls_to_execution_change),
         "domain_beacon_builder".to_uppercase() => u32_hex(spec.domain_beacon_builder),
         "domain_ptc_attester".to_uppercase() => u32_hex(spec.domain_ptc_attester),
+        "domain_head_vote".to_uppercase() => u32_hex(spec.domain_head_vote),
+        "domain_head_vote_committee".to_uppercase() => u32_hex(spec.domain_head_vote_committee),
+        "domain_finality_attester".to_uppercase() => u32_hex(spec.domain_finality_attester),
         "domain_proposer_preferences".to_uppercase() => u32_hex(spec.domain_proposer_preferences),
         "domain_builder_deposit".to_uppercase() => u32_hex(spec.domain_builder_deposit),
         "sync_committee_subnet_count".to_uppercase() =>
