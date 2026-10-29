@@ -1212,13 +1212,29 @@ impl<E: EthSpec> BeaconState<E> {
     /// `finalized_checkpoint_eip8453()`.
     pub fn finalized_checkpoint(&self) -> Checkpoint {
         match self {
-            Self::Eip8453(state) => Checkpoint {
-                epoch: state.finalized_slot.epoch(E::slots_per_epoch()),
-                root: state.finalized_checkpoint.root,
-            },
+            Self::Eip8453(state) => {
+                let epoch = state.finalized_slot.epoch(E::slots_per_epoch());
+                Checkpoint {
+                    epoch,
+                    root: self.epoch_boundary_root_or(epoch, state.finalized_checkpoint.root),
+                }
+            }
             // All pre-EIP-8453 variants have the legacy field, so this cannot fail.
             _ => self.finalized_checkpoint_legacy().unwrap_or_default(),
         }
+    }
+
+    /// The block root at `epoch`'s start slot, for synthesizing Casper-FFG-shaped checkpoints
+    /// from the finality gadget's slot-based finality (checkpoint consumers assume the root is
+    /// an epoch-boundary block; the FG's finalized block can sit mid-epoch).
+    fn epoch_boundary_root_or(&self, epoch: Epoch, fallback: Hash256) -> Hash256 {
+        let boundary_slot = epoch.start_slot(E::slots_per_epoch());
+        if boundary_slot >= self.slot() {
+            return fallback;
+        }
+        self.get_block_root(boundary_slot)
+            .copied()
+            .unwrap_or(fallback)
     }
 
     /// The current justified checkpoint, in the pre-EIP-8453 (Casper FFG) representation.
@@ -1227,10 +1243,21 @@ impl<E: EthSpec> BeaconState<E> {
     /// slot in the state, so the finalized slot's epoch is used as a placeholder.
     pub fn current_justified_checkpoint(&self) -> Checkpoint {
         match self {
-            Self::Eip8453(state) => Checkpoint {
-                epoch: state.finalized_slot.epoch(E::slots_per_epoch()),
-                root: state.justified_checkpoint.root,
-            },
+            Self::Eip8453(state) => {
+                // EIP8453-STUB: the justified height has no slot in the state; place the
+                // synthesized checkpoint one epoch above finality, clamped to the previous
+                // slot's epoch so consumers can always resolve the boundary block and state
+                // roots (a state exactly on the boundary has not stored its own roots yet).
+                let finalized_epoch = state.finalized_slot.epoch(E::slots_per_epoch());
+                let epoch = std::cmp::min(
+                    finalized_epoch.saturating_add(1u64),
+                    state.slot.saturating_sub(1u64).epoch(E::slots_per_epoch()),
+                );
+                Checkpoint {
+                    epoch,
+                    root: self.epoch_boundary_root_or(epoch, state.justified_checkpoint.root),
+                }
+            }
             // All pre-EIP-8453 variants have the legacy field, so this cannot fail.
             _ => self
                 .current_justified_checkpoint_legacy()

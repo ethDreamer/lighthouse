@@ -192,7 +192,7 @@ pub struct ForkChoiceNode {
 
 impl ForkChoiceNode {
     /// Deliberately not `pub`: a `ForkChoiceNode` is only produced by fork choice.
-    pub(crate) fn new(root: Hash256, payload_status: PayloadStatus) -> Self {
+    pub fn new(root: Hash256, payload_status: PayloadStatus) -> Self {
         Self {
             root,
             payload_status,

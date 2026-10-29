@@ -4086,6 +4086,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec54ac60a7f2ee9a97cad9946f9bf629a3bc6a7ae59e68983dc9318f5a54b81a"
 
 [[package]]
+name = "fg_fork_choice"
+version = "0.1.0"
+dependencies = [
+ "safe_arith",
+ "types",
+]
+
+[[package]]
 name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4190,6 +4198,7 @@ dependencies = [
  "criterion",
  "ethereum_ssz",
  "ethereum_ssz_derive",
+ "fg_fork_choice",
  "fixed_bytes",
  "logging",
  "metrics",

@@ -102,6 +102,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     );
                     BeaconChainError::BlockRewardAttestationError
                 })?
+        } else if state.fork_name_unchecked().eip8453_enabled() {
+            // EIP8453-STUB: proposer rewards accrue per included FG object inside block
+            // processing; the FFG-shaped attestation-reward calculation does not apply. Report
+            // zero rather than erroring.
+            0
         } else {
             self.compute_beacon_block_attestation_reward_altair_and_later(block, state)
                 .map_err(|e| {

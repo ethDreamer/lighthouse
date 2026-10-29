@@ -51,6 +51,7 @@ members = [
     "common/workspace_members",
     "consensus/fast_confirmation",
     "consensus/fixed_bytes",
+    "consensus/fg_fork_choice",
     "consensus/fork_choice",
     "consensus/int_to_bytes",
     "consensus/merkle_proof",
@@ -160,6 +161,7 @@ filesystem = { path = "common/filesystem" }
 fixed_bytes = { path = "consensus/fixed_bytes" }
 flate2 = "1"
 fnv = "1"
+fg_fork_choice = { path = "consensus/fg_fork_choice" }
 fork_choice = { path = "consensus/fork_choice" }
 fs2 = "0.4"
 futures = "0.3"

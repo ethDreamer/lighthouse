@@ -456,7 +456,11 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             }
         };
 
-        let mut attestations = {
+        let mut attestations = if state.fork_name_unchecked().eip8453_enabled() {
+            // [EIP8453] the op pool's attestation machinery (reward cache, epoch participation)
+            // is Casper-FFG-shaped; FG attestations are packed from the dumb eip8453 pool below.
+            vec![]
+        } else {
             let _guard = debug_span!("pack_attestations").entered();
             let _attestation_packing_timer =
                 metrics::start_timer(&metrics::BLOCK_PRODUCTION_ATTESTATION_TIMES);
@@ -846,6 +850,61 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     ));
                 };
 
+                // Pack finality gadget operations from the dumb pool, filtering against the
+                // packing state so a stale object cannot invalidate the block. Anything the
+                // filters reject is dropped (EIP8453-STUB: no retention policy).
+                let target_checkpoint = state.target_checkpoint()?;
+                let finalized_epoch = state
+                    .finalized_slot()?
+                    .epoch(<T::EthSpec as EthSpec>::slots_per_epoch());
+                let current_epoch = state.current_epoch();
+                let current_round = types::eip8453::compute_round_at_slot::<T::EthSpec>(slot);
+                let fg_attestations = self.eip8453_pool.drain_fg_attestations(
+                    <T::EthSpec as EthSpec>::max_attestations_electra(),
+                    |attestation| {
+                        attestation.data.target == target_checkpoint
+                            && attestation.epoch <= current_epoch
+                            && attestation.epoch >= finalized_epoch
+                    },
+                );
+                let head_vote_pairs = self.eip8453_pool.drain_head_votes(
+                    <T::EthSpec as EthSpec>::max_head_votes(),
+                    |vote| {
+                        let vote_epoch = vote
+                            .data
+                            .slot
+                            .epoch(<T::EthSpec as EthSpec>::slots_per_epoch());
+                        vote.data
+                            .slot
+                            .saturating_add(self.spec.min_attestation_inclusion_delay)
+                            <= slot
+                            && (vote_epoch == current_epoch
+                                || vote_epoch.saturating_add(1u64) == current_epoch)
+                    },
+                );
+                // Support bits may only be set for votes of the previous slot.
+                let (packed_head_votes, packed_support): (Vec<_>, Vec<_>) = head_vote_pairs
+                    .into_iter()
+                    .map(|(vote, support)| {
+                        if vote.data.slot.saturating_add(1u64) == slot {
+                            (vote, support)
+                        } else {
+                            let len = support.len();
+                            (vote, ssz::ProgressiveBitList::with_capacity(len))
+                        }
+                    })
+                    .unzip();
+                let packed_safe_votes =
+                    self.eip8453_pool.drain_safe_votes(
+                        <T::EthSpec as EthSpec>::max_safe_votes(),
+                        |vote| {
+                            vote.data.round <= current_round
+                                && vote.data.round.saturating_add(
+                                    <T::EthSpec as EthSpec>::safe_vote_expiry_rounds(),
+                                ) >= current_round
+                        },
+                    );
+
                 BeaconBlock::Eip8453(BeaconBlockEip8453 {
                     slot,
                     proposer_index,
@@ -859,11 +918,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             proposer_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
-                        // EIP8453-STUB: no finality gadget attestation pool exists yet, so the
-                        // new-style operation lists are empty. Pre-fork (Casper FFG) slashing
-                        // evidence from the op pool goes into `legacy_attester_slashings`.
+                        // EIP8453-STUB: no FG slashing pool exists yet. Pre-fork (Casper FFG)
+                        // slashing evidence from the op pool goes into
+                        // `legacy_attester_slashings`.
                         attester_slashings: ProgressiveVariableList::empty(),
-                        attestations: ProgressiveVariableList::empty(),
+                        attestations: ProgressiveVariableList::try_from_iter(fg_attestations)
+                            .map_err(BlockProductionError::SszTypesError)?,
                         voluntary_exits: ProgressiveVariableList::try_from_iter(voluntary_exits)
                             .map_err(BlockProductionError::SszTypesError)?,
                         sync_aggregate,
@@ -877,13 +937,16 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             payload_attestations,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
-                        head_votes: ProgressiveVariableList::empty(),
-                        head_vote_support: ProgressiveVariableList::empty(),
+                        head_votes: ProgressiveVariableList::try_from_iter(packed_head_votes)
+                            .map_err(BlockProductionError::SszTypesError)?,
+                        head_vote_support: ProgressiveVariableList::try_from_iter(packed_support)
+                            .map_err(BlockProductionError::SszTypesError)?,
                         legacy_attester_slashings: ProgressiveVariableList::try_from_iter(
                             attester_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
-                        safe_votes: ProgressiveVariableList::empty(),
+                        safe_votes: ProgressiveVariableList::try_from_iter(packed_safe_votes)
+                            .map_err(BlockProductionError::SszTypesError)?,
                         _phantom: PhantomData::<FullPayload<T::EthSpec>>,
                     },
                 })

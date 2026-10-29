@@ -414,6 +414,9 @@ pub struct BeaconChain<T: BeaconChainTypes> {
     /// Stores all operations (e.g., `Attestation`, `Deposit`, etc) that are candidates for
     /// inclusion in a block.
     pub op_pool: OperationPool<T::EthSpec>,
+    /// EIP8453-STUB: a dumb pool for the finality gadget objects (FG attestations, head votes,
+    /// safe votes), outside `op_pool` because that machinery is Casper-FFG-shaped.
+    pub eip8453_pool: crate::eip8453_pool::Eip8453OperationPool<T::EthSpec>,
     /// A pool of attestations dedicated to the "naive aggregation strategy" defined in the eth2
     /// specs.
     ///

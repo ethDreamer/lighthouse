@@ -1609,7 +1609,13 @@ where
         let parent_root = *state
             .get_block_root(state.slot() - 1)
             .expect("should get parent block root");
-        let parent_envelope = if parent_payload_status == PayloadStatus::Full {
+        // [EIP8453] the head node is legitimately `Pending` (the full/empty decision happens
+        // inside production via `should_extend_payload`), so load the envelope if it exists;
+        // production ignores it unless it decides to build on the full payload.
+        let parent_envelope = if matches!(
+            parent_payload_status,
+            PayloadStatus::Full | PayloadStatus::Pending
+        ) {
             self.chain
                 .store
                 .get_payload_envelope_summary(&parent_root)

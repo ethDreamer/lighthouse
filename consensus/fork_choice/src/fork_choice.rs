@@ -1,5 +1,6 @@
 use crate::metrics::{self, scrape_for_metrics};
 use crate::{ForkChoiceStore, InvalidationOperation};
+use fg_fork_choice::{BlockSummary as FgBlockSummary, FgForkChoiceStore};
 use fixed_bytes::FixedBytesExtended;
 use logging::crit;
 use proto_array::{
@@ -30,6 +31,7 @@ pub enum Error<T> {
     InvalidPayloadAttestation(InvalidPayloadAttestation),
     InvalidAttesterSlashing(AttesterSlashingValidationError),
     InvalidBlock(InvalidBlock),
+    FgForkChoice(fg_fork_choice::Error),
     ProtoArrayStringError(String),
     ProtoArrayError(proto_array::Error),
     InvalidProtoArrayBytes(String),
@@ -374,6 +376,14 @@ pub struct ForkChoice<T, E> {
     /// Rejects attestations from the current or a future slot instead of queueing them, as the
     /// spec does. Always `false` in production.
     spec_test_mode: bool,
+    /// The EIP-8453 finality gadget fork choice, active from the fork onwards.
+    ///
+    /// EIP8453-STUB: `proto_array` is still fed post-fork (with checkpoints synthesized from
+    /// the FG summary) so that pruning, ancestry iteration and the many `proto_array` consumers
+    /// keep a consistent view; head selection and finality come from this store. Not persisted:
+    /// it is rebuilt from the anchor/boundary on restart, which the fork.md boundary semantics
+    /// legitimize (vote pools start empty).
+    fg: Option<FgForkChoiceStore<E>>,
     _phantom: PhantomData<E>,
 }
 
@@ -464,6 +474,28 @@ where
             spec,
         )?;
 
+        // Initialize the EIP-8453 finality gadget fork choice when the anchor is post-fork.
+        let fg = if anchor_state.fork_name_unchecked().eip8453_enabled() {
+            let summary = Self::fg_summary(anchor_state)?;
+            let mut fg = FgForkChoiceStore::from_anchor(
+                anchor_block_root,
+                anchor_block.parent_root(),
+                anchor_block.slot(),
+                anchor_block.message().proposer_index(),
+                execution_payload_block_hash.unwrap_or_default(),
+                execution_payload_parent_hash.unwrap_or_default(),
+                summary,
+                anchor_state.genesis_time(),
+                spec.genesis_slot,
+                spec.get_slot_duration().as_secs(),
+            )
+            .map_err(Error::FgForkChoice)?;
+            fg.set_committees(Self::fg_committees_from_state(anchor_state, spec));
+            Some(fg)
+        } else {
+            None
+        };
+
         let mut fork_choice = Self {
             fc_store,
             proto_array,
@@ -477,6 +509,7 @@ where
                 // This will be updated during the next call to `Self::get_head`.
                 head_root: Hash256::zero(),
             },
+            fg,
             _phantom: PhantomData,
         };
 
@@ -484,6 +517,45 @@ where
         fork_choice.get_head(current_slot, spec)?;
 
         Ok(fork_choice)
+    }
+
+    /// Extract the FG summary of an EIP-8453 post-state for the finality gadget fork choice.
+    fn fg_summary(state: &BeaconState<E>) -> Result<FgBlockSummary, Error<T::Error>> {
+        Ok(FgBlockSummary {
+            justified: state.justified_checkpoint()?,
+            finalized: state.finalized_checkpoint_eip8453()?,
+            finalized_slot: state.finalized_slot()?,
+            target_height: state.target_checkpoint()?.height,
+        })
+    }
+
+    /// Head-vote committees for every slot covered by `state`'s committee window.
+    ///
+    /// EIP8453-STUB: the spec's dependent state is the latest *finalized* block's post-state
+    /// (`get_head_vote_committee_at_slot`); the prototype refreshes from the newest imported
+    /// block's post-state instead, which is identical on a non-forking chain and saves a state
+    /// load.
+    fn fg_committees_from_state(
+        state: &BeaconState<E>,
+        spec: &ChainSpec,
+    ) -> BTreeMap<Slot, Vec<u64>> {
+        let slots_per_epoch = E::slots_per_epoch();
+        let current_epoch = state.current_epoch();
+        let start_slot = current_epoch
+            .saturating_sub(1u64)
+            .start_slot(slots_per_epoch);
+        let end_slot = current_epoch
+            .saturating_add(spec.min_seed_lookahead)
+            .end_slot(slots_per_epoch);
+        let mut committees = BTreeMap::new();
+        let mut slot = start_slot;
+        while slot <= end_slot {
+            if let Ok(committee) = state.get_head_vote_committee(slot, spec) {
+                committees.insert(slot, committee.into_iter().map(|v| v as u64).collect());
+            }
+            slot = slot.saturating_add(1u64);
+        }
+        committees
     }
 
     /// Returns cached information that can be used to issue a `forkchoiceUpdated` message to an
@@ -577,15 +649,26 @@ where
 
         let store = &mut self.fc_store;
 
-        let head_node = self.proto_array.find_head::<E>(
-            *store.justified_checkpoint(),
-            *store.finalized_checkpoint(),
-            store.justified_balances(),
-            store.proposer_boost_root(),
-            store.equivocating_indices(),
-            current_slot,
-            spec,
-        )?;
+        // [EIP8453] head selection comes from the finality gadget fork choice once active.
+        let head_node = if let Some(fg) = &self.fg {
+            let fg_head = fg.get_head(None).map_err(Error::FgForkChoice)?;
+            let payload_status = match fg_head.payload_status {
+                types::consts::gloas::PAYLOAD_STATUS_FULL => PayloadStatus::Full,
+                types::consts::gloas::PAYLOAD_STATUS_EMPTY => PayloadStatus::Empty,
+                _ => PayloadStatus::Pending,
+            };
+            ForkChoiceNode::new(fg_head.root, payload_status)
+        } else {
+            self.proto_array.find_head::<E>(
+                *store.justified_checkpoint(),
+                *store.finalized_checkpoint(),
+                store.justified_balances(),
+                store.proposer_boost_root(),
+                store.equivocating_indices(),
+                current_slot,
+                spec,
+            )?
+        };
         let (head_root, head_payload_status) = head_node.as_pair();
 
         // Cache some values for the next forkchoiceUpdate call to the execution layer.
@@ -721,6 +804,11 @@ where
                 });
             }
         };
+
+        // [EIP8453] a verified payload makes the node's FULL side walkable.
+        if let Some(fg) = &mut self.fg {
+            fg.set_payload_verified(block_root);
+        }
 
         // `on_payload_envelope_received` promotes the ancestry itself, starting at this node's
         // own `FULL` side.
@@ -887,7 +975,10 @@ where
         let is_timely = current_slot == block.slot() && is_before_attesting_interval;
         let is_first_block = self.fc_store.proposer_boost_root().is_zero();
 
-        if is_timely && is_first_block {
+        // [EIP8453] proposer boost is removed: view merge replaces it.
+        let is_eip8453 = block.fork_name_unchecked().eip8453_enabled();
+
+        if is_timely && is_first_block && !is_eip8453 {
             // The block isn't in fork choice so resolve its dependent root via its parent.
             let block_dependent_root =
                 self.get_shuffling_dependent_root(block.parent_root(), current_slot, spec)?;
@@ -940,37 +1031,45 @@ where
                     && parent_finalized.epoch.saturating_add(1u64) == block_epoch
             });
 
-        let (unrealized_justified_checkpoint, unrealized_finalized_checkpoint) =
-            if let Some((parent_justified, parent_finalized)) = parent_checkpoints {
-                (parent_justified, parent_finalized)
-            } else {
-                let justification_and_finalization_state =
-                    if block.fork_name_unchecked().altair_enabled() {
-                        // NOTE: Processing justification & finalization requires the progressive
-                        // balances cache, but we cannot initialize it here as we only have an
-                        // immutable reference. The state *should* have come straight from block
-                        // processing, which initialises the cache, but if we add other `on_block`
-                        // calls in future it could be worth passing a mutable reference.
-                        per_epoch_processing::altair::process_justification_and_finalization(state)?
-                    } else {
-                        let mut validator_statuses =
-                            per_epoch_processing::base::ValidatorStatuses::new(state, spec)
-                                .map_err(Error::ValidatorStatuses)?;
-                        validator_statuses
-                            .process_attestations(state)
+        let (unrealized_justified_checkpoint, unrealized_finalized_checkpoint) = if is_eip8453 {
+            // [EIP8453] Casper FFG and its unrealized-justification machinery are gone: the
+            // finality gadget realizes justification in the state transition itself
+            // (`process_height_events`), so the state's synthesized epoch-based checkpoints
+            // are already "realized" and stand in for the unrealized values.
+            (
+                state.current_justified_checkpoint(),
+                state.finalized_checkpoint(),
+            )
+        } else if let Some((parent_justified, parent_finalized)) = parent_checkpoints {
+            (parent_justified, parent_finalized)
+        } else {
+            let justification_and_finalization_state =
+                if block.fork_name_unchecked().altair_enabled() {
+                    // NOTE: Processing justification & finalization requires the progressive
+                    // balances cache, but we cannot initialize it here as we only have an
+                    // immutable reference. The state *should* have come straight from block
+                    // processing, which initialises the cache, but if we add other `on_block`
+                    // calls in future it could be worth passing a mutable reference.
+                    per_epoch_processing::altair::process_justification_and_finalization(state)?
+                } else {
+                    let mut validator_statuses =
+                        per_epoch_processing::base::ValidatorStatuses::new(state, spec)
                             .map_err(Error::ValidatorStatuses)?;
-                        per_epoch_processing::base::process_justification_and_finalization(
-                            state,
-                            &validator_statuses.total_balances,
-                            spec,
-                        )?
-                    };
+                    validator_statuses
+                        .process_attestations(state)
+                        .map_err(Error::ValidatorStatuses)?;
+                    per_epoch_processing::base::process_justification_and_finalization(
+                        state,
+                        &validator_statuses.total_balances,
+                        spec,
+                    )?
+                };
 
-                (
-                    justification_and_finalization_state.current_justified_checkpoint(),
-                    justification_and_finalization_state.finalized_checkpoint(),
-                )
-            };
+            (
+                justification_and_finalization_state.current_justified_checkpoint(),
+                justification_and_finalization_state.finalized_checkpoint(),
+            )
+        };
 
         // Update best known unrealized justified & finalized checkpoints
         if unrealized_justified_checkpoint.epoch
@@ -1099,6 +1198,131 @@ where
             spec,
             block_delay,
         )?;
+
+        // [EIP8453] feed the finality gadget fork choice.
+        if is_eip8453 {
+            self.fg_on_block(block, block_root, state, spec)?;
+        }
+
+        Ok(())
+    }
+
+    /// Feed an EIP-8453 block into the finality gadget fork choice, initializing the store at
+    /// the fork boundary if necessary.
+    fn fg_on_block<Payload: AbstractExecPayload<E>>(
+        &mut self,
+        block: BeaconBlockRef<E, Payload>,
+        block_root: Hash256,
+        state: &BeaconState<E>,
+        spec: &ChainSpec,
+    ) -> Result<(), Error<T::Error>> {
+        let summary = Self::fg_summary(state)?;
+
+        // Fork boundary: the first post-fork block re-anchors the store at its parent.
+        //
+        // EIP8453-STUB: the spec's boundary upgrade anchors at the latest *finalized* block and
+        // replays unfinalized blocks; anchoring at the first post-fork block's parent is
+        // equivalent when nothing unfinalized conflicts at the boundary, which holds for the
+        // prototype's devnets.
+        if self.fg.is_none() {
+            let parent = self
+                .proto_array
+                .get_block(&block.parent_root())
+                .ok_or(Error::MissingProtoArrayBlock(block.parent_root()))?;
+            let fg = FgForkChoiceStore::from_anchor(
+                parent.root,
+                parent.parent_root.unwrap_or_default(),
+                parent.slot,
+                parent.proposer_index.unwrap_or_default(),
+                parent.execution_payload_block_hash.unwrap_or_default(),
+                parent.execution_payload_parent_hash.unwrap_or_default(),
+                summary,
+                state.genesis_time(),
+                spec.genesis_slot,
+                spec.get_slot_duration().as_secs(),
+            )
+            .map_err(Error::FgForkChoice)?;
+            self.fg = Some(fg);
+        }
+
+        // Collect the carried votes before borrowing the store mutably.
+        let head_votes: Vec<(u64, types::eip8453::HeadVoteData)> = block
+            .body()
+            .head_votes()
+            .map(|votes| {
+                votes
+                    .iter()
+                    .flat_map(|vote| {
+                        vote.voter_indices
+                            .iter()
+                            .map(|index| (*index, vote.data))
+                            .collect::<Vec<_>>()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let safe_votes: Vec<(u64, types::eip8453::SafeVoteData)> = block
+            .body()
+            .safe_votes()
+            .map(|votes| {
+                votes
+                    .iter()
+                    .flat_map(|vote| {
+                        vote.voter_indices
+                            .iter()
+                            .map(|index| (*index, vote.data))
+                            .collect::<Vec<_>>()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let (bid_parent_hash, bid_block_hash) = block
+            .body()
+            .signed_execution_payload_bid()
+            .map(|bid| {
+                (
+                    bid.message().parent_block_hash(),
+                    bid.message().block_hash(),
+                )
+            })
+            .unwrap_or_default();
+
+        let fg = self
+            .fg
+            .as_mut()
+            .ok_or_else(|| Error::FgForkChoice(fg_fork_choice::Error::MissingBlock(block_root)))?;
+        fg.on_block(
+            block_root,
+            block.parent_root(),
+            block.slot(),
+            block.proposer_index(),
+            bid_block_hash,
+            bid_parent_hash,
+            summary,
+            head_votes.into_iter(),
+            safe_votes.into_iter(),
+        )
+        .map_err(Error::FgForkChoice)?;
+
+        // Refresh the committee snapshot whenever the state's window reaches further than the
+        // one we hold (see `fg_committees_from_state` for the dependent-state STUB note).
+        let state_end_slot = state
+            .current_epoch()
+            .saturating_add(spec.min_seed_lookahead)
+            .end_slot(E::slots_per_epoch());
+        if fg
+            .max_committee_slot()
+            .is_none_or(|max| max < state_end_slot)
+        {
+            let committees = Self::fg_committees_from_state(state, spec);
+            let fg = self.fg.as_mut().ok_or_else(|| {
+                Error::FgForkChoice(fg_fork_choice::Error::MissingBlock(block_root))
+            })?;
+            for (slot, committee) in committees {
+                fg.insert_committee(slot, committee);
+            }
+        }
 
         Ok(())
     }
@@ -1536,6 +1760,13 @@ where
 
         let current_slot = store.get_current_slot();
 
+        // [EIP8453] advance the finality gadget store's clock (slot granularity; see the
+        // quarter-slot note on `FgForkChoiceStore::on_tick_at_slot`).
+        if let Some(fg) = &mut self.fg {
+            fg.on_tick_at_slot(current_slot);
+        }
+        let store = &mut self.fc_store;
+
         // Reset proposer boost if this is a new slot.
         if current_slot > previous_slot {
             store.set_proposer_boost_root(Hash256::zero());
@@ -1692,6 +1923,15 @@ where
         parent_payload_status: PayloadStatus,
         current_slot: Slot,
     ) -> Result<bool, Error<T::Error>> {
+        // [EIP8453] the head is legitimately a PENDING node; the modified
+        // `should_extend_payload` replaces the LMD-resolved full/empty decision.
+        if let Some(fg) = &self.fg {
+            return Ok(match parent_payload_status {
+                PayloadStatus::Full => true,
+                PayloadStatus::Empty => false,
+                PayloadStatus::Pending => fg.should_extend_payload(block_root),
+            });
+        }
         self.proto_array
             .should_build_on_full::<E>(block_root, parent_payload_status, current_slot)
             .map_err(Error::ProtoArrayStringError)
@@ -1699,6 +1939,10 @@ where
 
     /// Returns whether the proposer should extend the execution payload chain of the given block.
     pub fn should_extend_payload(&self, block_root: &Hash256) -> Result<bool, Error<T::Error>> {
+        // [EIP8453] the modified `should_extend_payload` has no proposer boost input.
+        if let Some(fg) = &self.fg {
+            return Ok(fg.should_extend_payload(block_root));
+        }
         let current_slot = self.fc_store.get_current_slot();
         let proposer_boost_root = self.fc_store.proposer_boost_root();
         self.proto_array
@@ -1956,9 +2200,33 @@ where
     pub fn prune(&mut self) -> Result<(), Error<T::Error>> {
         let finalized_root = self.fc_store.finalized_checkpoint().root;
 
+        // [EIP8453] prune the finality gadget store alongside proto_array.
+        if let Some(fg) = &mut self.fg {
+            fg.prune().map_err(Error::FgForkChoice)?;
+        }
+
         self.proto_array
             .maybe_prune(finalized_root)
             .map_err(Into::into)
+    }
+
+    /// The EIP-8453 finality gadget fork choice, if active.
+    pub fn fg(&self) -> Option<&FgForkChoiceStore<E>> {
+        self.fg.as_ref()
+    }
+
+    /// Process a head vote received on the wire (or injected by a test harness).
+    pub fn on_head_vote(&mut self, validator_index: u64, data: types::eip8453::HeadVoteData) {
+        if let Some(fg) = &mut self.fg {
+            fg.on_head_vote(validator_index, data);
+        }
+    }
+
+    /// Process a safe vote received on the wire (or injected by a test harness).
+    pub fn on_safe_vote(&mut self, validator_index: u64, data: types::eip8453::SafeVoteData) {
+        if let Some(fg) = &mut self.fg {
+            fg.on_safe_vote(validator_index, data);
+        }
     }
 
     /// Instantiate `Self` from some `PersistedForkChoice` generated by a earlier call to
@@ -2040,6 +2308,10 @@ where
                 // Will be updated in the following call to `Self::get_head`.
                 head_root: Hash256::zero(),
             },
+            // EIP8453-STUB: the FG store is not persisted; it is rebuilt at the next post-fork
+            // block import (boundary init in `fg_on_block`), with empty vote pools, which the
+            // fork.md boundary semantics legitimize.
+            fg: None,
             _phantom: PhantomData,
         };
 

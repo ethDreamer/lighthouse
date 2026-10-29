@@ -213,7 +213,7 @@ impl BuilderOnlyProposer {
         // Finalize only the copy handed to production: a builder is active only once its deposit
         // epoch is behind finalization.
         let mut state = harness.get_current_state();
-        *state.finalized_checkpoint_mut() = Checkpoint {
+        *state.finalized_checkpoint_legacy_mut().unwrap() = Checkpoint {
             epoch: Epoch::new(1),
             root: genesis_block_root,
         };
