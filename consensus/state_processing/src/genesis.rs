@@ -5,8 +5,8 @@ use crate::GloasVerificationContext;
 use crate::common::DepositDataTree;
 use crate::upgrade::electra::upgrade_state_to_electra;
 use crate::upgrade::{
-    upgrade_to_altair, upgrade_to_bellatrix, upgrade_to_capella, upgrade_to_deneb, upgrade_to_fulu,
-    upgrade_to_gloas, upgrade_to_heze,
+    upgrade_to_altair, upgrade_to_bellatrix, upgrade_to_capella, upgrade_to_deneb,
+    upgrade_to_eip8453, upgrade_to_fulu, upgrade_to_gloas, upgrade_to_heze,
 };
 use fixed_bytes::FixedBytesExtended;
 use safe_arith::{ArithError, SafeArith};
@@ -187,6 +187,24 @@ pub fn initialize_beacon_state_from_eth1<E: EthSpec>(
 
         // Remove intermediate Gloas fork from `state.fork`.
         state.fork_mut().previous_version = spec.heze_fork_version;
+    }
+
+    // Upgrade to eip8453 if configured from genesis.
+    if spec
+        .eip8453_fork_epoch
+        .is_some_and(|fork_epoch| fork_epoch == E::genesis_epoch())
+    {
+        upgrade_to_eip8453(&mut state, spec)?;
+
+        // Remove intermediate Heze fork from `state.fork`.
+        state.fork_mut().previous_version = spec.eip8453_fork_version;
+
+        // At genesis the chain starts at height 1 targeting the genesis block, whose root is
+        // not known while the state is under construction: the pyspec genesis helper leaves
+        // the target root empty and the first `process_slot` back-fills it, like the genesis
+        // block's state root. The upgrade function hashed the (incomplete) latest block
+        // header, so clear it here.
+        state.target_checkpoint_mut()?.root = Hash256::zero();
     }
 
     // From Gloas onwards the genesis block body embeds `state.latest_execution_payload_bid`

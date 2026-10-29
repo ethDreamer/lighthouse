@@ -949,6 +949,63 @@ mod tests {
         }
     }
 
+    /// A chain started *at* eip8453 (interop genesis with every fork at epoch 0): the genesis
+    /// state matches the pyspec `create_genesis_state` shape (height-1 target with an empty root
+    /// back-filled by the first `process_slot`, sized participation lists, initialized committee
+    /// window) and empty-slot processing works across a round boundary.
+    #[test]
+    fn eip8453_at_genesis() {
+        let spec = Arc::new(ForkName::Eip8453.make_genesis_spec(E::default_spec()));
+
+        let harness = beacon_chain::test_utils::BeaconChainHarness::builder(E::default())
+            .spec(spec.clone())
+            .deterministic_keypairs(VALIDATOR_COUNT)
+            .fresh_ephemeral_store()
+            .mock_execution_layer()
+            .build();
+
+        let mut state = harness.get_current_state();
+        assert_eq!(state.fork_name_unchecked(), ForkName::Eip8453);
+        assert_eq!(state.slot(), spec.genesis_slot);
+
+        // The pyspec genesis shape: height 1, empty target root, zeroed height-0
+        // justified/finalized, participation sized to the validator set, window filled.
+        let target = state.target_checkpoint().unwrap();
+        assert_eq!(target.height, 1);
+        assert!(target.root.is_zero(), "back-filled by the first slot");
+        assert_eq!(state.justified_checkpoint().unwrap().height, 0);
+        assert_eq!(state.finalized_checkpoint_eip8453().unwrap().height, 0);
+        assert_eq!(state.round_participation().unwrap().len(), VALIDATOR_COUNT);
+        let committee = state.get_head_vote_committee(state.slot(), &spec).unwrap();
+        assert_eq!(committee.len(), E::head_vote_committee_size());
+
+        // Empty slots across the first round boundary: the target root back-fills with the
+        // genesis block root and round processing runs.
+        let genesis_block_root = harness.chain.genesis_block_root;
+        let target_slot = Slot::new(E::slots_per_round());
+        while state.slot() < target_slot {
+            per_slot_processing(
+                &mut state,
+                None,
+                GloasVerificationContext::FullVerification,
+                &spec,
+            )
+            .expect("per-slot processing from eip8453 genesis succeeds");
+        }
+        assert_eq!(
+            state.target_checkpoint().unwrap().root,
+            genesis_block_root,
+            "target root back-fills with the genesis block root"
+        );
+        for index in 0..VALIDATOR_COUNT {
+            assert_eq!(
+                *state.inactivity_scores().unwrap().get(index).unwrap(),
+                spec.inactivity_score_bias,
+                "one idle round of inactivity"
+            );
+        }
+    }
+
     #[test]
     fn attestation_sets_flags_and_rewards_proposer() {
         let (mut state, spec) = eip8453_state();
