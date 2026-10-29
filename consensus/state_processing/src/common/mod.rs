@@ -7,6 +7,7 @@ mod slash_validator;
 
 pub mod altair;
 pub mod base;
+pub mod eip8453;
 pub mod update_progressive_balances_cache;
 
 pub use deposit_data_tree::DepositDataTree;

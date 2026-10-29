@@ -291,5 +291,7 @@ impl ProgressiveBalancesCache {
 
 /// `ProgressiveBalancesCache` is only enabled from `Altair` as it uses Altair-specific logic.
 pub fn is_progressive_balances_enabled<E: EthSpec>(state: &BeaconState<E>) -> bool {
-    state.fork_name_unchecked().altair_enabled()
+    // [Modified in EIP8453] the cache tracks Casper FFG epoch participation, which EIP-8453
+    // removes from the state; it is dead after the fork.
+    state.fork_name_unchecked().altair_enabled() && !state.fork_name_unchecked().eip8453_enabled()
 }

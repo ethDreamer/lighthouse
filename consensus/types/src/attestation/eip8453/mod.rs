@@ -43,3 +43,37 @@ pub use safe_vote::SafeVote;
 pub use safe_vote_data::SafeVoteData;
 pub use safe_vote_message::SafeVoteMessage;
 pub use single_attestation::SingleAttestation;
+
+pub use crate::core::consts::eip8453::{GENESIS_ROUND, Round};
+use crate::core::{EthSpec, Slot};
+
+/// `compute_round_at_slot` from the spec.
+pub fn compute_round_at_slot<E: EthSpec>(slot: Slot) -> Round {
+    // `slots_per_round` is a non-zero preset value.
+    slot.as_u64()
+        .checked_div(E::slots_per_round())
+        .unwrap_or(GENESIS_ROUND)
+}
+
+/// `compute_start_slot_at_round` from the spec.
+pub fn compute_start_slot_at_round<E: EthSpec>(round: Round) -> Slot {
+    Slot::new(round.saturating_mul(E::slots_per_round()))
+}
+
+/// `compute_attestation_committee_slot` from the spec: the slot of `round` assigned to the
+/// committee at `committee_index`. The committees of a round are assigned to its slots in order,
+/// with `ATTESTATION_COMMITTEES_PER_ROUND // SLOTS_PER_ROUND` committees per slot.
+pub fn compute_attestation_committee_slot<E: EthSpec>(round: Round, committee_index: u64) -> Slot {
+    let committees_per_slot = (E::attestation_committees_per_round() as u64)
+        .checked_div(E::slots_per_round())
+        .unwrap_or(1)
+        .max(1);
+    let offset = committee_index
+        .checked_div(committees_per_slot)
+        .unwrap_or(0);
+    Slot::new(
+        compute_start_slot_at_round::<E>(round)
+            .as_u64()
+            .saturating_add(offset),
+    )
+}

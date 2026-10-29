@@ -2651,6 +2651,22 @@ impl<E: EthSpec> BeaconState<E> {
             inactivity_scores.push(0)?;
         }
 
+        // EIP-8453 initializations: `add_validator_to_registry` from the spec.
+        if let Ok(round_participation) = self.round_participation_mut() {
+            round_participation.push(ParticipationFlags::default())?;
+        }
+        if let Ok(target_participation) = self.target_participation_mut() {
+            target_participation.push(false)?;
+        }
+        if let Ok(progress_participation) = self.progress_participation_mut() {
+            progress_participation.push(false)?;
+        }
+        if let Ok(pending_finality) = self.pending_finality_mut() {
+            for pending in pending_finality.iter_mut() {
+                pending.participation.push(false)?;
+            }
+        }
+
         // Keep the pubkey cache up to date if it was up to date prior to this call.
         //
         // Doing this here while we know the pubkey and index is marginally quicker than doing it in
@@ -3905,6 +3921,69 @@ impl<E: EthSpec> BeaconState<E> {
             }
         }
         Ok(None)
+    }
+
+    /// Return the attestation committee at `committee_index` for `epoch` [New in EIP8453].
+    ///
+    /// `get_attestation_committee` from the spec: the active validators are not shuffled. They
+    /// are split evenly into `ATTESTATION_COMMITTEES_PER_ROUND` committees, in index order
+    /// rotated by `epoch`, so each validator sits on exactly one.
+    pub fn get_attestation_committee(
+        &self,
+        epoch: Epoch,
+        committee_index: u64,
+        spec: &ChainSpec,
+    ) -> Result<Vec<usize>, BeaconStateError> {
+        let committees_per_round = E::attestation_committees_per_round();
+        if committee_index as usize >= committees_per_round {
+            return Err(BeaconStateError::InvalidCommitteeIndex(committee_index));
+        }
+        let indices = self.get_active_validator_indices(epoch, spec)?;
+        let validator_count = indices.len();
+        if validator_count == 0 {
+            return Err(BeaconStateError::InsufficientValidators);
+        }
+        let start = validator_count
+            .safe_mul(committee_index as usize)?
+            .safe_div(committees_per_round)?;
+        let end = validator_count
+            .safe_mul((committee_index as usize).safe_add(1)?)?
+            .safe_div(committees_per_round)?;
+        let rotation = epoch.as_usize();
+        (start..end)
+            .map(|position| {
+                let rotated = position.safe_add(rotation)?.safe_rem(validator_count)?;
+                indices
+                    .get(rotated)
+                    .copied()
+                    .ok_or(BeaconStateError::InvalidIndicesCount)
+            })
+            .collect()
+    }
+
+    /// The current finality gadget round [New in EIP8453].
+    pub fn current_round(&self) -> u64 {
+        crate::attestation::eip8453::compute_round_at_slot::<E>(self.slot())
+    }
+
+    /// The previous finality gadget round, or `GENESIS_ROUND` [New in EIP8453].
+    pub fn previous_round(&self) -> u64 {
+        self.current_round().saturating_sub(1)
+    }
+
+    /// Compute the payload timeliness committee for `slot` [Modified in EIP8453].
+    ///
+    /// The modified `compute_ptc` samples the active validators of the slot's epoch directly,
+    /// instead of the slot's beacon committees: no committee cache is required.
+    pub fn compute_ptc_eip8453(
+        &self,
+        slot: Slot,
+        spec: &ChainSpec,
+    ) -> Result<Vec<usize>, BeaconStateError> {
+        let epoch = slot.epoch(E::slots_per_epoch());
+        let seed = self.get_ptc_attester_seed(slot, spec)?;
+        let indices = self.get_active_validator_indices(epoch, spec)?;
+        self.compute_balance_weighted_selection(&indices, &seed, E::ptc_size(), true, spec)
     }
 
     /// Read the head vote committee for `slot` from the state's cached window [New in EIP8453].

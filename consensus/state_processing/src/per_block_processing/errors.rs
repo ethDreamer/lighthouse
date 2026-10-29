@@ -66,6 +66,11 @@ pub enum BlockProcessingError {
     SyncAggregateInvalid {
         reason: SyncAggregateInvalid,
     },
+    /// EIP8453-STUB: prototype-grade catch-all for the new EIP-8453 operation checks, rather
+    /// than per-operation typed reason enums.
+    Eip8453Invalid {
+        reason: String,
+    },
     BeaconStateError(BeaconStateError),
     SignatureSetError(SignatureSetError),
     SszTypesError(ssz_types::Error),

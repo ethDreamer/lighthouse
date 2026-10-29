@@ -16,6 +16,7 @@ pub mod altair;
 pub mod base;
 pub mod capella;
 pub mod effective_balance_updates;
+pub mod eip8453;
 pub mod epoch_processing_summary;
 pub mod errors;
 pub mod historical_roots_update;
@@ -43,7 +44,9 @@ pub fn process_epoch<E: EthSpec>(
         .fork_name(spec)
         .map_err(Error::InconsistentStateFork)?;
 
-    if state.fork_name_unchecked().altair_enabled() {
+    if state.fork_name_unchecked().eip8453_enabled() {
+        eip8453::process_epoch(state, spec)
+    } else if state.fork_name_unchecked().altair_enabled() {
         altair::process_epoch(state, spec)
     } else {
         base::process_epoch(state, spec)

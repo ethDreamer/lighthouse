@@ -40,6 +40,7 @@ pub mod altair;
 pub mod block_signature_verifier;
 pub mod builder;
 pub mod deneb;
+pub mod eip8453;
 pub mod errors;
 mod is_valid_indexed_attestation;
 mod is_valid_indexed_payload_attestation;
@@ -231,6 +232,12 @@ pub fn per_block_processing<E: EthSpec, Payload: AbstractExecPayload<E>>(
             verify_signatures,
             spec,
         )?;
+    }
+
+    // [New in EIP8453] the height events of a block are processed once, after all of its
+    // attestations.
+    if state.fork_name_unchecked().eip8453_enabled() {
+        eip8453::process_height_events(state, spec)?;
     }
 
     if is_progressive_balances_enabled(state) {

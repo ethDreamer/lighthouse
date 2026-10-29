@@ -20,6 +20,19 @@ pub fn process_operations<E: EthSpec, Payload: AbstractExecPayload<E>>(
     ctxt: &mut ConsensusContext<E>,
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
+    // [Modified in EIP8453] the operation set and its processing differ enough that the fork has
+    // its own path.
+    if let BeaconBlockBodyRef::Eip8453(body) = block_body {
+        return crate::per_block_processing::eip8453::process_operations(
+            state,
+            block_body,
+            body,
+            verify_signatures,
+            ctxt,
+            spec,
+        );
+    }
+
     // [New in Gloas:EIP7688] Also enforce limits on lists constructed without decoding.
     if state.fork_name_unchecked().gloas_enabled() {
         verify_operation_list_lengths(block_body)?;

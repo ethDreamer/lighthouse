@@ -42,3 +42,25 @@ pub mod gloas {
     pub const PTC_TIMELINESS_INDEX: usize = 1;
     pub const NUM_BLOCK_TIMELINESS_DEADLINES: usize = 2;
 }
+pub mod eip8453 {
+    /// A round number: a round spans `SLOTS_PER_ROUND` slots, in which each active validator
+    /// casts one FG attestation and after which the FG settles rewards and inactivity.
+    pub type Round = u64;
+    pub const GENESIS_ROUND: Round = 0;
+
+    pub const PROGRESS_FLAG_INDEX: usize = 0;
+    pub const FINALITY_FLAG_INDEX: usize = 1;
+    pub const SAFE_VOTE_FLAG_INDEX: usize = 2;
+    // [Modified in safe-votes] the two new duties (safe votes, head votes) are paid by
+    // reallocating the fixed WEIGHT_DENOMINATOR budget; with the inherited sync (2) and
+    // proposer (8) weights the total is still 64.
+    pub const PROGRESS_WEIGHT: u64 = 32;
+    pub const FINALITY_WEIGHT: u64 = 12;
+    pub const SAFE_VOTE_WEIGHT: u64 = 6;
+    pub const HEAD_VOTE_WEIGHT: u64 = 4;
+
+    pub const PARTICIPATION_FLAG_WEIGHTS: [u64; NUM_FLAG_INDICES] =
+        [PROGRESS_WEIGHT, FINALITY_WEIGHT, SAFE_VOTE_WEIGHT];
+
+    pub const NUM_FLAG_INDICES: usize = 3;
+}

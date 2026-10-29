@@ -48,6 +48,20 @@ pub fn per_slot_processing<E: EthSpec>(
 
     cache_state(state, state_root)?;
 
+    // [New in EIP8453] process the round on the last slot of each round, before epoch processing
+    // at shared boundaries.
+    if state.fork_name_unchecked().eip8453_enabled()
+        && state.slot() > spec.genesis_slot
+        && state
+            .slot()
+            .safe_add(1)?
+            .as_u64()
+            .safe_rem(E::slots_per_round())?
+            == 0
+    {
+        per_epoch_processing::eip8453::process_round(state, spec)?;
+    }
+
     let summary = if state.slot() > spec.genesis_slot
         && state.slot().safe_add(1)?.safe_rem(E::slots_per_epoch())? == 0
     {
@@ -152,6 +166,12 @@ fn cache_state<E: EthSpec>(
     // Cache block root
     let latest_block_root = state.latest_block_header().canonical_root();
     state.set_block_root(previous_slot, latest_block_root)?;
+
+    // [New in EIP8453] cache the target checkpoint root, which `advance_height` leaves empty
+    // because the block that moves the chain to a new height is the target of that height.
+    if state.fork_name_unchecked().eip8453_enabled() && state.target_checkpoint()?.root.is_zero() {
+        state.target_checkpoint_mut()?.root = latest_block_root;
+    }
 
     // Set the state slot back to what it should be.
     state.slot_mut().safe_sub_assign(1)?;
