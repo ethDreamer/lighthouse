@@ -378,30 +378,44 @@ pub fn process_attester_slashings_eip8453<E: EthSpec, Payload: AbstractExecPaylo
     state.build_slashings_cache()?;
 
     for slashing in body.attester_slashings.iter() {
-        let attestation_1 = &slashing.attestation_1;
-        let attestation_2 = &slashing.attestation_2;
+        process_attester_slashing_eip8453(state, slashing, verify_signatures, ctxt, spec)?;
+    }
 
-        if !eip8453::is_slashable_attestation_data(&attestation_1.data, &attestation_2.data) {
-            return Err(invalid("attestations are not slashable"));
-        }
-        for attestation in [attestation_1, attestation_2] {
-            verify_fg_indexed_attestation(state, attestation, verify_signatures, spec)?;
-        }
+    Ok(())
+}
 
-        let indices_1: BTreeSet<u64> = attestation_1.attesting_indices.iter().copied().collect();
-        let indices_2: BTreeSet<u64> = attestation_2.attesting_indices.iter().copied().collect();
-        let mut slashed_any = false;
-        let current_epoch = state.current_epoch();
-        for index in indices_1.intersection(&indices_2) {
-            let index = *index as usize;
-            if state.get_validator(index)?.is_slashable_at(current_epoch) {
-                slash_validator(state, index, None, ctxt, spec)?;
-                slashed_any = true;
-            }
+/// `process_attester_slashing` from the spec, for one FG attester slashing. Requires the
+/// slashings cache to be built.
+pub fn process_attester_slashing_eip8453<E: EthSpec>(
+    state: &mut BeaconState<E>,
+    slashing: &eip8453::AttesterSlashing<E>,
+    verify_signatures: VerifySignatures,
+    ctxt: &mut ConsensusContext<E>,
+    spec: &ChainSpec,
+) -> Result<(), BlockProcessingError> {
+    let attestation_1 = &slashing.attestation_1;
+    let attestation_2 = &slashing.attestation_2;
+
+    if !eip8453::is_slashable_attestation_data(&attestation_1.data, &attestation_2.data) {
+        return Err(invalid("attestations are not slashable"));
+    }
+    for attestation in [attestation_1, attestation_2] {
+        verify_fg_indexed_attestation(state, attestation, verify_signatures, spec)?;
+    }
+
+    let indices_1: BTreeSet<u64> = attestation_1.attesting_indices.iter().copied().collect();
+    let indices_2: BTreeSet<u64> = attestation_2.attesting_indices.iter().copied().collect();
+    let mut slashed_any = false;
+    let current_epoch = state.current_epoch();
+    for index in indices_1.intersection(&indices_2) {
+        let index = *index as usize;
+        if state.get_validator(index)?.is_slashable_at(current_epoch) {
+            slash_validator(state, index, None, ctxt, spec)?;
+            slashed_any = true;
         }
-        if !slashed_any {
-            return Err(invalid("attester slashing slashed no validators"));
-        }
+    }
+    if !slashed_any {
+        return Err(invalid("attester slashing slashed no validators"));
     }
 
     Ok(())
@@ -454,6 +468,30 @@ pub fn process_head_votes<E: EthSpec, Payload: AbstractExecPayload<E>>(
     state.build_total_active_balance_cache(spec)?;
 
     for (vote, support_bits) in body.head_votes.iter().zip(body.head_vote_support.iter()) {
+        process_head_vote(
+            state,
+            vote,
+            support_bits,
+            proposer_index,
+            verify_signatures,
+            spec,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// `process_head_vote` from the spec, for one head vote with its support bits. Requires the
+/// total active balance cache to be built.
+pub fn process_head_vote<E: EthSpec>(
+    state: &mut BeaconState<E>,
+    vote: &eip8453::HeadVote<E>,
+    support_bits: &ssz::ProgressiveBitList,
+    proposer_index: usize,
+    verify_signatures: VerifySignatures,
+    spec: &ChainSpec,
+) -> Result<(), BlockProcessingError> {
+    {
         let data = &vote.data;
 
         if data.slot.safe_add(spec.min_attestation_inclusion_delay)? > state.slot() {
@@ -579,23 +617,17 @@ pub fn process_head_votes<E: EthSpec, Payload: AbstractExecPayload<E>>(
     Ok(())
 }
 
-/// `process_safe_vote` from the spec [New in safe-votes], applied to each safe vote.
-///
-/// Safe votes are relayed for the fork choice's stabilization rule; the state transition only
-/// verifies them and credits a participation flag for current-round votes. Older votes within the
-/// expiry window are valid but credit nothing.
-pub fn process_safe_votes<E: EthSpec, Payload: AbstractExecPayload<E>>(
+/// `process_safe_vote` from the spec, for one safe vote. Requires the total active balance cache
+/// to be built.
+pub fn process_safe_vote<E: EthSpec>(
     state: &mut BeaconState<E>,
-    body: &BeaconBlockBodyEip8453<E, Payload>,
+    vote: &eip8453::SafeVote<E>,
+    proposer_index: usize,
     verify_signatures: VerifySignatures,
-    ctxt: &mut ConsensusContext<E>,
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
-    let proposer_index = ctxt.get_proposer_index(state, spec)? as usize;
-    state.build_total_active_balance_cache(spec)?;
     let current_round = state.current_round();
-
-    for vote in body.safe_votes.iter() {
+    {
         let data = &vote.data;
 
         if data.round > current_round {
@@ -668,6 +700,28 @@ pub fn process_safe_votes<E: EthSpec, Payload: AbstractExecPayload<E>>(
             .safe_div(PROPOSER_WEIGHT)?;
         let proposer_reward = proposer_reward_numerator.safe_div(reward_divisor)?;
         increase_balance(state, proposer_index, proposer_reward)?;
+    }
+
+    Ok(())
+}
+
+/// `process_safe_vote` from the spec [New in safe-votes], applied to each safe vote.
+///
+/// Safe votes are relayed for the fork choice's stabilization rule; the state transition only
+/// verifies them and credits a participation flag for current-round votes. Older votes within the
+/// expiry window are valid but credit nothing.
+pub fn process_safe_votes<E: EthSpec, Payload: AbstractExecPayload<E>>(
+    state: &mut BeaconState<E>,
+    body: &BeaconBlockBodyEip8453<E, Payload>,
+    verify_signatures: VerifySignatures,
+    ctxt: &mut ConsensusContext<E>,
+    spec: &ChainSpec,
+) -> Result<(), BlockProcessingError> {
+    let proposer_index = ctxt.get_proposer_index(state, spec)? as usize;
+    state.build_total_active_balance_cache(spec)?;
+
+    for vote in body.safe_votes.iter() {
+        process_safe_vote(state, vote, proposer_index, verify_signatures, spec)?;
     }
 
     Ok(())

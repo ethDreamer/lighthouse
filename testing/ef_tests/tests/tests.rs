@@ -993,3 +993,113 @@ fn gossip_sync_committee_contribution_and_proof() {
     GossipValidationHandler::<Spec>::latest_stable("gossip_sync_committee_contribution_and_proof")
         .run();
 }
+
+// EIP-8453 (decoupled consensus) tests against locally generated vectors (there is no published
+// release containing eip8453; `Handler::run` skips the fork, so these call `run_for_fork`
+// directly). Generate the vectors with `make test reftests=true fork=eip8453` on the
+// consensus-specs `safe-votes` branch and copy `reftests/*` into
+// `testing/ef_tests/consensus-spec-tests/tests/`.
+mod eip8453_tests {
+    use super::*;
+    use ef_tests::{Handler, SszStaticHandler, SszStaticTHCHandler, SszStaticWithSpecHandler};
+
+    fn vectors_available() -> bool {
+        std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/consensus-spec-tests/tests"
+        ))
+        .join(Spec::name())
+        .join("eip8453")
+        .is_dir()
+    }
+
+    macro_rules! eip8453_test {
+        ($test_name:ident, $body:expr) => {
+            #[test]
+            fn $test_name() {
+                if !vectors_available() {
+                    eprintln!("SKIP: no local eip8453 vectors");
+                    return;
+                }
+                $body
+            }
+        };
+    }
+
+    eip8453_test!(operations_attestation_eip8453, {
+        OperationsHandler::<Spec, eip8453::Attestation<Spec>>::default()
+            .run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(operations_attester_slashing_eip8453, {
+        OperationsHandler::<Spec, eip8453::AttesterSlashing<Spec>>::default()
+            .run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(operations_safe_vote_eip8453, {
+        OperationsHandler::<Spec, eip8453::SafeVote<Spec>>::default()
+            .run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(operations_head_vote_eip8453, {
+        OperationsHandler::<Spec, HeadVoteWithSupport<Spec>>::default()
+            .run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(operations_height_events_eip8453, {
+        OperationsHandler::<Spec, HeightEvents>::default().run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(sanity_blocks_eip8453, {
+        SanityBlocksHandler::<Spec>::default().run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(sanity_slots_eip8453, {
+        SanitySlotsHandler::<Spec>::default().run_for_fork(ForkName::Eip8453)
+    });
+
+    #[cfg(feature = "fake_crypto")]
+    eip8453_test!(ssz_static_eip8453, {
+        SszStaticHandler::<eip8453::AttestationData, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::Attestation<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::IndexedAttestation<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::AttesterSlashing<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::SingleAttestation, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::HeightCheckpoint, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::PendingFinality<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::HeadVote<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::HeadVoteData, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::HeadVoteMessage, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::SafeVote<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::SafeVoteData, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<eip8453::SafeVoteMessage, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticHandler::<BeaconBlockBodyEip8453<Spec>, Spec>::eip8453_only()
+            .run_for_fork(ForkName::Eip8453);
+    });
+
+    #[cfg(feature = "fake_crypto")]
+    eip8453_test!(ssz_static_beacon_state_eip8453, {
+        SszStaticTHCHandler::<BeaconState<Spec>, Spec>::default().run_for_fork(ForkName::Eip8453)
+    });
+
+    #[cfg(feature = "fake_crypto")]
+    eip8453_test!(ssz_static_beacon_block_eip8453, {
+        SszStaticWithSpecHandler::<BeaconBlock<Spec>, Spec>::default()
+            .run_for_fork(ForkName::Eip8453);
+        SszStaticWithSpecHandler::<SignedBeaconBlock<Spec>, Spec>::default()
+            .run_for_fork(ForkName::Eip8453);
+    });
+}

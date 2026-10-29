@@ -925,3 +925,180 @@ impl<E: EthSpec, O: Operation<E>> Case for Operations<E, O> {
         compare_beacon_state_results_without_caches(&mut result, &mut expected)
     }
 }
+
+// EIP-8453 operations. The FG attestation family are standalone `eip8453::` module types
+// rather than superstruct variants, so they get their own `Operation` impls.
+
+impl<E: EthSpec> Operation<E> for types::eip8453::Attestation<E> {
+    type Error = BlockProcessingError;
+
+    fn handler_name() -> String {
+        "attestation".into()
+    }
+
+    fn is_enabled_for_fork(fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+
+    fn decode(path: &Path, _fork_name: ForkName, _spec: &ChainSpec) -> Result<Self, Error> {
+        ssz_decode_file(path)
+    }
+
+    fn apply_to(
+        &self,
+        state: &mut BeaconState<E>,
+        spec: &ChainSpec,
+        _: &Operations<E, Self>,
+    ) -> Result<(), BlockProcessingError> {
+        let mut ctxt = ConsensusContext::new(state.slot());
+        let proposer_index = ctxt.get_proposer_index(state, spec)? as usize;
+        state.build_total_active_balance_cache(spec)?;
+        state_processing::per_block_processing::eip8453::process_attestation_eip8453(
+            state,
+            self,
+            proposer_index,
+            VerifySignatures::True,
+            spec,
+        )
+    }
+}
+
+impl<E: EthSpec> Operation<E> for types::eip8453::AttesterSlashing<E> {
+    type Error = BlockProcessingError;
+
+    fn handler_name() -> String {
+        "attester_slashing".into()
+    }
+
+    fn is_enabled_for_fork(fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+
+    fn decode(path: &Path, _fork_name: ForkName, _spec: &ChainSpec) -> Result<Self, Error> {
+        ssz_decode_file(path)
+    }
+
+    fn apply_to(
+        &self,
+        state: &mut BeaconState<E>,
+        spec: &ChainSpec,
+        _: &Operations<E, Self>,
+    ) -> Result<(), BlockProcessingError> {
+        let mut ctxt = ConsensusContext::new(state.slot());
+        state.build_slashings_cache()?;
+        state_processing::per_block_processing::eip8453::process_attester_slashing_eip8453(
+            state,
+            self,
+            VerifySignatures::True,
+            &mut ctxt,
+            spec,
+        )
+    }
+}
+
+impl<E: EthSpec> Operation<E> for types::eip8453::SafeVote<E> {
+    type Error = BlockProcessingError;
+
+    fn handler_name() -> String {
+        "safe_vote".into()
+    }
+
+    fn is_enabled_for_fork(fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+
+    fn decode(path: &Path, _fork_name: ForkName, _spec: &ChainSpec) -> Result<Self, Error> {
+        ssz_decode_file(path)
+    }
+
+    fn apply_to(
+        &self,
+        state: &mut BeaconState<E>,
+        spec: &ChainSpec,
+        _: &Operations<E, Self>,
+    ) -> Result<(), BlockProcessingError> {
+        let mut ctxt = ConsensusContext::new(state.slot());
+        let proposer_index = ctxt.get_proposer_index(state, spec)? as usize;
+        state.build_total_active_balance_cache(spec)?;
+        state_processing::per_block_processing::eip8453::process_safe_vote(
+            state,
+            self,
+            proposer_index,
+            VerifySignatures::True,
+            spec,
+        )
+    }
+}
+
+/// Newtype for testing head votes, which carry a sibling support-bits fixture.
+#[derive(Debug, Clone)]
+pub struct HeadVoteWithSupport<E: EthSpec> {
+    vote: types::eip8453::HeadVote<E>,
+    support: ssz::ProgressiveBitList,
+}
+
+impl<E: EthSpec> Operation<E> for HeadVoteWithSupport<E> {
+    type Error = BlockProcessingError;
+
+    fn handler_name() -> String {
+        "head_vote".into()
+    }
+
+    fn is_enabled_for_fork(fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+
+    fn decode(path: &Path, _fork_name: ForkName, _spec: &ChainSpec) -> Result<Self, Error> {
+        let vote = ssz_decode_file(path)?;
+        let support = ssz_decode_file(&path.with_file_name("head_vote_support.ssz_snappy"))?;
+        Ok(Self { vote, support })
+    }
+
+    fn apply_to(
+        &self,
+        state: &mut BeaconState<E>,
+        spec: &ChainSpec,
+        _: &Operations<E, Self>,
+    ) -> Result<(), BlockProcessingError> {
+        let mut ctxt = ConsensusContext::new(state.slot());
+        let proposer_index = ctxt.get_proposer_index(state, spec)? as usize;
+        state.build_total_active_balance_cache(spec)?;
+        state_processing::per_block_processing::eip8453::process_head_vote(
+            state,
+            &self.vote,
+            &self.support,
+            proposer_index,
+            VerifySignatures::True,
+            spec,
+        )
+    }
+}
+
+/// Newtype for testing height events, which take no operation input (pre/post only).
+#[derive(Debug, Clone)]
+pub struct HeightEvents;
+
+impl<E: EthSpec> Operation<E> for HeightEvents {
+    type Error = BlockProcessingError;
+
+    fn handler_name() -> String {
+        "height_events".into()
+    }
+
+    fn is_enabled_for_fork(fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+
+    fn decode(_path: &Path, _fork_name: ForkName, _spec: &ChainSpec) -> Result<Self, Error> {
+        Ok(Self)
+    }
+
+    fn apply_to(
+        &self,
+        state: &mut BeaconState<E>,
+        spec: &ChainSpec,
+        _: &Operations<E, Self>,
+    ) -> Result<(), BlockProcessingError> {
+        state_processing::per_block_processing::eip8453::process_height_events(state, spec)
+    }
+}

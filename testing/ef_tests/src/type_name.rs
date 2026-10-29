@@ -206,3 +206,50 @@ type_name!(Withdrawal);
 type_name!(BlsToExecutionChange, "BLSToExecutionChange");
 type_name!(SignedBlsToExecutionChange, "SignedBLSToExecutionChange");
 type_name!(HistoricalSummary);
+
+// EIP-8453 module-qualified containers: these collide by name with their pre-EIP-8453
+// counterparts, so they are implemented manually against the shared vector directory names.
+mod eip8453_type_names {
+    use super::TypeName;
+    use types::{BeaconBlockBodyEip8453, EthSpec, eip8453};
+
+    macro_rules! eip8453_type_name {
+        ($typ:ident, $name:expr) => {
+            impl TypeName for eip8453::$typ {
+                fn name() -> &'static str {
+                    $name
+                }
+            }
+        };
+    }
+
+    macro_rules! eip8453_type_name_generic {
+        ($typ:ident, $name:expr) => {
+            impl<E: EthSpec> TypeName for eip8453::$typ<E> {
+                fn name() -> &'static str {
+                    $name
+                }
+            }
+        };
+    }
+
+    eip8453_type_name!(AttestationData, "AttestationData");
+    eip8453_type_name!(SingleAttestation, "SingleAttestation");
+    eip8453_type_name!(HeadVoteData, "HeadVoteData");
+    eip8453_type_name!(HeadVoteMessage, "HeadVoteMessage");
+    eip8453_type_name!(HeightCheckpoint, "HeightCheckpoint");
+    eip8453_type_name!(SafeVoteData, "SafeVoteData");
+    eip8453_type_name!(SafeVoteMessage, "SafeVoteMessage");
+    eip8453_type_name_generic!(Attestation, "Attestation");
+    eip8453_type_name_generic!(IndexedAttestation, "IndexedAttestation");
+    eip8453_type_name_generic!(AttesterSlashing, "AttesterSlashing");
+    eip8453_type_name_generic!(HeadVote, "HeadVote");
+    eip8453_type_name_generic!(SafeVote, "SafeVote");
+    eip8453_type_name_generic!(PendingFinality, "PendingFinality");
+
+    impl<E: EthSpec> TypeName for BeaconBlockBodyEip8453<E> {
+        fn name() -> &'static str {
+            "BeaconBlockBody"
+        }
+    }
+}
