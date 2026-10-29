@@ -25,6 +25,7 @@ ethereum_ssz = { workspace = true }
 ethereum_ssz_derive = { workspace = true }
 execution_layer = { workspace = true }
 fast_confirmation = { workspace = true }
+fg_fork_choice = { workspace = true }
 fork_choice = { workspace = true }
 fs2 = { workspace = true }
 hex = { workspace = true }

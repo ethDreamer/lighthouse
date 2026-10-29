@@ -491,6 +491,7 @@ where
             )
             .map_err(Error::FgForkChoice)?;
             fg.set_committees(Self::fg_committees_from_state(anchor_state, spec));
+            fg.set_finalized_weights(Self::fg_weights_from_state(anchor_state, spec));
             Some(fg)
         } else {
             None
@@ -1246,16 +1247,26 @@ where
         }
 
         // Collect the carried votes before borrowing the store mutably.
-        let head_votes: Vec<(u64, types::eip8453::HeadVoteData)> = block
+        let head_votes: Vec<(u64, types::eip8453::HeadVoteData, bool)> = block
             .body()
             .head_votes()
-            .map(|votes| {
+            .ok()
+            .zip(block.body().head_vote_support().ok())
+            .map(|(votes, support)| {
                 votes
                     .iter()
-                    .flat_map(|vote| {
+                    .zip(support.iter())
+                    .flat_map(|(vote, support_bits)| {
                         vote.voter_indices
                             .iter()
-                            .map(|index| (*index, vote.data))
+                            .enumerate()
+                            .map(|(position, index)| {
+                                (
+                                    *index,
+                                    vote.data,
+                                    support_bits.get(position).unwrap_or(false),
+                                )
+                            })
                             .collect::<Vec<_>>()
                     })
                     .collect()
@@ -1300,7 +1311,7 @@ where
             bid_block_hash,
             bid_parent_hash,
             summary,
-            head_votes.into_iter(),
+            head_votes,
             safe_votes.into_iter(),
         )
         .map_err(Error::FgForkChoice)?;
@@ -1316,15 +1327,41 @@ where
             .is_none_or(|max| max < state_end_slot)
         {
             let committees = Self::fg_committees_from_state(state, spec);
+            let weights = Self::fg_weights_from_state(state, spec);
             let fg = self.fg.as_mut().ok_or_else(|| {
                 Error::FgForkChoice(fg_fork_choice::Error::MissingBlock(block_root))
             })?;
             for (slot, committee) in committees {
                 fg.insert_committee(slot, committee);
             }
+            fg.set_finalized_weights(weights);
         }
 
         Ok(())
+    }
+
+    /// FG validator weights (`get_validator_weight`: effective-balance increments scaled by the
+    /// inactivity margin) from the same dependent state as the committees.
+    fn fg_weights_from_state(
+        state: &BeaconState<E>,
+        spec: &ChainSpec,
+    ) -> std::collections::HashMap<u64, u128> {
+        let ejection_score = E::ejection_inactivity_score();
+        let mut weights = std::collections::HashMap::new();
+        let Ok(scores) = state.inactivity_scores() else {
+            return weights;
+        };
+        for (index, validator) in state.validators().iter().enumerate() {
+            let increments = validator
+                .effective_balance
+                .checked_div(spec.effective_balance_increment)
+                .unwrap_or(0);
+            let score = std::cmp::min(scores.get(index).copied().unwrap_or(0), ejection_score);
+            let margin = (ejection_score.saturating_sub(score) as u128)
+                .saturating_mul(ejection_score.saturating_add(score) as u128);
+            weights.insert(index as u64, (increments as u128).saturating_mul(margin));
+        }
+        weights
     }
 
     /// Update checkpoints in store if necessary
@@ -1763,7 +1800,8 @@ where
         // [EIP8453] advance the finality gadget store's clock (slot granularity; see the
         // quarter-slot note on `FgForkChoiceStore::on_tick_at_slot`).
         if let Some(fg) = &mut self.fg {
-            fg.on_tick_at_slot(current_slot);
+            fg.on_tick_at_slot(current_slot)
+                .map_err(Error::FgForkChoice)?;
         }
         let store = &mut self.fc_store;
 
@@ -2213,6 +2251,14 @@ where
     /// The EIP-8453 finality gadget fork choice, if active.
     pub fn fg(&self) -> Option<&FgForkChoiceStore<E>> {
         self.fg.as_ref()
+    }
+
+    /// Advance the finality gadget clock to a millisecond timestamp (sub-slot cutoffs).
+    pub fn fg_on_tick_ms(&mut self, time_ms: u64) -> Result<(), Error<T::Error>> {
+        if let Some(fg) = &mut self.fg {
+            fg.on_tick(time_ms).map_err(Error::FgForkChoice)?;
+        }
+        Ok(())
     }
 
     /// Process a head vote received on the wire (or injected by a test harness).

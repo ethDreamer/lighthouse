@@ -253,7 +253,9 @@ macro_rules! ssz_static_test_no_run {
 
 #[cfg(feature = "fake_crypto")]
 mod ssz_static {
-    use ef_tests::{Handler, SszStaticHandler, SszStaticTHCHandler, SszStaticWithSpecHandler};
+    use ef_tests::Handler;
+    #[cfg(feature = "fake_crypto")]
+    use ef_tests::{SszStaticHandler, SszStaticTHCHandler, SszStaticWithSpecHandler};
     use types::state::HistoricalSummary;
     use types::{
         AttesterSlashingBase, AttesterSlashingElectra, Builder, BuilderPendingPayment,
@@ -1001,7 +1003,9 @@ fn gossip_sync_committee_contribution_and_proof() {
 // `testing/ef_tests/consensus-spec-tests/tests/`.
 mod eip8453_tests {
     use super::*;
-    use ef_tests::{Handler, SszStaticHandler, SszStaticTHCHandler, SszStaticWithSpecHandler};
+    use ef_tests::Handler;
+    #[cfg(feature = "fake_crypto")]
+    use ef_tests::{SszStaticHandler, SszStaticTHCHandler, SszStaticWithSpecHandler};
 
     fn vectors_available() -> bool {
         std::path::Path::new(concat!(
@@ -1048,6 +1052,21 @@ mod eip8453_tests {
 
     eip8453_test!(operations_height_events_eip8453, {
         OperationsHandler::<Spec, HeightEvents>::default().run_for_fork(ForkName::Eip8453)
+    });
+
+    eip8453_test!(fork_choice_eip8453, {
+        // The fork-choice vectors are generated for the minimal preset only.
+        let dir = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/consensus-spec-tests/tests"
+        ))
+        .join(Spec::name())
+        .join("eip8453/fork_choice");
+        if dir.is_dir() {
+            FgForkChoiceHandler::<Spec>::default().run_for_fork(ForkName::Eip8453)
+        } else {
+            eprintln!("SKIP: no eip8453 fork_choice vectors for this preset");
+        }
     });
 
     eip8453_test!(sanity_blocks_eip8453, {

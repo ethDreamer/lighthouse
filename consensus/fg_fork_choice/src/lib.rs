@@ -22,7 +22,10 @@ use types::consts::eip8453::Round;
 use types::consts::gloas::{
     PAYLOAD_STATUS_EMPTY, PAYLOAD_STATUS_FULL, PAYLOAD_STATUS_PENDING, PayloadStatus,
 };
-use types::eip8453::{HeadVoteData, HeightCheckpoint, SafeVoteData, compute_round_at_slot};
+use types::eip8453::{
+    HeadVoteData, HeightCheckpoint, SafeVoteData, compute_round_at_slot,
+    compute_start_slot_at_round,
+};
 use types::{EthSpec, ExecutionBlockHash, Hash256, Slot};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +87,9 @@ pub struct BlockMeta {
     pub bid_parent_hash: ExecutionBlockHash,
     pub arrival_ms: u64,
     pub timeliness: [bool; 2],
+    /// The head votes the block carried, with each voter's published support bit: the proposer's
+    /// view, read by `get_voter_head`'s view merge.
+    pub carried_head_votes: Vec<(u64, HeadVoteData, bool)>,
 }
 
 /// The FG summary of an imported block's post-state, folded by `update_finality`.
@@ -118,7 +124,7 @@ pub struct FgForkChoiceStore<E> {
     pub head_votes: BTreeMap<Slot, Vec<StoreHeadVote>>,
     pub safe_votes: BTreeMap<Round, Vec<StoreSafeVote>>,
 
-    // Stabilization grades [EIP8453-STUB: carried, not yet evaluated]
+    // Stabilization grades
     pub grade_2: Option<FgNode>,
     pub grade_1: Option<FgNode>,
     pub grade_0: Option<FgNode>,
@@ -126,7 +132,7 @@ pub struct FgForkChoiceStore<E> {
     pub grade_1_round: Round,
     pub grade_0_round: Round,
 
-    // Confirmation records [EIP8453-STUB: carried, not yet evaluated]
+    // Confirmation records
     pub confirmed: FgNode,
     pub latest_confirmed: FgNode,
     pub latest_stable: FgNode,
@@ -136,6 +142,10 @@ pub struct FgForkChoiceStore<E> {
     /// (the spec's `get_head_vote_committee_at_slot` dependent state). Refreshed by the caller
     /// whenever the finalized block changes.
     committees: BTreeMap<Slot, Vec<u64>>,
+
+    /// FG validator weights from the same dependent state as the committees (the spec reads the
+    /// latest finalized block's post-state), for the stabilization rule's relative majority.
+    finalized_weights: HashMap<u64, u128>,
 
     _phantom: std::marker::PhantomData<E>,
 }
@@ -178,6 +188,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
                 bid_parent_hash: anchor_bid_parent_hash,
                 arrival_ms: time_ms,
                 timeliness: [true, true],
+                carried_head_votes: Vec::new(),
             },
         );
         Ok(Self {
@@ -211,6 +222,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             latest_stable: anchor_node,
             confirmation_slot: anchor_slot,
             committees: BTreeMap::new(),
+            finalized_weights: HashMap::new(),
             _phantom: std::marker::PhantomData,
         })
     }
@@ -232,27 +244,64 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             .unwrap_or(0)
     }
 
-    /// The spec's `on_tick`.
-    ///
-    /// EIP8453-STUB: grade and confirmation evaluation land in Phase 4b; this only advances the
-    /// clock.
-    pub fn on_tick(&mut self, time_ms: u64) {
+    /// `compute_time_at_slot_ms`.
+    fn slot_start_ms(&self, slot: Slot) -> u64 {
+        self.genesis_time_ms.saturating_add(
+            slot.as_u64()
+                .saturating_sub(self.genesis_slot.as_u64())
+                .saturating_mul(self.slot_duration_ms),
+        )
+    }
+
+    /// `get_head_vote_due_ms` (one quarter-slot).
+    fn head_vote_due_ms(&self) -> u64 {
+        self.slot_component_duration_ms(2500)
+    }
+
+    /// `get_head_vote_support_due_ms`.
+    fn head_vote_support_due_ms(&self) -> u64 {
+        self.slot_component_duration_ms(5000)
+    }
+
+    /// `get_view_freeze_due_ms`.
+    fn view_freeze_due_ms(&self) -> u64 {
+        self.slot_component_duration_ms(7500)
+    }
+
+    /// The spec's `on_tick`: advance the clock, evaluate due grades, and evaluate the
+    /// confirmation of the most recent due slot (each slot at most once; the cutoffs are
+    /// receipt-time comparisons, so a late evaluation reads the same sets a timely one would).
+    pub fn on_tick(&mut self, time_ms: u64) -> Result<(), Error> {
         if time_ms > self.time_ms {
             self.time_ms = time_ms;
         }
+        self.update_grades()?;
+        let current_slot = self.get_current_slot();
+        if current_slot <= self.genesis_slot.saturating_add(1u64) {
+            return Ok(());
+        }
+        let confirmation_due_ms = self
+            .slot_start_ms(current_slot)
+            .saturating_add(self.head_vote_support_due_ms());
+        let evaluation_slot = if self.time_ms >= confirmation_due_ms {
+            current_slot.saturating_sub(1u64)
+        } else {
+            current_slot.saturating_sub(2u64)
+        };
+        if evaluation_slot > self.confirmation_slot {
+            self.update_confirmation(evaluation_slot)?;
+            self.confirmation_slot = evaluation_slot;
+        }
+        Ok(())
     }
 
     /// Advance the clock to the start of `slot`.
     ///
-    /// Lighthouse's fork choice ticks at slot granularity; the quarter-slot cutoffs that need
-    /// finer resolution arrive with grade evaluation in Phase 4b.
-    pub fn on_tick_at_slot(&mut self, slot: Slot) {
-        let time_ms = self.genesis_time_ms.saturating_add(
-            slot.as_u64()
-                .saturating_sub(self.genesis_slot.as_u64())
-                .saturating_mul(self.slot_duration_ms),
-        );
-        self.on_tick(time_ms);
+    /// Lighthouse's production fork choice ticks at slot granularity; sub-slot cutoffs are
+    /// receipt-time comparisons, so grades and confirmations evaluated at the next slot start
+    /// read the same sets a timely evaluation would have.
+    pub fn on_tick_at_slot(&mut self, slot: Slot) -> Result<(), Error> {
+        self.on_tick(self.slot_start_ms(slot))
     }
 
     /* ---------------- Blocks ---------------- */
@@ -281,7 +330,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         bid_block_hash: ExecutionBlockHash,
         bid_parent_hash: ExecutionBlockHash,
         summary: BlockSummary,
-        carried_head_votes: impl Iterator<Item = (u64, HeadVoteData)>,
+        carried_head_votes: Vec<(u64, HeadVoteData, bool)>,
         carried_safe_votes: impl Iterator<Item = (u64, SafeVoteData)>,
     ) -> Result<(), Error> {
         // Return early if the block is already known.
@@ -296,13 +345,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         // `record_block_timeliness`: the head-vote deadline and the support cutoff stand in for
         // the pre-EIP-8453 attestation/PTC deadlines.
         let is_current_slot = self.get_current_slot() == slot;
-        let time_into_slot_ms = self.time_ms.saturating_sub(
-            self.genesis_time_ms.saturating_add(
-                slot.as_u64()
-                    .saturating_sub(self.genesis_slot.as_u64())
-                    .saturating_mul(self.slot_duration_ms),
-            ),
-        );
+        let time_into_slot_ms = self.time_ms.saturating_sub(self.slot_start_ms(slot));
         let timeliness = [
             is_current_slot && time_into_slot_ms < self.slot_component_duration_ms(2500),
             is_current_slot && time_into_slot_ms < self.slot_component_duration_ms(5000),
@@ -319,6 +362,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
                 bid_parent_hash,
                 arrival_ms: self.time_ms,
                 timeliness,
+                carried_head_votes: carried_head_votes.clone(),
             },
         );
         self.children
@@ -327,7 +371,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             .push(block_root);
 
         // Carried head votes enter the pool under the wire admission rule.
-        for (validator_index, data) in carried_head_votes {
+        for (validator_index, data, _support) in carried_head_votes {
             self.record_head_vote(validator_index, data);
         }
 
@@ -368,6 +412,11 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
     /// Merge one slot's committee into the snapshot.
     pub fn insert_committee(&mut self, slot: Slot, committee: Vec<u64>) {
         self.committees.insert(slot, committee);
+    }
+
+    /// Replace the FG validator weights (from the same dependent state as the committees).
+    pub fn set_finalized_weights(&mut self, weights: HashMap<u64, u128>) {
+        self.finalized_weights = weights;
     }
 
     pub fn committee_at_slot(&self, slot: Slot) -> Result<&Vec<u64>, Error> {
@@ -625,9 +674,18 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
 
     /// The spec's `get_filtered_roots`: blocks descending the FG root with a viable descendant.
     pub fn get_filtered_roots(&self) -> Result<HashSet<Hash256>, Error> {
+        let all: HashSet<Hash256> = self.blocks.keys().copied().collect();
+        self.get_filtered_roots_from(&all)
+    }
+
+    /// The spec's `get_filtered_roots_from`, over a caller-supplied block view.
+    pub fn get_filtered_roots_from(
+        &self,
+        roots: &HashSet<Hash256>,
+    ) -> Result<HashSet<Hash256>, Error> {
         let fg_root = self.get_fg_root();
         let mut candidates = Vec::new();
-        for root in self.blocks.keys() {
+        for root in roots {
             if self.is_ancestor_root(fg_root, *root)? {
                 candidates.push(*root);
             }
@@ -784,12 +842,65 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         }
     }
 
-    /// The spec's `get_sg_root`.
-    ///
-    /// EIP8453-STUB: grades are not yet evaluated, so the active-prefix branch never fires and
-    /// this reduces to the FG root.
-    pub fn get_sg_root(&self) -> FgNode {
-        FgNode::pending(self.get_fg_root())
+    /// The spec's `get_sg_root`: the anchor of every walk — the grade-1 node's active prefix,
+    /// or the FG root.
+    pub fn get_sg_root(&self) -> Result<FgNode, Error> {
+        if let Some(prefix) = self.get_active_prefix(self.grade_1)? {
+            return Ok(prefix);
+        }
+        Ok(FgNode::pending(self.get_fg_root()))
+    }
+
+    /// The spec's `get_stable_root`.
+    pub fn get_stable_root(&self) -> Result<FgNode, Error> {
+        if let Some(prefix) = self.get_active_prefix(self.grade_2)? {
+            return Ok(prefix);
+        }
+        Ok(FgNode::pending(self.get_fg_root()))
+    }
+
+    /// The spec's `is_grade_0_compatible`.
+    pub fn is_grade_0_compatible(&self, node: FgNode) -> Result<bool, Error> {
+        let Some(veto) = self.grade_0 else {
+            return Ok(true);
+        };
+        if !self.blocks.contains_key(&veto.root) || !self.blocks.contains_key(&node.root) {
+            return Ok(true);
+        }
+        Ok(self.is_ancestor(node, veto)? || self.is_ancestor(veto, node)?)
+    }
+
+    /// The spec's `has_fresh_safe_quorum`: whether a height pair may be emitted this round.
+    pub fn has_fresh_safe_quorum(&self) -> Result<bool, Error> {
+        Ok(self.get_active_prefix(self.grade_2)?.is_some())
+    }
+
+    /// The spec's `get_safe_vote_node`: the node an honest validator names in its safe vote.
+    pub fn get_safe_vote_node(&self) -> Result<FgNode, Error> {
+        let anchor = self.get_sg_root()?;
+        let confirmed = self.confirmed;
+        if self.blocks.contains_key(&confirmed.root)
+            && self.blocks.contains_key(&anchor.root)
+            && self.is_ancestor(confirmed, anchor)?
+        {
+            let mut current = Some(confirmed);
+            while let Some(node) = current {
+                if self.is_grade_0_compatible(node)? {
+                    return Ok(node);
+                }
+                if node == anchor {
+                    break;
+                }
+                current = self.node_parent(&node)?;
+            }
+        }
+        if let Some(prefix) = self.get_active_prefix(self.grade_2)? {
+            return Ok(prefix);
+        }
+        if self.grade_2.is_some() {
+            return Ok(FgNode::pending(self.get_fg_root()));
+        }
+        Ok(anchor)
     }
 
     /// The spec's `get_head`.
@@ -816,7 +927,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             .iter()
             .filter(|vote| self.resolution_time_ms(vote).is_some())
             .collect();
-        let anchor = self.get_sg_root();
+        let anchor = self.get_sg_root()?;
         let view = self.get_filtered_roots()?;
         self.compute_goldfish_head(anchor, &view, committee, votes, &support_votes, false)
     }
@@ -846,12 +957,570 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             if is_advance {
                 self.finalized_checkpoint = finalized;
                 self.finalized_slot = summary.finalized_slot;
-                // EIP8453-STUB: grade clipping (`clip_node_to_finalized`) lands with grade
-                // evaluation in Phase 4b.
+                // A finality advance cuts every saved grade back to its deepest ancestor
+                // compatible with the new finalized block.
+                self.grade_2 = self.clip_node_to_finalized(self.grade_2)?;
+                self.grade_1 = self.clip_node_to_finalized(self.grade_1)?;
+                self.grade_0 = self.clip_node_to_finalized(self.grade_0)?;
             }
         }
 
         Ok(())
+    }
+
+    /* ---------------- Stabilization ---------------- */
+
+    /// The spec's `get_window_safe_votes`: the expiry window's votes, rounds `[r - η, r)`.
+    fn window_safe_votes(&self, round: Round) -> Vec<StoreSafeVote> {
+        let start = round.saturating_sub(std::cmp::min(round, E::safe_vote_expiry_rounds()));
+        let mut votes = Vec::new();
+        for window_round in start..round {
+            if let Some(round_votes) = self.safe_votes.get(&window_round) {
+                votes.extend(round_votes.iter().cloned());
+            }
+        }
+        votes
+    }
+
+    /// The spec's `get_safe_vote_resolution_time_ms`: when the vote's block became available on
+    /// a finalized-compatible chain, or `None`.
+    fn safe_vote_resolution_time_ms(&self, vote: &StoreSafeVote) -> Option<u64> {
+        let root = vote.data.beacon_block_root;
+        let meta = self.blocks.get(&root)?;
+        let finalized_root = self.finalized_checkpoint.root;
+        let is_compatible = self.is_ancestor_root(finalized_root, root).unwrap_or(false)
+            || self.is_ancestor_root(root, finalized_root).unwrap_or(false);
+        if !is_compatible {
+            return None;
+        }
+        Some(std::cmp::max(vote.arrival_ms, meta.arrival_ms))
+    }
+
+    /// The spec's `safe_vote_covers`.
+    fn safe_vote_covers(&self, data: &SafeVoteData, node: FgNode) -> bool {
+        if !self.blocks.contains_key(&data.beacon_block_root) {
+            return false;
+        }
+        let vote_node = FgNode {
+            root: data.beacon_block_root,
+            payload_status: data.payload_status,
+        };
+        self.is_ancestor(vote_node, node).unwrap_or(false)
+    }
+
+    /// The spec's `has_safe_vote_equivocation`: two distinct votes of one round at or after
+    /// `round_floor`.
+    fn has_safe_vote_equivocation(votes: &[&StoreSafeVote], round_floor: Round) -> bool {
+        let mut seen: HashMap<Round, &SafeVoteData> = HashMap::new();
+        for vote in votes {
+            if vote.data.round < round_floor {
+                continue;
+            }
+            if let Some(first) = seen.get(&vote.data.round) {
+                if **first != vote.data {
+                    return true;
+                }
+            } else {
+                seen.insert(vote.data.round, &vote.data);
+            }
+        }
+        false
+    }
+
+    /// The spec's `supports_node`.
+    fn supports_node(
+        &self,
+        window: &[StoreSafeVote],
+        early_ms: u64,
+        late_ms: u64,
+        validator_index: u64,
+        node: FgNode,
+    ) -> bool {
+        let own_votes: Vec<&StoreSafeVote> = window
+            .iter()
+            .filter(|vote| vote.validator_index == validator_index)
+            .collect();
+        let received: Vec<&StoreSafeVote> = own_votes
+            .iter()
+            .copied()
+            .filter(|vote| vote.arrival_ms < late_ms)
+            .collect();
+        let mut early_resolved: Vec<&StoreSafeVote> = Vec::new();
+        let mut late_resolved: Vec<&StoreSafeVote> = Vec::new();
+        for vote in &own_votes {
+            let Some(resolution_ms) = self.safe_vote_resolution_time_ms(vote) else {
+                continue;
+            };
+            if resolution_ms < early_ms {
+                early_resolved.push(vote);
+            }
+            if resolution_ms < late_ms {
+                late_resolved.push(vote);
+            }
+        }
+        let Some(latest) = early_resolved.iter().max_by_key(|vote| vote.data.round) else {
+            return false;
+        };
+        if !self.safe_vote_covers(&latest.data, node) {
+            return false;
+        }
+        if Self::has_safe_vote_equivocation(&received, latest.data.round) {
+            return false;
+        }
+        late_resolved
+            .iter()
+            .filter(|vote| vote.data.round > latest.data.round)
+            .all(|vote| self.safe_vote_covers(&vote.data, node))
+    }
+
+    /// The spec's `opposes_node`.
+    fn opposes_node(
+        &self,
+        window: &[StoreSafeVote],
+        early_ms: u64,
+        late_ms: u64,
+        validator_index: u64,
+        node: FgNode,
+    ) -> bool {
+        let own_votes: Vec<&StoreSafeVote> = window
+            .iter()
+            .filter(|vote| vote.validator_index == validator_index)
+            .collect();
+        let received: Vec<&StoreSafeVote> = own_votes
+            .iter()
+            .copied()
+            .filter(|vote| vote.arrival_ms < late_ms)
+            .collect();
+        let mut early_rounds: Vec<Round> = Vec::new();
+        let mut late_resolved: Vec<&StoreSafeVote> = Vec::new();
+        for vote in &own_votes {
+            let Some(resolution_ms) = self.safe_vote_resolution_time_ms(vote) else {
+                continue;
+            };
+            if resolution_ms < early_ms {
+                early_rounds.push(vote.data.round);
+            }
+            if resolution_ms < late_ms {
+                late_resolved.push(vote);
+            }
+        }
+        let round_floor = early_rounds.iter().copied().max().unwrap_or(0);
+        let has_defection = late_resolved
+            .iter()
+            .filter(|vote| vote.data.round >= round_floor)
+            .any(|vote| !self.safe_vote_covers(&vote.data, node));
+        has_defection || Self::has_safe_vote_equivocation(&received, round_floor)
+    }
+
+    /// The spec's `has_relative_majority`: supporting weight strictly exceeds opposing weight.
+    fn has_relative_majority(
+        &self,
+        round: Round,
+        early_ms: u64,
+        late_ms: u64,
+        node: FgNode,
+    ) -> bool {
+        let window = self.window_safe_votes(round);
+        let mut participants: HashSet<u64> = HashSet::new();
+        for vote in &window {
+            if vote.arrival_ms < late_ms {
+                participants.insert(vote.validator_index);
+            }
+        }
+        let mut supporting_weight: u128 = 0;
+        let mut opposing_weight: u128 = 0;
+        for validator_index in participants {
+            // A validator unknown to the weight state carries no weight.
+            let Some(weight) = self.finalized_weights.get(&validator_index).copied() else {
+                continue;
+            };
+            if self.supports_node(&window, early_ms, late_ms, validator_index, node) {
+                supporting_weight = supporting_weight.saturating_add(weight);
+            } else if self.opposes_node(&window, early_ms, late_ms, validator_index, node) {
+                opposing_weight = opposing_weight.saturating_add(weight);
+            }
+        }
+        supporting_weight > opposing_weight
+    }
+
+    /// Test/debug probe: the supporting and opposing weight for one node.
+    #[doc(hidden)]
+    pub fn probe_majority(
+        &self,
+        round: Round,
+        early_ms: u64,
+        late_ms: u64,
+        node: FgNode,
+    ) -> (u128, u128, usize, usize) {
+        let window = self.window_safe_votes(round);
+        let mut participants: HashSet<u64> = HashSet::new();
+        for vote in &window {
+            if vote.arrival_ms < late_ms {
+                participants.insert(vote.validator_index);
+            }
+        }
+        let num_participants = participants.len();
+        let mut supporting: u128 = 0;
+        let mut opposing: u128 = 0;
+        for validator_index in participants {
+            let Some(weight) = self.finalized_weights.get(&validator_index).copied() else {
+                continue;
+            };
+            if self.supports_node(&window, early_ms, late_ms, validator_index, node) {
+                supporting = supporting.saturating_add(weight);
+            } else if self.opposes_node(&window, early_ms, late_ms, validator_index, node) {
+                opposing = opposing.saturating_add(weight);
+            }
+        }
+        (
+            supporting,
+            opposing,
+            num_participants,
+            self.finalized_weights.len(),
+        )
+    }
+
+    /// The spec's `compute_graded_node`: the deepest node holding a relative majority.
+    fn compute_graded_node(&self, round: Round, early_ms: u64, late_ms: u64) -> Option<FgNode> {
+        let statuses = [
+            PAYLOAD_STATUS_PENDING,
+            PAYLOAD_STATUS_EMPTY,
+            PAYLOAD_STATUS_FULL,
+        ];
+        let mut graded: Vec<FgNode> = Vec::new();
+        for root in self.blocks.keys() {
+            for payload_status in statuses {
+                let node = FgNode {
+                    root: *root,
+                    payload_status,
+                };
+                if self.has_relative_majority(round, early_ms, late_ms, node) {
+                    graded.push(node);
+                }
+            }
+        }
+        graded.into_iter().max_by_key(|node| {
+            (
+                self.blocks.get(&node.root).map(|meta| meta.slot),
+                u64::from(node.payload_status != PAYLOAD_STATUS_PENDING),
+                node.root,
+            )
+        })
+    }
+
+    /// The spec's `update_grades`: evaluate each due grade once, late evaluations reading the
+    /// same receipt-time sets a timely one would have.
+    pub fn update_grades(&mut self) -> Result<(), Error> {
+        let quarter_ms = self.head_vote_due_ms();
+        let current_round = compute_round_at_slot::<E>(self.get_current_slot());
+        if current_round == 0 {
+            return Ok(());
+        }
+        let start_ms = self.slot_start_ms(compute_start_slot_at_round::<E>(current_round));
+        // Grade 2 of a round completes in the last quarter-slot of the previous round; a node
+        // that missed that tick evaluates it late.
+        if self.grade_2_round < current_round {
+            self.grade_2 = self.compute_graded_node(
+                current_round,
+                start_ms.saturating_sub(quarter_ms.saturating_mul(5)),
+                start_ms.saturating_sub(quarter_ms),
+            );
+            self.grade_2_round = current_round;
+        }
+        let next_round = current_round.saturating_add(1);
+        let next_start_ms = self.slot_start_ms(compute_start_slot_at_round::<E>(next_round));
+        if self.time_ms.saturating_add(quarter_ms) >= next_start_ms
+            && self.grade_2_round < next_round
+        {
+            self.grade_2 = self.compute_graded_node(
+                next_round,
+                next_start_ms.saturating_sub(quarter_ms.saturating_mul(5)),
+                next_start_ms.saturating_sub(quarter_ms),
+            );
+            self.grade_2_round = next_round;
+        }
+        // Grade 1 completes at the round boundary.
+        if self.grade_1_round < current_round {
+            self.grade_1 = self.compute_graded_node(
+                current_round,
+                start_ms.saturating_sub(quarter_ms.saturating_mul(4)),
+                start_ms.saturating_sub(quarter_ms.saturating_mul(2)),
+            );
+            self.grade_1_round = current_round;
+        }
+        // Grade 0 completes one quarter-slot into the round.
+        if self.time_ms >= start_ms.saturating_add(quarter_ms) && self.grade_0_round < current_round
+        {
+            self.grade_0 = self.compute_graded_node(
+                current_round,
+                start_ms.saturating_sub(quarter_ms.saturating_mul(3)),
+                start_ms.saturating_sub(quarter_ms.saturating_mul(3)),
+            );
+            self.grade_0_round = current_round;
+        }
+        Ok(())
+    }
+
+    /// The spec's `get_active_prefix`: the deepest ancestor of a saved grade inside the filtered
+    /// tree.
+    fn get_active_prefix(&self, node: Option<FgNode>) -> Result<Option<FgNode>, Error> {
+        let Some(node) = node else {
+            return Ok(None);
+        };
+        if !self.blocks.contains_key(&node.root) {
+            return Ok(None);
+        }
+        let filtered = self.get_filtered_roots()?;
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            if filtered.contains(&candidate.root) {
+                return Ok(Some(candidate));
+            }
+            current = self.node_parent(&candidate)?;
+        }
+        Ok(None)
+    }
+
+    /// The spec's `clip_node_to_finalized`.
+    fn clip_node_to_finalized(&self, node: Option<FgNode>) -> Result<Option<FgNode>, Error> {
+        let Some(node) = node else {
+            return Ok(None);
+        };
+        if !self.blocks.contains_key(&node.root) {
+            return Ok(None);
+        }
+        let finalized_root = self.finalized_checkpoint.root;
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            let is_compatible = self
+                .is_ancestor_root(finalized_root, candidate.root)
+                .unwrap_or(false)
+                || self
+                    .is_ancestor_root(candidate.root, finalized_root)
+                    .unwrap_or(false);
+            if is_compatible {
+                return Ok(Some(candidate));
+            }
+            current = self.node_parent(&candidate)?;
+        }
+        Ok(None)
+    }
+
+    /* ---------------- Confirmation ---------------- */
+
+    /// `is_ancestor` for the record logic, where a pruned root means "no longer an ancestor".
+    fn is_ancestor_or_false(&self, node: FgNode, ancestor: FgNode) -> bool {
+        self.is_ancestor(node, ancestor).unwrap_or(false)
+    }
+
+    /// The spec's `update_confirmation`, evaluated for `slot` at the support cutoff of the
+    /// following slot.
+    pub fn update_confirmation(&mut self, slot: Slot) -> Result<(), Error> {
+        let early_cutoff_ms = self
+            .slot_start_ms(slot)
+            .saturating_add(self.head_vote_support_due_ms());
+        let late_cutoff_ms = self
+            .slot_start_ms(slot.saturating_add(1u64))
+            .saturating_add(self.head_vote_support_due_ms());
+        let committee: Vec<u64> = self.committee_at_slot(slot).cloned().unwrap_or_default();
+
+        let late_votes: Vec<StoreHeadVote> = self
+            .slot_head_votes(slot)
+            .iter()
+            .filter(|vote| vote.arrival_ms < late_cutoff_ms)
+            .cloned()
+            .collect();
+        let equivocating = Self::equivocating_voters(&late_votes);
+        let mut support_votes: Vec<&StoreHeadVote> = Vec::new();
+        for vote in &late_votes {
+            let Some(resolution_ms) = self.resolution_time_ms(vote) else {
+                continue;
+            };
+            if resolution_ms >= early_cutoff_ms {
+                continue;
+            }
+            if equivocating.contains(&vote.validator_index) {
+                continue;
+            }
+            support_votes.push(vote);
+        }
+
+        let anchor = self.get_sg_root()?;
+        let view = self.get_filtered_roots()?;
+        let head = self.compute_goldfish_head(
+            anchor,
+            &view,
+            &committee,
+            &late_votes,
+            &support_votes,
+            true,
+        )?;
+        let head_weight = self.goldfish_weight(&committee, &late_votes, &support_votes, &head)?;
+        let candidate =
+            if head_weight.saturating_mul(2) > Self::participating_seats(&committee, &late_votes) {
+                self.confirmed = head;
+                Some(head)
+            } else {
+                self.confirmed = FgNode::pending(self.get_fg_root());
+                // The saved grade-2 node stands in for the walk.
+                self.get_active_prefix(self.grade_2)?
+            };
+        self.update_confirmation_records(candidate);
+        Ok(())
+    }
+
+    /// The spec's `advance_record`.
+    fn advance_record(&self, old: FgNode, candidate: Option<FgNode>) -> FgNode {
+        match candidate {
+            None => old,
+            Some(candidate) if candidate == old || self.is_ancestor_or_false(old, candidate) => old,
+            Some(candidate) => candidate,
+        }
+    }
+
+    /// The spec's `update_confirmation_records`: the confirmation record floors on the stable
+    /// record, keeping `latest_stable ⪯ latest_confirmed`.
+    fn update_confirmation_records(&mut self, candidate: Option<FgNode>) {
+        let new_confirmed = self.advance_record(self.latest_confirmed, candidate);
+        let stable_candidate = self.get_stable_root().ok();
+        self.latest_stable = self.advance_record(self.latest_stable, stable_candidate);
+        let stable = self.latest_stable;
+        if new_confirmed == stable || self.is_ancestor_or_false(new_confirmed, stable) {
+            self.latest_confirmed = new_confirmed;
+        } else if !(self.latest_confirmed == stable
+            || self.is_ancestor_or_false(self.latest_confirmed, stable))
+        {
+            self.latest_confirmed = stable;
+        }
+    }
+
+    /// The spec's `get_stable` (user-facing).
+    pub fn get_stable(&self) -> FgNode {
+        let finalized_root = self.finalized_checkpoint.root;
+        if self
+            .is_ancestor_root(finalized_root, self.latest_stable.root)
+            .unwrap_or(false)
+        {
+            return self.latest_stable;
+        }
+        FgNode::pending(finalized_root)
+    }
+
+    /// The spec's `get_confirmed` (user-facing): `finalized ⪯ stable ⪯ confirmed ⪯ head`.
+    pub fn get_confirmed(&self) -> FgNode {
+        let stable = self.get_stable();
+        let confirmed = self.latest_confirmed;
+        if confirmed == stable || self.is_ancestor_or_false(confirmed, stable) {
+            return confirmed;
+        }
+        stable
+    }
+
+    /* ---------------- Voter head (AC voting) ---------------- */
+
+    /// The spec's `has_head_vote`.
+    fn has_head_vote(votes: &[StoreHeadVote], vote: &StoreHeadVote) -> bool {
+        votes.iter().any(|existing| {
+            existing.validator_index == vote.validator_index && existing.data == vote.data
+        })
+    }
+
+    /// The spec's `get_voter_head`: view merge with the current slot's proposals, then the
+    /// restricted walk over a frozen view.
+    pub fn get_voter_head(&self, slot: Slot) -> Result<FgNode, Error> {
+        let vote_slot = slot.saturating_sub(1u64);
+        let freeze_ms = self
+            .slot_start_ms(vote_slot)
+            .saturating_add(self.view_freeze_due_ms());
+        let committee: Vec<u64> = self
+            .committee_at_slot(vote_slot)
+            .cloned()
+            .unwrap_or_default();
+
+        let mut votes: Vec<StoreHeadVote> = self
+            .slot_head_votes(vote_slot)
+            .iter()
+            .filter(|vote| vote.arrival_ms < freeze_ms)
+            .cloned()
+            .collect();
+        let mut support_votes: Vec<StoreHeadVote> = Vec::new();
+        for vote in &votes {
+            if let Some(resolution_ms) = self.resolution_time_ms(vote)
+                && resolution_ms < freeze_ms
+            {
+                support_votes.push(vote.clone());
+            }
+        }
+
+        // Merge the views published by the current slot's proposals.
+        let proposals: Vec<Hash256> = self
+            .blocks
+            .iter()
+            .filter(|(_, meta)| meta.slot == slot)
+            .map(|(root, _)| *root)
+            .collect();
+        for proposal_root in &proposals {
+            let carried = self
+                .blocks
+                .get(proposal_root)
+                .map(|meta| meta.carried_head_votes.clone())
+                .unwrap_or_default();
+            for (validator_index, data, support_bit) in carried {
+                if data.slot != vote_slot {
+                    continue;
+                }
+                let vote = StoreHeadVote {
+                    validator_index,
+                    data,
+                    arrival_ms: freeze_ms,
+                };
+                if !Self::has_head_vote(&votes, &vote) {
+                    votes.push(vote.clone());
+                }
+                let is_resolvable = self
+                    .blocks
+                    .get(&data.beacon_block_root)
+                    .is_some_and(|meta| meta.slot <= vote_slot);
+                if support_bit && is_resolvable && !Self::has_head_vote(&support_votes, &vote) {
+                    support_votes.push(vote);
+                }
+            }
+        }
+
+        // The vote-domain merge has a block-domain analogue.
+        let mut blocks_view: HashSet<Hash256> = HashSet::new();
+        for (root, meta) in &self.blocks {
+            if meta.arrival_ms < freeze_ms {
+                blocks_view.insert(*root);
+            } else {
+                for proposal_root in &proposals {
+                    if self
+                        .is_ancestor_root(*root, *proposal_root)
+                        .unwrap_or(false)
+                    {
+                        blocks_view.insert(*root);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let support_refs: Vec<&StoreHeadVote> = support_votes.iter().collect();
+        let anchor = self.get_sg_root()?;
+        let view = self.get_filtered_roots_from(&blocks_view)?;
+        self.compute_goldfish_head(anchor, &view, &committee, &votes, &support_refs, false)
+    }
+
+    /* ---------------- FG attestation sources ---------------- */
+
+    /// The spec's `get_fg_target_source`, as a root (the caller resolves the state).
+    pub fn fg_target_source_root(&self) -> Hash256 {
+        self.confirmed.root
+    }
+
+    /// The spec's `get_fg_finality_source`, as a node (the caller resolves the state).
+    pub fn fg_finality_source(&self) -> Result<FgNode, Error> {
+        self.get_head(Some(self.get_current_slot()))
     }
 
     /* ---------------- Pruning ---------------- */

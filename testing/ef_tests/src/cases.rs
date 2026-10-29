@@ -15,6 +15,7 @@ mod bls_verify_msg;
 mod common;
 mod compute_columns_for_custody_groups;
 mod epoch_processing;
+mod fg_fork_choice;
 mod fork;
 mod fork_choice;
 mod genesis_initialization;
@@ -41,6 +42,7 @@ mod shuffling;
 mod ssz_static;
 mod transition;
 
+pub use self::fg_fork_choice::*;
 pub use self::fork_choice::*;
 pub use bls_aggregate_sigs::*;
 pub use bls_aggregate_verify::*;

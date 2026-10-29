@@ -519,6 +519,30 @@ impl<E: EthSpec + TypeName> Handler for SanityBlocksHandler<E> {
 
 #[derive(Educe)]
 #[educe(Default)]
+pub struct FgForkChoiceHandler<E>(PhantomData<E>);
+
+impl<E: EthSpec + TypeName> Handler for FgForkChoiceHandler<E> {
+    type Case = cases::FgForkChoiceTest<E>;
+
+    fn config_name() -> &'static str {
+        E::name()
+    }
+
+    fn runner_name() -> &'static str {
+        "fork_choice"
+    }
+
+    fn handler_name(&self) -> String {
+        "fork_choice".into()
+    }
+
+    fn is_enabled_for_fork(&self, fork_name: ForkName) -> bool {
+        fork_name.eip8453_enabled()
+    }
+}
+
+#[derive(Educe)]
+#[educe(Default)]
 pub struct SanitySlotsHandler<E>(PhantomData<E>);
 
 impl<E: EthSpec + TypeName> Handler for SanitySlotsHandler<E> {

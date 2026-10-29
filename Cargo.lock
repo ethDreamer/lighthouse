@@ -3383,6 +3383,7 @@ dependencies = [
  "ethereum_ssz_derive",
  "execution_layer",
  "fast_confirmation",
+ "fg_fork_choice",
  "fork_choice",
  "fs2",
  "hex",

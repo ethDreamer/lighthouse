@@ -12,7 +12,7 @@ use types::consts::gloas::PAYLOAD_STATUS_PENDING;
 use types::{
     BeaconState, ChainSpec, EthSpec, ForkName, Hash256, MinimalEthSpec, Slot,
     eip8453::{
-        self, HeadVoteData, HeightCheckpoint, compute_attestation_committee_slot,
+        self, HeadVoteData, HeightCheckpoint, SafeVoteData, compute_attestation_committee_slot,
         compute_round_at_slot,
     },
 };
@@ -188,6 +188,49 @@ async fn eip8453_single_node_chain_finalizes() {
             }
         }
 
+        // Advance the finality gadget clock past the slot's support cutoff (real nodes tick
+        // continuously): the confirmation of the previous slot evaluates, so safe votes cast
+        // below name a confirmed node only one slot behind — which keeps the stabilization
+        // grades on the FG root in the healthy case.
+        {
+            let slot_duration_ms = spec.get_slot_duration().as_millis() as u64;
+            let genesis_time_ms = harness.chain.genesis_time * 1000;
+            let mid_slot_ms = genesis_time_ms
+                + slot.as_u64() * slot_duration_ms
+                + slot_duration_ms * 2600 / 10_000;
+            harness
+                .chain
+                .canonical_head
+                .fork_choice_write_lock()
+                .fg_on_tick_ms(mid_slot_ms)
+                .unwrap();
+        }
+
+        // Honest safe voting: each validator casts one safe vote per round in its sub-round,
+        // naming the node the fork choice's safe-vote selection reports.
+        let round = compute_round_at_slot::<E>(slot);
+        let sub_round = slot.as_u64() % E::slots_per_round();
+        if sub_round < E::slots_per_round().saturating_sub(2) {
+            let mut fork_choice = harness.chain.canonical_head.fork_choice_write_lock();
+            let safe_vote_node = fork_choice
+                .fg()
+                .expect("fg active")
+                .get_safe_vote_node()
+                .expect("safe vote node");
+            for validator_index in 0..VALIDATOR_COUNT as u64 {
+                if validator_index % (E::slots_per_round().saturating_sub(2)) == sub_round {
+                    fork_choice.on_safe_vote(
+                        validator_index,
+                        SafeVoteData {
+                            round,
+                            beacon_block_root: safe_vote_node.root,
+                            payload_status: safe_vote_node.payload_status,
+                        },
+                    );
+                }
+            }
+        }
+
         state = new_state;
     }
 
@@ -232,6 +275,70 @@ async fn eip8453_single_node_chain_finalizes() {
         fg_finalized.height,
         "store and state agree on finality"
     );
+
+    // Phase 4b: the stabilization grades formed from the safe votes, the confirmation records
+    // advanced, and the four tips nest.
+    {
+        let fork_choice = harness.chain.canonical_head.fork_choice_read_lock();
+        let fg = fork_choice.fg().expect("fg fork choice is active");
+
+        assert!(fg.grade_2.is_some(), "grade 2 is evaluated");
+        assert!(fg.grade_1.is_some(), "grade 1 is evaluated");
+        assert!(fg.grade_0.is_some(), "grade 0 is evaluated");
+        // SPEC FINDING (report back): in the healthy fast-finality path the grades are
+        // evaluated but permanently *inactive* — justification lands mid-round, so
+        // `get_fg_root` returns a justified target root only ~2 slots old, while the graded
+        // node (built from safe votes naming confirmed nodes that are older by the grade
+        // cutoffs) always trails it. `get_active_prefix` therefore returns None,
+        // `has_fresh_safe_quorum()` is false, and per validator.md honest validators would
+        // never emit height pairs — stalling justification until timeouts freeze the FG root
+        // and let the grades catch up. This assertion documents the (suspect) spec behavior.
+        assert!(
+            !fg.has_fresh_safe_quorum().unwrap(),
+            "the grade-2 node trails the FG root in the healthy case (spec finding)"
+        );
+
+        let genesis_root = harness.chain.genesis_block_root;
+        let stable = fg.get_stable();
+        let confirmed = fg.get_confirmed();
+        assert_ne!(stable.root, genesis_root, "the stable tip advanced");
+        assert_ne!(confirmed.root, genesis_root, "the confirmed tip advanced");
+
+        // finalized ⪯ stable ⪯ confirmed ⪯ head.
+        let finalized = fg.finalized_checkpoint.root;
+        assert!(
+            fg.is_ancestor_root(finalized, stable.root).unwrap(),
+            "finalized ⪯ stable"
+        );
+        assert!(
+            fg.is_ancestor_root(stable.root, confirmed.root).unwrap(),
+            "stable ⪯ confirmed"
+        );
+        assert!(
+            fg.is_ancestor_root(confirmed.root, head_root).unwrap(),
+            "confirmed ⪯ head"
+        );
+
+        // The AC voting view agrees with the walk at the final slot.
+        let voter_head = fg.get_voter_head(fg.get_current_slot()).unwrap();
+        assert_eq!(voter_head.root, tip_root, "voter head follows the tip");
+
+        // The FG attestation sources resolve.
+        assert!(
+            fg.is_ancestor_root(fg.fg_target_source_root(), head_root)
+                .unwrap(),
+            "target source on the canonical chain"
+        );
+        // The finality source reads the *current* slot's votes (head voting precedes FG
+        // attesting within a slot); with no slot-25 votes cast, the walk conservatively stays
+        // on the canonical chain behind the tip.
+        let finality_source = fg.fg_finality_source().unwrap();
+        assert!(
+            fg.is_ancestor_root(finality_source.root, head_root)
+                .unwrap(),
+            "finality source is on the canonical chain"
+        );
+    }
 
     // The synthesized epoch-based view (pruning/migration compat) also advanced.
     let finalized_epoch = harness
