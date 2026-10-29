@@ -883,6 +883,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             attester_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
+                        safe_votes: ProgressiveVariableList::empty(),
                         _phantom: PhantomData::<FullPayload<T::EthSpec>>,
                     },
                 })

@@ -492,12 +492,12 @@ impl From<BeaconStateHash> for Hash256 {
             ),
             tree_hash(
                 struct_behaviour = "progressive_container",
-                // [Modified in EIP8453] width 57; gaps at the removed eth1 (8-10), epoch
+                // [Modified in EIP8453] width 58; gaps at the removed eth1 (8-10), epoch
                 // participation (15-16), Casper FFG (17-20) and deposit_requests_start_index
                 // (28) positions.
                 active_fields(
                     1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1,
-                    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+                    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
                 )
             )
         )
@@ -892,6 +892,11 @@ where
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     pub finalized_slot: Slot,
+    // [New in EIP8453 safe-votes] whether the current height advances on a target quorum
+    // without justifying (finality-debt healing). Computed in `advance_height`.
+    #[superstruct(only(Eip8453), partial_getter(copy))]
+    #[metastruct(exclude_from(tree_lists))]
+    pub nonjustifiable: bool,
     #[compare_fields(as_iter)]
     #[cfg_attr(feature = "arbitrary", arbitrary(default))]
     #[superstruct(only(Eip8453))]
@@ -4084,11 +4089,11 @@ pub const BEACON_STATE_ACTIVE_FIELDS: [bool; 46] = [true; 46];
 
 /// The `active_fields` of the EIP-8453 `BeaconState` variant.
 ///
-/// Must match the `active_fields` attribute on the Eip8453 variant: width 57 with gaps at the
+/// Must match the `active_fields` attribute on the Eip8453 variant: width 58 with gaps at the
 /// removed eth1 (8-10), epoch participation (15-16), Casper FFG (17-20) and
 /// deposit_requests_start_index (28) positions.
 #[rustfmt::skip]
-pub const BEACON_STATE_ACTIVE_FIELDS_EIP8453: [bool; 57] = [
+pub const BEACON_STATE_ACTIVE_FIELDS_EIP8453: [bool; 58] = [
     true, true, true, true, true, true, true, true,          // 0-7
     false, false, false,                                     // 8-10: eth1
     true, true, true, true,                                  // 11-14
@@ -4099,7 +4104,7 @@ pub const BEACON_STATE_ACTIVE_FIELDS_EIP8453: [bool; 57] = [
     true, true, true, true, true, true, true, true, true,    // 29-37
     true, true, true, true, true, true, true, true, true,    // 38-46
     true, true, true, true, true, true, true, true, true,    // 47-55
-    true,                                                    // 56
+    true, true,                                              // 56-57
 ];
 
 impl<E: EthSpec> BeaconState<E> {

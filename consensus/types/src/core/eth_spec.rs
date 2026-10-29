@@ -198,6 +198,10 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     type EjectionInactivityScore: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     /// Length of `head_vote_participation`: `2 * SLOTS_PER_EPOCH`.
     type HeadVoteParticipationLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type MaxSafeVotes: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type SafeVoteExpiryRounds: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type NonjustifiableHeightPeriod: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type FinalityDebtThreshold: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     fn default_spec() -> ChainSpec;
 
@@ -543,6 +547,26 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     fn ejection_inactivity_score() -> u64 {
         Self::EjectionInactivityScore::to_u64()
     }
+
+    /// Returns the `MAX_SAFE_VOTES` constant for this specification.
+    fn max_safe_votes() -> usize {
+        Self::MaxSafeVotes::to_usize()
+    }
+
+    /// Returns the `SAFE_VOTE_EXPIRY_ROUNDS` constant for this specification.
+    fn safe_vote_expiry_rounds() -> u64 {
+        Self::SafeVoteExpiryRounds::to_u64()
+    }
+
+    /// Returns the `NONJUSTIFIABLE_HEIGHT_PERIOD` constant for this specification.
+    fn nonjustifiable_height_period() -> u64 {
+        Self::NonjustifiableHeightPeriod::to_u64()
+    }
+
+    /// Returns the `FINALITY_DEBT_THRESHOLD` constant for this specification.
+    fn finality_debt_threshold() -> u64 {
+        Self::FinalityDebtThreshold::to_u64()
+    }
 }
 
 /// Macro to inherit some type values from another EthSpec.
@@ -630,6 +654,10 @@ impl EthSpec for MainnetEthSpec {
     type MinRoundsToInactivityLeak = U16;
     type EjectionInactivityScore = U65536;
     type HeadVoteParticipationLimit = U64; // 2 * SLOTS_PER_EPOCH = 2 * 32 = 64
+    type MaxSafeVotes = U4;
+    type SafeVoteExpiryRounds = U2;
+    type NonjustifiableHeightPeriod = U64;
+    type FinalityDebtThreshold = U2;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -742,7 +770,11 @@ impl EthSpec for MinimalEthSpec {
         InclusionListCommitteeSize,
         PendingFinalityWindow,
         MaxHeadVotes,
-        EjectionInactivityScore
+        EjectionInactivityScore,
+        MaxSafeVotes,
+        SafeVoteExpiryRounds,
+        NonjustifiableHeightPeriod,
+        FinalityDebtThreshold
     });
 
     fn default_spec() -> ChainSpec {
@@ -855,6 +887,10 @@ impl EthSpec for GnosisEthSpec {
     type MinRoundsToInactivityLeak = U16;
     type EjectionInactivityScore = U65536;
     type HeadVoteParticipationLimit = U32; // 2 * SLOTS_PER_EPOCH = 2 * 16 = 32
+    type MaxSafeVotes = U4;
+    type SafeVoteExpiryRounds = U2;
+    type NonjustifiableHeightPeriod = U64;
+    type FinalityDebtThreshold = U2;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

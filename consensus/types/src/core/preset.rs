@@ -413,6 +413,14 @@ pub struct Eip8453Preset {
     pub max_head_votes: u64,
     #[serde(with = "serde_utils::quoted_u64")]
     pub max_attester_slashing_size_eip8453: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub max_safe_votes: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub safe_vote_expiry_rounds: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub nonjustifiable_height_period: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub finality_debt_threshold: u64,
 }
 
 impl Eip8453Preset {
@@ -428,6 +436,10 @@ impl Eip8453Preset {
             ejection_inactivity_score: E::ejection_inactivity_score(),
             max_head_votes: E::max_head_votes() as u64,
             max_attester_slashing_size_eip8453: E::max_attester_slashing_size_eip8453() as u64,
+            max_safe_votes: E::max_safe_votes() as u64,
+            safe_vote_expiry_rounds: E::safe_vote_expiry_rounds(),
+            nonjustifiable_height_period: E::nonjustifiable_height_period(),
+            finality_debt_threshold: E::finality_debt_threshold(),
         }
     }
 }

@@ -119,7 +119,7 @@ pub const BEACON_BLOCK_BODY_ACTIVE_FIELDS: [bool; 13] = [true; 13];
                 struct_behaviour = "progressive_container",
                 // [Modified in EIP8453] `eth1_data` (index 1) and `deposits` (index 6) were
                 // removed in the spec's Heze; their positions are gaps.
-                active_fields(1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+                active_fields(1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
             )
         ),
     ),
@@ -271,6 +271,9 @@ pub struct BeaconBlockBody<E: EthSpec, Payload: AbstractExecPayload<E> = FullPay
     #[superstruct(only(Eip8453))]
     pub legacy_attester_slashings:
         ProgressiveVariableList<AttesterSlashingGloas<E>, E::MaxAttesterSlashingsElectra>,
+    // [New in EIP8453] safe votes relayed for the fork choice's stabilization rule.
+    #[superstruct(only(Eip8453))]
+    pub safe_votes: ProgressiveVariableList<eip8453::SafeVote<E>, E::MaxSafeVotes>,
     #[superstruct(only(Base, Altair, Gloas, Heze, Eip8453))]
     #[metastruct(exclude_from(fields))]
     #[ssz(skip_serializing, skip_deserializing)]
@@ -1065,6 +1068,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, BlindedPayload<E>>>
             head_votes,
             head_vote_support,
             legacy_attester_slashings,
+            safe_votes,
             _phantom,
         } = body;
 
@@ -1083,6 +1087,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, BlindedPayload<E>>>
             head_votes,
             head_vote_support,
             legacy_attester_slashings,
+            safe_votes,
             _phantom: PhantomData,
         }
     }
@@ -1495,6 +1500,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, FullPayload<E>>>
             head_votes,
             head_vote_support,
             legacy_attester_slashings,
+            safe_votes,
             _phantom,
         } = body;
 
@@ -1514,6 +1520,7 @@ impl<E: EthSpec> From<BeaconBlockBodyEip8453<E, FullPayload<E>>>
                 head_votes,
                 head_vote_support,
                 legacy_attester_slashings,
+                safe_votes,
                 _phantom: PhantomData,
             },
             None,

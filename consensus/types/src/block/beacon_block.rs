@@ -806,6 +806,7 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> EmptyBlock for BeaconBlockEip8
                 head_votes: ProgressiveVariableList::empty(),
                 head_vote_support: ProgressiveVariableList::empty(),
                 legacy_attester_slashings: ProgressiveVariableList::empty(),
+                safe_votes: ProgressiveVariableList::empty(),
                 _phantom: PhantomData,
             },
         }

@@ -44,6 +44,10 @@ pub enum Domain {
     HeadVote,
     HeadVoteCommittee,
     FinalityAttester,
+    SafeVote,
+    HeadVoteAggregator,
+    SafeVoteAggregator,
+    AttestationAggregator,
     ApplicationMask(ApplicationDomain),
 }
 
@@ -168,6 +172,10 @@ pub struct ChainSpec {
     pub(crate) domain_head_vote: u32,
     pub(crate) domain_head_vote_committee: u32,
     pub(crate) domain_finality_attester: u32,
+    pub(crate) domain_safe_vote: u32,
+    pub(crate) domain_head_vote_aggregator: u32,
+    pub(crate) domain_safe_vote_aggregator: u32,
+    pub(crate) domain_attestation_aggregator: u32,
 
     /*
      * Fork choice
@@ -602,6 +610,10 @@ impl ChainSpec {
             Domain::HeadVote => self.domain_head_vote,
             Domain::HeadVoteCommittee => self.domain_head_vote_committee,
             Domain::FinalityAttester => self.domain_finality_attester,
+            Domain::SafeVote => self.domain_safe_vote,
+            Domain::HeadVoteAggregator => self.domain_head_vote_aggregator,
+            Domain::SafeVoteAggregator => self.domain_safe_vote_aggregator,
+            Domain::AttestationAggregator => self.domain_attestation_aggregator,
             Domain::SyncCommittee => self.domain_sync_committee,
             Domain::ContributionAndProof => self.domain_contribution_and_proof,
             Domain::SyncCommitteeSelectionProof => self.domain_sync_committee_selection_proof,
@@ -1351,6 +1363,10 @@ impl ChainSpec {
             domain_head_vote: 0x12,
             domain_head_vote_committee: 0x13,
             domain_finality_attester: 0x14,
+            domain_safe_vote: 0x15,
+            domain_head_vote_aggregator: 0x16,
+            domain_safe_vote_aggregator: 0x17,
+            domain_attestation_aggregator: 0x18,
 
             /*
              * Fork choice
@@ -1819,6 +1835,10 @@ impl ChainSpec {
             domain_head_vote: 0x12,
             domain_head_vote_committee: 0x13,
             domain_finality_attester: 0x14,
+            domain_safe_vote: 0x15,
+            domain_head_vote_aggregator: 0x16,
+            domain_safe_vote_aggregator: 0x17,
+            domain_attestation_aggregator: 0x18,
 
             /*
              * Fork choice

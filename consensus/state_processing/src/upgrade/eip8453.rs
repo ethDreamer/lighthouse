@@ -116,6 +116,7 @@ pub fn upgrade_state_to_eip8453<E: EthSpec>(
         },
         target_slot: pre.latest_block_header.slot,
         finalized_slot,
+        nonjustifiable: false,
         target_participation: ProgressiveList::try_from_iter(std::iter::repeat_n(
             false,
             validator_count,

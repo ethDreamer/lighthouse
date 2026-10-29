@@ -22,6 +22,9 @@ mod head_vote_message;
 mod height_checkpoint;
 mod indexed_attestation;
 mod pending_finality;
+mod safe_vote;
+mod safe_vote_data;
+mod safe_vote_message;
 mod single_attestation;
 
 pub use attestation::Attestation;
@@ -36,4 +39,7 @@ pub use head_vote_message::HeadVoteMessage;
 pub use height_checkpoint::HeightCheckpoint;
 pub use indexed_attestation::IndexedAttestation;
 pub use pending_finality::PendingFinality;
+pub use safe_vote::SafeVote;
+pub use safe_vote_data::SafeVoteData;
+pub use safe_vote_message::SafeVoteMessage;
 pub use single_attestation::SingleAttestation;
