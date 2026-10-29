@@ -871,8 +871,20 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
     }
 
     /// The spec's `has_fresh_safe_quorum`: whether a height pair may be emitted this round.
+    ///
+    /// The test is root *compatibility* with the FG root, not an active prefix: heights
+    /// advance per block while grades resolve per round, so on a healthy chain the grade-2
+    /// node trails the justified root as its ancestor (spec commit `280200b41`).
     pub fn has_fresh_safe_quorum(&self) -> Result<bool, Error> {
-        Ok(self.get_active_prefix(self.grade_2)?.is_some())
+        let Some(grade) = self.grade_2 else {
+            return Ok(false);
+        };
+        if !self.blocks.contains_key(&grade.root) {
+            return Ok(false);
+        }
+        let fg_root = self.get_fg_root();
+        Ok(self.is_ancestor_root(fg_root, grade.root)?
+            || self.is_ancestor_root(grade.root, fg_root)?)
     }
 
     /// The spec's `get_safe_vote_node`: the node an honest validator names in its safe vote.

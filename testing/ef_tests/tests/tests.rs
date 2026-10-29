@@ -1055,13 +1055,15 @@ mod eip8453_tests {
     });
 
     eip8453_test!(fork_choice_eip8453, {
-        // The fork-choice vectors are generated for the minimal preset only.
+        // The fork-choice vectors are generated for the minimal preset only. Check the
+        // handler dir, not the runner dir: both presets grow an assertion-only
+        // `fork_choice/fresh_safe_quorum` suite with no vector payload (spec `280200b41`).
         let dir = std::path::Path::new(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/consensus-spec-tests/tests"
         ))
         .join(Spec::name())
-        .join("eip8453/fork_choice");
+        .join("eip8453/fork_choice/fork_choice");
         if dir.is_dir() {
             FgForkChoiceHandler::<Spec>::default().run_for_fork(ForkName::Eip8453)
         } else {

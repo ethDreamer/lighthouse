@@ -285,17 +285,12 @@ async fn eip8453_single_node_chain_finalizes() {
         assert!(fg.grade_2.is_some(), "grade 2 is evaluated");
         assert!(fg.grade_1.is_some(), "grade 1 is evaluated");
         assert!(fg.grade_0.is_some(), "grade 0 is evaluated");
-        // SPEC FINDING (report back): in the healthy fast-finality path the grades are
-        // evaluated but permanently *inactive* — justification lands mid-round, so
-        // `get_fg_root` returns a justified target root only ~2 slots old, while the graded
-        // node (built from safe votes naming confirmed nodes that are older by the grade
-        // cutoffs) always trails it. `get_active_prefix` therefore returns None,
-        // `has_fresh_safe_quorum()` is false, and per validator.md honest validators would
-        // never emit height pairs — stalling justification until timeouts freeze the FG root
-        // and let the grades catch up. This assertion documents the (suspect) spec behavior.
+        // Spec commit `280200b41` (fixing a finding from this prototype): the quorum test is
+        // root *compatibility* with the FG root, not an active prefix — on a healthy chain
+        // the grade-2 node trails the justified root as its ancestor, so height pairs flow.
         assert!(
-            !fg.has_fresh_safe_quorum().unwrap(),
-            "the grade-2 node trails the FG root in the healthy case (spec finding)"
+            fg.has_fresh_safe_quorum().unwrap(),
+            "an ancestor grade-2 node is a fresh safe quorum on the healthy chain"
         );
 
         let genesis_root = harness.chain.genesis_block_root;
