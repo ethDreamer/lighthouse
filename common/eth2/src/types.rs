@@ -932,6 +932,9 @@ pub struct FgAttesterDuty {
     pub validator_index: u64,
     #[serde(with = "serde_utils::quoted_u64")]
     pub committee_index: u64,
+    /// The committee's size: the aggregation selection modulo's `members`.
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub committee_length: u64,
     pub slot: Slot,
 }
 
@@ -960,6 +963,17 @@ pub struct FgAttestationComponents {
     pub finalized_height: u64,
     /// `has_fresh_safe_quorum(store)`: whether a height pair may be emitted this round.
     pub fresh_quorum: bool,
+}
+
+/// The pooled safe vote aggregates of a round, with the aggregation selection modulo's
+/// `members` (the number of active validators per sub-round — a chain fact the validator
+/// client cannot compute alone).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(bound = "E: EthSpec")]
+pub struct Eip8453SafeVoteAggregates<E: EthSpec> {
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub members: u64,
+    pub aggregates: Vec<types::eip8453::SafeVote<E>>,
 }
 
 #[derive(Clone, Deserialize)]

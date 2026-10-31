@@ -1592,6 +1592,126 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         }))
     }
 
+    async fn produce_eip8453_head_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        slot: Slot,
+    ) -> Result<Signature, Error> {
+        let signing_context =
+            self.signing_context(Domain::HeadVoteAggregator, slot.epoch(E::slots_per_epoch()));
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453HeadVoteAggregatorSlot(slot),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)
+    }
+
+    async fn produce_eip8453_safe_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> Result<Signature, Error> {
+        let epoch =
+            types::eip8453::compute_start_slot_at_round::<E>(round).epoch(E::slots_per_epoch());
+        let signing_context = self.signing_context(Domain::SafeVoteAggregator, epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453AggregatorRound(round),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)
+    }
+
+    async fn produce_eip8453_attestation_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> Result<Signature, Error> {
+        let epoch =
+            types::eip8453::compute_start_slot_at_round::<E>(round).epoch(E::slots_per_epoch());
+        let signing_context = self.signing_context(Domain::AttestationAggregator, epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453AggregatorRound(round),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)
+    }
+
+    async fn sign_eip8453_head_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::HeadVoteAggregateAndProof<E>,
+    ) -> Result<types::eip8453::SignedHeadVoteAggregateAndProof<E>, Error> {
+        let epoch = message.aggregate.data.slot.epoch(E::slots_per_epoch());
+        let signing_context = self.signing_context(Domain::AggregateAndProof, epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453HeadVoteAggregate(&message),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+        Ok(types::eip8453::SignedHeadVoteAggregateAndProof { message, signature })
+    }
+
+    async fn sign_eip8453_safe_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::SafeVoteAggregateAndProof<E>,
+    ) -> Result<types::eip8453::SignedSafeVoteAggregateAndProof<E>, Error> {
+        let epoch = types::eip8453::compute_start_slot_at_round::<E>(message.aggregate.data.round)
+            .epoch(E::slots_per_epoch());
+        let signing_context = self.signing_context(Domain::AggregateAndProof, epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453SafeVoteAggregate(&message),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+        Ok(types::eip8453::SignedSafeVoteAggregateAndProof { message, signature })
+    }
+
+    async fn sign_eip8453_attestation_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::AttestationAggregateAndProof<E>,
+        aggregation_epoch: Epoch,
+    ) -> Result<types::eip8453::SignedAttestationAggregateAndProof<E>, Error> {
+        let signing_context = self.signing_context(Domain::AggregateAndProof, aggregation_epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453AttestationAggregate(&message),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+        Ok(types::eip8453::SignedAttestationAggregateAndProof { message, signature })
+    }
+
     /// Sign an `ExecutionPayloadEnvelope` for Gloas (local building).
     /// The proposer acts as the builder and signs with the BeaconBuilder domain.
     async fn sign_execution_payload_envelope(

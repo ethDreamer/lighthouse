@@ -12,9 +12,10 @@ use http_api::test_utils::InteractiveTester;
 use types::consts::gloas::PAYLOAD_STATUS_PENDING;
 use types::eip8453::{
     self, HeadVoteMessage, HeightCheckpoint, SafeVoteMessage, compute_round_at_slot,
-    compute_safe_vote_sub_round,
+    compute_safe_vote_sub_round, compute_start_slot_at_round, head_vote_aggregator_selection_root,
+    is_selected_aggregator, round_aggregator_selection_root,
 };
-use types::{EthSpec, ForkName, Hash256, Slot, Spec};
+use types::{Domain, EthSpec, ForkName, Hash256, Slot, Spec};
 
 type E = Spec;
 const VALIDATOR_COUNT: usize = 64;
@@ -60,6 +61,9 @@ async fn eip8453_http_duty_round_trip() {
     let mut packed_fg_blocks = 0usize;
     let mut packed_head_vote_blocks = 0usize;
     let mut packed_safe_vote_blocks = 0usize;
+    let mut published_fg_aggregates = 0usize;
+    let mut published_head_vote_aggregates = 0usize;
+    let mut published_safe_vote_aggregates = 0usize;
 
     for slot_number in 1..=num_slots {
         let slot = Slot::new(slot_number);
@@ -112,6 +116,80 @@ async fn eip8453_http_duty_round_trip() {
                 .post_beacon_pool_eip8453_fg_attestations(&singles)
                 .await
                 .expect("publish fg attestations");
+
+            // The FG aggregation duty round trip: fetch the pooled aggregates, pick a selected
+            // aggregator from a represented committee, wrap, sign and publish. The wrapper signs
+            // under the current round's epoch.
+            let round = compute_round_at_slot::<E>(slot);
+            let aggregation_epoch =
+                compute_start_slot_at_round::<E>(round).epoch(E::slots_per_epoch());
+            let aggregates = client
+                .get_validator_eip8453_fg_attestation_aggregates::<E>()
+                .await
+                .expect("fg attestation aggregates")
+                .data;
+            assert!(
+                !aggregates.is_empty(),
+                "the published FG singles aggregate at slot {slot}"
+            );
+            let selection_root = round_aggregator_selection_root::<E>(
+                round,
+                Domain::AttestationAggregator,
+                &fork,
+                genesis_validators_root,
+                &spec,
+            );
+            let mut signed_aggregates = Vec::new();
+            for aggregate in aggregates {
+                let Some((aggregator_index, selection_proof)) = fg_duties
+                    .data
+                    .iter()
+                    .filter(|duty| {
+                        duty.slot == slot
+                            && aggregate
+                                .committee_bits
+                                .get(duty.committee_index as usize)
+                                .unwrap_or(false)
+                    })
+                    .find_map(|duty| {
+                        let proof = harness.validator_keypairs[duty.validator_index as usize]
+                            .sk
+                            .sign(selection_root);
+                        is_selected_aggregator(
+                            &proof,
+                            duty.committee_length,
+                            spec.target_aggregators_per_committee,
+                        )
+                        .then_some((duty.validator_index, proof))
+                    })
+                else {
+                    continue;
+                };
+                let message = eip8453::AttestationAggregateAndProof {
+                    aggregator_index,
+                    aggregate,
+                    selection_proof,
+                };
+                let wrapper_root = message.compute_signing_root(
+                    aggregation_epoch,
+                    &fork,
+                    genesis_validators_root,
+                    &spec,
+                );
+                signed_aggregates.push(eip8453::SignedAttestationAggregateAndProof {
+                    signature: harness.validator_keypairs[aggregator_index as usize]
+                        .sk
+                        .sign(wrapper_root),
+                    message,
+                });
+            }
+            if !signed_aggregates.is_empty() {
+                client
+                    .post_validator_eip8453_attestation_aggregates::<E>(&signed_aggregates)
+                    .await
+                    .expect("publish fg attestation aggregates");
+                published_fg_aggregates += signed_aggregates.len();
+            }
         }
 
         // Produce and import the block: packing aggregates the published singles.
@@ -192,6 +270,60 @@ async fn eip8453_http_duty_round_trip() {
             .await
             .expect("publish head votes");
 
+        // The head-vote aggregation duty round trip: a selected committee member wraps the
+        // best-covered pooled aggregate (one aggregate per aggregator per slot propagates).
+        {
+            let aggregates = client
+                .get_validator_eip8453_head_vote_aggregates::<E>(slot)
+                .await
+                .expect("head vote aggregates")
+                .data;
+            let best = aggregates
+                .into_iter()
+                .max_by_key(|aggregate| aggregate.voter_indices.len())
+                .expect("the published head votes aggregate");
+            assert_eq!(best.data.beacon_block_root, tip_root);
+            let selection_root = head_vote_aggregator_selection_root::<E>(
+                slot,
+                &fork,
+                genesis_validators_root,
+                &spec,
+            );
+            let (aggregator_index, selection_proof) = head_vote_duties
+                .data
+                .iter()
+                .filter(|duty| duty.slot == slot)
+                .find_map(|duty| {
+                    let proof = harness.validator_keypairs[duty.validator_index as usize]
+                        .sk
+                        .sign(selection_root);
+                    is_selected_aggregator(
+                        &proof,
+                        E::head_vote_committee_size() as u64,
+                        spec.target_aggregators_per_committee,
+                    )
+                    .then_some((duty.validator_index, proof))
+                })
+                .expect("some committee member is a selected aggregator");
+            let message = eip8453::HeadVoteAggregateAndProof {
+                aggregator_index,
+                aggregate: best,
+                selection_proof,
+            };
+            let wrapper_root = message.compute_signing_root(&fork, genesis_validators_root, &spec);
+            let signed = eip8453::SignedHeadVoteAggregateAndProof {
+                signature: harness.validator_keypairs[aggregator_index as usize]
+                    .sk
+                    .sign(wrapper_root),
+                message,
+            };
+            client
+                .post_validator_eip8453_head_vote_aggregates::<E>(&[signed])
+                .await
+                .expect("publish head vote aggregate");
+            published_head_vote_aggregates += 1;
+        }
+
         // Advance the FG clock to the slot's support cutoff (the previous slot's confirmation
         // evaluates), as in the beacon_chain gate test.
         harness
@@ -237,6 +369,64 @@ async fn eip8453_http_duty_round_trip() {
                 .post_beacon_pool_eip8453_safe_votes(&messages)
                 .await
                 .expect("publish safe votes");
+
+            // The safe-vote aggregation duty round trip: any active validator whose proof
+            // clears the per-sub-round modulo wraps every distinct-data aggregate of the round.
+            let response = client
+                .get_validator_eip8453_safe_vote_aggregates::<E>(round)
+                .await
+                .expect("safe vote aggregates")
+                .data;
+            assert!(
+                !response.aggregates.is_empty(),
+                "the published safe votes aggregate at slot {slot}"
+            );
+            let selection_root = round_aggregator_selection_root::<E>(
+                round,
+                Domain::SafeVoteAggregator,
+                &fork,
+                genesis_validators_root,
+                &spec,
+            );
+            let (aggregator_index, selection_proof) = all_indices
+                .iter()
+                .find_map(|&index| {
+                    let proof = harness.validator_keypairs[index as usize]
+                        .sk
+                        .sign(selection_root);
+                    is_selected_aggregator(
+                        &proof,
+                        response.members,
+                        spec.target_aggregators_per_committee,
+                    )
+                    .then_some((index, proof))
+                })
+                .expect("some validator is a selected safe vote aggregator");
+            let signed: Vec<_> = response
+                .aggregates
+                .into_iter()
+                .map(|aggregate| {
+                    let message = eip8453::SafeVoteAggregateAndProof {
+                        aggregator_index,
+                        aggregate,
+                        selection_proof: selection_proof.clone(),
+                    };
+                    let wrapper_root =
+                        message.compute_signing_root(&fork, genesis_validators_root, &spec);
+                    eip8453::SignedSafeVoteAggregateAndProof {
+                        signature: harness.validator_keypairs[aggregator_index as usize]
+                            .sk
+                            .sign(wrapper_root),
+                        message,
+                    }
+                })
+                .collect();
+            let count = signed.len();
+            client
+                .post_validator_eip8453_safe_vote_aggregates::<E>(&signed)
+                .await
+                .expect("publish safe vote aggregates");
+            published_safe_vote_aggregates += count;
         }
 
         state = new_state;
@@ -284,6 +474,22 @@ async fn eip8453_http_duty_round_trip() {
     assert!(
         packed_safe_vote_blocks > 0,
         "some blocks pack safe votes ({packed_safe_vote_blocks}/{num_slots})"
+    );
+
+    // The aggregation duties round-tripped: selected aggregators wrapped, signed and published
+    // aggregates of each kind through the validator endpoints (which re-verify with the gossip
+    // rules and feed the fork choice and packing pools).
+    assert!(
+        published_head_vote_aggregates > 0,
+        "head vote aggregates published ({published_head_vote_aggregates})"
+    );
+    assert!(
+        published_safe_vote_aggregates > 0,
+        "safe vote aggregates published ({published_safe_vote_aggregates})"
+    );
+    assert!(
+        published_fg_aggregates > 0,
+        "FG attestation aggregates published ({published_fg_aggregates})"
     );
 
     // An invalid publish is rejected: a vote from a validator outside the committee.

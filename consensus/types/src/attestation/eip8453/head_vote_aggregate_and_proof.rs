@@ -5,6 +5,8 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use super::HeadVote;
+use crate::core::{ChainSpec, Domain, Hash256, SignedRoot};
+use crate::fork::Fork;
 use crate::{core::EthSpec, fork::ForkName};
 
 /// A head vote aggregate wrapped with its aggregator's identity and selection proof
@@ -19,6 +21,27 @@ pub struct HeadVoteAggregateAndProof<E: EthSpec> {
     pub aggregator_index: u64,
     pub aggregate: HeadVote<E>,
     pub selection_proof: Signature,
+}
+
+impl<E: EthSpec> SignedRoot for HeadVoteAggregateAndProof<E> {}
+
+impl<E: EthSpec> HeadVoteAggregateAndProof<E> {
+    /// The wrapper's signing root: `DOMAIN_AGGREGATE_AND_PROOF` at the vote slot's epoch.
+    pub fn compute_signing_root(
+        &self,
+        fork: &Fork,
+        genesis_validators_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Hash256 {
+        let epoch = self.aggregate.data.slot.epoch(E::slots_per_epoch());
+        let domain = spec.get_domain(
+            epoch,
+            Domain::AggregateAndProof,
+            fork,
+            genesis_validators_root,
+        );
+        self.signing_root(domain)
+    }
 }
 
 /// A signed [`HeadVoteAggregateAndProof`] [New in EIP8453]. The signature is made under

@@ -206,6 +206,64 @@ impl ValidatorStore for MockValidatorStore {
         panic!("MockValidatorStore::produce_eip8453_fg_attestation called without a hook")
     }
 
+    async fn produce_eip8453_head_vote_aggregator_proof(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _slot: Slot,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        panic!(
+            "MockValidatorStore::produce_eip8453_head_vote_aggregator_proof called without a hook"
+        )
+    }
+
+    async fn produce_eip8453_safe_vote_aggregator_proof(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _round: u64,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        panic!(
+            "MockValidatorStore::produce_eip8453_safe_vote_aggregator_proof called without a hook"
+        )
+    }
+
+    async fn produce_eip8453_attestation_aggregator_proof(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _round: u64,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        panic!(
+            "MockValidatorStore::produce_eip8453_attestation_aggregator_proof called without a hook"
+        )
+    }
+
+    async fn sign_eip8453_head_vote_aggregate(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _message: types::eip8453::HeadVoteAggregateAndProof<Self::E>,
+    ) -> Result<types::eip8453::SignedHeadVoteAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        panic!("MockValidatorStore::sign_eip8453_head_vote_aggregate called without a hook")
+    }
+
+    async fn sign_eip8453_safe_vote_aggregate(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _message: types::eip8453::SafeVoteAggregateAndProof<Self::E>,
+    ) -> Result<types::eip8453::SignedSafeVoteAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        panic!("MockValidatorStore::sign_eip8453_safe_vote_aggregate called without a hook")
+    }
+
+    async fn sign_eip8453_attestation_aggregate(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _message: types::eip8453::AttestationAggregateAndProof<Self::E>,
+        _aggregation_epoch: Epoch,
+    ) -> Result<types::eip8453::SignedAttestationAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        panic!("MockValidatorStore::sign_eip8453_attestation_aggregate called without a hook")
+    }
+
     async fn sign_proposer_preferences(
         &self,
         _validator_pubkey: PublicKeyBytes,

@@ -146,8 +146,9 @@ pub fn process_operations<E: EthSpec, Payload: AbstractExecPayload<E>>(
     Ok(())
 }
 
-/// `is_valid_attestation_data` from the spec.
-fn is_valid_attestation_data<E: EthSpec>(
+/// `is_valid_attestation_data` from the spec. Also used by gossip validation of FG attestation
+/// aggregates.
+pub fn is_valid_attestation_data<E: EthSpec>(
     state: &BeaconState<E>,
     data: &eip8453::AttestationData,
 ) -> Result<bool, BeaconStateError> {

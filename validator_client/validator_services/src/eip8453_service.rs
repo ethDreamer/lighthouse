@@ -13,12 +13,16 @@ use std::sync::Arc;
 
 use crate::duties_service::DutiesService;
 use beacon_node_fallback::BeaconNodeFallback;
+use eth2::types::{FgAttesterDuty, HeadVoteDuty};
 use futures::future::join_all;
 use slot_clock::SlotClock;
 use task_executor::TaskExecutor;
 use tokio::time::{Duration, sleep};
 use tracing::{debug, error, info, warn};
-use types::eip8453::{compute_round_at_slot, compute_safe_vote_sub_round};
+use types::eip8453::{
+    compute_round_at_slot, compute_safe_vote_sub_round, compute_start_slot_at_round,
+    is_selected_aggregator,
+};
 use types::{ChainSpec, EthSpec, Slot};
 use validator_store::{DoppelgangerStatus, ValidatorStore};
 
@@ -231,6 +235,107 @@ where
             .await
             .map_err(|e| e.to_string())?;
         info!(%slot, %count, root = ?data.beacon_block_root, "Published head votes");
+
+        if let Err(e) = self.head_vote_aggregation(slot, &duties).await {
+            warn!(error = e, %slot, "Head vote aggregation failed");
+        }
+        Ok(())
+    }
+
+    /// The head-vote aggregation duty: committee members selected by their proofs wrap the
+    /// slot's best pooled aggregate at the broadcast deadline (two quarters into the slot) and
+    /// publish it. Only one aggregate per aggregator per slot propagates on gossip, so the
+    /// aggregator wraps the aggregate covering the most voters.
+    async fn head_vote_aggregation(
+        &self,
+        slot: Slot,
+        duties: &[HeadVoteDuty],
+    ) -> Result<(), String> {
+        // Selection proofs are signed while the broadcast deadline approaches.
+        let mut aggregators = Vec::new();
+        for duty in duties {
+            match self
+                .validator_store
+                .produce_eip8453_head_vote_aggregator_proof(duty.pubkey, slot)
+                .await
+            {
+                Ok(proof) => {
+                    if is_selected_aggregator(
+                        &proof,
+                        S::E::head_vote_committee_size() as u64,
+                        self.chain_spec.target_aggregators_per_committee,
+                    ) {
+                        aggregators.push((duty.pubkey, duty.validator_index, proof));
+                    }
+                }
+                Err(e) => {
+                    warn!(error = ?e, validator = ?duty.pubkey, %slot, "No head vote aggregator proof")
+                }
+            }
+        }
+        if aggregators.is_empty() {
+            return Ok(());
+        }
+
+        // From the head-vote deadline (one quarter) to the aggregate deadline (two quarters).
+        let wait = self
+            .chain_spec
+            .get_support_cutoff()
+            .saturating_sub(self.chain_spec.get_head_vote_due());
+        sleep(wait).await;
+
+        let aggregates = self
+            .beacon_nodes
+            .first_success(|beacon_node| async move {
+                beacon_node
+                    .get_validator_eip8453_head_vote_aggregates::<S::E>(slot)
+                    .await
+                    .map(|resp| resp.data)
+            })
+            .await
+            .map_err(|e| format!("Failed to get head vote aggregates: {e}"))?;
+        let Some(best) = aggregates
+            .into_iter()
+            .max_by_key(|aggregate| aggregate.voter_indices.len())
+        else {
+            return Ok(());
+        };
+
+        let mut signed = Vec::with_capacity(aggregators.len());
+        for (pubkey, aggregator_index, selection_proof) in aggregators {
+            let message = types::eip8453::HeadVoteAggregateAndProof {
+                aggregator_index,
+                aggregate: best.clone(),
+                selection_proof,
+            };
+            match self
+                .validator_store
+                .sign_eip8453_head_vote_aggregate(pubkey, message)
+                .await
+            {
+                Ok(signed_aggregate) => signed.push(signed_aggregate),
+                Err(e) => {
+                    warn!(error = ?e, validator = ?pubkey, %slot, "Head vote aggregate not signed")
+                }
+            }
+        }
+        if signed.is_empty() {
+            return Ok(());
+        }
+        let count = signed.len();
+        self.beacon_nodes
+            .first_success(|beacon_node| {
+                let signed = signed.clone();
+                async move {
+                    beacon_node
+                        .post_validator_eip8453_head_vote_aggregates::<S::E>(&signed)
+                        .await
+                        .map_err(|e| format!("Failed to publish head vote aggregates: {e:?}"))
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+        info!(%slot, %count, "Published head vote aggregates");
         Ok(())
     }
 
@@ -317,6 +422,101 @@ where
             .await
             .map_err(|e| e.to_string())?;
         info!(%slot, %round, %count, root = ?data.beacon_block_root, "Published safe votes");
+
+        if let Err(e) = self.safe_vote_aggregation(slot, round, &assigned).await {
+            warn!(error = e, %slot, "Safe vote aggregation failed");
+        }
+        Ok(())
+    }
+
+    /// The safe-vote aggregation duty: assigned validators selected by their proofs wrap every
+    /// distinct-data aggregate of the round seen so far, at two quarters into their sub-round
+    /// slot (one aggregate per distinct `SafeVoteData` per aggregator propagates, so
+    /// equivocation evidence aggregates too).
+    async fn safe_vote_aggregation(
+        &self,
+        slot: Slot,
+        round: u64,
+        assigned: &[bls::PublicKeyBytes],
+    ) -> Result<(), String> {
+        let wait = self
+            .chain_spec
+            .get_support_cutoff()
+            .saturating_sub(self.chain_spec.get_head_vote_due());
+        sleep(wait).await;
+
+        let response = self
+            .beacon_nodes
+            .first_success(|beacon_node| async move {
+                beacon_node
+                    .get_validator_eip8453_safe_vote_aggregates::<S::E>(round)
+                    .await
+                    .map(|resp| resp.data)
+            })
+            .await
+            .map_err(|e| format!("Failed to get safe vote aggregates: {e}"))?;
+        if response.aggregates.is_empty() {
+            return Ok(());
+        }
+
+        let mut signed = Vec::new();
+        for pubkey in assigned {
+            let Some(aggregator_index) = self.validator_store.validator_index(pubkey) else {
+                continue;
+            };
+            let selection_proof = match self
+                .validator_store
+                .produce_eip8453_safe_vote_aggregator_proof(*pubkey, round)
+                .await
+            {
+                Ok(proof) => proof,
+                Err(e) => {
+                    warn!(error = ?e, validator = ?pubkey, %round, "No safe vote aggregator proof");
+                    continue;
+                }
+            };
+            if !is_selected_aggregator(
+                &selection_proof,
+                response.members,
+                self.chain_spec.target_aggregators_per_committee,
+            ) {
+                continue;
+            }
+            for aggregate in &response.aggregates {
+                let message = types::eip8453::SafeVoteAggregateAndProof {
+                    aggregator_index,
+                    aggregate: aggregate.clone(),
+                    selection_proof: selection_proof.clone(),
+                };
+                match self
+                    .validator_store
+                    .sign_eip8453_safe_vote_aggregate(*pubkey, message)
+                    .await
+                {
+                    Ok(signed_aggregate) => signed.push(signed_aggregate),
+                    Err(e) => {
+                        warn!(error = ?e, validator = ?pubkey, %round, "Safe vote aggregate not signed")
+                    }
+                }
+            }
+        }
+        if signed.is_empty() {
+            return Ok(());
+        }
+        let count = signed.len();
+        self.beacon_nodes
+            .first_success(|beacon_node| {
+                let signed = signed.clone();
+                async move {
+                    beacon_node
+                        .post_validator_eip8453_safe_vote_aggregates::<S::E>(&signed)
+                        .await
+                        .map_err(|e| format!("Failed to publish safe vote aggregates: {e:?}"))
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+        info!(%slot, %round, %count, "Published safe vote aggregates");
         Ok(())
     }
 
@@ -413,6 +613,108 @@ where
             target_height = components.target.height,
             "Published FG attestations"
         );
+
+        if let Err(e) = self.fg_attestation_aggregation(slot, &duties).await {
+            warn!(error = e, %slot, "FG attestation aggregation failed");
+        }
+        Ok(())
+    }
+
+    /// The FG attestation aggregation duty: committee members selected by their proofs wrap the
+    /// pooled aggregates that mark their committee, at the inherited aggregate deadline of the
+    /// committee's slot. The wrapper signs under the current round's epoch (FG attestations
+    /// carry no slot).
+    async fn fg_attestation_aggregation(
+        &self,
+        slot: Slot,
+        duties: &[FgAttesterDuty],
+    ) -> Result<(), String> {
+        let round = compute_round_at_slot::<S::E>(slot);
+        let aggregation_epoch =
+            compute_start_slot_at_round::<S::E>(round).epoch(S::E::slots_per_epoch());
+        let wait = self
+            .chain_spec
+            .get_aggregate_attestation_due::<S::E>(slot)
+            .saturating_sub(self.chain_spec.get_attestation_due::<S::E>(slot));
+        sleep(wait).await;
+
+        let aggregates = self
+            .beacon_nodes
+            .first_success(|beacon_node| async move {
+                beacon_node
+                    .get_validator_eip8453_fg_attestation_aggregates::<S::E>()
+                    .await
+                    .map(|resp| resp.data)
+            })
+            .await
+            .map_err(|e| format!("Failed to get FG attestation aggregates: {e}"))?;
+        if aggregates.is_empty() {
+            return Ok(());
+        }
+
+        let mut signed = Vec::new();
+        for duty in duties {
+            let selection_proof = match self
+                .validator_store
+                .produce_eip8453_attestation_aggregator_proof(duty.pubkey, round)
+                .await
+            {
+                Ok(proof) => proof,
+                Err(e) => {
+                    warn!(error = ?e, validator = ?duty.pubkey, %round, "No FG aggregator proof");
+                    continue;
+                }
+            };
+            if !is_selected_aggregator(
+                &selection_proof,
+                duty.committee_length,
+                self.chain_spec.target_aggregators_per_committee,
+            ) {
+                continue;
+            }
+            for aggregate in &aggregates {
+                // The aggregator must sit on a committee marked in the aggregate.
+                if !aggregate
+                    .committee_bits
+                    .get(duty.committee_index as usize)
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+                let message = types::eip8453::AttestationAggregateAndProof {
+                    aggregator_index: duty.validator_index,
+                    aggregate: aggregate.clone(),
+                    selection_proof: selection_proof.clone(),
+                };
+                match self
+                    .validator_store
+                    .sign_eip8453_attestation_aggregate(duty.pubkey, message, aggregation_epoch)
+                    .await
+                {
+                    Ok(signed_aggregate) => signed.push(signed_aggregate),
+                    Err(e) => {
+                        warn!(error = ?e, validator = ?duty.pubkey, %round, "FG aggregate not signed")
+                    }
+                }
+            }
+        }
+        if signed.is_empty() {
+            return Ok(());
+        }
+        let count = signed.len();
+        self.beacon_nodes
+            .first_success(|beacon_node| {
+                let signed = signed.clone();
+                async move {
+                    beacon_node
+                        .post_validator_eip8453_attestation_aggregates::<S::E>(&signed)
+                        .await
+                        .map_err(|e| format!("Failed to publish FG aggregates: {e:?}"))
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+        info!(%slot, %round, %count, "Published FG attestation aggregates");
         Ok(())
     }
 }

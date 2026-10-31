@@ -32,7 +32,16 @@ pub struct Eip8453OperationPool<E: EthSpec> {
 
 impl<E: EthSpec> Eip8453OperationPool<E> {
     pub fn insert_fg_attestation(&self, attestation: eip8453::Attestation<E>) {
-        self.fg_attestations.lock().push(attestation);
+        let mut pool = self.fg_attestations.lock();
+        // Dedup identical aggregates: gossip can deliver what we built ourselves.
+        if !pool.iter().any(|existing| {
+            existing.data == attestation.data
+                && existing.epoch == attestation.epoch
+                && existing.aggregation_bits == attestation.aggregation_bits
+                && existing.committee_bits == attestation.committee_bits
+        }) {
+            pool.push(attestation);
+        }
     }
 
     pub fn insert_head_vote(&self, vote: HeadVote<E>, support: ProgressiveBitList) {
@@ -40,7 +49,13 @@ impl<E: EthSpec> Eip8453OperationPool<E> {
     }
 
     pub fn insert_safe_vote(&self, vote: SafeVote<E>) {
-        self.safe_votes.lock().push(vote);
+        let mut pool = self.safe_votes.lock();
+        // Dedup identical aggregates: gossip can deliver what we built ourselves.
+        if !pool.iter().any(|existing| {
+            existing.data == vote.data && existing.voter_indices == vote.voter_indices
+        }) {
+            pool.push(vote);
+        }
     }
 
     pub fn insert_fg_single(&self, attestation: eip8453::SingleAttestation) {
@@ -96,6 +111,21 @@ impl<E: EthSpec> Eip8453OperationPool<E> {
             }
         }
         drained
+    }
+
+    /// Clone the pooled unaggregated head votes (for aggregation duties; packing drains).
+    pub fn snapshot_head_vote_singles(&self) -> Vec<HeadVoteMessage> {
+        self.head_vote_singles.lock().clone()
+    }
+
+    /// Clone the pooled unaggregated safe votes (for aggregation duties; packing drains).
+    pub fn snapshot_safe_vote_singles(&self) -> Vec<SafeVoteMessage> {
+        self.safe_vote_singles.lock().clone()
+    }
+
+    /// Clone the pooled unaggregated FG attestations (for aggregation duties; packing drains).
+    pub fn snapshot_fg_singles(&self) -> Vec<eip8453::SingleAttestation> {
+        self.fg_singles.lock().clone()
     }
 
     /// Drain the unaggregated FG attestations satisfying `filter`, dropping the rest.

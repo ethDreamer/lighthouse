@@ -337,3 +337,260 @@ pub fn post_beacon_pool_eip8453_fg_attestations<T: BeaconChainTypes>(
         )
         .boxed()
 }
+
+#[derive(Deserialize)]
+struct RoundQuery {
+    round: u64,
+}
+
+// GET validator/eip8453_head_vote_aggregates?slot
+pub fn get_validator_eip8453_head_vote_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    not_while_syncing_filter: NotWhileSyncingFilter,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_head_vote_aggregates"))
+        .and(warp::path::end())
+        .and(warp::query::<HeadVoteDataQuery>())
+        .and(not_while_syncing_filter)
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .then(
+            |query: HeadVoteDataQuery,
+             not_synced_filter: Result<(), Rejection>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    not_synced_filter?;
+                    let aggregates = chain
+                        .eip8453_build_head_vote_aggregates(query.slot)
+                        .map_err(warp_utils::reject::unhandled_error)?;
+                    Ok(GenericResponse::from(aggregates))
+                })
+            },
+        )
+        .boxed()
+}
+
+// GET validator/eip8453_safe_vote_aggregates?round
+pub fn get_validator_eip8453_safe_vote_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    not_while_syncing_filter: NotWhileSyncingFilter,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_safe_vote_aggregates"))
+        .and(warp::path::end())
+        .and(warp::query::<RoundQuery>())
+        .and(not_while_syncing_filter)
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .then(
+            |query: RoundQuery,
+             not_synced_filter: Result<(), Rejection>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    not_synced_filter?;
+                    let members = chain
+                        .eip8453_safe_vote_aggregation_members()
+                        .map_err(warp_utils::reject::unhandled_error)?;
+                    let aggregates = chain
+                        .eip8453_build_safe_vote_aggregates(query.round)
+                        .map_err(warp_utils::reject::unhandled_error)?;
+                    Ok(GenericResponse::from(
+                        api_types::Eip8453SafeVoteAggregates::<T::EthSpec> {
+                            members,
+                            aggregates,
+                        },
+                    ))
+                })
+            },
+        )
+        .boxed()
+}
+
+// GET validator/eip8453_fg_attestation_aggregates
+pub fn get_validator_eip8453_fg_attestation_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    not_while_syncing_filter: NotWhileSyncingFilter,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_fg_attestation_aggregates"))
+        .and(warp::path::end())
+        .and(not_while_syncing_filter)
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .then(
+            |not_synced_filter: Result<(), Rejection>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    not_synced_filter?;
+                    let aggregates = chain
+                        .eip8453_build_fg_attestation_aggregates()
+                        .map_err(warp_utils::reject::unhandled_error)?;
+                    Ok(GenericResponse::from(aggregates))
+                })
+            },
+        )
+        .boxed()
+}
+
+/// Map a gossip-validation failure on a publish endpoint: REJECT-class errors are the client's
+/// fault (400); IGNORE-class verdicts (already seen, stale) are benign dedup and skip the
+/// object without failing the request.
+fn eip8453_publish_verdict(
+    error: beacon_chain::eip8453_gossip::Eip8453GossipError,
+) -> Result<(), warp::Rejection> {
+    match error.verdict() {
+        beacon_chain::eip8453_gossip::Eip8453GossipVerdict::Ignore => Ok(()),
+        beacon_chain::eip8453_gossip::Eip8453GossipVerdict::Reject => {
+            Err(warp_utils::reject::custom_bad_request(format!(
+                "aggregate failed validation: {error:?}"
+            )))
+        }
+    }
+}
+
+// POST validator/eip8453_head_vote_aggregates
+pub fn post_validator_eip8453_head_vote_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_head_vote_aggregates"))
+        .and(warp::path::end())
+        .and(warp_utils::json::json())
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .and(network_tx_filter)
+        .then(
+            |aggregates: Vec<eip8453::SignedHeadVoteAggregateAndProof<T::EthSpec>>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    // Validate with the gossip rules (which also mark the aggregator as seen,
+                    // suppressing our own echo), ingest, then broadcast.
+                    let mut accepted = Vec::with_capacity(aggregates.len());
+                    for signed_aggregate in aggregates {
+                        if let Err(error) =
+                            chain.eip8453_verify_head_vote_aggregate_for_gossip(&signed_aggregate)
+                        {
+                            eip8453_publish_verdict(error)?;
+                            continue;
+                        }
+                        chain
+                            .eip8453_import_verified_head_vote_aggregate(
+                                &signed_aggregate.message.aggregate,
+                            )
+                            .map_err(warp_utils::reject::unhandled_error)?;
+                        accepted.push(PubsubMessage::HeadVoteAggregate(Box::new(signed_aggregate)));
+                    }
+                    publish_pubsub_messages(&network_tx, accepted)?;
+                    Ok(())
+                })
+            },
+        )
+        .boxed()
+}
+
+// POST validator/eip8453_safe_vote_aggregates
+pub fn post_validator_eip8453_safe_vote_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_safe_vote_aggregates"))
+        .and(warp::path::end())
+        .and(warp_utils::json::json())
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .and(network_tx_filter)
+        .then(
+            |aggregates: Vec<eip8453::SignedSafeVoteAggregateAndProof<T::EthSpec>>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    let mut accepted = Vec::with_capacity(aggregates.len());
+                    for signed_aggregate in aggregates {
+                        if let Err(error) =
+                            chain.eip8453_verify_safe_vote_aggregate_for_gossip(&signed_aggregate)
+                        {
+                            eip8453_publish_verdict(error)?;
+                            continue;
+                        }
+                        chain
+                            .eip8453_import_verified_safe_vote_aggregate(
+                                signed_aggregate.message.aggregate.clone(),
+                            )
+                            .map_err(warp_utils::reject::unhandled_error)?;
+                        accepted.push(PubsubMessage::SafeVoteAggregate(Box::new(signed_aggregate)));
+                    }
+                    publish_pubsub_messages(&network_tx, accepted)?;
+                    Ok(())
+                })
+            },
+        )
+        .boxed()
+}
+
+// POST validator/eip8453_attestation_aggregates
+pub fn post_validator_eip8453_attestation_aggregates<T: BeaconChainTypes>(
+    eth_v1: EthV1Filter,
+    chain_filter: ChainFilter<T>,
+    task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
+) -> ResponseFilter {
+    eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path("eip8453_attestation_aggregates"))
+        .and(warp::path::end())
+        .and(warp_utils::json::json())
+        .and(task_spawner_filter)
+        .and(chain_filter)
+        .and(network_tx_filter)
+        .then(
+            |aggregates: Vec<eip8453::SignedAttestationAggregateAndProof<T::EthSpec>>,
+             task_spawner: TaskSpawner<T::EthSpec>,
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
+                task_spawner.blocking_json_task(Priority::P0, move || {
+                    let mut accepted = Vec::with_capacity(aggregates.len());
+                    for signed_aggregate in aggregates {
+                        if let Err(error) =
+                            chain.eip8453_verify_attestation_aggregate_for_gossip(&signed_aggregate)
+                        {
+                            eip8453_publish_verdict(error)?;
+                            continue;
+                        }
+                        chain.eip8453_import_verified_fg_attestation_aggregate(
+                            signed_aggregate.message.aggregate.clone(),
+                        );
+                        accepted.push(PubsubMessage::AttestationAggregate(Box::new(
+                            signed_aggregate,
+                        )));
+                    }
+                    publish_pubsub_messages(&network_tx, accepted)?;
+                    Ok(())
+                })
+            },
+        )
+        .boxed()
+}

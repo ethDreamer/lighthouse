@@ -8,6 +8,7 @@ pub use crate::fork_choice::{
     PayloadVerificationStatus, PersistedForkChoice, PersistedForkChoiceV28, PersistedForkChoiceV29,
     QueuedAttestation, ResetPayloadStatuses, dequeue_attestations,
 };
+pub use fg_fork_choice;
 pub use fork_choice_store::ForkChoiceStore;
 pub use proto_array::{
     Block as ProtoBlock, ExecutionStatus, ExecutionVerdict, ForkChoiceNode, InvalidationOperation,

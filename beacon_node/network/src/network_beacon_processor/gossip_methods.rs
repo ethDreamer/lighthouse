@@ -4718,6 +4718,89 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         }
     }
 
+    /// Process an EIP-8453 head vote aggregate from the `head_vote_aggregate` topic.
+    pub fn process_gossip_eip8453_head_vote_aggregate(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        signed_aggregate: types::eip8453::SignedHeadVoteAggregateAndProof<T::EthSpec>,
+    ) {
+        match self
+            .chain
+            .eip8453_verify_head_vote_aggregate_for_gossip(&signed_aggregate)
+        {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                if let Err(e) = self.chain.eip8453_import_verified_head_vote_aggregate(
+                    &signed_aggregate.message.aggregate,
+                ) {
+                    warn!(reason = ?e, %peer_id, "Failed to import gossip head vote aggregate");
+                }
+            }
+            Err(error) => self.handle_eip8453_gossip_failure(
+                message_id,
+                peer_id,
+                error,
+                "eip8453_head_vote_aggregate",
+            ),
+        }
+    }
+
+    /// Process an EIP-8453 safe vote aggregate from the `safe_vote_aggregate` topic.
+    pub fn process_gossip_eip8453_safe_vote_aggregate(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        signed_aggregate: types::eip8453::SignedSafeVoteAggregateAndProof<T::EthSpec>,
+    ) {
+        match self
+            .chain
+            .eip8453_verify_safe_vote_aggregate_for_gossip(&signed_aggregate)
+        {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                if let Err(e) = self
+                    .chain
+                    .eip8453_import_verified_safe_vote_aggregate(signed_aggregate.message.aggregate)
+                {
+                    warn!(reason = ?e, %peer_id, "Failed to import gossip safe vote aggregate");
+                }
+            }
+            Err(error) => self.handle_eip8453_gossip_failure(
+                message_id,
+                peer_id,
+                error,
+                "eip8453_safe_vote_aggregate",
+            ),
+        }
+    }
+
+    /// Process an EIP-8453 FG attestation aggregate from the `attestation_aggregate` topic.
+    pub fn process_gossip_eip8453_attestation_aggregate(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        signed_aggregate: types::eip8453::SignedAttestationAggregateAndProof<T::EthSpec>,
+    ) {
+        match self
+            .chain
+            .eip8453_verify_attestation_aggregate_for_gossip(&signed_aggregate)
+        {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                self.chain.eip8453_import_verified_fg_attestation_aggregate(
+                    signed_aggregate.message.aggregate,
+                );
+            }
+            Err(error) => self.handle_eip8453_gossip_failure(
+                message_id,
+                peer_id,
+                error,
+                "eip8453_attestation_aggregate",
+            ),
+        }
+    }
+
     /// Map an EIP-8453 gossip validation failure to a propagation verdict and peer penalty.
     fn handle_eip8453_gossip_failure(
         self: &Arc<Self>,

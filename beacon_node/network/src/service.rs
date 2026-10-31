@@ -1679,12 +1679,38 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                         ),
                 )
             }
-            // EIP8453-STUB (Phase 6 stage 6d wires aggregation end to end): the aggregate
-            // topics decode but their messages are dropped without validation or propagation.
-            PubsubMessage::HeadVoteAggregate(_)
-            | PubsubMessage::SafeVoteAggregate(_)
-            | PubsubMessage::AttestationAggregate(_) => {
-                trace!(%peer_id, "Dropped an EIP-8453 aggregate (processing not yet wired)");
+            PubsubMessage::HeadVoteAggregate(signed_aggregate) => {
+                trace!(%peer_id, "Received an EIP-8453 head vote aggregate");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor
+                        .send_gossip_eip8453_head_vote_aggregate(
+                            message_id,
+                            peer_id,
+                            signed_aggregate,
+                        ),
+                )
+            }
+            PubsubMessage::SafeVoteAggregate(signed_aggregate) => {
+                trace!(%peer_id, "Received an EIP-8453 safe vote aggregate");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor
+                        .send_gossip_eip8453_safe_vote_aggregate(
+                            message_id,
+                            peer_id,
+                            signed_aggregate,
+                        ),
+                )
+            }
+            PubsubMessage::AttestationAggregate(signed_aggregate) => {
+                trace!(%peer_id, "Received an EIP-8453 FG attestation aggregate");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor
+                        .send_gossip_eip8453_attestation_aggregate(
+                            message_id,
+                            peer_id,
+                            signed_aggregate,
+                        ),
+                )
             }
         }
     }

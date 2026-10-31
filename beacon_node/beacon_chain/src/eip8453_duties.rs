@@ -60,13 +60,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let dependent_root = self.eip8453_duty_dependent_root();
 
         let committees_per_round = T::EthSpec::attestation_committees_per_round() as u64;
-        let mut assignment: HashMap<u64, u64> = HashMap::new();
+        let mut assignment: HashMap<u64, (u64, u64)> = HashMap::new();
         for committee_index in 0..committees_per_round {
-            for validator_index in state
+            let committee = state
                 .get_attestation_committee(epoch, committee_index, &self.spec)
-                .map_err(Error::BeaconStateError)?
-            {
-                assignment.insert(validator_index as u64, committee_index);
+                .map_err(Error::BeaconStateError)?;
+            let committee_length = committee.len() as u64;
+            for validator_index in committee {
+                assignment.insert(validator_index as u64, (committee_index, committee_length));
             }
         }
 
@@ -77,7 +78,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let pubkey_cache = self.validator_pubkey_cache.read();
         let mut duties = Vec::new();
         for &validator_index in validator_indices {
-            let Some(&committee_index) = assignment.get(&validator_index) else {
+            let Some(&(committee_index, committee_length)) = assignment.get(&validator_index)
+            else {
                 continue;
             };
             let Some(pubkey) = pubkey_cache.get_pubkey_bytes(validator_index as usize) else {
@@ -94,6 +96,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         pubkey: *pubkey,
                         validator_index,
                         committee_index,
+                        committee_length,
                         slot,
                     });
                 }
@@ -440,47 +443,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             }
         }
         for ((data, epoch), group) in groups {
-            let mut committee_bits =
-                BitVector::<<T::EthSpec as EthSpec>::AttestationCommitteesPerRound>::new();
-            let mut participants: Vec<u64> = Vec::new();
-            let mut signature = AggregateSignature::infinity();
-            for single in &group {
-                committee_bits
-                    .set(single.committee_index as usize, true)
-                    .map_err(|e| eip8453_err(format!("committee bit: {e:?}")))?;
-                participants.push(single.attester_index);
-                signature.add_assign_aggregate(&single.signature);
-            }
-            // Encode participants in the concatenation of the selected committees, in
-            // committee-index order.
-            let mut concatenated: Vec<u64> = Vec::new();
-            for committee_index in 0..T::EthSpec::attestation_committees_per_round() as u64 {
-                if committee_bits
-                    .get(committee_index as usize)
-                    .unwrap_or(false)
-                {
-                    let committee = state
-                        .get_attestation_committee(epoch, committee_index, &self.spec)
-                        .map_err(Error::BeaconStateError)?;
-                    concatenated.extend(committee.iter().map(|&v| v as u64));
-                }
-            }
-            let mut aggregation_bits = ProgressiveBitList::with_capacity(concatenated.len());
-            for (position, validator_index) in concatenated.iter().enumerate() {
-                if participants.contains(validator_index) {
-                    aggregation_bits
-                        .set(position, true)
-                        .map_err(|e| eip8453_err(format!("aggregation bit: {e:?}")))?;
-                }
-            }
-            self.eip8453_pool
-                .insert_fg_attestation(eip8453::Attestation {
-                    aggregation_bits,
-                    data,
-                    signature,
-                    committee_bits,
-                    epoch,
-                });
+            let aggregate = self.eip8453_fg_aggregate_from_group(state, data, epoch, &group)?;
+            self.eip8453_pool.insert_fg_attestation(aggregate);
         }
 
         // Head votes: the proposer publishes exactly its walk inputs — `get_ac_proposal`'s
@@ -572,5 +536,214 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             self.eip8453_pool.insert_safe_vote(vote);
         }
         Ok(())
+    }
+
+    /// `get_aggregate_attestation` / `get_attestation_aggregation_bits` from the spec, for one
+    /// group of singles sharing `(data, epoch)`: participants are encoded in the concatenation
+    /// of the selected committees, in committee-index order.
+    fn eip8453_fg_aggregate_from_group(
+        &self,
+        state: &BeaconState<T::EthSpec>,
+        data: eip8453::AttestationData,
+        epoch: Epoch,
+        group: &[eip8453::SingleAttestation],
+    ) -> Result<eip8453::Attestation<T::EthSpec>, Error> {
+        let mut committee_bits =
+            BitVector::<<T::EthSpec as EthSpec>::AttestationCommitteesPerRound>::new();
+        let mut participants: Vec<u64> = Vec::new();
+        let mut signature = AggregateSignature::infinity();
+        for single in group {
+            committee_bits
+                .set(single.committee_index as usize, true)
+                .map_err(|e| eip8453_err(format!("committee bit: {e:?}")))?;
+            participants.push(single.attester_index);
+            signature.add_assign_aggregate(&single.signature);
+        }
+        let mut concatenated: Vec<u64> = Vec::new();
+        for committee_index in 0..T::EthSpec::attestation_committees_per_round() as u64 {
+            if committee_bits
+                .get(committee_index as usize)
+                .unwrap_or(false)
+            {
+                let committee = state
+                    .get_attestation_committee(epoch, committee_index, &self.spec)
+                    .map_err(Error::BeaconStateError)?;
+                concatenated.extend(committee.iter().map(|&v| v as u64));
+            }
+        }
+        let mut aggregation_bits = ProgressiveBitList::with_capacity(concatenated.len());
+        for (position, validator_index) in concatenated.iter().enumerate() {
+            if participants.contains(validator_index) {
+                aggregation_bits
+                    .set(position, true)
+                    .map_err(|e| eip8453_err(format!("aggregation bit: {e:?}")))?;
+            }
+        }
+        Ok(eip8453::Attestation {
+            aggregation_bits,
+            data,
+            signature,
+            committee_bits,
+            epoch,
+        })
+    }
+
+    /// `get_aggregate_head_vote` over the pooled singles of `slot`: one aggregate per distinct
+    /// `HeadVoteData`, voters sorted and unique. Serves the aggregation duty (the pool is read
+    /// without draining).
+    pub fn eip8453_build_head_vote_aggregates(
+        &self,
+        slot: Slot,
+    ) -> Result<Vec<eip8453::HeadVote<T::EthSpec>>, Error> {
+        let singles = self.eip8453_pool.snapshot_head_vote_singles();
+        let mut groups: Vec<(HeadVoteData, Vec<HeadVoteMessage>)> = Vec::new();
+        for single in singles {
+            if single.data.slot != slot {
+                continue;
+            }
+            match groups.iter_mut().find(|(k, _)| *k == single.data) {
+                Some((_, group)) => group.push(single),
+                None => groups.push((single.data, vec![single])),
+            }
+        }
+        let mut aggregates = Vec::with_capacity(groups.len());
+        for (data, mut group) in groups {
+            group.sort_by_key(|message| message.validator_index);
+            group.dedup_by_key(|message| message.validator_index);
+            let mut signature = AggregateSignature::infinity();
+            let mut voter_indices = Vec::with_capacity(group.len());
+            for message in &group {
+                signature.add_assign(&message.signature);
+                voter_indices.push(message.validator_index);
+            }
+            aggregates.push(eip8453::HeadVote {
+                voter_indices: VariableList::new(voter_indices)
+                    .map_err(|e| eip8453_err(format!("voter indices: {e:?}")))?,
+                data,
+                signature,
+            });
+        }
+        Ok(aggregates)
+    }
+
+    /// `get_aggregate_safe_vote` over the pooled singles of `round`: one aggregate per distinct
+    /// `SafeVoteData` (equivocation evidence aggregates too), voters sorted and unique.
+    pub fn eip8453_build_safe_vote_aggregates(
+        &self,
+        round: u64,
+    ) -> Result<Vec<eip8453::SafeVote<T::EthSpec>>, Error> {
+        let singles = self.eip8453_pool.snapshot_safe_vote_singles();
+        let mut groups: Vec<(SafeVoteData, Vec<SafeVoteMessage>)> = Vec::new();
+        for single in singles {
+            if single.data.round != round {
+                continue;
+            }
+            match groups.iter_mut().find(|(k, _)| *k == single.data) {
+                Some((_, group)) => group.push(single),
+                None => groups.push((single.data, vec![single])),
+            }
+        }
+        let mut aggregates = Vec::with_capacity(groups.len());
+        for (data, mut group) in groups {
+            group.sort_by_key(|message| message.validator_index);
+            group.dedup_by_key(|message| message.validator_index);
+            let mut signature = AggregateSignature::infinity();
+            let mut voter_indices = Vec::with_capacity(group.len());
+            for message in &group {
+                signature.add_assign(&message.signature);
+                voter_indices.push(message.validator_index);
+            }
+            aggregates.push(eip8453::SafeVote {
+                voter_indices: ProgressiveVariableList::try_from_iter(voter_indices)
+                    .map_err(|e| eip8453_err(format!("voter indices: {e:?}")))?,
+                data,
+                signature,
+            });
+        }
+        Ok(aggregates)
+    }
+
+    /// `get_aggregate_attestation` over the pooled FG singles: one aggregate per distinct
+    /// `(data, epoch)`, built against the head state.
+    pub fn eip8453_build_fg_attestation_aggregates(
+        &self,
+    ) -> Result<Vec<eip8453::Attestation<T::EthSpec>>, Error> {
+        let head = self.head_snapshot();
+        let state = &head.beacon_state;
+        let singles = self.eip8453_pool.snapshot_fg_singles();
+        let mut groups: Vec<(
+            (eip8453::AttestationData, Epoch),
+            Vec<eip8453::SingleAttestation>,
+        )> = Vec::new();
+        for single in singles {
+            let key = (single.data, single.epoch);
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, group)) => group.push(single),
+                None => groups.push((key, vec![single])),
+            }
+        }
+        groups
+            .into_iter()
+            .map(|((data, epoch), group)| {
+                self.eip8453_fg_aggregate_from_group(state, data, epoch, &group)
+            })
+            .collect()
+    }
+
+    /// The safe-vote aggregation selection modulo's `members`: the active validators per
+    /// sub-round (`len(active) // (SLOTS_PER_ROUND - 2)`), read from the head state.
+    pub fn eip8453_safe_vote_aggregation_members(&self) -> Result<u64, Error> {
+        let head = self.head_snapshot();
+        let state = &head.beacon_state;
+        let active = state
+            .get_active_validator_indices(state.current_epoch(), &self.spec)
+            .map_err(Error::BeaconStateError)?
+            .len() as u64;
+        Ok(active
+            .checked_div(T::EthSpec::slots_per_round().saturating_sub(2))
+            .unwrap_or(0))
+    }
+
+    /// Feed a gossip-verified head vote aggregate into the fork choice, one voter at a time.
+    ///
+    /// The packing pool is deliberately not fed: the head votes a proposer packs carry its own
+    /// published support bits (`get_ac_proposal`'s view), which an ingested aggregate cannot
+    /// represent. Packing is covered by the singles path.
+    pub fn eip8453_import_verified_head_vote_aggregate(
+        &self,
+        aggregate: &eip8453::HeadVote<T::EthSpec>,
+    ) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
+        let mut fork_choice = self.canonical_head.fork_choice_write_lock();
+        for &voter in aggregate.voter_indices.iter() {
+            fork_choice.on_head_vote(voter, aggregate.data);
+        }
+        Ok(())
+    }
+
+    /// Feed a gossip-verified safe vote aggregate into the fork choice (one voter at a time)
+    /// and the block-packing pool.
+    pub fn eip8453_import_verified_safe_vote_aggregate(
+        &self,
+        aggregate: eip8453::SafeVote<T::EthSpec>,
+    ) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
+        {
+            let mut fork_choice = self.canonical_head.fork_choice_write_lock();
+            for &voter in aggregate.voter_indices.iter() {
+                fork_choice.on_safe_vote(voter, aggregate.data);
+            }
+        }
+        self.eip8453_pool.insert_safe_vote(aggregate);
+        Ok(())
+    }
+
+    /// Feed a gossip-verified FG attestation aggregate into the block-packing pool. The fork
+    /// choice reads FG effects only from imported blocks' post-states.
+    pub fn eip8453_import_verified_fg_attestation_aggregate(
+        &self,
+        aggregate: eip8453::Attestation<T::EthSpec>,
+    ) {
+        self.eip8453_pool.insert_fg_attestation(aggregate);
     }
 }

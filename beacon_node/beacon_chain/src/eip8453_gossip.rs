@@ -1,9 +1,11 @@
 //! EIP-8453 gossip validation: the p2p spec's per-topic validation conditions for the
-//! single-object topics (`head_vote`, `safe_vote`, `attestation_{subnet_id}`, and the
-//! EIP-8453 `attester_slashing`), with the spec's `Seen` dedup caches.
+//! single-object topics (`head_vote`, `safe_vote`, `attestation_{subnet_id}`, the EIP-8453
+//! `attester_slashing`) and the aggregate topics (`head_vote_aggregate`, `safe_vote_aggregate`,
+//! `attestation_aggregate`), with the spec's `Seen` dedup caches.
 //!
 //! Spec: `specs/_features/eip8453/p2p-interface.md` (`validate_head_vote_gossip`,
-//! `validate_safe_vote_gossip`, `validate_attestation_gossip`).
+//! `validate_safe_vote_gossip`, `validate_attestation_gossip`, and the three
+//! `validate_*_aggregate_gossip` functions).
 //!
 //! The verifying state is the head snapshot's post-state (the spec reads
 //! `store.block_states[get_head(store).root]`), and block/ancestry/payload facts come from the
@@ -15,19 +17,26 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use fork_choice::fg_fork_choice::FgForkChoiceStore;
 use parking_lot::Mutex;
 use slot_clock::SlotClock;
-use state_processing::per_block_processing::eip8453::process_attester_slashing_eip8453;
+use state_processing::per_block_processing::eip8453::{
+    get_attesting_indices_eip8453, is_valid_attestation_data, process_attester_slashing_eip8453,
+};
+use state_processing::state_advance::partial_state_advance;
 use state_processing::{ConsensusContext, VerifySignatures};
 use tree_hash::TreeHash;
 use types::consts::gloas::{
     PAYLOAD_STATUS_EMPTY, PAYLOAD_STATUS_FULL, PAYLOAD_STATUS_PENDING, PayloadStatus,
 };
 use types::eip8453::{
-    HeadVoteMessage, Round, SafeVoteMessage, compute_attestation_committee_slot,
-    compute_round_at_slot, compute_start_slot_at_round, compute_subnet_for_fg_attestation,
+    HeadVoteData, HeadVoteMessage, Round, SafeVoteMessage, SignedAttestationAggregateAndProof,
+    SignedHeadVoteAggregateAndProof, SignedSafeVoteAggregateAndProof,
+    compute_attestation_committee_slot, compute_round_at_slot, compute_start_slot_at_round,
+    compute_subnet_for_fg_attestation, head_vote_aggregator_selection_root, is_selected_aggregator,
+    round_aggregator_selection_root,
 };
-use types::{EthSpec, Hash256, Slot, eip8453};
+use types::{Domain, EthSpec, Hash256, Slot, eip8453};
 
 use crate::{BeaconChain, BeaconChainTypes};
 
@@ -65,6 +74,14 @@ pub enum Eip8453GossipError {
     PayloadNotVerified(Hash256),
     /// Every doubly-attesting validator in the slashing is already slashed.
     NoNewSlashableIndices,
+    /// The FG aggregate's data is not valid for the pulled-up head state.
+    ///
+    /// Deliberate deviation from the spec's [REJECT]: an honest attester builds its data from
+    /// `get_fg_target_source` (the confirmed source's view), which legitimately trails the head
+    /// state's target whenever confirmation lags and no finality pair bridges the gap — e.g. in
+    /// the first rounds after genesis. Rejecting would penalize honest aggregators, so this is
+    /// IGNORE-class (spec friction #16).
+    StaleAggregateData(String),
     /// An internal error (missing caches, clock not started, ...): do not penalize the peer.
     Internal(String),
     // REJECT class.
@@ -90,6 +107,20 @@ pub enum Eip8453GossipError {
     MalformedData,
     /// The attester slashing is invalid (not slashable, bad indices, or bad signatures).
     InvalidSlashing(String),
+    /// An aggregate from this aggregator for this slot/round (and data) was already seen.
+    PriorAggregateKnown { aggregator_index: u64 },
+    /// The aggregate names no voters.
+    EmptyAggregate,
+    /// The aggregate's voters are not sorted and unique.
+    UnsortedVoters,
+    /// The selection proof does not select the aggregator.
+    NotSelectedAggregator(u64),
+    /// The selection proof signature does not verify.
+    InvalidSelectionProof(u64),
+    /// The aggregate signature does not verify against the voters.
+    InvalidAggregateSignature,
+    /// The FG aggregate's data or aggregation bits are invalid for the head state.
+    InvalidAggregate(String),
 }
 
 /// The spec's propagation verdicts.
@@ -113,6 +144,8 @@ impl Eip8453GossipError {
             | Eip8453GossipError::NotFinalizedDescendant(_)
             | Eip8453GossipError::PayloadNotVerified(_)
             | Eip8453GossipError::NoNewSlashableIndices
+            | Eip8453GossipError::PriorAggregateKnown { .. }
+            | Eip8453GossipError::StaleAggregateData(_)
             | Eip8453GossipError::Internal(_) => Eip8453GossipVerdict::Ignore,
             Eip8453GossipError::PreFork
             | Eip8453GossipError::BlockFromFuture { .. }
@@ -124,7 +157,13 @@ impl Eip8453GossipError {
             | Eip8453GossipError::CommitteeIndexOutOfRange(_)
             | Eip8453GossipError::WrongSubnet { .. }
             | Eip8453GossipError::MalformedData
-            | Eip8453GossipError::InvalidSlashing(_) => Eip8453GossipVerdict::Reject,
+            | Eip8453GossipError::InvalidSlashing(_)
+            | Eip8453GossipError::EmptyAggregate
+            | Eip8453GossipError::UnsortedVoters
+            | Eip8453GossipError::NotSelectedAggregator(_)
+            | Eip8453GossipError::InvalidSelectionProof(_)
+            | Eip8453GossipError::InvalidAggregateSignature
+            | Eip8453GossipError::InvalidAggregate(_) => Eip8453GossipVerdict::Reject,
         }
     }
 }
@@ -145,6 +184,12 @@ pub struct Eip8453ObservedGossip {
     safe_votes: Mutex<BTreeMap<Round, HashMap<u64, Vec<Hash256>>>>,
     /// `seen.attestation_validator_rounds`: `(round, validator)`.
     fg_attestations: Mutex<BTreeMap<Round, HashSet<u64>>>,
+    /// `seen.head_vote_aggregator_slots`: `(slot, aggregator)`.
+    head_vote_aggregators: Mutex<BTreeMap<Slot, HashSet<u64>>>,
+    /// `seen.safe_vote_aggregator_rounds`: `(round, aggregator, data_root)`.
+    safe_vote_aggregators: Mutex<BTreeMap<Round, HashSet<(u64, Hash256)>>>,
+    /// `seen.attestation_aggregator_rounds`: `(round, aggregator, data_root)`.
+    fg_attestation_aggregators: Mutex<BTreeMap<Round, HashSet<(u64, Hash256)>>>,
 }
 
 /// How many slots/rounds of seen-keys to retain behind the current one. Gossip only accepts
@@ -203,6 +248,115 @@ impl Eip8453ObservedGossip {
         *cache = cache.split_off(&cutoff);
         cache.entry(round).or_default().insert(validator_index);
     }
+
+    fn head_vote_aggregator_seen(&self, slot: Slot, aggregator_index: u64) -> bool {
+        self.head_vote_aggregators
+            .lock()
+            .get(&slot)
+            .is_some_and(|aggregators| aggregators.contains(&aggregator_index))
+    }
+
+    fn mark_head_vote_aggregator(&self, slot: Slot, aggregator_index: u64) {
+        let mut cache = self.head_vote_aggregators.lock();
+        let cutoff = Slot::new(slot.as_u64().saturating_sub(SEEN_RETENTION));
+        *cache = cache.split_off(&cutoff);
+        cache.entry(slot).or_default().insert(aggregator_index);
+    }
+
+    fn safe_vote_aggregator_seen(
+        &self,
+        round: Round,
+        aggregator_index: u64,
+        data_root: Hash256,
+    ) -> bool {
+        self.safe_vote_aggregators
+            .lock()
+            .get(&round)
+            .is_some_and(|aggregators| aggregators.contains(&(aggregator_index, data_root)))
+    }
+
+    fn mark_safe_vote_aggregator(&self, round: Round, aggregator_index: u64, data_root: Hash256) {
+        let mut cache = self.safe_vote_aggregators.lock();
+        let cutoff = round.saturating_sub(SEEN_RETENTION);
+        *cache = cache.split_off(&cutoff);
+        cache
+            .entry(round)
+            .or_default()
+            .insert((aggregator_index, data_root));
+    }
+
+    fn fg_attestation_aggregator_seen(
+        &self,
+        round: Round,
+        aggregator_index: u64,
+        data_root: Hash256,
+    ) -> bool {
+        self.fg_attestation_aggregators
+            .lock()
+            .get(&round)
+            .is_some_and(|aggregators| aggregators.contains(&(aggregator_index, data_root)))
+    }
+
+    fn mark_fg_attestation_aggregator(
+        &self,
+        round: Round,
+        aggregator_index: u64,
+        data_root: Hash256,
+    ) {
+        let mut cache = self.fg_attestation_aggregators.lock();
+        let cutoff = round.saturating_sub(SEEN_RETENTION);
+        *cache = cache.split_off(&cutoff);
+        cache
+            .entry(round)
+            .or_default()
+            .insert((aggregator_index, data_root));
+    }
+}
+
+/// `verify_head_vote_payload_status` from the p2p spec: the payload status is consistent with
+/// the block being voted for.
+///
+/// The spec's separate optimistic/invalidated verdicts collapse into the payload-verified
+/// check — see the module docs.
+fn check_head_vote_payload_status<E: EthSpec>(
+    fg: &FgForkChoiceStore<E>,
+    data: &HeadVoteData,
+    block_slot: Slot,
+) -> Result<(), Eip8453GossipError> {
+    if block_slot == data.slot && data.payload_status != PAYLOAD_STATUS_PENDING {
+        // [REJECT] A same-slot vote has a pending payload status.
+        return Err(Eip8453GossipError::InvalidPayloadStatus(
+            data.payload_status,
+        ));
+    }
+    let is_payload_decision =
+        data.payload_status == PAYLOAD_STATUS_EMPTY || data.payload_status == PAYLOAD_STATUS_FULL;
+    if block_slot < data.slot && !is_payload_decision {
+        // [REJECT] A vote for an earlier block is a payload decision.
+        return Err(Eip8453GossipError::InvalidPayloadStatus(
+            data.payload_status,
+        ));
+    }
+    if data.payload_status == PAYLOAD_STATUS_FULL
+        && !fg.is_payload_verified(&data.beacon_block_root)
+    {
+        // [IGNORE] The voted payload has been seen and verified.
+        return Err(Eip8453GossipError::PayloadNotVerified(
+            data.beacon_block_root,
+        ));
+    }
+    Ok(())
+}
+
+/// [REJECT] The voters are sorted, unique and nonempty.
+fn check_voter_indices(voters: &[u64]) -> Result<(), Eip8453GossipError> {
+    if voters.is_empty() {
+        return Err(Eip8453GossipError::EmptyAggregate);
+    }
+    if !voters.windows(2).all(|pair| pair[0] < pair[1]) {
+        return Err(Eip8453GossipError::UnsortedVoters);
+    }
+    Ok(())
 }
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
@@ -299,30 +453,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 ));
             }
 
-            // `verify_head_vote_payload_status`: the payload status is consistent with the block.
-            if block_slot == data.slot && data.payload_status != PAYLOAD_STATUS_PENDING {
-                // [REJECT] A same-slot vote has a pending payload status.
-                return Err(Eip8453GossipError::InvalidPayloadStatus(
-                    data.payload_status,
-                ));
-            }
-            let is_payload_decision = data.payload_status == PAYLOAD_STATUS_EMPTY
-                || data.payload_status == PAYLOAD_STATUS_FULL;
-            if block_slot < data.slot && !is_payload_decision {
-                // [REJECT] A vote for an earlier block is a payload decision.
-                return Err(Eip8453GossipError::InvalidPayloadStatus(
-                    data.payload_status,
-                ));
-            }
-            if data.payload_status == PAYLOAD_STATUS_FULL
-                && !fg.is_payload_verified(&data.beacon_block_root)
-            {
-                // [IGNORE] The voted payload has been seen and verified. (The spec's separate
-                // optimistic/invalidated verdicts collapse into this check — see module docs.)
-                return Err(Eip8453GossipError::PayloadNotVerified(
-                    data.beacon_block_root,
-                ));
-            }
+            // The payload status is consistent with the block being voted for.
+            check_head_vote_payload_status(fg, data, block_slot)?;
 
             // [REJECT] The validator is a member of the head vote committee.
             let on_committee = fg
@@ -638,6 +770,393 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         )
         .map_err(|e| Eip8453GossipError::InvalidSlashing(format!("{e:?}")))?;
 
+        Ok(())
+    }
+
+    /// `validate_head_vote_aggregate_gossip` from the p2p spec.
+    pub fn eip8453_verify_head_vote_aggregate_for_gossip(
+        &self,
+        signed_aggregate: &SignedHeadVoteAggregateAndProof<T::EthSpec>,
+    ) -> Result<(), Eip8453GossipError> {
+        let message = &signed_aggregate.message;
+        let aggregate = &message.aggregate;
+        let data = &aggregate.data;
+        let aggregator_index = message.aggregator_index;
+        let voters: Vec<u64> = aggregate.voter_indices.iter().copied().collect();
+
+        // [IGNORE] This is the first aggregate from this aggregator for the slot.
+        if self
+            .eip8453_observed_gossip
+            .head_vote_aggregator_seen(data.slot, aggregator_index)
+        {
+            return Err(Eip8453GossipError::PriorAggregateKnown { aggregator_index });
+        }
+
+        // [IGNORE] The aggregate is for the current slot (with clock disparity).
+        let (earliest, latest) = self.eip8453_gossip_slot_range()?;
+        if data.slot < earliest || data.slot > latest {
+            return Err(Eip8453GossipError::NotCurrentSlot {
+                vote_slot: data.slot,
+                current_slot: latest,
+            });
+        }
+
+        self.eip8453_tick_fg_to_now()
+            .map_err(|e| internal(format!("fg tick: {e:?}")))?;
+
+        {
+            let fork_choice = self.canonical_head.fork_choice_read_lock();
+            let fg = fork_choice
+                .fg()
+                .ok_or_else(|| internal("fg fork choice not active"))?;
+
+            // [IGNORE] The block being voted for has been seen.
+            let block_slot = fg
+                .block_slot(&data.beacon_block_root)
+                .ok_or(Eip8453GossipError::UnknownBlock(data.beacon_block_root))?;
+
+            // [REJECT] The block being voted for is not from a later slot than the vote.
+            if block_slot > data.slot {
+                return Err(Eip8453GossipError::BlockFromFuture {
+                    block_slot,
+                    vote_slot: data.slot,
+                });
+            }
+
+            // The payload status is consistent with the block being voted for.
+            check_head_vote_payload_status(fg, data, block_slot)?;
+
+            // [REJECT] The voters are sorted, unique, nonempty committee members, and the
+            // aggregator is a member of the committee.
+            let committee = fg
+                .committee_at_slot(data.slot)
+                .map_err(|e| internal(format!("head vote committee: {e:?}")))?;
+            check_voter_indices(&voters)?;
+            for &validator_index in &voters {
+                if !committee.contains(&validator_index) {
+                    return Err(Eip8453GossipError::NotInCommittee { validator_index });
+                }
+            }
+            if !committee.contains(&aggregator_index) {
+                return Err(Eip8453GossipError::NotInCommittee {
+                    validator_index: aggregator_index,
+                });
+            }
+        }
+
+        // [REJECT] The selection proof selects the aggregator and verifies.
+        if !is_selected_aggregator(
+            &message.selection_proof,
+            T::EthSpec::head_vote_committee_size() as u64,
+            self.spec.target_aggregators_per_committee,
+        ) {
+            return Err(Eip8453GossipError::NotSelectedAggregator(aggregator_index));
+        }
+        let head = self.head_snapshot();
+        let fork = head.beacon_state.fork();
+        let genesis_validators_root = head.beacon_state.genesis_validators_root();
+        let selection_root = head_vote_aggregator_selection_root::<T::EthSpec>(
+            data.slot,
+            &fork,
+            genesis_validators_root,
+            &self.spec,
+        );
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            message.selection_proof.verify(pk, selection_root)
+        })
+        .map_err(|_| Eip8453GossipError::InvalidSelectionProof(aggregator_index))?;
+
+        // [REJECT] The wrapper signature is valid.
+        let wrapper_root = message.compute_signing_root(&fork, genesis_validators_root, &self.spec);
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            signed_aggregate.signature.verify(pk, wrapper_root)
+        })?;
+
+        // [REJECT] The aggregate signature is valid.
+        let aggregate_root =
+            data.compute_signing_root::<T::EthSpec>(&fork, genesis_validators_root, &self.spec);
+        self.eip8453_verify_aggregate_signature(&voters, aggregate_root, &aggregate.signature)?;
+
+        self.eip8453_observed_gossip
+            .mark_head_vote_aggregator(data.slot, aggregator_index);
+        Ok(())
+    }
+
+    /// `validate_safe_vote_aggregate_gossip` from the p2p spec. One aggregate per distinct
+    /// `SafeVoteData` per aggregator propagates, so equivocation evidence aggregates too.
+    pub fn eip8453_verify_safe_vote_aggregate_for_gossip(
+        &self,
+        signed_aggregate: &SignedSafeVoteAggregateAndProof<T::EthSpec>,
+    ) -> Result<(), Eip8453GossipError> {
+        let message = &signed_aggregate.message;
+        let aggregate = &message.aggregate;
+        let data = &aggregate.data;
+        let aggregator_index = message.aggregator_index;
+        let voters: Vec<u64> = aggregate.voter_indices.iter().copied().collect();
+        let round_start_slot = compute_start_slot_at_round::<T::EthSpec>(data.round);
+        let round_epoch = round_start_slot.epoch(T::EthSpec::slots_per_epoch());
+        let data_root = data.tree_hash_root();
+
+        // [IGNORE] This is the first aggregate from this aggregator for the data.
+        if self.eip8453_observed_gossip.safe_vote_aggregator_seen(
+            data.round,
+            aggregator_index,
+            data_root,
+        ) {
+            return Err(Eip8453GossipError::PriorAggregateKnown { aggregator_index });
+        }
+
+        // [IGNORE] The safe vote is for the current round (with clock disparity).
+        let (earliest_slot, latest_slot) = self.eip8453_gossip_slot_range()?;
+        let earliest_round = compute_round_at_slot::<T::EthSpec>(earliest_slot);
+        let latest_round = compute_round_at_slot::<T::EthSpec>(latest_slot);
+        if data.round < earliest_round || data.round > latest_round {
+            return Err(Eip8453GossipError::NotCurrentRound {
+                vote_round: data.round,
+                current_round: latest_round,
+            });
+        }
+
+        self.eip8453_tick_fg_to_now()
+            .map_err(|e| internal(format!("fg tick: {e:?}")))?;
+
+        {
+            let fork_choice = self.canonical_head.fork_choice_read_lock();
+            let fg = fork_choice
+                .fg()
+                .ok_or_else(|| internal("fg fork choice not active"))?;
+
+            // [IGNORE] The block being voted for has been seen.
+            if fg.block_slot(&data.beacon_block_root).is_none() {
+                return Err(Eip8453GossipError::UnknownBlock(data.beacon_block_root));
+            }
+        }
+
+        // [REJECT] The voters are sorted, unique, nonempty active validators; the aggregator is
+        // active and selected by its proof.
+        check_voter_indices(&voters)?;
+        let head = self.head_snapshot();
+        let state = &head.beacon_state;
+        for &validator_index in voters.iter().chain(std::iter::once(&aggregator_index)) {
+            let is_active = state
+                .validators()
+                .get(validator_index as usize)
+                .ok_or(Eip8453GossipError::UnknownValidator(validator_index))?
+                .is_active_at(round_epoch);
+            if !is_active {
+                return Err(Eip8453GossipError::InactiveValidator(validator_index));
+            }
+        }
+        let active_count = state
+            .get_active_validator_indices(round_epoch, &self.spec)
+            .map_err(|e| internal(format!("active validators: {e:?}")))?
+            .len() as u64;
+        let members = active_count
+            .checked_div(T::EthSpec::slots_per_round().saturating_sub(2))
+            .unwrap_or(0);
+        if !is_selected_aggregator(
+            &message.selection_proof,
+            members,
+            self.spec.target_aggregators_per_committee,
+        ) {
+            return Err(Eip8453GossipError::NotSelectedAggregator(aggregator_index));
+        }
+        let fork = state.fork();
+        let genesis_validators_root = state.genesis_validators_root();
+        let selection_root = round_aggregator_selection_root::<T::EthSpec>(
+            data.round,
+            Domain::SafeVoteAggregator,
+            &fork,
+            genesis_validators_root,
+            &self.spec,
+        );
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            message.selection_proof.verify(pk, selection_root)
+        })
+        .map_err(|_| Eip8453GossipError::InvalidSelectionProof(aggregator_index))?;
+
+        // [REJECT] The wrapper signature is valid.
+        let wrapper_root = message.compute_signing_root(&fork, genesis_validators_root, &self.spec);
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            signed_aggregate.signature.verify(pk, wrapper_root)
+        })?;
+
+        // [REJECT] The aggregate signature is valid.
+        let aggregate_root =
+            data.compute_signing_root::<T::EthSpec>(&fork, genesis_validators_root, &self.spec);
+        self.eip8453_verify_aggregate_signature(&voters, aggregate_root, &aggregate.signature)?;
+
+        self.eip8453_observed_gossip.mark_safe_vote_aggregator(
+            data.round,
+            aggregator_index,
+            data_root,
+        );
+        Ok(())
+    }
+
+    /// `validate_attestation_aggregate_gossip` from the p2p spec. Dedup uses the data and
+    /// aggregator, since an FG aggregate's epoch is not signed; the selection proof signs the
+    /// current round (a clock fact — FG attestations carry no slot).
+    pub fn eip8453_verify_attestation_aggregate_for_gossip(
+        &self,
+        signed_aggregate: &SignedAttestationAggregateAndProof<T::EthSpec>,
+    ) -> Result<(), Eip8453GossipError> {
+        let message = &signed_aggregate.message;
+        let aggregate = &message.aggregate;
+        let aggregator_index = message.aggregator_index;
+        let data_root = aggregate.data.tree_hash_root();
+
+        let (_, latest_slot) = self.eip8453_gossip_slot_range()?;
+        let current_round = compute_round_at_slot::<T::EthSpec>(latest_slot);
+        let aggregation_epoch = compute_start_slot_at_round::<T::EthSpec>(current_round)
+            .epoch(T::EthSpec::slots_per_epoch());
+
+        // [IGNORE] This is the first aggregate from this aggregator for the data.
+        if self.eip8453_observed_gossip.fg_attestation_aggregator_seen(
+            current_round,
+            aggregator_index,
+            data_root,
+        ) {
+            return Err(Eip8453GossipError::PriorAggregateKnown { aggregator_index });
+        }
+
+        // [REJECT] The attestation data is well formed and valid for the state.
+        if !aggregate.data.is_well_formed() {
+            return Err(Eip8453GossipError::MalformedData);
+        }
+        // The spec verifies against the PULLED-UP head state: `target_checkpoint` back-fills at
+        // slot boundaries, so an honest aggregate built from the current slot's view can be
+        // invalid against the unadvanced head post-state.
+        let head = self.head_snapshot();
+        let mut pulled_up;
+        let state = if head.beacon_state.slot() < latest_slot {
+            pulled_up = head.beacon_state.clone();
+            partial_state_advance(
+                &mut pulled_up,
+                Some(head.beacon_state_root()),
+                latest_slot,
+                None,
+                &self.spec,
+            )
+            .map_err(|e| internal(format!("pull up head state: {e:?}")))?;
+            &pulled_up
+        } else {
+            &head.beacon_state
+        };
+        if !is_valid_attestation_data(state, &aggregate.data)
+            .map_err(|e| internal(format!("attestation data: {e:?}")))?
+        {
+            return Err(Eip8453GossipError::StaleAggregateData(format!(
+                "attestation data {:?} is not valid for the head state (slot {:?}, target {:?})",
+                aggregate.data,
+                state.slot(),
+                state.target_checkpoint(),
+            )));
+        }
+
+        // [REJECT] The aggregation bits match the committees of the epoch.
+        let attesting_indices = get_attesting_indices_eip8453(state, aggregate, &self.spec)
+            .map_err(|e| Eip8453GossipError::InvalidAggregate(format!("{e:?}")))?;
+        if attesting_indices.is_empty() {
+            return Err(Eip8453GossipError::EmptyAggregate);
+        }
+
+        // [REJECT] The aggregator sits on a committee marked in the aggregate and its proof
+        // selects it.
+        let mut aggregator_committee_len = None;
+        for committee_index in 0..T::EthSpec::attestation_committees_per_round() as u64 {
+            if !aggregate
+                .committee_bits
+                .get(committee_index as usize)
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            let committee = state
+                .get_attestation_committee(aggregate.epoch, committee_index, &self.spec)
+                .map_err(|e| internal(format!("attestation committee: {e:?}")))?;
+            if committee.contains(&(aggregator_index as usize)) {
+                aggregator_committee_len = Some(committee.len() as u64);
+                break;
+            }
+        }
+        let Some(members) = aggregator_committee_len else {
+            return Err(Eip8453GossipError::NotInCommittee {
+                validator_index: aggregator_index,
+            });
+        };
+        if !is_selected_aggregator(
+            &message.selection_proof,
+            members,
+            self.spec.target_aggregators_per_committee,
+        ) {
+            return Err(Eip8453GossipError::NotSelectedAggregator(aggregator_index));
+        }
+        let fork = state.fork();
+        let genesis_validators_root = state.genesis_validators_root();
+        let selection_root = round_aggregator_selection_root::<T::EthSpec>(
+            current_round,
+            Domain::AttestationAggregator,
+            &fork,
+            genesis_validators_root,
+            &self.spec,
+        );
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            message.selection_proof.verify(pk, selection_root)
+        })
+        .map_err(|_| Eip8453GossipError::InvalidSelectionProof(aggregator_index))?;
+
+        // [REJECT] The wrapper signature is valid.
+        let wrapper_root = message.compute_signing_root(
+            aggregation_epoch,
+            &fork,
+            genesis_validators_root,
+            &self.spec,
+        );
+        self.eip8453_verify_gossip_signature(aggregator_index, |pk| {
+            signed_aggregate.signature.verify(pk, wrapper_root)
+        })?;
+
+        // [REJECT] The aggregate attestation signature is valid.
+        let aggregate_root = aggregate.data.signing_root_at_epoch(
+            aggregate.epoch,
+            &fork,
+            genesis_validators_root,
+            &self.spec,
+        );
+        let attesting: Vec<u64> = attesting_indices
+            .iter()
+            .map(|&index| index as u64)
+            .collect();
+        self.eip8453_verify_aggregate_signature(&attesting, aggregate_root, &aggregate.signature)?;
+
+        self.eip8453_observed_gossip.mark_fg_attestation_aggregator(
+            current_round,
+            aggregator_index,
+            data_root,
+        );
+        Ok(())
+    }
+
+    /// [REJECT] A `FastAggregateVerify` of `signature` over the voters' pubkeys.
+    fn eip8453_verify_aggregate_signature(
+        &self,
+        voters: &[u64],
+        signing_root: Hash256,
+        signature: &bls::AggregateSignature,
+    ) -> Result<(), Eip8453GossipError> {
+        let pubkey_cache = self.validator_pubkey_cache.read();
+        let mut pubkeys = Vec::with_capacity(voters.len());
+        for &validator_index in voters {
+            pubkeys.push(
+                pubkey_cache
+                    .get(validator_index as usize)
+                    .ok_or(Eip8453GossipError::UnknownValidator(validator_index))?,
+            );
+        }
+        if !signature.fast_aggregate_verify(signing_root, &pubkeys) {
+            return Err(Eip8453GossipError::InvalidAggregateSignature);
+        }
         Ok(())
     }
 

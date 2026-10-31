@@ -58,6 +58,15 @@ pub enum SignableMessage<'a, E: EthSpec, Payload: AbstractExecPayload<E> = FullP
     Eip8453HeadVote(&'a eip8453::HeadVoteData),
     Eip8453SafeVote(&'a eip8453::SafeVoteData),
     Eip8453FgAttestation(&'a eip8453::AttestationData),
+    /// The head-vote aggregator selection proof signs the slot (under
+    /// `DOMAIN_HEAD_VOTE_AGGREGATOR`).
+    Eip8453HeadVoteAggregatorSlot(Slot),
+    /// The safe-vote and FG-attestation aggregator selection proofs sign the round (the domain
+    /// in the signing context distinguishes them).
+    Eip8453AggregatorRound(u64),
+    Eip8453HeadVoteAggregate(&'a eip8453::HeadVoteAggregateAndProof<E>),
+    Eip8453SafeVoteAggregate(&'a eip8453::SafeVoteAggregateAndProof<E>),
+    Eip8453AttestationAggregate(&'a eip8453::AttestationAggregateAndProof<E>),
 }
 
 impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignableMessage<'_, E, Payload> {
@@ -86,6 +95,15 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignableMessage<'_, E, Payload
             SignableMessage::Eip8453HeadVote(d) => d.signing_root(domain),
             SignableMessage::Eip8453SafeVote(d) => d.signing_root(domain),
             SignableMessage::Eip8453FgAttestation(d) => d.signing_root(domain),
+            SignableMessage::Eip8453HeadVoteAggregatorSlot(slot) => slot.signing_root(domain),
+            // A round is a bare uint64 like a slot, so the slot's signing-root path computes the
+            // identical hash.
+            SignableMessage::Eip8453AggregatorRound(round) => {
+                Slot::new(*round).signing_root(domain)
+            }
+            SignableMessage::Eip8453HeadVoteAggregate(a) => a.signing_root(domain),
+            SignableMessage::Eip8453SafeVoteAggregate(a) => a.signing_root(domain),
+            SignableMessage::Eip8453AttestationAggregate(a) => a.signing_root(domain),
         }
     }
 }
@@ -262,7 +280,12 @@ impl SigningMethod {
                     // EIP8453-STUB: web3signer has no EIP-8453 message types.
                     SignableMessage::Eip8453HeadVote(_)
                     | SignableMessage::Eip8453SafeVote(_)
-                    | SignableMessage::Eip8453FgAttestation(_) => {
+                    | SignableMessage::Eip8453FgAttestation(_)
+                    | SignableMessage::Eip8453HeadVoteAggregatorSlot(_)
+                    | SignableMessage::Eip8453AggregatorRound(_)
+                    | SignableMessage::Eip8453HeadVoteAggregate(_)
+                    | SignableMessage::Eip8453SafeVoteAggregate(_)
+                    | SignableMessage::Eip8453AttestationAggregate(_) => {
                         return Err(Error::Eip8453Web3SignerNotSupported);
                     }
                 };

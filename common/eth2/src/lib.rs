@@ -4440,6 +4440,87 @@ impl BeaconNodeHttpClient {
             .push("eip8453_fg_attestations");
         self.post(path, &attestations).await
     }
+
+    /// `GET validator/eip8453_head_vote_aggregates?slot` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_head_vote_aggregates<E: EthSpec>(
+        &self,
+        slot: Slot,
+    ) -> Result<GenericResponse<Vec<types::eip8453::HeadVote<E>>>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_head_vote_aggregates");
+        path.query_pairs_mut()
+            .append_pair("slot", &slot.to_string());
+        self.get(path).await
+    }
+
+    /// `GET validator/eip8453_safe_vote_aggregates?round` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_safe_vote_aggregates<E: EthSpec>(
+        &self,
+        round: u64,
+    ) -> Result<GenericResponse<Eip8453SafeVoteAggregates<E>>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_safe_vote_aggregates");
+        path.query_pairs_mut()
+            .append_pair("round", &round.to_string());
+        self.get(path).await
+    }
+
+    /// `GET validator/eip8453_fg_attestation_aggregates` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_fg_attestation_aggregates<E: EthSpec>(
+        &self,
+    ) -> Result<GenericResponse<Vec<types::eip8453::Attestation<E>>>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_fg_attestation_aggregates");
+        self.get(path).await
+    }
+
+    /// `POST validator/eip8453_head_vote_aggregates` (EIP-8453 prototype)
+    pub async fn post_validator_eip8453_head_vote_aggregates<E: EthSpec>(
+        &self,
+        aggregates: &[types::eip8453::SignedHeadVoteAggregateAndProof<E>],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_head_vote_aggregates");
+        self.post(path, &aggregates).await
+    }
+
+    /// `POST validator/eip8453_safe_vote_aggregates` (EIP-8453 prototype)
+    pub async fn post_validator_eip8453_safe_vote_aggregates<E: EthSpec>(
+        &self,
+        aggregates: &[types::eip8453::SignedSafeVoteAggregateAndProof<E>],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_safe_vote_aggregates");
+        self.post(path, &aggregates).await
+    }
+
+    /// `POST validator/eip8453_attestation_aggregates` (EIP-8453 prototype)
+    pub async fn post_validator_eip8453_attestation_aggregates<E: EthSpec>(
+        &self,
+        aggregates: &[types::eip8453::SignedAttestationAggregateAndProof<E>],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_attestation_aggregates");
+        self.post(path, &aggregates).await
+    }
 }
 
 #[cfg(test)]

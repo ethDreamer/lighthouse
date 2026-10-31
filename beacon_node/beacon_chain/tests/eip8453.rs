@@ -6,18 +6,20 @@
 use beacon_chain::eip8453_gossip::Eip8453GossipError;
 use beacon_chain::test_utils::BeaconChainHarness;
 use ssz::{BitVector, ProgressiveBitList};
-use ssz_types::ProgressiveVariableList;
+use ssz_types::{ProgressiveVariableList, VariableList};
 use state_processing::per_slot_processing;
 use state_processing::upgrade::gloas::GloasVerificationContext;
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use types::Domain;
 use types::consts::gloas::{PAYLOAD_STATUS_EMPTY, PAYLOAD_STATUS_FULL, PAYLOAD_STATUS_PENDING};
 use types::{
     BeaconState, ChainSpec, EthSpec, ForkName, Hash256, MinimalEthSpec, Slot,
     eip8453::{
         self, HeadVoteData, HeadVoteMessage, HeightCheckpoint, SafeVoteData, SafeVoteMessage,
         compute_attestation_committee_slot, compute_round_at_slot,
-        compute_subnet_for_fg_attestation,
+        compute_subnet_for_fg_attestation, head_vote_aggregator_selection_root,
+        is_selected_aggregator, round_aggregator_selection_root,
     },
 };
 
@@ -741,6 +743,263 @@ async fn eip8453_gossip_validation() {
             .chain
             .eip8453_verify_attester_slashing_for_gossip(&bad_signature),
         Err(Eip8453GossipError::InvalidSlashing(_))
+    ));
+
+    // === head_vote_aggregate topic ===
+    let round = compute_round_at_slot::<E>(slot);
+    let head_vote_selection_root = head_vote_aggregator_selection_root::<E>(
+        slot,
+        &state.fork(),
+        state.genesis_validators_root(),
+        &spec,
+    );
+    let make_head_vote_aggregate = |voters: Vec<usize>, aggregator: usize| {
+        let mut sorted = voters.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        let mut signature = bls::AggregateSignature::infinity();
+        for &voter in &sorted {
+            signature.add_assign(&sign_head_vote(voter, same_slot_vote).signature);
+        }
+        let message = eip8453::HeadVoteAggregateAndProof::<E> {
+            aggregator_index: aggregator as u64,
+            aggregate: eip8453::HeadVote {
+                voter_indices: VariableList::new(voters.iter().map(|&v| v as u64).collect())
+                    .unwrap(),
+                data: same_slot_vote,
+                signature,
+            },
+            selection_proof: harness.validator_keypairs[aggregator]
+                .sk
+                .sign(head_vote_selection_root),
+        };
+        let wrapper_root =
+            message.compute_signing_root(&state.fork(), state.genesis_validators_root(), &spec);
+        eip8453::SignedHeadVoteAggregateAndProof {
+            signature: harness.validator_keypairs[aggregator].sk.sign(wrapper_root),
+            message,
+        }
+    };
+
+    // At minimal scale every committee member's proof selects it (modulo 1).
+    assert!(is_selected_aggregator(
+        &harness.validator_keypairs[voter_b]
+            .sk
+            .sign(head_vote_selection_root),
+        E::head_vote_committee_size() as u64,
+        spec.target_aggregators_per_committee,
+    ));
+
+    // A valid aggregate passes; the aggregator's second aggregate this slot is ignored.
+    harness
+        .chain
+        .eip8453_verify_head_vote_aggregate_for_gossip(&make_head_vote_aggregate(
+            vec![voter_a, voter_b],
+            voter_b,
+        ))
+        .expect("valid head vote aggregate");
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_head_vote_aggregate_for_gossip(&make_head_vote_aggregate(
+                vec![voter_a],
+                voter_b
+            )),
+        Err(Eip8453GossipError::PriorAggregateKnown { .. })
+    ));
+
+    // Duplicate voters are rejected; a non-member aggregator is rejected; a selection proof for
+    // the wrong slot is rejected.
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_head_vote_aggregate_for_gossip(&make_head_vote_aggregate(
+                vec![voter_a, voter_a],
+                voter_a
+            )),
+        Err(Eip8453GossipError::UnsortedVoters)
+    ));
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_head_vote_aggregate_for_gossip(&make_head_vote_aggregate(
+                vec![voter_a],
+                non_member
+            )),
+        Err(Eip8453GossipError::NotInCommittee { .. })
+    ));
+    let mut wrong_proof = make_head_vote_aggregate(vec![voter_a], voter_a);
+    wrong_proof.message.selection_proof =
+        harness.validator_keypairs[voter_a]
+            .sk
+            .sign(head_vote_aggregator_selection_root::<E>(
+                Slot::new(2),
+                &state.fork(),
+                state.genesis_validators_root(),
+                &spec,
+            ));
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_head_vote_aggregate_for_gossip(&wrong_proof),
+        Err(Eip8453GossipError::InvalidSelectionProof(_))
+    ));
+
+    // === safe_vote_aggregate topic ===
+    let safe_vote_selection_root = round_aggregator_selection_root::<E>(
+        round,
+        Domain::SafeVoteAggregator,
+        &state.fork(),
+        state.genesis_validators_root(),
+        &spec,
+    );
+    let make_safe_vote_aggregate = |voters: Vec<usize>, data: SafeVoteData, aggregator: usize| {
+        let mut signature = bls::AggregateSignature::infinity();
+        for &voter in &voters {
+            signature.add_assign(&sign_safe_vote(voter, data).signature);
+        }
+        let message = eip8453::SafeVoteAggregateAndProof::<E> {
+            aggregator_index: aggregator as u64,
+            aggregate: eip8453::SafeVote {
+                voter_indices: ProgressiveVariableList::new(
+                    voters.iter().map(|&v| v as u64).collect(),
+                )
+                .unwrap(),
+                data,
+                signature,
+            },
+            selection_proof: harness.validator_keypairs[aggregator]
+                .sk
+                .sign(safe_vote_selection_root),
+        };
+        let wrapper_root =
+            message.compute_signing_root(&state.fork(), state.genesis_validators_root(), &spec);
+        eip8453::SignedSafeVoteAggregateAndProof {
+            signature: harness.validator_keypairs[aggregator].sk.sign(wrapper_root),
+            message,
+        }
+    };
+
+    // A valid aggregate passes; the same aggregator passes a second DISTINCT data (equivocation
+    // evidence aggregates too) but not the same data twice.
+    harness
+        .chain
+        .eip8453_verify_safe_vote_aggregate_for_gossip(&make_safe_vote_aggregate(
+            vec![4, 5],
+            first_vote,
+            5,
+        ))
+        .expect("valid safe vote aggregate");
+    harness
+        .chain
+        .eip8453_verify_safe_vote_aggregate_for_gossip(&make_safe_vote_aggregate(
+            vec![4, 5],
+            second_vote,
+            5,
+        ))
+        .expect("a second distinct-data aggregate from the same aggregator propagates");
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_safe_vote_aggregate_for_gossip(&make_safe_vote_aggregate(
+                vec![4],
+                first_vote,
+                5
+            )),
+        Err(Eip8453GossipError::PriorAggregateKnown { .. })
+    ));
+
+    // A bad wrapper signature is rejected.
+    let mut bad_wrapper = make_safe_vote_aggregate(vec![4], first_vote, 6);
+    bad_wrapper.signature = harness.validator_keypairs[7]
+        .sk
+        .sign(Hash256::repeat_byte(0x01));
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_safe_vote_aggregate_for_gossip(&bad_wrapper),
+        Err(Eip8453GossipError::InvalidSignature(_))
+    ));
+
+    // === attestation_aggregate topic ===
+    // Feed two correctly signed singles and let the chain build the spec-shaped aggregate.
+    harness
+        .chain
+        .eip8453_import_verified_fg_attestation(sign_fg_attestation(attester, attester as usize));
+    harness
+        .chain
+        .eip8453_import_verified_fg_attestation(sign_fg_attestation(
+            other_attester,
+            other_attester as usize,
+        ));
+    let fg_aggregate = harness
+        .chain
+        .eip8453_build_fg_attestation_aggregates()
+        .expect("fg aggregates build")
+        .into_iter()
+        .next()
+        .expect("one aggregate");
+    let fg_selection_root = round_aggregator_selection_root::<E>(
+        round,
+        Domain::AttestationAggregator,
+        &state.fork(),
+        state.genesis_validators_root(),
+        &spec,
+    );
+    let fg_aggregator = attestation_committee
+        .iter()
+        .map(|&index| index as u64)
+        .find(|&index| {
+            let proof = harness.validator_keypairs[index as usize]
+                .sk
+                .sign(fg_selection_root);
+            is_selected_aggregator(
+                &proof,
+                attestation_committee.len() as u64,
+                spec.target_aggregators_per_committee,
+            )
+        })
+        .expect("some committee member is a selected FG aggregator");
+    let fg_message = eip8453::AttestationAggregateAndProof::<E> {
+        aggregator_index: fg_aggregator,
+        aggregate: fg_aggregate,
+        selection_proof: harness.validator_keypairs[fg_aggregator as usize]
+            .sk
+            .sign(fg_selection_root),
+    };
+    let aggregation_epoch = Slot::new(round * E::slots_per_round()).epoch(E::slots_per_epoch());
+    let fg_wrapper_root = fg_message.compute_signing_root(
+        aggregation_epoch,
+        &state.fork(),
+        state.genesis_validators_root(),
+        &spec,
+    );
+    let signed_fg_aggregate = eip8453::SignedAttestationAggregateAndProof {
+        signature: harness.validator_keypairs[fg_aggregator as usize]
+            .sk
+            .sign(fg_wrapper_root),
+        message: fg_message,
+    };
+    harness
+        .chain
+        .eip8453_verify_attestation_aggregate_for_gossip(&signed_fg_aggregate)
+        .expect("valid FG attestation aggregate");
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_attestation_aggregate_for_gossip(&signed_fg_aggregate),
+        Err(Eip8453GossipError::PriorAggregateKnown { .. })
+    ));
+    let mut bad_fg_wrapper = signed_fg_aggregate;
+    bad_fg_wrapper.signature = harness.validator_keypairs[0]
+        .sk
+        .sign(Hash256::repeat_byte(0x01));
+    bad_fg_wrapper.message.aggregator_index = other_attester;
+    assert!(matches!(
+        harness
+            .chain
+            .eip8453_verify_attestation_aggregate_for_gossip(&bad_fg_wrapper),
+        Err(Eip8453GossipError::InvalidSelectionProof(_) | Eip8453GossipError::InvalidSignature(_))
     ));
 
     // The pooled slashing packs into the next block.

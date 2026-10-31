@@ -5,6 +5,8 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use super::Attestation;
+use crate::core::{ChainSpec, Domain, Epoch, Hash256, SignedRoot};
+use crate::fork::Fork;
 use crate::{core::EthSpec, fork::ForkName};
 
 /// An FG attestation aggregate wrapped with its aggregator's identity and selection proof, as
@@ -21,6 +23,29 @@ pub struct AttestationAggregateAndProof<E: EthSpec> {
     pub aggregator_index: u64,
     pub aggregate: Attestation<E>,
     pub selection_proof: Signature,
+}
+
+impl<E: EthSpec> SignedRoot for AttestationAggregateAndProof<E> {}
+
+impl<E: EthSpec> AttestationAggregateAndProof<E> {
+    /// The wrapper's signing root: `DOMAIN_AGGREGATE_AND_PROOF` at `aggregation_epoch` (the
+    /// epoch of the current round's start slot — a clock fact, not part of the message, since
+    /// FG attestations carry no slot).
+    pub fn compute_signing_root(
+        &self,
+        aggregation_epoch: Epoch,
+        fork: &Fork,
+        genesis_validators_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Hash256 {
+        let domain = spec.get_domain(
+            aggregation_epoch,
+            Domain::AggregateAndProof,
+            fork,
+            genesis_validators_root,
+        );
+        self.signing_root(domain)
+    }
 }
 
 /// A signed [`AttestationAggregateAndProof`]. The signature is made under

@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
-use super::SafeVote;
+use super::{SafeVote, compute_start_slot_at_round};
+use crate::core::{ChainSpec, Domain, Hash256, SignedRoot};
+use crate::fork::Fork;
 use crate::{core::EthSpec, fork::ForkName};
 
 /// A safe vote aggregate wrapped with its aggregator's identity and selection proof
@@ -19,6 +21,29 @@ pub struct SafeVoteAggregateAndProof<E: EthSpec> {
     pub aggregator_index: u64,
     pub aggregate: SafeVote<E>,
     pub selection_proof: Signature,
+}
+
+impl<E: EthSpec> SignedRoot for SafeVoteAggregateAndProof<E> {}
+
+impl<E: EthSpec> SafeVoteAggregateAndProof<E> {
+    /// The wrapper's signing root: `DOMAIN_AGGREGATE_AND_PROOF` at the epoch of the vote
+    /// round's start slot.
+    pub fn compute_signing_root(
+        &self,
+        fork: &Fork,
+        genesis_validators_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Hash256 {
+        let epoch =
+            compute_start_slot_at_round::<E>(self.aggregate.data.round).epoch(E::slots_per_epoch());
+        let domain = spec.get_domain(
+            epoch,
+            Domain::AggregateAndProof,
+            fork,
+            genesis_validators_root,
+        );
+        self.signing_root(domain)
+    }
 }
 
 /// A signed [`SafeVoteAggregateAndProof`] [New in EIP8453]. The signature is made under

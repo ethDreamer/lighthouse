@@ -241,6 +241,59 @@ pub trait ValidatorStore: Send + Sync {
         finalized_height: u64,
     ) -> impl Future<Output = Result<Option<eip8453::SingleAttestation>, Error<Self::Error>>> + Send;
 
+    /// Produce an EIP-8453 head-vote aggregator selection proof: the slot signed under
+    /// `DOMAIN_HEAD_VOTE_AGGREGATOR`.
+    fn produce_eip8453_head_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        slot: Slot,
+    ) -> impl Future<Output = Result<Signature, Error<Self::Error>>> + Send;
+
+    /// Produce an EIP-8453 safe-vote aggregator selection proof: the round signed under
+    /// `DOMAIN_SAFE_VOTE_AGGREGATOR`.
+    fn produce_eip8453_safe_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> impl Future<Output = Result<Signature, Error<Self::Error>>> + Send;
+
+    /// Produce an EIP-8453 FG-attestation aggregator selection proof: the round signed under
+    /// `DOMAIN_ATTESTATION_AGGREGATOR`.
+    fn produce_eip8453_attestation_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> impl Future<Output = Result<Signature, Error<Self::Error>>> + Send;
+
+    /// Sign an EIP-8453 head vote aggregate wrapper under `DOMAIN_AGGREGATE_AND_PROOF`.
+    fn sign_eip8453_head_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: eip8453::HeadVoteAggregateAndProof<Self::E>,
+    ) -> impl Future<
+        Output = Result<eip8453::SignedHeadVoteAggregateAndProof<Self::E>, Error<Self::Error>>,
+    > + Send;
+
+    /// Sign an EIP-8453 safe vote aggregate wrapper under `DOMAIN_AGGREGATE_AND_PROOF`.
+    fn sign_eip8453_safe_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: eip8453::SafeVoteAggregateAndProof<Self::E>,
+    ) -> impl Future<
+        Output = Result<eip8453::SignedSafeVoteAggregateAndProof<Self::E>, Error<Self::Error>>,
+    > + Send;
+
+    /// Sign an EIP-8453 FG attestation aggregate wrapper under `DOMAIN_AGGREGATE_AND_PROOF` at
+    /// `aggregation_epoch` (the current round's epoch — FG attestations carry no slot).
+    fn sign_eip8453_attestation_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: eip8453::AttestationAggregateAndProof<Self::E>,
+        aggregation_epoch: Epoch,
+    ) -> impl Future<
+        Output = Result<eip8453::SignedAttestationAggregateAndProof<Self::E>, Error<Self::Error>>,
+    > + Send;
+
     /// Sign a `ProposerPreferences` message.
     fn sign_proposer_preferences(
         &self,

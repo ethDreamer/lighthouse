@@ -241,6 +241,70 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
             .await
     }
 
+    async fn produce_eip8453_head_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        slot: Slot,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        self.inner
+            .produce_eip8453_head_vote_aggregator_proof(validator_pubkey, slot)
+            .await
+    }
+
+    async fn produce_eip8453_safe_vote_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        self.inner
+            .produce_eip8453_safe_vote_aggregator_proof(validator_pubkey, round)
+            .await
+    }
+
+    async fn produce_eip8453_attestation_aggregator_proof(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        round: u64,
+    ) -> Result<Signature, StoreError<Self::Error>> {
+        self.inner
+            .produce_eip8453_attestation_aggregator_proof(validator_pubkey, round)
+            .await
+    }
+
+    async fn sign_eip8453_head_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::HeadVoteAggregateAndProof<Self::E>,
+    ) -> Result<types::eip8453::SignedHeadVoteAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        self.inner
+            .sign_eip8453_head_vote_aggregate(validator_pubkey, message)
+            .await
+    }
+
+    async fn sign_eip8453_safe_vote_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::SafeVoteAggregateAndProof<Self::E>,
+    ) -> Result<types::eip8453::SignedSafeVoteAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        self.inner
+            .sign_eip8453_safe_vote_aggregate(validator_pubkey, message)
+            .await
+    }
+
+    async fn sign_eip8453_attestation_aggregate(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        message: types::eip8453::AttestationAggregateAndProof<Self::E>,
+        aggregation_epoch: Epoch,
+    ) -> Result<types::eip8453::SignedAttestationAggregateAndProof<Self::E>, StoreError<Self::Error>>
+    {
+        self.inner
+            .sign_eip8453_attestation_aggregate(validator_pubkey, message, aggregation_epoch)
+            .await
+    }
+
     async fn sign_eip8453_safe_vote(
         &self,
         validator_pubkey: PublicKeyBytes,
