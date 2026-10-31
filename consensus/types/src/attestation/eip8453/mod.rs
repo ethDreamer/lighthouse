@@ -17,12 +17,14 @@ mod attestation;
 mod attestation_data;
 mod attester_slashing;
 mod head_vote;
+mod head_vote_aggregate_and_proof;
 mod head_vote_data;
 mod head_vote_message;
 mod height_checkpoint;
 mod indexed_attestation;
 mod pending_finality;
 mod safe_vote;
+mod safe_vote_aggregate_and_proof;
 mod safe_vote_data;
 mod safe_vote_message;
 mod single_attestation;
@@ -34,18 +36,34 @@ pub use attester_slashing::{
     is_slashable_attestation_data,
 };
 pub use head_vote::HeadVote;
+pub use head_vote_aggregate_and_proof::{
+    HeadVoteAggregateAndProof, SignedHeadVoteAggregateAndProof,
+};
 pub use head_vote_data::HeadVoteData;
 pub use head_vote_message::HeadVoteMessage;
 pub use height_checkpoint::HeightCheckpoint;
 pub use indexed_attestation::IndexedAttestation;
 pub use pending_finality::PendingFinality;
 pub use safe_vote::SafeVote;
+pub use safe_vote_aggregate_and_proof::{
+    SafeVoteAggregateAndProof, SignedSafeVoteAggregateAndProof,
+};
 pub use safe_vote_data::SafeVoteData;
 pub use safe_vote_message::SafeVoteMessage;
 pub use single_attestation::SingleAttestation;
 
 pub use crate::core::consts::eip8453::{GENESIS_ROUND, Round};
 use crate::core::{EthSpec, Slot};
+
+/// `compute_safe_vote_sub_round` from the spec: the sub-round (slot offset within the round) in
+/// which a validator casts its safe vote. A pure function of the index — it schedules bandwidth
+/// across the first `SLOTS_PER_ROUND - 2` slots of the round and carries no other meaning.
+pub fn compute_safe_vote_sub_round<E: EthSpec>(validator_index: u64) -> u64 {
+    // `slots_per_round` is a preset value of at least 3.
+    validator_index
+        .checked_rem(E::slots_per_round().saturating_sub(2))
+        .unwrap_or(0)
+}
 
 /// `compute_round_at_slot` from the spec.
 pub fn compute_round_at_slot<E: EthSpec>(slot: Slot) -> Round {

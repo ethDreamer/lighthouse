@@ -1031,6 +1031,25 @@ impl ChainSpec {
         self.payload_due
     }
 
+    /// Spec (EIP-8453): `get_head_vote_due_ms` — `HEAD_VOTE_DUE_BPS = 2500`, one quarter into
+    /// the slot. Also the safe-vote deadline within the assigned sub-round slot.
+    pub fn get_head_vote_due(&self) -> Duration {
+        self.get_slot_duration().checked_div(4).unwrap_or_default()
+    }
+
+    /// Spec (EIP-8453): `get_head_vote_support_due_ms` — `HEAD_VOTE_SUPPORT_DUE_BPS = 5000`.
+    pub fn get_head_vote_support_due(&self) -> Duration {
+        self.get_slot_duration().checked_div(2).unwrap_or_default()
+    }
+
+    /// Spec (EIP-8453): `get_view_freeze_due_ms` — `VIEW_FREEZE_DUE_BPS = 7500`.
+    pub fn get_view_freeze_due(&self) -> Duration {
+        self.get_slot_duration()
+            .saturating_mul(3)
+            .checked_div(4)
+            .unwrap_or_default()
+    }
+
     /// Spec: `get_payload_attestation_due_ms`.
     pub fn get_payload_attestation_due(&self) -> Duration {
         self.payload_attestation_due

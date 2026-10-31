@@ -4317,6 +4317,129 @@ impl BeaconNodeHttpClient {
         )
         .await
     }
+
+    /// `POST validator/duties/fg_attester/{epoch}` (EIP-8453 prototype)
+    pub async fn post_validator_duties_fg_attester(
+        &self,
+        epoch: Epoch,
+        indices: &[u64],
+    ) -> Result<DutiesResponse<Vec<FgAttesterDuty>>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("duties")
+            .push("fg_attester")
+            .push(&epoch.to_string());
+        self.post_with_timeout_and_response(
+            path,
+            &ValidatorIndexDataRef(indices),
+            self.timeouts.attester_duties,
+        )
+        .await
+    }
+
+    /// `POST validator/duties/head_vote/{epoch}` (EIP-8453 prototype)
+    pub async fn post_validator_duties_head_vote(
+        &self,
+        epoch: Epoch,
+        indices: &[u64],
+    ) -> Result<DutiesResponse<Vec<HeadVoteDuty>>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("duties")
+            .push("head_vote")
+            .push(&epoch.to_string());
+        self.post_with_timeout_and_response(
+            path,
+            &ValidatorIndexDataRef(indices),
+            self.timeouts.attester_duties,
+        )
+        .await
+    }
+
+    /// `GET validator/eip8453_head_vote_data?slot` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_head_vote_data(
+        &self,
+        slot: Slot,
+    ) -> Result<GenericResponse<types::eip8453::HeadVoteData>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_head_vote_data");
+        path.query_pairs_mut()
+            .append_pair("slot", &slot.to_string());
+        self.get(path).await
+    }
+
+    /// `GET validator/eip8453_safe_vote_data` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_safe_vote_data(
+        &self,
+    ) -> Result<GenericResponse<types::eip8453::SafeVoteData>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_safe_vote_data");
+        self.get(path).await
+    }
+
+    /// `GET validator/eip8453_fg_attestation_components` (EIP-8453 prototype)
+    pub async fn get_validator_eip8453_fg_attestation_components(
+        &self,
+    ) -> Result<GenericResponse<FgAttestationComponents>, Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("validator")
+            .push("eip8453_fg_attestation_components");
+        self.get(path).await
+    }
+
+    /// `POST beacon/pool/eip8453_head_votes` (EIP-8453 prototype)
+    pub async fn post_beacon_pool_eip8453_head_votes(
+        &self,
+        messages: &[types::eip8453::HeadVoteMessage],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("beacon")
+            .push("pool")
+            .push("eip8453_head_votes");
+        self.post(path, &messages).await
+    }
+
+    /// `POST beacon/pool/eip8453_safe_votes` (EIP-8453 prototype)
+    pub async fn post_beacon_pool_eip8453_safe_votes(
+        &self,
+        messages: &[types::eip8453::SafeVoteMessage],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("beacon")
+            .push("pool")
+            .push("eip8453_safe_votes");
+        self.post(path, &messages).await
+    }
+
+    /// `POST beacon/pool/eip8453_fg_attestations` (EIP-8453 prototype)
+    pub async fn post_beacon_pool_eip8453_fg_attestations(
+        &self,
+        attestations: &[types::eip8453::SingleAttestation],
+    ) -> Result<(), Error> {
+        let mut path = self.eth_path(V1)?;
+        path.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("beacon")
+            .push("pool")
+            .push("eip8453_fg_attestations");
+        self.post(path, &attestations).await
+    }
 }
 
 #[cfg(test)]

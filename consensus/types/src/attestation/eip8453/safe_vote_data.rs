@@ -4,8 +4,8 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Hash256, SignedRoot, consts::gloas::PayloadStatus},
-    fork::ForkName,
+    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, consts::gloas::PayloadStatus},
+    fork::{Fork, ForkName},
 };
 
 /// The data of a safe vote [New in EIP8453]: the fork-choice node (block root and payload
@@ -37,6 +37,22 @@ pub struct SafeVoteData {
 }
 
 impl SignedRoot for SafeVoteData {}
+
+impl SafeVoteData {
+    /// `get_safe_vote_signature`'s signing root: `DOMAIN_SAFE_VOTE` at the epoch of the round's
+    /// start slot.
+    pub fn compute_signing_root<E: EthSpec>(
+        &self,
+        fork: &Fork,
+        genesis_validators_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Hash256 {
+        let start_slot = super::compute_start_slot_at_round::<E>(self.round);
+        let epoch = start_slot.epoch(E::slots_per_epoch());
+        let domain = spec.get_domain(epoch, Domain::SafeVote, fork, genesis_validators_root);
+        self.signing_root(domain)
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -16,6 +16,7 @@ mod builders;
 mod caches;
 mod custody;
 mod database;
+mod eip8453;
 mod light_client;
 mod metrics;
 mod peer;
@@ -2742,6 +2743,55 @@ pub async fn serve<T: BeaconChainTypes>(
         task_spawner_filter.clone(),
     );
 
+    // EIP-8453 (prototype) validator endpoints.
+    let get_validator_eip8453_head_vote_data = eip8453::get_validator_eip8453_head_vote_data(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        not_while_syncing_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let get_validator_eip8453_safe_vote_data = eip8453::get_validator_eip8453_safe_vote_data(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        not_while_syncing_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let get_validator_eip8453_fg_attestation_components =
+        eip8453::get_validator_eip8453_fg_attestation_components(
+            eth_v1.clone(),
+            chain_filter.clone(),
+            not_while_syncing_filter.clone(),
+            task_spawner_filter.clone(),
+        );
+    let post_validator_duties_fg_attester = eip8453::post_validator_duties_fg_attester(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        not_while_syncing_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let post_validator_duties_head_vote = eip8453::post_validator_duties_head_vote(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        not_while_syncing_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let post_beacon_pool_eip8453_head_votes = eip8453::post_beacon_pool_eip8453_head_votes(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let post_beacon_pool_eip8453_safe_votes = eip8453::post_beacon_pool_eip8453_safe_votes(
+        eth_v1.clone(),
+        chain_filter.clone(),
+        task_spawner_filter.clone(),
+    );
+    let post_beacon_pool_eip8453_fg_attestations =
+        eip8453::post_beacon_pool_eip8453_fg_attestations(
+            eth_v1.clone(),
+            chain_filter.clone(),
+            task_spawner_filter.clone(),
+        );
+
     // POST validator/duties/attester/{epoch}
     let post_validator_duties_attester = post_validator_duties_attester(
         eth_v1.clone(),
@@ -3582,6 +3632,9 @@ pub async fn serve<T: BeaconChainTypes>(
                 .uor(get_validator_execution_payload_envelopes)
                 .uor(get_validator_attestation_data)
                 .uor(get_validator_payload_attestation_data)
+                .uor(get_validator_eip8453_head_vote_data)
+                .uor(get_validator_eip8453_safe_vote_data)
+                .uor(get_validator_eip8453_fg_attestation_components)
                 .uor(get_validator_aggregate_attestation)
                 .uor(get_validator_sync_committee_contribution)
                 .uor(get_lighthouse_health)
@@ -3645,6 +3698,11 @@ pub async fn serve<T: BeaconChainTypes>(
                     .uor(post_beacon_rewards_sync_committee)
                     .uor(post_validator_duties_attester)
                     .uor(post_validator_duties_ptc)
+                    .uor(post_validator_duties_fg_attester)
+                    .uor(post_validator_duties_head_vote)
+                    .uor(post_beacon_pool_eip8453_head_votes)
+                    .uor(post_beacon_pool_eip8453_safe_votes)
+                    .uor(post_beacon_pool_eip8453_fg_attestations)
                     .uor(post_validator_duties_sync)
                     .uor(post_validator_aggregate_and_proofs)
                     .uor(post_validator_contribution_and_proofs)

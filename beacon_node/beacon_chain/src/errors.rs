@@ -50,6 +50,8 @@ macro_rules! easy_from_to {
 pub enum BeaconChainError {
     InsufficientValidators,
     UnableToReadSlot,
+    /// An EIP-8453 duty or vote could not be served/processed (prototype catch-all).
+    Eip8453(String),
     UnableToComputeTimeAtSlot,
     RevertedFinalizedEpoch {
         old: Checkpoint,

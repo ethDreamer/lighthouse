@@ -1470,6 +1470,128 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         })
     }
 
+    async fn sign_eip8453_head_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: types::eip8453::HeadVoteData,
+    ) -> Result<types::eip8453::HeadVoteMessage, Error> {
+        let validator_index = self
+            .validator_index(&validator_pubkey)
+            .ok_or(ValidatorStoreError::UnknownPubkey(validator_pubkey))?;
+
+        // The one-per-slot lock, recorded (committed) before signing.
+        use tree_hash::TreeHash;
+        self.slashing_protection
+            .check_and_insert_eip8453_head_vote(
+                &validator_pubkey,
+                data.slot.as_u64(),
+                data.tree_hash_root(),
+            )
+            .map_err(ValidatorStoreError::Slashable)?;
+
+        let signing_context =
+            self.signing_context(Domain::HeadVote, data.slot.epoch(E::slots_per_epoch()));
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453HeadVote(&data),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+
+        Ok(types::eip8453::HeadVoteMessage {
+            validator_index,
+            data,
+            signature,
+        })
+    }
+
+    async fn sign_eip8453_safe_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: types::eip8453::SafeVoteData,
+    ) -> Result<types::eip8453::SafeVoteMessage, Error> {
+        let validator_index = self
+            .validator_index(&validator_pubkey)
+            .ok_or(ValidatorStoreError::UnknownPubkey(validator_pubkey))?;
+
+        // The one-per-round lock, recorded (committed) before signing.
+        use tree_hash::TreeHash;
+        self.slashing_protection
+            .check_and_insert_eip8453_safe_vote(
+                &validator_pubkey,
+                data.round,
+                data.tree_hash_root(),
+            )
+            .map_err(ValidatorStoreError::Slashable)?;
+
+        let start_slot = types::eip8453::compute_start_slot_at_round::<E>(data.round);
+        let signing_context =
+            self.signing_context(Domain::SafeVote, start_slot.epoch(E::slots_per_epoch()));
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453SafeVote(&data),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+
+        Ok(types::eip8453::SafeVoteMessage {
+            validator_index,
+            data,
+            signature,
+        })
+    }
+
+    async fn produce_eip8453_fg_attestation(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        epoch: Epoch,
+        committee_index: u64,
+        target: types::eip8453::HeightCheckpoint,
+        justified: types::eip8453::HeightCheckpoint,
+        finalized_height: u64,
+    ) -> Result<Option<types::eip8453::SingleAttestation>, Error> {
+        let attester_index = self
+            .validator_index(&validator_pubkey)
+            .ok_or(ValidatorStoreError::UnknownPubkey(validator_pubkey))?;
+
+        // Select the data through the FinalitySigningRecord rules and persist the record before
+        // signing; `None` means the history suppresses the vote.
+        let Some(data) = self
+            .slashing_protection
+            .eip8453_fg_attestation_data(&validator_pubkey, target, justified, finalized_height)
+            .map_err(ValidatorStoreError::Slashable)?
+        else {
+            return Ok(None);
+        };
+
+        let signing_context = self.signing_context(Domain::FinalityAttester, epoch);
+        let signing_method = self.doppelganger_checked_signing_method(validator_pubkey)?;
+        let signature = signing_method
+            .get_signature::<E, FullPayload<E>>(
+                SignableMessage::Eip8453FgAttestation(&data),
+                signing_context,
+                &self.spec,
+                &self.task_executor,
+            )
+            .await
+            .map_err(Error::SpecificError)?;
+        Ok(Some(types::eip8453::SingleAttestation {
+            committee_index,
+            attester_index,
+            data,
+            signature: AggregateSignature::from(&signature),
+            epoch,
+        }))
+    }
+
     /// Sign an `ExecutionPayloadEnvelope` for Gloas (local building).
     /// The proposer acts as the builder and signs with the BeaconBuilder domain.
     async fn sign_execution_payload_envelope(

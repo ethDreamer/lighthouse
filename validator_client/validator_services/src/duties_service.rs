@@ -13,7 +13,7 @@ use beacon_node_fallback::{ApiTopic, BeaconNodeFallback};
 use bls::PublicKeyBytes;
 use eth2::types::{
     AttesterData, BeaconCommitteeSelection, BeaconCommitteeSubscription, DutiesResponse,
-    InclusionListDuty, ProposerData, PtcDuty, StateId, ValidatorId,
+    FgAttesterDuty, HeadVoteDuty, InclusionListDuty, ProposerData, PtcDuty, StateId, ValidatorId,
 };
 use futures::{
     StreamExt,
@@ -86,6 +86,7 @@ pub enum Error<T> {
     FailedToDownloadAttesters(#[allow(dead_code)] String),
     FailedToDownloadPtc(#[allow(dead_code)] String),
     FailedToDownloadInclusionListDuties(#[allow(dead_code)] String),
+    FailedToDownloadEip8453Duties(#[allow(dead_code)] String),
     FailedToProduceSelectionProof(#[allow(dead_code)] ValidatorStoreError<T>),
     InvalidModulo(#[allow(dead_code)] ArithError),
     Arith(#[allow(dead_code)] ArithError),
@@ -307,6 +308,30 @@ impl LookaheadDuty for PtcDuty {
     }
 }
 
+impl LookaheadDuty for FgAttesterDuty {
+    const NAME: &'static str = "FG Attester";
+    const FETCH_METRIC: &'static str = validator_metrics::UPDATE_FG_ATTESTER_FETCH;
+    const STORE_METRIC: &'static str = validator_metrics::UPDATE_FG_ATTESTER_STORE;
+    const CURRENT_EPOCH_METRIC: &'static str = validator_metrics::UPDATE_FG_ATTESTER_CURRENT_EPOCH;
+    const NEXT_EPOCH_METRIC: &'static str = validator_metrics::UPDATE_FG_ATTESTER_NEXT_EPOCH;
+
+    fn pubkey(&self) -> PublicKeyBytes {
+        self.pubkey
+    }
+}
+
+impl LookaheadDuty for HeadVoteDuty {
+    const NAME: &'static str = "Head Vote";
+    const FETCH_METRIC: &'static str = validator_metrics::UPDATE_HEAD_VOTE_FETCH;
+    const STORE_METRIC: &'static str = validator_metrics::UPDATE_HEAD_VOTE_STORE;
+    const CURRENT_EPOCH_METRIC: &'static str = validator_metrics::UPDATE_HEAD_VOTE_CURRENT_EPOCH;
+    const NEXT_EPOCH_METRIC: &'static str = validator_metrics::UPDATE_HEAD_VOTE_NEXT_EPOCH;
+
+    fn pubkey(&self) -> PublicKeyBytes {
+        self.pubkey
+    }
+}
+
 impl LookaheadDuty for InclusionListDuty {
     const NAME: &'static str = "Inclusion List";
     const FETCH_METRIC: &'static str = validator_metrics::UPDATE_IL_DUTIES_FETCH;
@@ -326,6 +351,8 @@ type AttesterMap = HashMap<PublicKeyBytes, HashMap<Epoch, (DependentRoot, DutyAn
 type ProposerMap = HashMap<Epoch, (DependentRoot, Vec<ProposerData>)>;
 type PtcMap = HashMap<Epoch, (DependentRoot, Vec<PtcDuty>)>;
 type IlMap = HashMap<Epoch, (DependentRoot, Vec<InclusionListDuty>)>;
+type FgAttesterMap = HashMap<Epoch, (DependentRoot, Vec<FgAttesterDuty>)>;
+type HeadVoteMap = HashMap<Epoch, (DependentRoot, Vec<HeadVoteDuty>)>;
 
 pub struct DutiesServiceBuilder<S, T> {
     /// Provides the canonical list of locally-managed validators.
@@ -436,6 +463,8 @@ impl<S, T> DutiesServiceBuilder<S, T> {
             sync_duties: SyncDutiesMap::new(self.sync_selection_proof_config),
             ptc_duties: Default::default(),
             il_duties: Default::default(),
+            fg_attester_duties: Default::default(),
+            head_vote_duties: Default::default(),
             validator_store: self
                 .validator_store
                 .ok_or("Cannot build DutiesService without validator_store")?,
@@ -471,6 +500,10 @@ pub struct DutiesService<S, T> {
     pub ptc_duties: RwLock<PtcMap>,
     /// Maps an epoch to the IL committee duties for locally-managed validators.
     pub il_duties: RwLock<IlMap>,
+    /// Maps an epoch to the EIP-8453 FG attester duties for locally-managed validators.
+    pub fg_attester_duties: RwLock<FgAttesterMap>,
+    /// Maps an epoch to the EIP-8453 head vote duties for locally-managed validators.
+    pub head_vote_duties: RwLock<HeadVoteMap>,
     /// Provides the canonical list of locally-managed validators.
     pub validator_store: Arc<S>,
     /// Maps unknown validator pubkeys to the next slot time when a poll should be conducted again.
@@ -658,6 +691,38 @@ impl<S: ValidatorStore, T: SlotClock + 'static> DutiesService<S, T> {
                         .collect(),
                 )
             })
+    }
+
+    /// EIP-8453 FG attester duties at the given slot.
+    pub fn get_fg_attester_duties_for_slot(&self, slot: Slot) -> Vec<FgAttesterDuty> {
+        let epoch = slot.epoch(S::E::slots_per_epoch());
+        self.fg_attester_duties
+            .read()
+            .get(&epoch)
+            .map(|(_, duties)| {
+                duties
+                    .iter()
+                    .filter(|duty| duty.slot == slot)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// EIP-8453 head vote duties at the given slot.
+    pub fn get_head_vote_duties_for_slot(&self, slot: Slot) -> Vec<HeadVoteDuty> {
+        let epoch = slot.epoch(S::E::slots_per_epoch());
+        self.head_vote_duties
+            .read()
+            .get(&epoch)
+            .map(|(_, duties)| {
+                duties
+                    .iter()
+                    .filter(|duty| duty.slot == slot)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -847,6 +912,67 @@ pub fn start_update_service<S: ValidatorStore + 'static, T: SlotClock + 'static>
                 }
             },
             "duties_service_ptc",
+        );
+    }
+
+    // Spawn the task which keeps track of the EIP-8453 FG attester and head vote duties.
+    if core_duties_service.spec.is_eip8453_scheduled() {
+        let duties_service = core_duties_service.clone();
+        core_duties_service.executor.spawn(
+            async move {
+                loop {
+                    let Some(current_slot) = duties_service.slot_clock.now() else {
+                        sleep(duties_service.slot_clock.slot_duration()).await;
+                        continue;
+                    };
+                    let current_epoch = current_slot.epoch(S::E::slots_per_epoch());
+                    let Some(fork_epoch) = duties_service.spec.eip8453_fork_epoch else {
+                        break;
+                    };
+                    if current_epoch < fork_epoch {
+                        if let Some(duration) = duties_service.slot_clock.duration_to_next_slot() {
+                            sleep(duration).await;
+                        } else {
+                            sleep(duties_service.slot_clock.slot_duration()).await;
+                        }
+                        continue;
+                    }
+
+                    let service = &duties_service;
+                    let fetch_fg_attester = |epoch: Epoch, indices: Vec<u64>| async move {
+                        post_validator_duties_fg_attester(service, epoch, &indices).await
+                    };
+                    if let Err(e) = poll_beacon_lookahead_duties(
+                        service,
+                        &service.fg_attester_duties,
+                        fetch_fg_attester,
+                    )
+                    .await
+                    {
+                        error!(error = ?e, "Failed to poll FG attester duties");
+                    }
+                    let fetch_head_vote = |epoch: Epoch, indices: Vec<u64>| async move {
+                        post_validator_duties_head_vote(service, epoch, &indices).await
+                    };
+                    if let Err(e) = poll_beacon_lookahead_duties(
+                        service,
+                        &service.head_vote_duties,
+                        fetch_head_vote,
+                    )
+                    .await
+                    {
+                        error!(error = ?e, "Failed to poll head vote duties");
+                    }
+
+                    if let Some(duration) = duties_service.slot_clock.duration_to_next_slot() {
+                        sleep(duration).await;
+                    } else {
+                        sleep(duties_service.slot_clock.slot_duration()).await;
+                        continue;
+                    }
+                }
+            },
+            "duties_service_eip8453",
         );
     }
 
@@ -1552,6 +1678,46 @@ async fn post_validator_duties_ptc<S: ValidatorStore, T: SlotClock + 'static>(
         })
         .await
         .map_err(|e| Error::FailedToDownloadPtc(e.to_string()))
+}
+
+async fn post_validator_duties_fg_attester<S: ValidatorStore, T: SlotClock + 'static>(
+    duties_service: &Arc<DutiesService<S, T>>,
+    epoch: Epoch,
+    validator_indices: &[u64],
+) -> Result<DutiesResponse<Vec<FgAttesterDuty>>, Error<S::Error>> {
+    duties_service
+        .beacon_nodes
+        .first_success(|beacon_node| async move {
+            let _timer = validator_metrics::start_timer_vec(
+                &validator_metrics::DUTIES_SERVICE_TIMES,
+                &[validator_metrics::FG_ATTESTER_DUTIES_HTTP_POST],
+            );
+            beacon_node
+                .post_validator_duties_fg_attester(epoch, validator_indices)
+                .await
+        })
+        .await
+        .map_err(|e| Error::FailedToDownloadEip8453Duties(e.to_string()))
+}
+
+async fn post_validator_duties_head_vote<S: ValidatorStore, T: SlotClock + 'static>(
+    duties_service: &Arc<DutiesService<S, T>>,
+    epoch: Epoch,
+    validator_indices: &[u64],
+) -> Result<DutiesResponse<Vec<HeadVoteDuty>>, Error<S::Error>> {
+    duties_service
+        .beacon_nodes
+        .first_success(|beacon_node| async move {
+            let _timer = validator_metrics::start_timer_vec(
+                &validator_metrics::DUTIES_SERVICE_TIMES,
+                &[validator_metrics::HEAD_VOTE_DUTIES_HTTP_POST],
+            );
+            beacon_node
+                .post_validator_duties_head_vote(epoch, validator_indices)
+                .await
+        })
+        .await
+        .map_err(|e| Error::FailedToDownloadEip8453Duties(e.to_string()))
 }
 
 async fn post_validator_il_duties<S: ValidatorStore, T: SlotClock + 'static>(

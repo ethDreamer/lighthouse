@@ -178,6 +178,34 @@ impl ValidatorStore for MockValidatorStore {
         panic!("MockValidatorStore::sign_execution_payload_envelope called without a hook")
     }
 
+    async fn sign_eip8453_head_vote(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _data: types::eip8453::HeadVoteData,
+    ) -> Result<types::eip8453::HeadVoteMessage, StoreError<Self::Error>> {
+        panic!("MockValidatorStore::sign_eip8453_head_vote called without a hook")
+    }
+
+    async fn sign_eip8453_safe_vote(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _data: types::eip8453::SafeVoteData,
+    ) -> Result<types::eip8453::SafeVoteMessage, StoreError<Self::Error>> {
+        panic!("MockValidatorStore::sign_eip8453_safe_vote called without a hook")
+    }
+
+    async fn produce_eip8453_fg_attestation(
+        &self,
+        _validator_pubkey: PublicKeyBytes,
+        _epoch: Epoch,
+        _committee_index: u64,
+        _target: types::eip8453::HeightCheckpoint,
+        _justified: types::eip8453::HeightCheckpoint,
+        _finalized_height: u64,
+    ) -> Result<Option<types::eip8453::SingleAttestation>, StoreError<Self::Error>> {
+        panic!("MockValidatorStore::produce_eip8453_fg_attestation called without a hook")
+    }
+
     async fn sign_proposer_preferences(
         &self,
         _validator_pubkey: PublicKeyBytes,

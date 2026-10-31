@@ -47,6 +47,7 @@ use validator_services::{
     block_service::{BlockService, BlockServiceBuilder},
     builder_preferences_service::BuilderPreferencesService,
     duties_service::{self, DutiesService, DutiesServiceBuilder},
+    eip8453_service::Eip8453Service,
     latency_service,
     payload_attestation_service::PayloadAttestationService,
     preparation_service::{PreparationService, PreparationServiceBuilder},
@@ -92,6 +93,7 @@ pub struct ProductionValidatorClient<E: EthSpec> {
     attestation_service: AttestationService<ValidatorStore<E>, SystemTimeSlotClock>,
     sync_committee_service: SyncCommitteeService<ValidatorStore<E>, SystemTimeSlotClock>,
     payload_attestation_service: PayloadAttestationService<ValidatorStore<E>, SystemTimeSlotClock>,
+    eip8453_service: Eip8453Service<ValidatorStore<E>, SystemTimeSlotClock>,
     proposer_preferences_service:
         ProposerPreferencesService<ValidatorStore<E>, SystemTimeSlotClock>,
     doppelganger_service: Option<Arc<DoppelgangerService>>,
@@ -596,6 +598,15 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
             payload_available_rx,
         );
 
+        let eip8453_service = Eip8453Service::new(
+            duties_service.clone(),
+            validator_store.clone(),
+            slot_clock.clone(),
+            beacon_nodes.clone(),
+            context.executor.clone(),
+            context.eth2_config.spec.clone(),
+        );
+
         let proposer_preferences_service = ProposerPreferencesService::new(
             duties_service.clone(),
             validator_store.clone(),
@@ -623,6 +634,7 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
             attestation_service,
             sync_committee_service,
             payload_attestation_service,
+            eip8453_service,
             proposer_preferences_service,
             doppelganger_service,
             preparation_service,
@@ -721,6 +733,13 @@ impl<E: EthSpec> ProductionValidatorClient<E> {
             .clone()
             .start_update_service(&self.context.eth2_config.spec)
             .map_err(|e| format!("Unable to start sync committee service: {}", e))?;
+
+        if self.context.eth2_config.spec.is_eip8453_scheduled() {
+            self.eip8453_service
+                .clone()
+                .start_update_service()
+                .map_err(|e| format!("Unable to start EIP-8453 duty services: {}", e))?;
+        }
 
         if self.context.eth2_config.spec.is_gloas_scheduled() {
             self.payload_attestation_service

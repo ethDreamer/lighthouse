@@ -33,6 +33,7 @@ pub enum Error {
     TokioJoin(String),
     MergeForkNotSupported,
     GenesisForkVersionRequired,
+    Eip8453Web3SignerNotSupported,
 }
 
 /// Enumerates all messages that can be signed by a validator.
@@ -54,6 +55,9 @@ pub enum SignableMessage<'a, E: EthSpec, Payload: AbstractExecPayload<E> = FullP
     PayloadAttestationData(&'a PayloadAttestationData),
     ProposerPreferences(&'a ProposerPreferences),
     RequestAuth(&'a RequestAuth),
+    Eip8453HeadVote(&'a eip8453::HeadVoteData),
+    Eip8453SafeVote(&'a eip8453::SafeVoteData),
+    Eip8453FgAttestation(&'a eip8453::AttestationData),
 }
 
 impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignableMessage<'_, E, Payload> {
@@ -79,6 +83,9 @@ impl<E: EthSpec, Payload: AbstractExecPayload<E>> SignableMessage<'_, E, Payload
             SignableMessage::PayloadAttestationData(d) => d.signing_root(domain),
             SignableMessage::ProposerPreferences(p) => p.signing_root(domain),
             SignableMessage::RequestAuth(r) => r.signing_root(domain),
+            SignableMessage::Eip8453HeadVote(d) => d.signing_root(domain),
+            SignableMessage::Eip8453SafeVote(d) => d.signing_root(domain),
+            SignableMessage::Eip8453FgAttestation(d) => d.signing_root(domain),
         }
     }
 }
@@ -252,6 +259,12 @@ impl SigningMethod {
                         Web3SignerObject::proposer_preferences(p)
                     }
                     SignableMessage::RequestAuth(r) => Web3SignerObject::builder_request_auth(r),
+                    // EIP8453-STUB: web3signer has no EIP-8453 message types.
+                    SignableMessage::Eip8453HeadVote(_)
+                    | SignableMessage::Eip8453SafeVote(_)
+                    | SignableMessage::Eip8453FgAttestation(_) => {
+                        return Err(Error::Eip8453Web3SignerNotSupported);
+                    }
                 };
 
                 // Determine the Web3Signer message type.

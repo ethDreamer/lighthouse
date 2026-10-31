@@ -429,6 +429,11 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         self.committees.keys().next_back().copied()
     }
 
+    /// The slot of a known block.
+    pub fn block_slot(&self, root: &Hash256) -> Option<Slot> {
+        self.blocks.get(root).map(|meta| meta.slot)
+    }
+
     /* ---------------- Vote pools ---------------- */
 
     /// The spec's `record_head_vote`. A refused vote is not consumed.

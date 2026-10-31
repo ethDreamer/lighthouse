@@ -152,6 +152,9 @@ impl SlashingDatabase {
             )?;
         }
 
+        // The EIP-8453 finality signing record tables (idempotent).
+        crate::finality_record::apply_eip8453_schema(txn)?;
+
         Ok(())
     }
 

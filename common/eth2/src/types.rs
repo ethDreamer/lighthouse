@@ -923,6 +923,45 @@ pub struct InclusionListDuty {
     pub slot: Slot,
 }
 
+/// An EIP-8453 finality gadget attester duty: one entry per round of the epoch, in the slot
+/// assigned to the validator's attestation committee.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FgAttesterDuty {
+    pub pubkey: PublicKeyBytes,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub validator_index: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub committee_index: u64,
+    pub slot: Slot,
+}
+
+/// An EIP-8453 head vote duty: the validator holds a seat on the slot's head vote committee.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HeadVoteDuty {
+    pub pubkey: PublicKeyBytes,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub validator_index: u64,
+    pub slot: Slot,
+}
+
+/// The beacon node's single fork-choice observation backing an EIP-8453 FG attestation.
+///
+/// The validator client folds these through its `FinalitySigningRecord` rules to build (or
+/// suppress) the final `eip8453::AttestationData`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FgAttestationComponents {
+    /// `source_state.target_checkpoint`, with the root back-filled to the source block when the
+    /// source advanced the height.
+    pub target: types::eip8453::HeightCheckpoint,
+    /// `head_state.justified_checkpoint`.
+    pub justified: types::eip8453::HeightCheckpoint,
+    /// `head_state.finalized_checkpoint.height`.
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub finalized_height: u64,
+    /// `has_fresh_safe_quorum(store)`: whether a height pair may be emitted this round.
+    pub fresh_quorum: bool,
+}
+
 #[derive(Clone, Deserialize)]
 pub struct ValidatorBlocksQuery {
     pub randao_reveal: SignatureBytes,

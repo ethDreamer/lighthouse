@@ -1,6 +1,8 @@
 mod attestation_tests;
 mod block_tests;
 mod extra_interchange_tests;
+pub mod finality_record;
+mod finality_record_tests;
 pub mod interchange_test;
 mod parallel_tests;
 mod registration_tests;

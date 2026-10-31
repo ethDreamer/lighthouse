@@ -4,8 +4,8 @@ use ssz_derive::{Decode, Encode};
 use tree_hash_derive::TreeHash;
 
 use crate::{
-    core::{Hash256, SignedRoot, Slot, consts::gloas::PayloadStatus},
-    fork::ForkName,
+    core::{ChainSpec, Domain, EthSpec, Hash256, SignedRoot, Slot, consts::gloas::PayloadStatus},
+    fork::{Fork, ForkName},
 };
 
 /// The data of a head vote [New in EIP8453]: the available chain's vote for the head block.
@@ -35,6 +35,21 @@ pub struct HeadVoteData {
 }
 
 impl SignedRoot for HeadVoteData {}
+
+impl HeadVoteData {
+    /// `get_head_vote_signature`'s signing root: `DOMAIN_HEAD_VOTE` at the epoch of the vote's
+    /// slot.
+    pub fn compute_signing_root<E: EthSpec>(
+        &self,
+        fork: &Fork,
+        genesis_validators_root: Hash256,
+        spec: &ChainSpec,
+    ) -> Hash256 {
+        let epoch = self.slot.epoch(E::slots_per_epoch());
+        let domain = spec.get_domain(epoch, Domain::HeadVote, fork, genesis_validators_root);
+        self.signing_root(domain)
+    }
+}
 
 #[cfg(test)]
 mod tests {

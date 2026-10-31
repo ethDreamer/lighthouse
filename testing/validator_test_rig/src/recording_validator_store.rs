@@ -231,6 +231,47 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
             .await
     }
 
+    async fn sign_eip8453_head_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: types::eip8453::HeadVoteData,
+    ) -> Result<types::eip8453::HeadVoteMessage, StoreError<Self::Error>> {
+        self.inner
+            .sign_eip8453_head_vote(validator_pubkey, data)
+            .await
+    }
+
+    async fn sign_eip8453_safe_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: types::eip8453::SafeVoteData,
+    ) -> Result<types::eip8453::SafeVoteMessage, StoreError<Self::Error>> {
+        self.inner
+            .sign_eip8453_safe_vote(validator_pubkey, data)
+            .await
+    }
+
+    async fn produce_eip8453_fg_attestation(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        epoch: Epoch,
+        committee_index: u64,
+        target: types::eip8453::HeightCheckpoint,
+        justified: types::eip8453::HeightCheckpoint,
+        finalized_height: u64,
+    ) -> Result<Option<types::eip8453::SingleAttestation>, StoreError<Self::Error>> {
+        self.inner
+            .produce_eip8453_fg_attestation(
+                validator_pubkey,
+                epoch,
+                committee_index,
+                target,
+                justified,
+                finalized_height,
+            )
+            .await
+    }
+
     async fn sign_request_auth_v1(
         &self,
         validator_pubkey: PublicKeyBytes,

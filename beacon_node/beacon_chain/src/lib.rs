@@ -21,6 +21,7 @@ pub mod custody_context;
 pub mod data_availability_checker;
 pub mod data_column_verification;
 mod early_attester_cache;
+pub mod eip8453_duties;
 pub mod eip8453_pool;
 pub mod envelope_times_cache;
 mod errors;

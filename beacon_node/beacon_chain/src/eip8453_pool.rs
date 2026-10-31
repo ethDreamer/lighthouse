@@ -8,7 +8,7 @@
 
 use parking_lot::Mutex;
 use ssz::ProgressiveBitList;
-use types::eip8453::{HeadVote, SafeVote};
+use types::eip8453::{HeadVote, HeadVoteMessage, SafeVote, SafeVoteMessage};
 use types::{EthSpec, eip8453};
 
 #[derive(Default)]
@@ -19,6 +19,12 @@ pub struct Eip8453OperationPool<E: EthSpec> {
     pub head_votes: Mutex<Vec<(HeadVote<E>, ProgressiveBitList)>>,
     /// Safe vote aggregates awaiting inclusion.
     pub safe_votes: Mutex<Vec<SafeVote<E>>>,
+    /// Unaggregated FG attestations from validators, aggregated at block production.
+    pub fg_singles: Mutex<Vec<eip8453::SingleAttestation>>,
+    /// Unaggregated head votes from validators, aggregated at block production.
+    pub head_vote_singles: Mutex<Vec<HeadVoteMessage>>,
+    /// Unaggregated safe votes from validators, aggregated at block production.
+    pub safe_vote_singles: Mutex<Vec<SafeVoteMessage>>,
 }
 
 impl<E: EthSpec> Eip8453OperationPool<E> {
@@ -32,6 +38,72 @@ impl<E: EthSpec> Eip8453OperationPool<E> {
 
     pub fn insert_safe_vote(&self, vote: SafeVote<E>) {
         self.safe_votes.lock().push(vote);
+    }
+
+    pub fn insert_fg_single(&self, attestation: eip8453::SingleAttestation) {
+        let mut pool = self.fg_singles.lock();
+        // Dedup on (attester, data): re-broadcasts are common and aggregation asserts
+        // distinct signers.
+        if !pool.iter().any(|existing| {
+            existing.attester_index == attestation.attester_index
+                && existing.data == attestation.data
+        }) {
+            pool.push(attestation);
+        }
+    }
+
+    pub fn insert_head_vote_single(&self, message: HeadVoteMessage) {
+        let mut pool = self.head_vote_singles.lock();
+        if !pool.iter().any(|existing| {
+            existing.validator_index == message.validator_index && existing.data == message.data
+        }) {
+            pool.push(message);
+        }
+    }
+
+    pub fn insert_safe_vote_single(&self, message: SafeVoteMessage) {
+        let mut pool = self.safe_vote_singles.lock();
+        if !pool.iter().any(|existing| {
+            existing.validator_index == message.validator_index && existing.data == message.data
+        }) {
+            pool.push(message);
+        }
+    }
+
+    /// Drain the unaggregated FG attestations satisfying `filter`, dropping the rest.
+    pub fn drain_fg_singles(
+        &self,
+        filter: impl Fn(&eip8453::SingleAttestation) -> bool,
+    ) -> Vec<eip8453::SingleAttestation> {
+        self.fg_singles
+            .lock()
+            .drain(..)
+            .filter(|a| filter(a))
+            .collect()
+    }
+
+    /// Drain the unaggregated head votes satisfying `filter`, dropping the rest.
+    pub fn drain_head_vote_singles(
+        &self,
+        filter: impl Fn(&HeadVoteMessage) -> bool,
+    ) -> Vec<HeadVoteMessage> {
+        self.head_vote_singles
+            .lock()
+            .drain(..)
+            .filter(|m| filter(m))
+            .collect()
+    }
+
+    /// Drain the unaggregated safe votes satisfying `filter`, dropping the rest.
+    pub fn drain_safe_vote_singles(
+        &self,
+        filter: impl Fn(&SafeVoteMessage) -> bool,
+    ) -> Vec<SafeVoteMessage> {
+        self.safe_vote_singles
+            .lock()
+            .drain(..)
+            .filter(|m| filter(m))
+            .collect()
     }
 
     /// Drain up to `max` attestations satisfying `filter`, dropping everything it rejects.

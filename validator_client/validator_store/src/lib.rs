@@ -6,6 +6,7 @@ use slashing_protection::NotSafe;
 use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
+use types::eip8453;
 use types::{
     Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, EthSpec,
     ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
@@ -212,6 +213,33 @@ pub trait ValidatorStore: Send + Sync {
         validator_pubkey: PublicKeyBytes,
         data: PayloadAttestationData,
     ) -> impl Future<Output = Result<PayloadAttestationMessage, Error<Self::Error>>> + Send;
+
+    /// Sign an EIP-8453 head vote, recording the one-per-slot lock before signing.
+    fn sign_eip8453_head_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: eip8453::HeadVoteData,
+    ) -> impl Future<Output = Result<eip8453::HeadVoteMessage, Error<Self::Error>>> + Send;
+
+    /// Sign an EIP-8453 safe vote, recording the one-per-round lock before signing.
+    fn sign_eip8453_safe_vote(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        data: eip8453::SafeVoteData,
+    ) -> impl Future<Output = Result<eip8453::SafeVoteMessage, Error<Self::Error>>> + Send;
+
+    /// Fold one fork-choice observation through the validator's `FinalitySigningRecord`,
+    /// persist the record, and sign the resulting FG attestation. `Ok(None)` means the signing
+    /// history suppresses the vote.
+    fn produce_eip8453_fg_attestation(
+        &self,
+        validator_pubkey: PublicKeyBytes,
+        epoch: Epoch,
+        committee_index: u64,
+        target: eip8453::HeightCheckpoint,
+        justified: eip8453::HeightCheckpoint,
+        finalized_height: u64,
+    ) -> impl Future<Output = Result<Option<eip8453::SingleAttestation>, Error<Self::Error>>> + Send;
 
     /// Sign a `ProposerPreferences` message.
     fn sign_proposer_preferences(

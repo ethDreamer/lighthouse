@@ -850,6 +850,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     ));
                 };
 
+                // Fold any validator-client singles into block-ready aggregates first (the
+                // proposer doubles as aggregator in the prototype).
+                self.eip8453_aggregate_singles_for_packing(&state)
+                    .map_err(|e| {
+                        BlockProductionError::InvalidBlockVariant(format!(
+                            "eip8453 aggregation failed: {e:?}"
+                        ))
+                    })?;
+
                 // Pack finality gadget operations from the dumb pool, filtering against the
                 // packing state so a stale object cannot invalidate the block. Anything the
                 // filters reject is dropped (EIP8453-STUB: no retention policy).
