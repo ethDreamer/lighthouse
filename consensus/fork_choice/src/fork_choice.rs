@@ -532,10 +532,10 @@ where
 
     /// Head-vote committees for every slot covered by `state`'s committee window.
     ///
-    /// EIP8453-STUB: the spec's dependent state is the latest *finalized* block's post-state
-    /// (`get_head_vote_committee_at_slot`); the prototype refreshes from the newest imported
-    /// block's post-state instead, which is identical on a non-forking chain and saves a state
-    /// load.
+    /// The spec's `record_head_vote_committee` reads the processing state's window for the
+    /// current and previous slot and assumes all branches agree on a slot's committee (the
+    /// window is seeded from the finalized chain). Recording the whole window here is the same
+    /// accounting extended to the lookahead slots, which the duty endpoints also serve from.
     fn fg_committees_from_state(
         state: &BeaconState<E>,
         spec: &ChainSpec,
@@ -681,12 +681,19 @@ where
         });
         let justified_root = self.justified_checkpoint().root;
         let finalized_root = self.finalized_checkpoint().root;
-        let justified_hash =
+        // [EIP8453] the Engine API's safe block hash is the confirmed node's execution hash
+        // (`get_confirmed_execution_block_hash`); pre-fork it remains the justified hash.
+        let justified_hash = if let Some(fg) = &self.fg {
+            fg.get_confirmed_execution_block_hash()
+                .ok()
+                .filter(|hash| *hash != ExecutionBlockHash::zero())
+        } else {
             self.get_block(&justified_root)
                 .and_then(|b| match b.checkpoint_payload_block_hash() {
                     PayloadBlockHash::Hash(hash) => Some(hash),
                     PayloadBlockHash::PreMerge => None,
-                });
+                })
+        };
         let finalized_hash =
             self.get_block(&finalized_root)
                 .and_then(|b| match b.checkpoint_payload_block_hash() {
@@ -1353,7 +1360,11 @@ where
     }
 
     /// FG validator weights (`get_validator_weight`: effective-balance increments scaled by the
-    /// inactivity margin) from the same dependent state as the committees.
+    /// inactivity margin).
+    ///
+    /// EIP8453-STUB: the spec weighs the stabilization rule with the latest *finalized* block's
+    /// post-state; the prototype refreshes from the newest imported block's post-state, which is
+    /// identical whenever no weight changed since finality.
     fn fg_weights_from_state(
         state: &BeaconState<E>,
         spec: &ChainSpec,
@@ -1973,14 +1984,11 @@ where
         parent_payload_status: PayloadStatus,
         current_slot: Slot,
     ) -> Result<bool, Error<T::Error>> {
-        // [EIP8453] the head is legitimately a PENDING node; the modified
-        // `should_extend_payload` replaces the LMD-resolved full/empty decision.
-        if let Some(fg) = &self.fg {
-            return Ok(match parent_payload_status {
-                PayloadStatus::Full => true,
-                PayloadStatus::Empty => false,
-                PayloadStatus::Pending => fg.should_extend_payload(block_root),
-            });
+        // [EIP8453] the walk returns the full or empty parent node directly, so the decision is
+        // read straight off the head node; a pending node (which `get_head` no longer emits)
+        // converts to empty for construction, as `get_ac_proposal` does.
+        if self.fg.is_some() {
+            return Ok(matches!(parent_payload_status, PayloadStatus::Full));
         }
         self.proto_array
             .should_build_on_full::<E>(block_root, parent_payload_status, current_slot)
@@ -1989,7 +1997,8 @@ where
 
     /// Returns whether the proposer should extend the execution payload chain of the given block.
     pub fn should_extend_payload(&self, block_root: &Hash256) -> Result<bool, Error<T::Error>> {
-        // [EIP8453] the modified `should_extend_payload` has no proposer boost input.
+        // EIP8453-STUB: `should_extend_payload` is inherited unmodified, but PTC vote tracking
+        // is absent post-fork, so it collapses to payload verification.
         if let Some(fg) = &self.fg {
             return Ok(fg.should_extend_payload(block_root));
         }

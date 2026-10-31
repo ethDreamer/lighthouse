@@ -851,7 +851,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 };
 
                 // Fold any validator-client singles into block-ready aggregates first (the
-                // proposer doubles as aggregator in the prototype).
+                // proposer doubles as aggregator in the prototype). Head votes and support bits
+                // are the proposer's published view from `get_ac_proposal`.
+                //
+                // EIP8453-STUB: the parent was selected from the canonical head (`get_head`,
+                // which also reads block-carried votes) rather than `get_ac_proposal`'s
+                // P2P-only walk; the two can diverge on exotic splits, and the published view
+                // stays faithful to `get_ac_proposal` either way.
                 self.eip8453_aggregate_singles_for_packing(&state)
                     .map_err(|e| {
                         BlockProductionError::InvalidBlockVariant(format!(

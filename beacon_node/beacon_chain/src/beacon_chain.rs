@@ -4532,6 +4532,16 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .seconds_from_current_slot_start()
                 .ok_or(Error::UnableToComputeTimeAtSlot)?;
 
+            // [EIP8453] tick the fg store to the wall clock first, so the block's recorded
+            // receipt time is millisecond-accurate (the per-slot tick only reaches slot starts).
+            if self.spec.is_eip8453_scheduled()
+                && let Some(now) = self.slot_clock.now_duration()
+            {
+                fork_choice
+                    .fg_on_tick_ms(now.as_millis() as u64)
+                    .map_err(|e| BlockError::BeaconChainError(Box::new(e.into())))?;
+            }
+
             fork_choice
                 .on_block(
                     current_slot,

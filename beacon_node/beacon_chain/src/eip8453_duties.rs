@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 use bls::{AggregateSignature, PublicKey, PublicKeyBytes};
 use eth2::types::{FgAttestationComponents, FgAttesterDuty, HeadVoteDuty};
+use slot_clock::SlotClock;
 use ssz::{BitVector, ProgressiveBitList, TryFromIter};
 use ssz_types::{ProgressiveVariableList, VariableList};
 use types::consts::gloas::{PAYLOAD_STATUS_PENDING, PayloadStatus};
@@ -29,6 +30,23 @@ fn eip8453_err(message: impl Into<String>) -> Error {
 }
 
 impl<T: BeaconChainTypes> BeaconChain<T> {
+    /// Advance the fg store's clock to the wall clock.
+    ///
+    /// The per-slot fork-choice tick only reaches slot starts; vote ingestion needs
+    /// millisecond receipt times and the duty reads need the quarter-slot duty boundaries
+    /// processed (`on_tick` synthesizes every boundary crossed), so each entry point ticks
+    /// the store to now first.
+    pub fn eip8453_tick_fg_to_now(&self) -> Result<(), Error> {
+        let now_ms = self
+            .slot_clock
+            .now_duration()
+            .ok_or_else(|| eip8453_err("slot clock not started"))?
+            .as_millis() as u64;
+        self.canonical_head
+            .fork_choice_write_lock()
+            .fg_on_tick_ms(now_ms)
+            .map_err(|e| eip8453_err(format!("fg tick: {e:?}")))
+    }
     /// The FG attester duties for `epoch`: one duty per round whose assigned committee slot
     /// falls in the epoch.
     pub fn eip8453_fg_attester_duties(
@@ -144,6 +162,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// `get_ac_vote_head` reads the store's current slot, so the requested `slot` must be the
     /// store's — the walk has no historical form.
     pub fn eip8453_produce_head_vote_data(&self, slot: Slot) -> Result<HeadVoteData, Error> {
+        self.eip8453_tick_fg_to_now()?;
         let fork_choice = self.canonical_head.fork_choice_read_lock();
         let fg = fork_choice
             .fg()
@@ -171,6 +190,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
     /// The safe vote data for the current round: `get_safe_vote_node`.
     pub fn eip8453_produce_safe_vote_data(&self) -> Result<SafeVoteData, Error> {
+        self.eip8453_tick_fg_to_now()?;
         let slot = self.slot()?;
         let round = compute_round_at_slot::<T::EthSpec>(slot);
         let fork_choice = self.canonical_head.fork_choice_read_lock();
@@ -193,6 +213,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     pub fn eip8453_produce_fg_attestation_components(
         &self,
     ) -> Result<FgAttestationComponents, Error> {
+        self.eip8453_tick_fg_to_now()?;
         let (source_root, head_root, fresh_quorum) = {
             let fork_choice = self.canonical_head.fork_choice_read_lock();
             let fg = fork_choice
@@ -257,6 +278,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     /// Verify and ingest a validator's head vote: committee membership and signature, then the
     /// fork choice pool and the block-packing pool.
     pub fn eip8453_process_head_vote(&self, message: HeadVoteMessage) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
         let head = self.head_snapshot();
         let signing_root = message.data.compute_signing_root::<T::EthSpec>(
             &head.beacon_state.fork(),
@@ -289,6 +311,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
     /// Verify and ingest a validator's safe vote.
     pub fn eip8453_process_safe_vote(&self, message: SafeVoteMessage) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
         let head = self.head_snapshot();
         let signing_root = message.data.compute_signing_root::<T::EthSpec>(
             &head.beacon_state.fork(),
@@ -313,6 +336,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         &self,
         attestation: eip8453::SingleAttestation,
     ) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
         let head = self.head_snapshot();
         let state = &head.beacon_state;
         let committee = state
@@ -436,55 +460,66 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 });
         }
 
-        // Head votes: group by data; support bits per voter from the proposer's view (a counted
-        // vote names a block in the accepted tree whose slot is no later than the vote's slot).
-        let singles = self.eip8453_pool.drain_head_vote_singles(|_| true);
-        let mut vote_groups: Vec<(HeadVoteData, Vec<HeadVoteMessage>)> = Vec::new();
-        for single in singles {
-            match vote_groups.iter_mut().find(|(k, _)| *k == single.data) {
-                Some((_, group)) => group.push(single),
-                None => vote_groups.push((single.data, vec![single])),
+        // Head votes: the proposer publishes exactly its walk inputs — `get_ac_proposal`'s
+        // previous-slot P2P view with per-message support from local resolution. Signatures come
+        // from the signed singles pool (both lanes are fed by the same ingestion path); a view
+        // entry without a signed single cannot be proven and is skipped.
+        let (vote_messages, support_indices) = {
+            let fork_choice = self.canonical_head.fork_choice_read_lock();
+            let fg = fork_choice
+                .fg()
+                .ok_or_else(|| eip8453_err("fg fork choice not active"))?;
+            let (_, vote_messages, support_indices) = fg
+                .get_ac_proposal()
+                .map_err(|e| eip8453_err(format!("get_ac_proposal: {e:?}")))?;
+            (vote_messages, support_indices)
+        };
+        // Votes outside the proposer's view (older slots, unverified data) are dropped with the
+        // drain: the spec's proposal view covers the previous slot only.
+        let signed_singles = self.eip8453_pool.drain_head_vote_singles(|_| true);
+        let support_set: std::collections::HashSet<usize> = support_indices.into_iter().collect();
+        let mut vote_groups: Vec<(HeadVoteData, Vec<(u64, bool)>)> = Vec::new();
+        for (index, message) in vote_messages.iter().enumerate() {
+            let entry = (message.validator_index, support_set.contains(&index));
+            match vote_groups.iter_mut().find(|(k, _)| *k == message.data) {
+                Some((_, group)) => group.push(entry),
+                None => vote_groups.push((message.data, vec![entry])),
             }
         }
-        if !vote_groups.is_empty() {
-            let supported = {
-                let fork_choice = self.canonical_head.fork_choice_read_lock();
-                let fg = fork_choice
-                    .fg()
-                    .ok_or_else(|| eip8453_err("fg fork choice not active"))?;
-                vote_groups
-                    .iter()
-                    .map(|(data, _)| {
-                        fg.block_slot(&data.beacon_block_root)
-                            .is_some_and(|block_slot| block_slot <= data.slot)
-                    })
-                    .collect::<Vec<_>>()
-            };
-            for ((data, mut group), is_supported) in vote_groups.into_iter().zip(supported) {
-                group.sort_by_key(|message| message.validator_index);
-                group.dedup_by_key(|message| message.validator_index);
-                let mut signature = AggregateSignature::infinity();
-                let mut voter_indices = Vec::with_capacity(group.len());
-                for message in &group {
-                    signature.add_assign(&message.signature);
-                    voter_indices.push(message.validator_index);
-                }
-                let mut support = ProgressiveBitList::with_capacity(voter_indices.len());
-                if is_supported {
-                    for position in 0..voter_indices.len() {
-                        support
-                            .set(position, true)
-                            .map_err(|e| eip8453_err(format!("support bit: {e:?}")))?;
-                    }
-                }
-                let vote = eip8453::HeadVote {
-                    voter_indices: VariableList::new(voter_indices)
-                        .map_err(|e| eip8453_err(format!("voter indices: {e:?}")))?,
-                    data,
-                    signature,
+        for (data, mut group) in vote_groups {
+            group.sort_by_key(|(validator_index, _)| *validator_index);
+            group.dedup_by_key(|(validator_index, _)| *validator_index);
+            let mut signature = AggregateSignature::infinity();
+            let mut voter_indices = Vec::with_capacity(group.len());
+            let mut supported_flags = Vec::with_capacity(group.len());
+            for (validator_index, supports) in &group {
+                let Some(signed) = signed_singles.iter().find(|message| {
+                    message.validator_index == *validator_index && message.data == data
+                }) else {
+                    continue;
                 };
-                self.eip8453_pool.insert_head_vote(vote, support);
+                signature.add_assign(&signed.signature);
+                voter_indices.push(*validator_index);
+                supported_flags.push(*supports);
             }
+            if voter_indices.is_empty() {
+                continue;
+            }
+            let mut support = ProgressiveBitList::with_capacity(voter_indices.len());
+            for (position, supports) in supported_flags.iter().enumerate() {
+                if *supports {
+                    support
+                        .set(position, true)
+                        .map_err(|e| eip8453_err(format!("support bit: {e:?}")))?;
+                }
+            }
+            let vote = eip8453::HeadVote {
+                voter_indices: VariableList::new(voter_indices)
+                    .map_err(|e| eip8453_err(format!("voter indices: {e:?}")))?,
+                data,
+                signature,
+            };
+            self.eip8453_pool.insert_head_vote(vote, support);
         }
 
         // Safe votes: group by data.

@@ -2,6 +2,7 @@
 
 use crate::{BeaconChain, BeaconChainError, BeaconChainTypes, BlockError};
 use proof_engine::ProofEngineError;
+use slot_clock::SlotClock;
 use std::sync::Arc;
 use tracing::debug;
 use types::{Hash256, Slot};
@@ -117,9 +118,17 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let chain = self.clone();
         self.spawn_blocking_handle(
             move || {
-                chain
-                    .canonical_head
-                    .fork_choice_write_lock()
+                let mut fork_choice = chain.canonical_head.fork_choice_write_lock();
+                // [EIP8453] tick the fg store to the wall clock first, so the payload's
+                // recorded receipt time is millisecond-accurate.
+                if chain.spec.is_eip8453_scheduled()
+                    && let Some(now) = chain.slot_clock.now_duration()
+                {
+                    fork_choice
+                        .fg_on_tick_ms(now.as_millis() as u64)
+                        .map_err(|e| BlockError::BeaconChainError(Box::new(e.into())))?;
+                }
+                fork_choice
                     .on_valid_execution_payload_by_block_root(block_root)
                     .map_err(|e| BlockError::BeaconChainError(Box::new(e.into())))
             },
