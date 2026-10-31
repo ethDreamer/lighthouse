@@ -139,26 +139,34 @@ async fn eip8453_http_duty_round_trip() {
             packed_safe_vote_blocks += 1;
         }
 
-        // Head voting at the quarter: duties and `get_voter_head` over HTTP.
+        // Head voting at the head-vote deadline: tick the FG clock to the slot's +Δ, then read
+        // duties and `get_ac_vote_head` over HTTP and vote exactly what the walk names. The
+        // walk reaching the fresh proposal in its own slot is the liveness property this round
+        // trip gates on.
+        harness
+            .chain
+            .canonical_head
+            .fork_choice_write_lock()
+            .fg_on_tick_ms(
+                genesis_time_ms
+                    + slot.as_u64() * slot_duration_ms
+                    + spec.get_head_vote_due().as_millis() as u64,
+            )
+            .unwrap();
         let head_vote_duties = client
             .post_validator_duties_head_vote(epoch, &all_indices)
             .await
             .expect("head vote duties");
-        let voter_head = client
+        let vote_data = client
             .get_validator_eip8453_head_vote_data(slot)
             .await
             .expect("head vote data")
             .data;
-        assert_eq!(voter_head.slot, slot);
-        // EIP8453-STUB (SPEC FINDING, friction #13): honest voting per `get_voter_head` never
-        // names a fresh proposal (the walk stalls behind the parent's payload-flavor node), so
-        // a chain voted that way is not live. Like the spec's own fork-choice tests, vote the
-        // tip directly until the spec resolves the walk's flavor-node eligibility.
-        let vote_data = eip8453::HeadVoteData {
-            slot,
-            beacon_block_root: tip_root,
-            payload_status: PAYLOAD_STATUS_PENDING,
-        };
+        assert_eq!(vote_data.slot, slot);
+        assert_eq!(
+            vote_data.beacon_block_root, tip_root,
+            "the vote walk reaches the fresh proposal at slot {slot}"
+        );
         let messages: Vec<HeadVoteMessage> = head_vote_duties
             .data
             .iter()
@@ -184,15 +192,17 @@ async fn eip8453_http_duty_round_trip() {
             .await
             .expect("publish head votes");
 
-        // Advance the FG clock past the slot's cutoffs (grades and the previous slot's
-        // confirmation evaluate), as in the beacon_chain gate test.
-        let mid_slot_ms =
-            genesis_time_ms + slot.as_u64() * slot_duration_ms + slot_duration_ms * 2600 / 10_000;
+        // Advance the FG clock to the slot's support cutoff (the previous slot's confirmation
+        // evaluates), as in the beacon_chain gate test.
         harness
             .chain
             .canonical_head
             .fork_choice_write_lock()
-            .fg_on_tick_ms(mid_slot_ms)
+            .fg_on_tick_ms(
+                genesis_time_ms
+                    + slot.as_u64() * slot_duration_ms
+                    + spec.get_support_cutoff().as_millis() as u64,
+            )
             .unwrap();
 
         // Safe voting in the assigned sub-round: `get_safe_vote_node` over HTTP.

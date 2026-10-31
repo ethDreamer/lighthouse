@@ -43,16 +43,24 @@ pub struct HeightCheckpointCheck {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct LockCheck {
+    pub deadline_ms: u64,
+    pub root: Hash256,
+    pub payload_status: u8,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FgChecks {
     pub head: HeadCheck,
     pub justified_checkpoint: HeightCheckpointCheck,
     pub finalized_checkpoint: HeightCheckpointCheck,
-    pub finalized_slot: u64,
     pub max_height: u64,
     pub grade_2: Option<NodeCheck>,
     pub grade_1: Option<NodeCheck>,
     pub grade_0: Option<NodeCheck>,
+    pub locks: Vec<LockCheck>,
+    pub latest_confirmed: NodeCheck,
     pub confirmed: NodeCheck,
     pub stable: NodeCheck,
 }
@@ -438,12 +446,6 @@ fn run_checks<E: EthSpec>(
             checks.finalized_checkpoint
         ));
     }
-    if store.finalized_slot.as_u64() != checks.finalized_slot {
-        return Err(format!(
-            "step {step}: finalized_slot mismatch: actual {}, expected {}",
-            store.finalized_slot, checks.finalized_slot
-        ));
-    }
     if store.max_height != checks.max_height {
         return Err(format!(
             "step {step}: max_height mismatch: actual {}, expected {}",
@@ -454,6 +456,33 @@ fn run_checks<E: EthSpec>(
     check_node(store.grade_2, &checks.grade_2, "grade_2", step)?;
     check_node(store.grade_1, &checks.grade_1, "grade_1", step)?;
     check_node(store.grade_0, &checks.grade_0, "grade_0", step)?;
+
+    let locks: Vec<(u64, FgNode)> = store
+        .locks
+        .iter()
+        .map(|(deadline, node)| (*deadline, *node))
+        .collect();
+    if locks.len() != checks.locks.len()
+        || locks
+            .iter()
+            .zip(checks.locks.iter())
+            .any(|(actual, check)| {
+                actual.0 != check.deadline_ms
+                    || actual.1.root != check.root
+                    || actual.1.payload_status != check.payload_status
+            })
+    {
+        return Err(format!(
+            "step {step}: locks mismatch: actual {locks:?}, expected {:?}",
+            checks.locks
+        ));
+    }
+    check_node(
+        Some(store.latest_confirmed),
+        &Some(checks.latest_confirmed.clone()),
+        "latest_confirmed",
+        step,
+    )?;
     let confirmed = store
         .get_confirmed_node()
         .map_err(|e| format!("step {step}: get_confirmed_node: {e:?}"))?;

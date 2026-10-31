@@ -221,12 +221,14 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
             genesis_time_ms,
             slot_duration_ms,
             genesis_slot,
+            // The caller trusts the anchor block as justified and finalized at its
+            // post-state's target height (`get_forkchoice_store`).
             justified_checkpoint: HeightCheckpoint {
-                height: summary.justified.height,
+                height: summary.target_height,
                 root: anchor_root,
             },
             finalized_checkpoint: HeightCheckpoint {
-                height: summary.finalized.height,
+                height: summary.target_height,
                 root: anchor_root,
             },
             finalized_slot: summary.finalized_slot,
@@ -2262,9 +2264,10 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
 
 #[cfg(test)]
 mod tests {
-    //! Mirrors of the spec's `test_head_advance.py` regression tests (a fresh proposal is
-    //! reachable by the vote walk in its own slot, and honest votes for the walk's output
-    //! advance the next proposer's head) plus a lock-lifecycle exercise.
+    //! Mirrors of the spec's assertion-only fork-choice regression tests — `test_head_advance.py`
+    //! (a fresh proposal is reachable by the vote walk in its own slot, and honest votes for the
+    //! walk's output advance the next proposer's head) and `test_fresh_safe_quorum.py` (the
+    //! quorum test is grade/forkchoice-root compatibility) — plus a lock-lifecycle exercise.
 
     use super::*;
     use types::MinimalEthSpec;
@@ -2415,5 +2418,79 @@ mod tests {
             store.get_live_locks(&frame, store.time_ms).is_empty(),
             "all locks expired"
         );
+    }
+
+    /// Mirrors of the spec's `test_fresh_safe_quorum.py`: the quorum test is *compatibility*
+    /// of the grade-2 node with the FG frame's forkchoice root.
+
+    /// Mimic a justification landing on `root`: the justified checkpoint advances one height
+    /// and the chain stays within its height band, so the frame's forkchoice root is `root`.
+    fn set_justified(store: &mut FgForkChoiceStore<MinimalEthSpec>, root: Hash256) {
+        let height = store.justified_checkpoint.height.saturating_add(1);
+        store.justified_checkpoint = HeightCheckpoint { height, root };
+        store.max_height = height.saturating_add(1);
+        assert_eq!(
+            store.get_fg_frame().unwrap().forkchoice_root.root,
+            root,
+            "the justified root is the frame's forkchoice root"
+        );
+    }
+
+    #[test]
+    fn fresh_safe_quorum_with_ancestor_grade() {
+        // The healthy fast-finality shape: justification lands per block, so the forkchoice
+        // root is fresher than the once-per-round grade. The trailing grade is outside the
+        // viable subtree but must still count as a fresh quorum.
+        let (mut store, anchor_root) = test_store();
+        let a = apply_block(&mut store, anchor_root, 1, 0x01);
+        let b = apply_block(&mut store, a, 2, 0x02);
+        let c = apply_block(&mut store, b, 3, 0x03);
+        set_justified(&mut store, c);
+        store.grade_2 = Some(FgNode::pending(a));
+
+        let frame = store.get_fg_frame().unwrap();
+        assert!(
+            store
+                .get_active_prefix(&frame, store.grade_2)
+                .unwrap()
+                .is_none(),
+            "the trailing grade has no active prefix in the frame"
+        );
+        assert!(store.has_fresh_safe_quorum().unwrap());
+    }
+
+    #[test]
+    fn fresh_safe_quorum_with_descendant_grade() {
+        let (mut store, anchor_root) = test_store();
+        let a = apply_block(&mut store, anchor_root, 1, 0x01);
+        let b = apply_block(&mut store, a, 2, 0x02);
+        store.grade_2 = Some(FgNode::pending(b));
+
+        assert!(store.has_fresh_safe_quorum().unwrap());
+    }
+
+    #[test]
+    fn fresh_safe_quorum_without_grade() {
+        let (mut store, anchor_root) = test_store();
+        apply_block(&mut store, anchor_root, 1, 0x01);
+
+        assert!(store.grade_2.is_none());
+        assert!(!store.has_fresh_safe_quorum().unwrap());
+    }
+
+    #[test]
+    fn fresh_safe_quorum_with_conflicting_grade() {
+        let (mut store, anchor_root) = test_store();
+        let a = apply_block(&mut store, anchor_root, 1, 0x01);
+        let b = apply_block(&mut store, a, 2, 0x02);
+        let c = apply_block(&mut store, b, 3, 0x03);
+        set_justified(&mut store, c);
+
+        // A sibling chain that skips a slot, so its block conflicts with the forkchoice
+        // root's chain.
+        let fork_root = apply_block(&mut store, anchor_root, 2, 0xf0);
+        store.grade_2 = Some(FgNode::pending(fork_root));
+
+        assert!(!store.has_fresh_safe_quorum().unwrap());
     }
 }

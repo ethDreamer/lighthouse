@@ -999,7 +999,7 @@ fn gossip_sync_committee_contribution_and_proof() {
 // EIP-8453 (decoupled consensus) tests against locally generated vectors (there is no published
 // release containing eip8453; `Handler::run` skips the fork, so these call `run_for_fork`
 // directly). Generate the vectors with `make test reftests=true fork=eip8453` on the
-// consensus-specs `safe-votes` branch and copy `reftests/*` into
+// consensus-specs `safe-votes-v2` branch and copy `reftests/*` into
 // `testing/ef_tests/consensus-spec-tests/tests/`.
 mod eip8453_tests {
     use super::*;

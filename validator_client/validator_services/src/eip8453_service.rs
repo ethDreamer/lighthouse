@@ -5,7 +5,7 @@
 //! - safe vote: one quarter into the validator's assigned sub-round slot;
 //! - FG attestation: `get_attestation_due_ms()` into the committee's slot.
 //!
-//! The beacon node serves the fork-choice reads (`get_voter_head`, `get_safe_vote_node`, and the
+//! The beacon node serves the fork-choice reads (`get_ac_vote_head`, `get_safe_vote_node`, and the
 //! FG attestation components) and the validator store applies the signing-record rules.
 
 use std::ops::Deref;
@@ -166,7 +166,7 @@ where
         Some(duty_slot)
     }
 
-    /// One head-vote duty slot: read `get_voter_head` at the deadline, sign per duty, publish.
+    /// One head-vote duty slot: read `get_ac_vote_head` at the deadline, sign per duty, publish.
     async fn head_vote_tick(&self) -> Result<(), String> {
         let Some(slot) = self
             .wait_until_offset_of_next_slot(self.chain_spec.get_head_vote_due())

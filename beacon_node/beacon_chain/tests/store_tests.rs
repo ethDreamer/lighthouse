@@ -261,7 +261,8 @@ fn make_light_client_update<E: EthSpec>(
             update.signature_slot = marker_slot;
             LightClientUpdate::Fulu(update)
         }
-        ForkName::Gloas | ForkName::Heze => {
+        // EIP-8453 does not change the light client types.
+        ForkName::Gloas | ForkName::Heze | ForkName::Eip8453 => {
             let mut update = test_arbitrary_instance::<LightClientUpdateGloas<E>>();
             update.signature_slot = marker_slot;
             LightClientUpdate::Gloas(update)
@@ -1693,7 +1694,7 @@ async fn proposer_shuffling_changing_with_lookahead() {
     // XXX: This is a really nasty way to do this, but we need better test facilities in
     // MockExecutionLayer to address this.
     let deposit_request: DepositRequest = DepositRequest {
-        index: pre_deposit_state.eth1_deposit_index(),
+        index: pre_deposit_state.eth1_deposit_index().unwrap(),
         pubkey: validator_to_topup.pubkey,
         withdrawal_credentials: validator_to_topup.withdrawal_credentials,
         amount: 63_000_000_000,
