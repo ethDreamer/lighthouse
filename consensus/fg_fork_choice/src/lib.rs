@@ -656,7 +656,10 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         self.is_ancestor(node, ancestor).unwrap_or(false)
     }
 
-    /// The spec's `is_ancestor_root`.
+    /// The spec's `is_ancestor_root`, with the ARGUMENT ORDER REVERSED: the spec takes the
+    /// descendant first (`is_ancestor_root(store, root, ancestor)`), this method takes the
+    /// ancestor first. Translate spec call sites by intent, never positionally — a swapped
+    /// call fails silently.
     pub fn is_ancestor_root(
         &self,
         ancestor_root: Hash256,
@@ -668,7 +671,8 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         )
     }
 
-    /// The spec's `is_strict_ancestor_root`.
+    /// The spec's `is_strict_ancestor_root`, ancestor first (reversed from the spec — see
+    /// `is_ancestor_root`).
     fn is_strict_ancestor_root(
         &self,
         ancestor_root: Hash256,
