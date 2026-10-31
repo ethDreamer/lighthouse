@@ -69,8 +69,11 @@ impl Display for ErrorType {
 /* Requests */
 
 /// The STATUS request/response handshake message.
+///
+/// V3 [New in EIP8453] replaces `finalized_epoch` with `finalized_slot`: the finality gadget
+/// finalizes blocks at heights, so the finalized block need not be the first block of an epoch.
 #[superstruct(
-    variants(V1, V2),
+    variants(V1, V2, V3),
     variant_attributes(derive(Encode, Decode, Clone, Debug, PartialEq),)
 )]
 #[derive(Clone, Debug, PartialEq)]
@@ -82,7 +85,12 @@ pub struct StatusMessage {
     pub finalized_root: Hash256,
 
     /// Latest finalized epoch.
+    #[superstruct(only(V1, V2))]
     pub finalized_epoch: Epoch,
+
+    /// The slot of the latest finalized block [New in EIP8453].
+    #[superstruct(only(V3))]
+    pub finalized_slot: Slot,
 
     /// The latest block root.
     pub head_root: Hash256,
@@ -92,38 +100,69 @@ pub struct StatusMessage {
 
     /// The slot after which we guarantee to have all the blocks
     /// and blobs/data columns that we currently advertise.
-    #[superstruct(only(V2))]
+    #[superstruct(only(V2, V3))]
     pub earliest_available_slot: Slot,
 }
 
 impl StatusMessage {
-    pub fn status_v1(&self) -> StatusMessageV1 {
+    /// The finalized epoch, synthesized from `finalized_slot` for a V3 message. This is the shim
+    /// that feeds epoch-shaped consumers (sync's batching, peer scoring); slot-precise logic
+    /// should read `synthesized_finalized_slot` instead.
+    pub fn synthesized_finalized_epoch(&self, slots_per_epoch: u64) -> Epoch {
         match &self {
-            Self::V1(status) => status.clone(),
-            Self::V2(status) => StatusMessageV1 {
-                fork_digest: status.fork_digest,
-                finalized_root: status.finalized_root,
-                finalized_epoch: status.finalized_epoch,
-                head_root: status.head_root,
-                head_slot: status.head_slot,
-            },
+            Self::V1(status) => status.finalized_epoch,
+            Self::V2(status) => status.finalized_epoch,
+            Self::V3(status) => status.finalized_slot.epoch(slots_per_epoch),
         }
     }
 
-    pub fn status_v2(&self) -> StatusMessageV2 {
+    /// The slot of the finalized block. For V1/V2 messages this is the epoch's start slot, which
+    /// is exact pre-EIP-8453 (finality is epoch-aligned) and a lower bound after it.
+    pub fn synthesized_finalized_slot(&self, slots_per_epoch: u64) -> Slot {
         match &self {
-            Self::V1(status) => StatusMessageV2 {
-                fork_digest: status.fork_digest,
-                finalized_root: status.finalized_root,
-                finalized_epoch: status.finalized_epoch,
-                head_root: status.head_root,
-                head_slot: status.head_slot,
-                // Note: we always produce a V2 message as our local
-                // status message, so this match arm should ideally never
-                // be invoked in lighthouse.
-                earliest_available_slot: Slot::new(0),
-            },
-            Self::V2(status) => status.clone(),
+            Self::V1(status) => status.finalized_epoch.start_slot(slots_per_epoch),
+            Self::V2(status) => status.finalized_epoch.start_slot(slots_per_epoch),
+            Self::V3(status) => status.finalized_slot,
+        }
+    }
+
+    pub fn status_v1(&self, slots_per_epoch: u64) -> StatusMessageV1 {
+        StatusMessageV1 {
+            fork_digest: *self.fork_digest(),
+            finalized_root: *self.finalized_root(),
+            finalized_epoch: self.synthesized_finalized_epoch(slots_per_epoch),
+            head_root: *self.head_root(),
+            head_slot: *self.head_slot(),
+        }
+    }
+
+    pub fn status_v2(&self, slots_per_epoch: u64) -> StatusMessageV2 {
+        StatusMessageV2 {
+            fork_digest: *self.fork_digest(),
+            finalized_root: *self.finalized_root(),
+            finalized_epoch: self.synthesized_finalized_epoch(slots_per_epoch),
+            head_root: *self.head_root(),
+            head_slot: *self.head_slot(),
+            // Note: pre-EIP-8453 we always produce a V2 message as our local status message, so
+            // the V1 fallback should never be hit in lighthouse.
+            earliest_available_slot: self
+                .earliest_available_slot()
+                .copied()
+                .unwrap_or_else(|_| Slot::new(0)),
+        }
+    }
+
+    pub fn status_v3(&self, slots_per_epoch: u64) -> StatusMessageV3 {
+        StatusMessageV3 {
+            fork_digest: *self.fork_digest(),
+            finalized_root: *self.finalized_root(),
+            finalized_slot: self.synthesized_finalized_slot(slots_per_epoch),
+            head_root: *self.head_root(),
+            head_slot: *self.head_slot(),
+            earliest_available_slot: self
+                .earliest_available_slot()
+                .copied()
+                .unwrap_or_else(|_| Slot::new(0)),
         }
     }
 }
@@ -863,12 +902,17 @@ impl std::fmt::Display for RpcErrorResponse {
 
 impl std::fmt::Display for StatusMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let finality = match &self {
+            Self::V1(status) => format!("Finalized Epoch: {}", status.finalized_epoch),
+            Self::V2(status) => format!("Finalized Epoch: {}", status.finalized_epoch),
+            Self::V3(status) => format!("Finalized Slot: {}", status.finalized_slot),
+        };
         write!(
             f,
-            "Status Message: Fork Digest: {:?}, Finalized Root: {}, Finalized Epoch: {}, Head Root: {}, Head Slot: {}, Earliest available slot: {:?}",
+            "Status Message: Fork Digest: {:?}, Finalized Root: {}, {}, Head Root: {}, Head Slot: {}, Earliest available slot: {:?}",
             self.fork_digest(),
             self.finalized_root(),
-            self.finalized_epoch(),
+            finality,
             self.head_root(),
             self.head_slot(),
             self.earliest_available_slot()

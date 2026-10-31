@@ -66,8 +66,15 @@ impl<E: EthSpec> SSZSnappyInboundCodec<E> {
         let bytes = match &item {
             RpcResponse::Success(resp) => match &resp {
                 RpcSuccessResponse::Status(res) => match self.protocol.versioned_protocol {
-                    SupportedProtocol::StatusV1 => res.status_v1().as_ssz_bytes(),
-                    SupportedProtocol::StatusV2 => res.status_v2().as_ssz_bytes(),
+                    SupportedProtocol::StatusV1 => {
+                        res.status_v1(E::slots_per_epoch()).as_ssz_bytes()
+                    }
+                    SupportedProtocol::StatusV2 => {
+                        res.status_v2(E::slots_per_epoch()).as_ssz_bytes()
+                    }
+                    SupportedProtocol::StatusV3 => {
+                        res.status_v3(E::slots_per_epoch()).as_ssz_bytes()
+                    }
                     _ => {
                         unreachable!("We only send status responses on negotiating status protocol")
                     }
@@ -341,8 +348,15 @@ impl<E: EthSpec> Encoder<RequestType<E>> for SSZSnappyOutboundCodec<E> {
             RequestType::Status(req) => {
                 // Send the status message based on the negotiated protocol
                 match self.protocol.versioned_protocol {
-                    SupportedProtocol::StatusV1 => req.status_v1().as_ssz_bytes(),
-                    SupportedProtocol::StatusV2 => req.status_v2().as_ssz_bytes(),
+                    SupportedProtocol::StatusV1 => {
+                        req.status_v1(E::slots_per_epoch()).as_ssz_bytes()
+                    }
+                    SupportedProtocol::StatusV2 => {
+                        req.status_v2(E::slots_per_epoch()).as_ssz_bytes()
+                    }
+                    SupportedProtocol::StatusV3 => {
+                        req.status_v3(E::slots_per_epoch()).as_ssz_bytes()
+                    }
                     _ => {
                         unreachable!("We only send status requests on negotiating status protocol")
                     }
@@ -527,6 +541,9 @@ fn handle_rpc_request<E: EthSpec>(
         SupportedProtocol::StatusV2 => Ok(Some(RequestType::Status(StatusMessage::V2(
             StatusMessageV2::from_ssz_bytes(decoded_buffer)?,
         )))),
+        SupportedProtocol::StatusV3 => Ok(Some(RequestType::Status(StatusMessage::V3(
+            StatusMessageV3::from_ssz_bytes(decoded_buffer)?,
+        )))),
         SupportedProtocol::GoodbyeV1 => Ok(Some(RequestType::Goodbye(
             GoodbyeReason::from_ssz_bytes(decoded_buffer)?,
         ))),
@@ -657,6 +674,9 @@ fn handle_rpc_response<E: EthSpec>(
         )))),
         SupportedProtocol::StatusV2 => Ok(Some(RpcSuccessResponse::Status(StatusMessage::V2(
             StatusMessageV2::from_ssz_bytes(decoded_buffer)?,
+        )))),
+        SupportedProtocol::StatusV3 => Ok(Some(RpcSuccessResponse::Status(StatusMessage::V3(
+            StatusMessageV3::from_ssz_bytes(decoded_buffer)?,
         )))),
         // This case should be unreachable as `Goodbye` has no response.
         SupportedProtocol::GoodbyeV1 => Err(RPCError::InvalidData(
@@ -1066,6 +1086,18 @@ mod tests {
             fork_digest: [0; 4],
             finalized_root: Hash256::zero(),
             finalized_epoch: Epoch::new(1),
+            head_root: Hash256::zero(),
+            head_slot: Slot::new(1),
+            earliest_available_slot: Slot::new(0),
+        })
+    }
+
+    fn status_message_v3() -> StatusMessage {
+        StatusMessage::V3(StatusMessageV3 {
+            fork_digest: [0; 4],
+            finalized_root: Hash256::zero(),
+            // The epoch boundary slot, so cross-version re-encodes round-trip exactly.
+            finalized_slot: Epoch::new(1).start_slot(Spec::slots_per_epoch()),
             head_root: Hash256::zero(),
             head_slot: Slot::new(1),
             earliest_available_slot: Slot::new(0),
@@ -1820,6 +1852,64 @@ mod tests {
         );
     }
 
+    // Test StatusV3 encoding/decoding, including the cross-version conversions (an EIP-8453
+    // node answering a v1/v2 peer synthesizes the finalized epoch; a pre-v3 local status on a
+    // v3 stream synthesizes the finalized slot).
+    #[test]
+    fn test_encode_then_decode_status_v3() {
+        let chain_spec = spec_with_all_forks_enabled();
+
+        assert_eq!(
+            encode_then_decode_response(
+                SupportedProtocol::StatusV3,
+                RpcResponse::Success(RpcSuccessResponse::Status(status_message_v3())),
+                ForkName::Eip8453,
+                &chain_spec,
+            ),
+            Ok(Some(RpcSuccessResponse::Status(status_message_v3())))
+        );
+
+        // A V1/V2 local status encodes as a V3 on a v3-negotiated stream.
+        assert_eq!(
+            encode_then_decode_response(
+                SupportedProtocol::StatusV3,
+                RpcResponse::Success(RpcSuccessResponse::Status(status_message_v1())),
+                ForkName::Eip8453,
+                &chain_spec,
+            ),
+            Ok(Some(RpcSuccessResponse::Status(status_message_v3())))
+        );
+        assert_eq!(
+            encode_then_decode_response(
+                SupportedProtocol::StatusV3,
+                RpcResponse::Success(RpcSuccessResponse::Status(status_message_v2())),
+                ForkName::Eip8453,
+                &chain_spec,
+            ),
+            Ok(Some(RpcSuccessResponse::Status(status_message_v3())))
+        );
+
+        // A V3 local status still answers v1/v2 peers, with the finalized epoch synthesized.
+        assert_eq!(
+            encode_then_decode_response(
+                SupportedProtocol::StatusV1,
+                RpcResponse::Success(RpcSuccessResponse::Status(status_message_v3())),
+                ForkName::Eip8453,
+                &chain_spec,
+            ),
+            Ok(Some(RpcSuccessResponse::Status(status_message_v1())))
+        );
+        assert_eq!(
+            encode_then_decode_response(
+                SupportedProtocol::StatusV2,
+                RpcResponse::Success(RpcSuccessResponse::Status(status_message_v3())),
+                ForkName::Eip8453,
+                &chain_spec,
+            ),
+            Ok(Some(RpcSuccessResponse::Status(status_message_v2())))
+        );
+    }
+
     // Each block response must preserve the fork variant selected by the context bytes,
     // including variants with identical SSZ encodings.
     #[test]
@@ -2047,6 +2137,7 @@ mod tests {
             RequestType::Ping(ping_message()),
             RequestType::Status(status_message_v1()),
             RequestType::Status(status_message_v2()),
+            RequestType::Status(status_message_v3()),
             RequestType::Goodbye(GoodbyeReason::Fault),
             RequestType::BlocksByRange(bbrange_request_v1()),
             RequestType::BlocksByRange(bbrange_request_v2()),

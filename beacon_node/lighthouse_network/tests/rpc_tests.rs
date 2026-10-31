@@ -162,6 +162,111 @@ fn test_tcp_status_rpc() {
     })
 }
 
+// Tests the STATUS v3 RPC message (EIP-8453: `finalized_slot` replaces `finalized_epoch`),
+// negotiated as `/eth2/beacon_chain/req/status/3/` between two live nodes.
+#[test]
+#[allow(clippy::single_match)]
+fn test_tcp_status_v3_rpc() {
+    // Set up the logging.
+    let log_level = "debug";
+    let enable_logging = false;
+    let _subscriber = build_tracing_subscriber(log_level, enable_logging);
+
+    let rt = Arc::new(Runtime::new().unwrap());
+
+    let spec = Arc::new(spec_with_all_forks_enabled());
+
+    rt.block_on(async {
+        // get sender/receiver
+        let (mut sender, mut receiver) = common::build_node_pair(
+            Arc::downgrade(&rt),
+            ForkName::Eip8453,
+            spec,
+            Protocol::Tcp,
+            false,
+            None,
+        )
+        .await;
+
+        // Dummy STATUS v3 RPC message: the finalized slot sits mid-epoch, which only the v3
+        // wire format can carry.
+        let rpc_request = RequestType::Status(StatusMessage::V3(StatusMessageV3 {
+            fork_digest: [0; 4],
+            finalized_root: Hash256::zero(),
+            finalized_slot: Slot::new(35),
+            head_root: Hash256::zero(),
+            head_slot: Slot::new(37),
+            earliest_available_slot: Slot::new(0),
+        }));
+
+        // Dummy STATUS v3 RPC response
+        let rpc_response = Response::Status(StatusMessage::V3(StatusMessageV3 {
+            fork_digest: [0; 4],
+            finalized_root: Hash256::zero(),
+            finalized_slot: Slot::new(35),
+            head_root: Hash256::zero(),
+            head_slot: Slot::new(37),
+            earliest_available_slot: Slot::new(0),
+        }));
+
+        // build the sender future
+        let sender_future = async {
+            loop {
+                match sender.next_event().await {
+                    NetworkEvent::PeerConnectedOutgoing(peer_id) => {
+                        // Send a STATUS message
+                        debug!("Sending RPC");
+                        sender
+                            .send_request(peer_id, None, rpc_request.clone())
+                            .unwrap();
+                    }
+                    NetworkEvent::ResponseReceived {
+                        peer_id: _,
+                        sync_request_id: None,
+                        response,
+                    } => {
+                        // The response must come back as the V3 variant: the slot-precise
+                        // finality survives the wire.
+                        debug!("Sender Received");
+                        assert_eq!(response, rpc_response.clone());
+                        debug!("Sender Completed");
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        .instrument(info_span!("Sender"));
+
+        // build the receiver future
+        let receiver_future = async {
+            loop {
+                match receiver.next_event().await {
+                    NetworkEvent::RequestReceived {
+                        peer_id,
+                        inbound_request_id,
+                        request_type,
+                    } if request_type == rpc_request => {
+                        // send the response
+                        debug!("Receiver Received");
+                        receiver.send_response(peer_id, inbound_request_id, rpc_response.clone());
+                    }
+                    _ => {} // Ignore other events
+                }
+            }
+        }
+        .instrument(info_span!("Receiver"));
+
+        tokio::select! {
+            _ = sender_future => {}
+            _ = receiver_future => {}
+            _ = sleep(Duration::from_secs(30)) => {
+                panic!("Future timed out");
+            }
+        }
+    })
+}
+
 // Tests a streamed BlocksByRange RPC Message
 #[test]
 #[allow(clippy::single_match)]

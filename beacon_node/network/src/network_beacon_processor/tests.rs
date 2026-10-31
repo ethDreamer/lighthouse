@@ -987,7 +987,7 @@ async fn status_finalized_checkpoint_relevance() {
     use lighthouse_network::rpc::{GoodbyeReason, StatusMessage};
 
     let mut rig = TestRig::new(SLOTS_PER_EPOCH * 4).await;
-    let local = rig.chain.status_message().status_v2();
+    let local = rig.chain.status_message().status_v2(E::slots_per_epoch());
     assert!(local.finalized_epoch > Epoch::new(0));
     assert!(!local.finalized_root.is_zero());
     // At the split boundary, the historical freezer lookup cannot catch a conflict.
@@ -1025,7 +1025,10 @@ async fn status_finalized_checkpoint_relevance() {
         (wrong_fork, false),
     ] {
         let status = StatusMessage::V2(status);
-        for status in [StatusMessage::V1(status.status_v1()), status] {
+        for status in [
+            StatusMessage::V1(status.status_v1(E::slots_per_epoch())),
+            status,
+        ] {
             let peer = junk_peer_id();
             rig.network_beacon_processor
                 .process_status(peer, status.clone());
@@ -1034,7 +1037,8 @@ async fn status_finalized_checkpoint_relevance() {
                     rig.sync_rx.try_recv(),
                     Ok(SyncMessage::AddPeer(id, info))
                         if id == peer
-                            && info.finalized_epoch == *status.finalized_epoch()
+                            && info.finalized_epoch
+                                == status.synthesized_finalized_epoch(E::slots_per_epoch())
                             && info.finalized_root == *status.finalized_root()
                 );
                 assert_matches!(
@@ -1064,13 +1068,16 @@ async fn status_unfinalized_local_chain_allows_peer() {
     use lighthouse_network::rpc::StatusMessage;
 
     let mut rig = TestRig::new(SMALL_CHAIN).await;
-    let mut remote = rig.chain.status_message().status_v2();
+    let mut remote = rig.chain.status_message().status_v2(E::slots_per_epoch());
     assert_eq!(remote.finalized_epoch, Epoch::new(0));
     assert!(remote.finalized_root.is_zero());
     remote.finalized_root = Hash256::repeat_byte(0x42);
 
     let status = StatusMessage::V2(remote);
-    for status in [StatusMessage::V1(status.status_v1()), status] {
+    for status in [
+        StatusMessage::V1(status.status_v1(E::slots_per_epoch())),
+        status,
+    ] {
         let peer = junk_peer_id();
         rig.network_beacon_processor.process_status(peer, status);
         assert_matches!(rig.sync_rx.try_recv(), Ok(SyncMessage::AddPeer(id, _)) if id == peer);

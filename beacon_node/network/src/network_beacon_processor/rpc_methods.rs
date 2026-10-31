@@ -92,16 +92,26 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         remote: &StatusMessage,
     ) -> Result<Option<String>, Box<BeaconChainError>> {
         let local = self.chain.status_message();
-        let start_slot = |epoch: Epoch| epoch.start_slot(T::EthSpec::slots_per_epoch());
+        let slots_per_epoch = T::EthSpec::slots_per_epoch();
         let latest_allowed_slot = self
             .chain
             .slot()
             .unwrap_or_else(|_| self.chain.slot_clock.genesis_slot())
             .saturating_add(FUTURE_SLOT_TOLERANCE);
-        // Epoch F cannot be finalized before F + 2. Apply clock tolerance before epoch rounding.
-        let max_finalized_epoch = latest_allowed_slot
-            .epoch(T::EthSpec::slots_per_epoch())
-            .saturating_sub(2u64);
+        // The comparison runs on finalized slots: exact for a Status v3 peer, the epoch's start
+        // slot for v1/v2 (exact pre-EIP-8453, where finality is epoch-aligned).
+        let remote_finalized_slot = remote.synthesized_finalized_slot(slots_per_epoch);
+        let local_finalized_slot = local.synthesized_finalized_slot(slots_per_epoch);
+        // Epoch F cannot be finalized before F + 2 under Casper FFG. Under EIP-8453 finality can
+        // trail the head by a couple of slots, so a v3 peer is bounded by the clock alone.
+        let max_finalized_slot = if matches!(remote, StatusMessage::V3(_)) {
+            latest_allowed_slot
+        } else {
+            latest_allowed_slot
+                .epoch(slots_per_epoch)
+                .saturating_sub(2u64)
+                .start_slot(slots_per_epoch)
+        };
 
         let irrelevant_reason = if local.fork_digest() != remote.fork_digest() {
             // The node is on a different network/fork
@@ -115,24 +125,25 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             // current slot. This could be because they are using a different genesis time, or that
             // their or our system's clock is incorrect.
             Some("Different system clocks or genesis time".to_string())
-        } else if *remote.finalized_epoch() > max_finalized_epoch {
-            Some("Finalized epoch is too recent".to_string())
-        } else if (remote.finalized_epoch() == local.finalized_epoch()
+        } else if remote_finalized_slot > max_finalized_slot {
+            Some("Finalized slot is too recent".to_string())
+        } else if (remote_finalized_slot == local_finalized_slot
             && remote.finalized_root() == local.finalized_root())
             || remote.finalized_root().is_zero()
             || local.finalized_root().is_zero()
-            || remote.finalized_epoch() > local.finalized_epoch()
+            || remote_finalized_slot > local_finalized_slot
         {
             // Fast path. Remote finalized checkpoint is either identical, or genesis, or we are at
             // genesis, or they are ahead. In all cases, we should allow this peer to connect to us
             // so we can sync from them.
             None
-        } else if remote.finalized_epoch() == local.finalized_epoch() {
+        } else if remote_finalized_slot == local_finalized_slot {
             // Both roots are nonzero and differ, so no database lookup is needed.
             Some("Different finalized chain".to_string())
         } else {
-            // Remote finalized epoch is less than ours.
-            let remote_finalized_slot = start_slot(*remote.finalized_epoch());
+            // Remote finalized slot is less than ours: check their root against the latest block
+            // at or before that slot in our chain (the Status v3 rule; for v1/v2 the epoch start
+            // slot plus `WhenSlotSkipped::Prev` reproduces the old epoch-boundary check).
             if remote_finalized_slot < self.chain.store.get_oldest_block_slot() {
                 // Peer's finalized checkpoint is older than anything in our DB. We are unlikely
                 // to be able to help them sync.
@@ -172,7 +183,10 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                 let info = SyncInfo {
                     head_slot: *status.head_slot(),
                     head_root: *status.head_root(),
-                    finalized_epoch: *status.finalized_epoch(),
+                    // Sync's internals are epoch/batch shaped; a v3 peer's finalized slot is
+                    // folded to its epoch here.
+                    finalized_epoch: status
+                        .synthesized_finalized_epoch(T::EthSpec::slots_per_epoch()),
                     finalized_root: *status.finalized_root(),
                     earliest_available_slot: status.earliest_available_slot().ok().cloned(),
                 };

@@ -441,7 +441,8 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
                 peer = %peer_id,
                 fork_digest = ?status_message.fork_digest(),
                 finalized_root = ?status_message.finalized_root(),
-                finalized_epoch = ?status_message.finalized_epoch(),
+                finalized_epoch =
+                    %status_message.synthesized_finalized_epoch(T::EthSpec::slots_per_epoch()),
                 head_root = %status_message.head_root(),
                 head_slot = %status_message.head_slot(),
                 earliest_available_slot = ?status_message.earliest_available_slot(),

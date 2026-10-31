@@ -72,7 +72,11 @@ impl TestRig {
             head_root,
             head_slot,
             earliest_available_slot,
-        } = self.harness.chain.status_message().status_v2();
+        } = self
+            .harness
+            .chain
+            .status_message()
+            .status_v2(E::slots_per_epoch());
         SyncInfo {
             head_slot,
             head_root,

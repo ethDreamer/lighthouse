@@ -357,6 +357,7 @@ pub enum Encoding {
 pub enum SupportedProtocol {
     StatusV1,
     StatusV2,
+    StatusV3,
     GoodbyeV1,
     BlocksByRangeV1,
     BlocksByRangeV2,
@@ -384,6 +385,7 @@ impl SupportedProtocol {
         match self {
             SupportedProtocol::StatusV1 => "1",
             SupportedProtocol::StatusV2 => "2",
+            SupportedProtocol::StatusV3 => "3",
             SupportedProtocol::GoodbyeV1 => "1",
             SupportedProtocol::BlocksByRangeV1 => "1",
             SupportedProtocol::BlocksByRangeV2 => "2",
@@ -411,6 +413,7 @@ impl SupportedProtocol {
         match self {
             SupportedProtocol::StatusV1 => Protocol::Status,
             SupportedProtocol::StatusV2 => Protocol::Status,
+            SupportedProtocol::StatusV3 => Protocol::Status,
             SupportedProtocol::GoodbyeV1 => Protocol::Goodbye,
             SupportedProtocol::BlocksByRangeV1 => Protocol::BlocksByRange,
             SupportedProtocol::BlocksByRangeV2 => Protocol::BlocksByRange,
@@ -448,6 +451,10 @@ impl SupportedProtocol {
             ProtocolId::new(Self::BlocksByRootV1, Encoding::SSZSnappy),
             ProtocolId::new(Self::PingV1, Encoding::SSZSnappy),
         ];
+        if fork_context.spec.is_eip8453_scheduled() {
+            // Status v3 (finalized_slot) has the highest preference once EIP-8453 is scheduled.
+            supported.insert(0, ProtocolId::new(Self::StatusV3, Encoding::SSZSnappy));
+        }
         if fork_context.spec.is_peer_das_scheduled() {
             supported.extend_from_slice(&[
                 // V3 variants have higher preference for protocol negotation
@@ -586,7 +593,11 @@ impl ProtocolId {
         match self.versioned_protocol.protocol() {
             Protocol::Status => RpcLimits::new(
                 <StatusMessageV1 as Encode>::ssz_fixed_len(),
-                <StatusMessageV2 as Encode>::ssz_fixed_len(),
+                // V2 and V3 have the same fixed length (finalized_slot replaces finalized_epoch).
+                std::cmp::max(
+                    <StatusMessageV2 as Encode>::ssz_fixed_len(),
+                    <StatusMessageV3 as Encode>::ssz_fixed_len(),
+                ),
             ),
             Protocol::Goodbye => RpcLimits::new(
                 <GoodbyeReason as Encode>::ssz_fixed_len(),
@@ -642,7 +653,11 @@ impl ProtocolId {
         match self.versioned_protocol.protocol() {
             Protocol::Status => RpcLimits::new(
                 <StatusMessageV1 as Encode>::ssz_fixed_len(),
-                <StatusMessageV2 as Encode>::ssz_fixed_len(),
+                // V2 and V3 have the same fixed length (finalized_slot replaces finalized_epoch).
+                std::cmp::max(
+                    <StatusMessageV2 as Encode>::ssz_fixed_len(),
+                    <StatusMessageV3 as Encode>::ssz_fixed_len(),
+                ),
             ),
             Protocol::Goodbye => RpcLimits::new(0, 0), // Goodbye request has no response
             Protocol::BlocksByRange => rpc_block_limits_by_fork(fork_context.current_fork_name()),
@@ -700,6 +715,7 @@ impl ProtocolId {
             | SupportedProtocol::LightClientUpdatesByRangeV1 => true,
             SupportedProtocol::StatusV1
             | SupportedProtocol::StatusV2
+            | SupportedProtocol::StatusV3
             | SupportedProtocol::BlocksByRootV1
             | SupportedProtocol::BlocksByRangeV1
             | SupportedProtocol::PingV1
@@ -896,6 +912,7 @@ impl<E: EthSpec> RequestType<E> {
             RequestType::Status(req) => match req {
                 StatusMessage::V1(_) => SupportedProtocol::StatusV1,
                 StatusMessage::V2(_) => SupportedProtocol::StatusV2,
+                StatusMessage::V3(_) => SupportedProtocol::StatusV3,
             },
             RequestType::Goodbye(_) => SupportedProtocol::GoodbyeV1,
             RequestType::BlocksByRange(req) => match req {
@@ -963,10 +980,19 @@ impl<E: EthSpec> RequestType<E> {
     pub fn supported_protocols(&self) -> Vec<ProtocolId> {
         match self {
             // add more protocols when versions/encodings are supported
-            RequestType::Status(_) => vec![
-                ProtocolId::new(SupportedProtocol::StatusV2, Encoding::SSZSnappy),
-                ProtocolId::new(SupportedProtocol::StatusV1, Encoding::SSZSnappy),
-            ],
+            RequestType::Status(message) => {
+                let mut protocols = vec![
+                    ProtocolId::new(SupportedProtocol::StatusV2, Encoding::SSZSnappy),
+                    ProtocolId::new(SupportedProtocol::StatusV1, Encoding::SSZSnappy),
+                ];
+                if matches!(message, StatusMessage::V3(_)) {
+                    protocols.insert(
+                        0,
+                        ProtocolId::new(SupportedProtocol::StatusV3, Encoding::SSZSnappy),
+                    );
+                }
+                protocols
+            }
             RequestType::Goodbye(_) => vec![ProtocolId::new(
                 SupportedProtocol::GoodbyeV1,
                 Encoding::SSZSnappy,
@@ -1219,6 +1245,8 @@ mod tests {
         match protocol {
             StatusV1 | StatusV2 | GoodbyeV1 | PingV1 | BlocksByRangeV1 | BlocksByRangeV2
             | BlocksByRootV1 | BlocksByRootV2 | MetaDataV1 | MetaDataV2 => true,
+
+            StatusV3 => fork_context.spec.is_eip8453_scheduled(),
 
             BlobsByRangeV1 | BlobsByRootV1 => fork_context.fork_exists(ForkName::Deneb),
 

@@ -2,7 +2,10 @@ use beacon_chain::{BeaconChain, BeaconChainTypes};
 use fixed_bytes::FixedBytesExtended;
 use types::{EthSpec, Hash256};
 
-use lighthouse_network::rpc::{StatusMessage, methods::StatusMessageV2};
+use lighthouse_network::rpc::{
+    StatusMessage,
+    methods::{StatusMessageV2, StatusMessageV3},
+};
 /// Trait to produce a `StatusMessage` representing the state of the given `beacon_chain`.
 ///
 /// NOTE: The purpose of this is simply to obtain a `StatusMessage` from the `BeaconChain` without
@@ -43,6 +46,32 @@ pub(crate) fn status_message<T: BeaconChainTypes>(beacon_chain: &BeaconChain<T>)
         } else {
             beacon_chain.store.get_anchor_info().oldest_block_slot
         };
+    // Post-EIP-8453, Status v3 reports the finalized block's slot (the finality gadget
+    // finalizes at heights, so the finalized block need not sit on an epoch boundary). The
+    // finalized root/slot come from the head post-state, not the epoch-synthesized compat view.
+    let head_state = &cached_head.snapshot.beacon_state;
+    if head_state.fork_name_unchecked().eip8453_enabled()
+        && let (Ok(finalized), Ok(finalized_slot)) = (
+            head_state.finalized_checkpoint_eip8453(),
+            head_state.finalized_slot(),
+        )
+    {
+        let finalized_root = if finalized_slot == beacon_chain.spec.genesis_slot {
+            // Alias the genesis root to `0x00`, as for the epoch-based variants.
+            Hash256::zero()
+        } else {
+            finalized.root
+        };
+        return StatusMessage::V3(StatusMessageV3 {
+            fork_digest,
+            finalized_root,
+            finalized_slot,
+            head_root: cached_head.head_block_root(),
+            head_slot: cached_head.head_slot(),
+            earliest_available_slot,
+        });
+    }
+
     StatusMessage::V2(StatusMessageV2 {
         fork_digest,
         finalized_root: finalized_checkpoint.root,

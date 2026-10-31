@@ -421,7 +421,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         let local = SyncInfo {
             head_slot: *status.head_slot(),
             head_root: *status.head_root(),
-            finalized_epoch: *status.finalized_epoch(),
+            finalized_epoch: status.synthesized_finalized_epoch(T::EthSpec::slots_per_epoch()),
             finalized_root: *status.finalized_root(),
             earliest_available_slot: status.earliest_available_slot().ok().cloned(),
         };
@@ -474,7 +474,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         let local = SyncInfo {
             head_slot: *status.head_slot(),
             head_root: *status.head_root(),
-            finalized_epoch: *status.finalized_epoch(),
+            finalized_epoch: status.synthesized_finalized_epoch(T::EthSpec::slots_per_epoch()),
             finalized_root: *status.finalized_root(),
             earliest_available_slot: status.earliest_available_slot().ok().cloned(),
         };
