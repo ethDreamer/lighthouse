@@ -138,16 +138,25 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .root
     }
 
-    /// The head vote data for `slot` per the AC voting procedure: `get_voter_head` plus the
+    /// The head vote data for `slot` per the AC voting procedure: `get_ac_vote_head` plus the
     /// same-slot `PENDING` rule.
+    ///
+    /// `get_ac_vote_head` reads the store's current slot, so the requested `slot` must be the
+    /// store's — the walk has no historical form.
     pub fn eip8453_produce_head_vote_data(&self, slot: Slot) -> Result<HeadVoteData, Error> {
         let fork_choice = self.canonical_head.fork_choice_read_lock();
         let fg = fork_choice
             .fg()
             .ok_or_else(|| eip8453_err("fg fork choice not active"))?;
+        if fg.get_current_slot() != slot {
+            return Err(eip8453_err(format!(
+                "head vote data requested for slot {slot} but the store is at slot {}",
+                fg.get_current_slot()
+            )));
+        }
         let node = fg
-            .get_voter_head(slot)
-            .map_err(|e| eip8453_err(format!("get_voter_head: {e:?}")))?;
+            .get_ac_vote_head()
+            .map_err(|e| eip8453_err(format!("get_ac_vote_head: {e:?}")))?;
         let payload_status: PayloadStatus = if fg.block_slot(&node.root) == Some(slot) {
             PAYLOAD_STATUS_PENDING
         } else {
@@ -190,12 +199,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .fg()
                 .ok_or_else(|| eip8453_err("fg fork choice not active"))?;
             let head = fg
-                .get_head(None)
+                .get_head()
                 .map_err(|e| eip8453_err(format!("get_head: {e:?}")))?;
             let fresh = fg
                 .has_fresh_safe_quorum()
                 .map_err(|e| eip8453_err(format!("has_fresh_safe_quorum: {e:?}")))?;
-            (fg.confirmed.root, head.root, fresh)
+            let source_root = fg
+                .fg_target_source_root()
+                .map_err(|e| eip8453_err(format!("fg_target_source_root: {e:?}")))?;
+            (source_root, head.root, fresh)
         };
 
         let source_state = self.eip8453_state_for_block(source_root)?;

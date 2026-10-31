@@ -652,7 +652,7 @@ where
 
         // [EIP8453] head selection comes from the finality gadget fork choice once active.
         let head_node = if let Some(fg) = &self.fg {
-            let fg_head = fg.get_head(None).map_err(Error::FgForkChoice)?;
+            let fg_head = fg.get_head().map_err(Error::FgForkChoice)?;
             let payload_status = match fg_head.payload_status {
                 types::consts::gloas::PAYLOAD_STATUS_FULL => PayloadStatus::Full,
                 types::consts::gloas::PAYLOAD_STATUS_EMPTY => PayloadStatus::Empty,
@@ -1230,7 +1230,7 @@ where
                 .proto_array
                 .get_block(&block.parent_root())
                 .ok_or(Error::MissingProtoArrayBlock(block.parent_root()))?;
-            let fg = FgForkChoiceStore::from_anchor(
+            let mut fg = FgForkChoiceStore::from_anchor(
                 parent.root,
                 parent.parent_root.unwrap_or_default(),
                 parent.slot,
@@ -1243,6 +1243,18 @@ where
                 spec.get_slot_duration().as_secs(),
             )
             .map_err(Error::FgForkChoice)?;
+            // fork.md: the pre-fork LMD head seeds the boundary lock, anchoring the first head
+            // walks on the chain the pre-fork attesters had chosen until native confirmations
+            // take over on the slow-lock schedule. The anchor block (the pre-fork head under the
+            // boundary STUB above) is that lock.
+            let boundary_ms = fg.time_ms;
+            let deadline = boundary_ms
+                .saturating_add(
+                    fg_fork_choice::SLOW_LOCK_WINDOW
+                        .saturating_mul(spec.get_slot_duration().as_millis() as u64),
+                )
+                .saturating_add(spec.get_head_vote_due().as_millis() as u64);
+            fg.add_lock(deadline, fg_fork_choice::FgNode::pending(parent.root));
             self.fg = Some(fg);
         }
 
@@ -2264,7 +2276,7 @@ where
     /// Process a head vote received on the wire (or injected by a test harness).
     pub fn on_head_vote(&mut self, validator_index: u64, data: types::eip8453::HeadVoteData) {
         if let Some(fg) = &mut self.fg {
-            fg.on_head_vote(validator_index, data);
+            fg.on_head_vote_message(validator_index, data);
         }
     }
 

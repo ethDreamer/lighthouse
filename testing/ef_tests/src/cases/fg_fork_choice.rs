@@ -164,7 +164,7 @@ impl<E: EthSpec> Case for FgForkChoiceTest<E> {
                 FgStep::HeadVote { head_vote } => {
                     let message: HeadVoteMessage =
                         ssz_decode_file(&self.path.join(format!("{head_vote}.ssz_snappy")))?;
-                    store.on_head_vote(message.validator_index, message.data);
+                    store.on_head_vote_message(message.validator_index, message.data);
                 }
                 FgStep::SafeVote { safe_vote } => {
                     let message: SafeVoteMessage =
@@ -399,7 +399,7 @@ fn run_checks<E: EthSpec>(
     step: usize,
 ) -> Result<(), String> {
     let head = store
-        .get_head(None)
+        .get_head()
         .map_err(|e| format!("step {step}: get_head: {e:?}"))?;
     let head_slot = store
         .block_meta(&head.root)
@@ -454,8 +454,11 @@ fn run_checks<E: EthSpec>(
     check_node(store.grade_2, &checks.grade_2, "grade_2", step)?;
     check_node(store.grade_1, &checks.grade_1, "grade_1", step)?;
     check_node(store.grade_0, &checks.grade_0, "grade_0", step)?;
+    let confirmed = store
+        .get_confirmed_node()
+        .map_err(|e| format!("step {step}: get_confirmed_node: {e:?}"))?;
     check_node(
-        Some(store.get_confirmed()),
+        Some(confirmed),
         &Some(checks.confirmed.clone()),
         "confirmed",
         step,
