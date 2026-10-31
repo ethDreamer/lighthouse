@@ -225,14 +225,14 @@ pub fn is_head_vote_same_slot<E: EthSpec>(
 
 /// The spec's `TIMEOUT_DELAY_SLOTS` constant (`= 2 * SLOTS_PER_ROUND`).
 ///
-/// [Modified in safe-votes] two rounds: target votes of one round are assumed to reach every
+/// [Modified in safe-votes-v2] two rounds: target votes of one round are assumed to reach every
 /// honest store by the end of the next, so a timeout may not leave a height before its target
 /// votes have had time to arrive.
 pub fn timeout_delay_slots<E: EthSpec>() -> Slot {
     Slot::new(E::slots_per_round().saturating_mul(2))
 }
 
-/// `get_head_vote_seat_reward` from the spec [New in safe-votes]: the flat reward for one newly
+/// `get_head_vote_seat_reward` from the spec [New in safe-votes-v2]: the flat reward for one newly
 /// recorded head vote seat, funded by the `HEAD_VOTE_WEIGHT` share of the round's total base
 /// rewards. Zero during an inactivity leak. Requires the total active balance cache.
 pub fn get_head_vote_seat_reward<E: EthSpec>(

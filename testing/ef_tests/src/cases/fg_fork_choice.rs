@@ -1,6 +1,6 @@
 //! Runner for the EIP-8453 fork-choice vectors (locally generated; see
 //! `tests/core/pyspec/eth_consensus_specs/test/eip8453/fork_choice/` on the consensus-specs
-//! `safe-votes` branch).
+//! `safe-votes-v2` branch).
 //!
 //! The vectors drive the spec `Store` directly, so this runner drives `FgForkChoiceStore` +
 //! `state_processing` rather than a full `BeaconChainHarness`: blocks are state-transitioned

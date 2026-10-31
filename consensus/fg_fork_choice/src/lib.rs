@@ -1,5 +1,5 @@
 //! EIP-8453 (decoupled consensus) fork choice: a standalone, spec-shaped implementation of
-//! `specs/_features/eip8453/fork-choice.md` (branch `safe-votes`).
+//! `specs/_features/eip8453/fork-choice.md` (branch `safe-votes-v2`).
 //!
 //! This deliberately mirrors the pyspec `Store` rather than extending `proto_array`: head votes
 //! carry weight for one slot only and safe votes for one expiry window, so there is nothing to
@@ -10,9 +10,6 @@
 //! Prototype honesty notes (all greppable):
 //! - EIP8453-STUB: PTC payload timeliness / data availability votes are not tracked; a payload
 //!   counts as timely and available once verified.
-//! - EIP8453-STUB: stabilization grades and confirmation records are carried but not yet
-//!   evaluated (`on_tick` only advances the clock); `get_sg_root` therefore reduces to the FG
-//!   root. Phase 4b implements `update_grades`/`update_confirmation`.
 //! - Head-vote committees are served from a snapshot of the latest finalized block's post-state
 //!   (the spec's dependent state), refreshed by the caller on finality advances.
 
@@ -27,6 +24,12 @@ use types::eip8453::{
     compute_start_slot_at_round,
 };
 use types::{EthSpec, ExecutionBlockHash, Hash256, Slot};
+
+/// Spec: `SLOW_LOCK_WINDOW` — the slow-confirmation window, in slots.
+pub const SLOW_LOCK_WINDOW: u64 = 4;
+
+/// Spec: `INFINITE_TIME_MS` — the resolution time of an unresolved vote.
+pub const INFINITE_TIME_MS: u64 = u64::MAX;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
@@ -258,13 +261,13 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         self.slot_component_duration_ms(2500)
     }
 
-    /// `get_head_vote_support_due_ms`.
-    fn head_vote_support_due_ms(&self) -> u64 {
+    /// `get_support_cutoff_ms`.
+    fn support_cutoff_ms(&self) -> u64 {
         self.slot_component_duration_ms(5000)
     }
 
-    /// `get_view_freeze_due_ms`.
-    fn view_freeze_due_ms(&self) -> u64 {
+    /// `get_view_freeze_ms`.
+    fn view_freeze_ms(&self) -> u64 {
         self.slot_component_duration_ms(7500)
     }
 
@@ -282,7 +285,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         }
         let confirmation_due_ms = self
             .slot_start_ms(current_slot)
-            .saturating_add(self.head_vote_support_due_ms());
+            .saturating_add(self.support_cutoff_ms());
         let evaluation_slot = if self.time_ms >= confirmation_due_ms {
             current_slot.saturating_sub(1u64)
         } else {
@@ -1335,10 +1338,10 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
     pub fn update_confirmation(&mut self, slot: Slot) -> Result<(), Error> {
         let early_cutoff_ms = self
             .slot_start_ms(slot)
-            .saturating_add(self.head_vote_support_due_ms());
+            .saturating_add(self.support_cutoff_ms());
         let late_cutoff_ms = self
             .slot_start_ms(slot.saturating_add(1u64))
-            .saturating_add(self.head_vote_support_due_ms());
+            .saturating_add(self.support_cutoff_ms());
         let committee: Vec<u64> = self.committee_at_slot(slot).cloned().unwrap_or_default();
 
         let late_votes: Vec<StoreHeadVote> = self
@@ -1448,7 +1451,7 @@ impl<E: EthSpec> FgForkChoiceStore<E> {
         let vote_slot = slot.saturating_sub(1u64);
         let freeze_ms = self
             .slot_start_ms(vote_slot)
-            .saturating_add(self.view_freeze_due_ms());
+            .saturating_add(self.view_freeze_ms());
         let committee: Vec<u64> = self
             .committee_at_slot(vote_slot)
             .cloned()

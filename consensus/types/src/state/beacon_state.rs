@@ -892,7 +892,7 @@ where
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]
     pub finalized_slot: Slot,
-    // [New in EIP8453 safe-votes] whether the current height advances on a target quorum
+    // [New in EIP8453 safe-votes-v2] whether the current height advances on a target quorum
     // without justifying (finality-debt healing). Computed in `advance_height`.
     #[superstruct(only(Eip8453), partial_getter(copy))]
     #[metastruct(exclude_from(tree_lists))]

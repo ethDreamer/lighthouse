@@ -51,7 +51,7 @@ pub mod eip8453 {
     pub const PROGRESS_FLAG_INDEX: usize = 0;
     pub const FINALITY_FLAG_INDEX: usize = 1;
     pub const SAFE_VOTE_FLAG_INDEX: usize = 2;
-    // [Modified in safe-votes] the two new duties (safe votes, head votes) are paid by
+    // [Modified in safe-votes-v2] the two new duties (safe votes, head votes) are paid by
     // reallocating the fixed WEIGHT_DENOMINATOR budget; with the inherited sync (2) and
     // proposer (8) weights the total is still 64.
     pub const PROGRESS_WEIGHT: u64 = 32;

@@ -557,7 +557,7 @@ pub fn process_head_vote<E: EthSpec>(
         }
 
         // Record the seats that voted for the block of their slot, which weighs builder payments
-        // and pays each newly recorded seat [Modified in safe-votes].
+        // and pays each newly recorded seat [Modified in safe-votes-v2].
         if same_slot {
             let participation_index = if vote_epoch == state.current_epoch() {
                 (E::slots_per_epoch() as usize).safe_add(
@@ -705,7 +705,7 @@ pub fn process_safe_vote<E: EthSpec>(
     Ok(())
 }
 
-/// `process_safe_vote` from the spec [New in safe-votes], applied to each safe vote.
+/// `process_safe_vote` from the spec [New in safe-votes-v2], applied to each safe vote.
 ///
 /// Safe votes are relayed for the fork choice's stabilization rule; the state transition only
 /// verifies them and credits a participation flag for current-round votes. Older votes within the
@@ -775,7 +775,7 @@ pub fn process_height_events<E: EthSpec>(
         })?
     };
     if target_quorum {
-        // [New in safe-votes] a nonjustifiable height advances on a target quorum without
+        // [New in safe-votes-v2] a nonjustifiable height advances on a target quorum without
         // justifying, so healing never waits on a justification.
         if !state.nonjustifiable()? {
             let target_checkpoint = state.target_checkpoint()?;
@@ -838,7 +838,7 @@ pub fn advance_height<E: EthSpec>(state: &mut BeaconState<E>) -> Result<(), Beac
     };
     *state.target_slot_mut()? = state.latest_block_header().slot;
 
-    // [New in safe-votes] whether the new height is nonjustifiable, computed on entry into the
+    // [New in safe-votes-v2] whether the new height is nonjustifiable, computed on entry into the
     // height and fixed until it changes: under finality debt, every
     // NONJUSTIFIABLE_HEIGHT_PERIOD-th height advances without justifying.
     let finality_debt = next_height.saturating_sub(state.finalized_checkpoint_eip8453()?.height);

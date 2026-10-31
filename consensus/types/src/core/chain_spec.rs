@@ -128,6 +128,9 @@ pub struct ChainSpec {
     pub contribution_due_bps: u64,
     pub contribution_due_bps_gloas: u64,
     pub inclusion_list_due_bps: u64,
+    pub head_vote_due_bps: u64,
+    pub support_cutoff_bps: u64,
+    pub view_freeze_bps: u64,
 
     /*
      * Derived time values (computed at startup via `compute_derived_values()`)
@@ -143,6 +146,9 @@ pub struct ChainSpec {
     contribution_and_proof_due: Duration,
     contribution_and_proof_due_gloas: Duration,
     inclusion_list_due: Duration,
+    head_vote_due: Duration,
+    support_cutoff: Duration,
+    view_freeze: Duration,
 
     /*
      * Reward and penalty quotients
@@ -1031,23 +1037,20 @@ impl ChainSpec {
         self.payload_due
     }
 
-    /// Spec (EIP-8453): `get_head_vote_due_ms` — `HEAD_VOTE_DUE_BPS = 2500`, one quarter into
-    /// the slot. Also the safe-vote deadline within the assigned sub-round slot.
+    /// Spec (EIP-8453): `get_head_vote_due_ms` — `HEAD_VOTE_DUE_BPS` into the slot. Also the
+    /// safe-vote deadline within the assigned sub-round slot.
     pub fn get_head_vote_due(&self) -> Duration {
-        self.get_slot_duration().checked_div(4).unwrap_or_default()
+        self.head_vote_due
     }
 
-    /// Spec (EIP-8453): `get_head_vote_support_due_ms` — `HEAD_VOTE_SUPPORT_DUE_BPS = 5000`.
-    pub fn get_head_vote_support_due(&self) -> Duration {
-        self.get_slot_duration().checked_div(2).unwrap_or_default()
+    /// Spec (EIP-8453): `get_support_cutoff_ms` — `SUPPORT_CUTOFF_BPS` into the slot.
+    pub fn get_support_cutoff(&self) -> Duration {
+        self.support_cutoff
     }
 
-    /// Spec (EIP-8453): `get_view_freeze_due_ms` — `VIEW_FREEZE_DUE_BPS = 7500`.
-    pub fn get_view_freeze_due(&self) -> Duration {
-        self.get_slot_duration()
-            .saturating_mul(3)
-            .checked_div(4)
-            .unwrap_or_default()
+    /// Spec (EIP-8453): `get_view_freeze_ms` — `VIEW_FREEZE_BPS` into the slot.
+    pub fn get_view_freeze(&self) -> Duration {
+        self.view_freeze
     }
 
     /// Spec: `get_payload_attestation_due_ms`.
@@ -1172,6 +1175,21 @@ impl ChainSpec {
             "invalid chain spec: inclusion_list_due_bps ({}) exceeds slot duration",
             self.inclusion_list_due_bps
         );
+        assert!(
+            self.head_vote_due_bps <= BASIS_POINTS,
+            "invalid chain spec: head_vote_due_bps ({}) exceeds slot duration",
+            self.head_vote_due_bps
+        );
+        assert!(
+            self.support_cutoff_bps <= BASIS_POINTS,
+            "invalid chain spec: support_cutoff_bps ({}) exceeds slot duration",
+            self.support_cutoff_bps
+        );
+        assert!(
+            self.view_freeze_bps <= BASIS_POINTS,
+            "invalid chain spec: view_freeze_bps ({}) exceeds slot duration",
+            self.view_freeze_bps
+        );
 
         self.unaggregated_attestation_due = self
             .compute_slot_component_duration(self.attestation_due_bps)
@@ -1206,6 +1224,15 @@ impl ChainSpec {
         self.inclusion_list_due = self
             .compute_slot_component_duration(self.inclusion_list_due_bps)
             .expect("invalid chain spec: cannot compute inclusion_list_due");
+        self.head_vote_due = self
+            .compute_slot_component_duration(self.head_vote_due_bps)
+            .expect("invalid chain spec: cannot compute head_vote_due");
+        self.support_cutoff = self
+            .compute_slot_component_duration(self.support_cutoff_bps)
+            .expect("invalid chain spec: cannot compute support_cutoff");
+        self.view_freeze = self
+            .compute_slot_component_duration(self.view_freeze_bps)
+            .expect("invalid chain spec: cannot compute view_freeze");
 
         self.attestation_subnet_prefix_bits = compute_attestation_subnet_prefix_bits(
             self.attestation_subnet_count,
@@ -1337,6 +1364,9 @@ impl ChainSpec {
             contribution_due_bps: 6667,
             contribution_due_bps_gloas: 5000,
             inclusion_list_due_bps: 7500,
+            head_vote_due_bps: 2500,
+            support_cutoff_bps: 5000,
+            view_freeze_bps: 7500,
 
             /*
              * Derived time values (set by `compute_derived_values()`)
@@ -1352,6 +1382,9 @@ impl ChainSpec {
             contribution_and_proof_due: Duration::from_millis(8000),
             contribution_and_proof_due_gloas: Duration::from_millis(6000),
             inclusion_list_due: Duration::from_millis(9000),
+            head_vote_due: Duration::from_millis(3000),
+            support_cutoff: Duration::from_millis(6000),
+            view_freeze: Duration::from_millis(9000),
 
             /*
              * Reward and penalty quotients
@@ -1717,6 +1750,9 @@ impl ChainSpec {
             contribution_and_proof_due: Duration::from_millis(4000),
             contribution_and_proof_due_gloas: Duration::from_millis(3000),
             inclusion_list_due: Duration::from_millis(4500),
+            head_vote_due: Duration::from_millis(1500),
+            support_cutoff: Duration::from_millis(3000),
+            view_freeze: Duration::from_millis(4500),
 
             // Networking Fulu
             blob_schedule: BlobSchedule::default(),
@@ -1824,6 +1860,9 @@ impl ChainSpec {
             contribution_and_proof_due: Duration::from_millis(3333),
             contribution_and_proof_due_gloas: Duration::from_millis(2500),
             inclusion_list_due: Duration::from_millis(3750),
+            head_vote_due: Duration::from_millis(1250),
+            support_cutoff: Duration::from_millis(2500),
+            view_freeze: Duration::from_millis(3750),
 
             /*
              * Reward and penalty quotients
@@ -1913,6 +1952,9 @@ impl ChainSpec {
             contribution_due_bps: 6667,
             contribution_due_bps_gloas: 5000,
             inclusion_list_due_bps: 7500,
+            head_vote_due_bps: 2500,
+            support_cutoff_bps: 5000,
+            view_freeze_bps: 7500,
 
             /*
              * Bellatrix hard fork params
@@ -2537,6 +2579,15 @@ pub struct Config {
     #[serde(default = "default_inclusion_list_due_bps")]
     #[serde(with = "serde_utils::quoted_u64")]
     inclusion_list_due_bps: u64,
+    #[serde(default = "default_head_vote_due_bps")]
+    #[serde(with = "serde_utils::quoted_u64")]
+    head_vote_due_bps: u64,
+    #[serde(default = "default_support_cutoff_bps")]
+    #[serde(with = "serde_utils::quoted_u64")]
+    support_cutoff_bps: u64,
+    #[serde(default = "default_view_freeze_bps")]
+    #[serde(with = "serde_utils::quoted_u64")]
+    view_freeze_bps: u64,
 
     #[serde(default = "default_min_builder_withdrawability_delay")]
     #[serde(with = "serde_utils::quoted_u64")]
@@ -2815,6 +2866,18 @@ const fn default_aggregate_due_bps_gloas() -> u64 {
 }
 
 const fn default_inclusion_list_due_bps() -> u64 {
+    7500
+}
+
+const fn default_head_vote_due_bps() -> u64 {
+    2500
+}
+
+const fn default_support_cutoff_bps() -> u64 {
+    5000
+}
+
+const fn default_view_freeze_bps() -> u64 {
     7500
 }
 
@@ -3136,6 +3199,9 @@ impl Config {
             contribution_due_bps: spec.contribution_due_bps,
             contribution_due_bps_gloas: spec.contribution_due_bps_gloas,
             inclusion_list_due_bps: spec.inclusion_list_due_bps,
+            head_vote_due_bps: spec.head_vote_due_bps,
+            support_cutoff_bps: spec.support_cutoff_bps,
+            view_freeze_bps: spec.view_freeze_bps,
 
             min_builder_withdrawability_delay: spec.min_builder_withdrawability_delay.as_u64(),
 
@@ -3255,6 +3321,9 @@ impl Config {
             contribution_due_bps_gloas,
             confirmation_byzantine_threshold,
             inclusion_list_due_bps,
+            head_vote_due_bps,
+            support_cutoff_bps,
+            view_freeze_bps,
             min_builder_withdrawability_delay,
             churn_limit_quotient_gloas,
             consolidation_churn_limit_quotient,
@@ -3407,6 +3476,9 @@ impl Config {
             contribution_due_bps,
             contribution_due_bps_gloas,
             inclusion_list_due_bps,
+            head_vote_due_bps,
+            support_cutoff_bps,
+            view_freeze_bps,
 
             min_builder_withdrawability_delay: Epoch::new(min_builder_withdrawability_delay),
 
