@@ -1637,6 +1637,18 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                     ),
                 )
             }
+            // EIP8453-STUB (Phase 6 stage 6b wires these into the beacon processor): the
+            // EIP-8453 topics decode but their messages are dropped without validation or
+            // propagation.
+            PubsubMessage::HeadVote(_)
+            | PubsubMessage::SafeVote(_)
+            | PubsubMessage::HeadVoteAggregate(_)
+            | PubsubMessage::SafeVoteAggregate(_)
+            | PubsubMessage::AttestationAggregate(_)
+            | PubsubMessage::FgAttestation(_)
+            | PubsubMessage::Eip8453AttesterSlashing(_) => {
+                trace!(%peer_id, "Dropped an EIP-8453 gossip message (processing not yet wired)");
+            }
         }
     }
 

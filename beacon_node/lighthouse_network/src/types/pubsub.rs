@@ -18,7 +18,7 @@ use types::{
     SignedBeaconBlock, SignedBlsToExecutionChange, SignedContributionAndProof,
     SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedInclusionList,
     SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, SubnetId,
-    SyncCommitteeMessage, SyncSubnetId, execution::SignedExecutionProofEnvelope,
+    SyncCommitteeMessage, SyncSubnetId, eip8453, execution::SignedExecutionProofEnvelope,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,6 +59,21 @@ pub enum PubsubMessage<E: EthSpec> {
     LightClientFinalityUpdate(Box<LightClientFinalityUpdate<E>>),
     /// Gossipsub message providing notification of a light client optimistic update.
     LightClientOptimisticUpdate(Box<LightClientOptimisticUpdate<E>>),
+    /// Gossipsub message providing notification of an EIP-8453 head vote.
+    HeadVote(Box<eip8453::HeadVoteMessage>),
+    /// Gossipsub message providing notification of an EIP-8453 safe vote.
+    SafeVote(Box<eip8453::SafeVoteMessage>),
+    /// Gossipsub message providing notification of an EIP-8453 head vote aggregate.
+    HeadVoteAggregate(Box<eip8453::SignedHeadVoteAggregateAndProof<E>>),
+    /// Gossipsub message providing notification of an EIP-8453 safe vote aggregate.
+    SafeVoteAggregate(Box<eip8453::SignedSafeVoteAggregateAndProof<E>>),
+    /// Gossipsub message providing notification of an EIP-8453 FG attestation aggregate.
+    AttestationAggregate(Box<eip8453::SignedAttestationAggregateAndProof<E>>),
+    /// Gossipsub message providing notification of an EIP-8453 FG attestation with its subnet id.
+    FgAttestation(Box<(SubnetId, eip8453::SingleAttestation)>),
+    /// Gossipsub message providing notification of an EIP-8453 attester slashing (the
+    /// `attester_slashing` topic's type at the EIP-8453 fork digest).
+    Eip8453AttesterSlashing(Box<eip8453::AttesterSlashing<E>>),
 }
 
 /// A message published via the partial gossipsub protocol.
@@ -185,6 +200,13 @@ impl<E: EthSpec> PubsubMessage<E> {
             PubsubMessage::LightClientOptimisticUpdate(_) => {
                 GossipKind::LightClientOptimisticUpdate
             }
+            PubsubMessage::HeadVote(_) => GossipKind::HeadVote,
+            PubsubMessage::SafeVote(_) => GossipKind::SafeVote,
+            PubsubMessage::HeadVoteAggregate(_) => GossipKind::HeadVoteAggregate,
+            PubsubMessage::SafeVoteAggregate(_) => GossipKind::SafeVoteAggregate,
+            PubsubMessage::AttestationAggregate(_) => GossipKind::AttestationAggregate,
+            PubsubMessage::FgAttestation(data) => GossipKind::FgAttestation(data.0),
+            PubsubMessage::Eip8453AttesterSlashing(_) => GossipKind::AttesterSlashing,
         }
     }
 
@@ -322,6 +344,23 @@ impl<E: EthSpec> PubsubMessage<E> {
                             .get_fork_from_context_bytes(gossip_topic.fork_digest)
                         {
                             Some(&fork_name) => {
+                                // [Modified in EIP8453] the topic carries the EIP-8453
+                                // `AttesterSlashing` (FG attestations) at the fork digest.
+                                if fork_name.eip8453_enabled() {
+                                    if data.len() > eip8453::MAX_ATTESTER_SLASHING_SIZE_EIP8453 {
+                                        return Err(format!(
+                                            "AttesterSlashing size {} exceeds MAX_ATTESTER_SLASHING_SIZE_EIP8453 {}",
+                                            data.len(),
+                                            eip8453::MAX_ATTESTER_SLASHING_SIZE_EIP8453
+                                        ));
+                                    }
+                                    let attester_slashing =
+                                        eip8453::AttesterSlashing::from_ssz_bytes(data)
+                                            .map_err(|e| format!("{:?}", e))?;
+                                    return Ok(PubsubMessage::Eip8453AttesterSlashing(Box::new(
+                                        attester_slashing,
+                                    )));
+                                }
                                 // [Modified in Gloas:EIP7688] see `BeaconAggregateAndProof` above.
                                 if fork_name.gloas_enabled() {
                                     if data.len() > E::max_attester_slashing_size() {
@@ -484,6 +523,42 @@ impl<E: EthSpec> PubsubMessage<E> {
                             light_client_optimistic_update,
                         )))
                     }
+                    GossipKind::HeadVote => {
+                        let head_vote = eip8453::HeadVoteMessage::from_ssz_bytes(data)
+                            .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::HeadVote(Box::new(head_vote)))
+                    }
+                    GossipKind::SafeVote => {
+                        let safe_vote = eip8453::SafeVoteMessage::from_ssz_bytes(data)
+                            .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::SafeVote(Box::new(safe_vote)))
+                    }
+                    GossipKind::HeadVoteAggregate => {
+                        let aggregate =
+                            eip8453::SignedHeadVoteAggregateAndProof::from_ssz_bytes(data)
+                                .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::HeadVoteAggregate(Box::new(aggregate)))
+                    }
+                    GossipKind::SafeVoteAggregate => {
+                        let aggregate =
+                            eip8453::SignedSafeVoteAggregateAndProof::from_ssz_bytes(data)
+                                .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::SafeVoteAggregate(Box::new(aggregate)))
+                    }
+                    GossipKind::AttestationAggregate => {
+                        let aggregate =
+                            eip8453::SignedAttestationAggregateAndProof::from_ssz_bytes(data)
+                                .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::AttestationAggregate(Box::new(aggregate)))
+                    }
+                    GossipKind::FgAttestation(subnet_id) => {
+                        let attestation = eip8453::SingleAttestation::from_ssz_bytes(data)
+                            .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::FgAttestation(Box::new((
+                            *subnet_id,
+                            attestation,
+                        ))))
+                    }
                 }
             }
         }
@@ -515,6 +590,13 @@ impl<E: EthSpec> PubsubMessage<E> {
             PubsubMessage::InclusionList(data) => data.as_ssz_bytes(),
             PubsubMessage::LightClientFinalityUpdate(data) => data.as_ssz_bytes(),
             PubsubMessage::LightClientOptimisticUpdate(data) => data.as_ssz_bytes(),
+            PubsubMessage::HeadVote(data) => data.as_ssz_bytes(),
+            PubsubMessage::SafeVote(data) => data.as_ssz_bytes(),
+            PubsubMessage::HeadVoteAggregate(data) => data.as_ssz_bytes(),
+            PubsubMessage::SafeVoteAggregate(data) => data.as_ssz_bytes(),
+            PubsubMessage::AttestationAggregate(data) => data.as_ssz_bytes(),
+            PubsubMessage::FgAttestation(data) => data.1.as_ssz_bytes(),
+            PubsubMessage::Eip8453AttesterSlashing(data) => data.as_ssz_bytes(),
         }
     }
 }
@@ -689,6 +771,51 @@ impl<E: EthSpec> std::fmt::Display for PubsubMessage<E> {
             PubsubMessage::LightClientOptimisticUpdate(_data) => {
                 write!(f, "Light CLient Optimistic Update")
             }
+            PubsubMessage::HeadVote(data) => {
+                write!(
+                    f,
+                    "Head vote: slot: {}, validator_index: {}",
+                    data.data.slot, data.validator_index
+                )
+            }
+            PubsubMessage::SafeVote(data) => {
+                write!(
+                    f,
+                    "Safe vote: round: {}, validator_index: {}",
+                    data.data.round, data.validator_index
+                )
+            }
+            PubsubMessage::HeadVoteAggregate(data) => {
+                write!(
+                    f,
+                    "Head vote aggregate: slot: {}, aggregator_index: {}",
+                    data.message.aggregate.data.slot, data.message.aggregator_index
+                )
+            }
+            PubsubMessage::SafeVoteAggregate(data) => {
+                write!(
+                    f,
+                    "Safe vote aggregate: round: {}, aggregator_index: {}",
+                    data.message.aggregate.data.round, data.message.aggregator_index
+                )
+            }
+            PubsubMessage::AttestationAggregate(data) => {
+                write!(
+                    f,
+                    "FG attestation aggregate: epoch: {}, aggregator_index: {}",
+                    data.message.aggregate.epoch, data.message.aggregator_index
+                )
+            }
+            PubsubMessage::FgAttestation(data) => {
+                write!(
+                    f,
+                    "FG attestation: subnet_id: {}, committee_index: {}, attester_index: {}",
+                    *data.0, data.1.committee_index, data.1.attester_index
+                )
+            }
+            PubsubMessage::Eip8453AttesterSlashing(_data) => {
+                write!(f, "EIP-8453 Attester Slashing")
+            }
         }
     }
 }
@@ -724,6 +851,69 @@ mod tests {
                 PubsubMessage::decode(&topic_hash, &block.as_ssz_bytes(), &fork_context),
                 Ok(PubsubMessage::BeaconBlock(Arc::new(block))),
                 "gossip must preserve the {fork} block variant"
+            );
+        }
+    }
+
+    fn indexed_attestation() -> eip8453::IndexedAttestation<E> {
+        eip8453::IndexedAttestation {
+            attesting_indices: Default::default(),
+            data: Default::default(),
+            signature: bls::AggregateSignature::empty(),
+            epoch: Epoch::new(0),
+        }
+    }
+
+    #[test]
+    fn eip8453_messages_round_trip_through_decode() {
+        let spec = ForkName::Eip8453.make_genesis_spec(E::default_spec());
+        let fork_context = ForkContext::new::<E>(Slot::new(0), Hash256::ZERO, &spec);
+        let digest = fork_context.current_fork_digest();
+
+        let head_vote = eip8453::HeadVoteMessage {
+            validator_index: 3,
+            data: eip8453::HeadVoteData {
+                slot: Slot::new(7),
+                beacon_block_root: Hash256::repeat_byte(0xaa),
+                payload_status: 0,
+            },
+            signature: Signature::empty(),
+        };
+        let safe_vote = eip8453::SafeVoteMessage {
+            validator_index: 5,
+            data: eip8453::SafeVoteData {
+                round: 2,
+                beacon_block_root: Hash256::repeat_byte(0xbb),
+                payload_status: 1,
+            },
+            signature: Signature::empty(),
+        };
+        let messages: Vec<PubsubMessage<E>> = vec![
+            PubsubMessage::HeadVote(Box::new(head_vote)),
+            PubsubMessage::SafeVote(Box::new(safe_vote)),
+            PubsubMessage::FgAttestation(Box::new((
+                SubnetId::new(9),
+                eip8453::SingleAttestation {
+                    committee_index: 9,
+                    attester_index: 4,
+                    data: Default::default(),
+                    signature: bls::AggregateSignature::empty(),
+                    epoch: Epoch::new(0),
+                },
+            ))),
+            PubsubMessage::Eip8453AttesterSlashing(Box::new(eip8453::AttesterSlashing::<E> {
+                attestation_1: indexed_attestation(),
+                attestation_2: indexed_attestation(),
+            })),
+        ];
+        for message in messages {
+            let topic = GossipTopic::new(message.kind(), GossipEncoding::default(), digest);
+            let topic_hash = TopicHash::from_raw(String::from(topic));
+            let encoded = message.encode(GossipEncoding::default());
+            assert_eq!(
+                PubsubMessage::decode(&topic_hash, &encoded, &fork_context),
+                Ok(message.clone()),
+                "{message} must round-trip"
             );
         }
     }

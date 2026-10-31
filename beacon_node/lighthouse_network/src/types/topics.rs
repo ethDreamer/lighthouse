@@ -36,6 +36,15 @@ pub const EXECUTION_PROOF: &str = "execution_proof";
 pub const INCLUSION_LIST: &str = "inclusion_list";
 pub const LIGHT_CLIENT_FINALITY_UPDATE: &str = "light_client_finality_update";
 pub const LIGHT_CLIENT_OPTIMISTIC_UPDATE: &str = "light_client_optimistic_update";
+// EIP-8453 topics. FG attestations replace beacon attestations on new `attestation_{subnet_id}`
+// subnets; `beacon_aggregate_and_proof` and `beacon_attestation_{subnet_id}` are deprecated at
+// the fork.
+pub const HEAD_VOTE_TOPIC: &str = "head_vote";
+pub const SAFE_VOTE_TOPIC: &str = "safe_vote";
+pub const HEAD_VOTE_AGGREGATE_TOPIC: &str = "head_vote_aggregate";
+pub const SAFE_VOTE_AGGREGATE_TOPIC: &str = "safe_vote_aggregate";
+pub const ATTESTATION_AGGREGATE_TOPIC: &str = "attestation_aggregate";
+pub const FG_ATTESTATION_PREFIX: &str = "attestation_";
 
 #[derive(Debug)]
 pub struct TopicConfig {
@@ -53,15 +62,20 @@ pub fn core_topics_to_subscribe<E: EthSpec>(
 ) -> Vec<GossipKind> {
     let mut topics = vec![
         GossipKind::BeaconBlock,
-        GossipKind::BeaconAggregateAndProof,
         GossipKind::VoluntaryExit,
         GossipKind::ProposerSlashing,
         GossipKind::AttesterSlashing,
     ];
 
-    if opts.subscribe_all_subnets {
-        for i in 0..spec.attestation_subnet_count {
-            topics.push(GossipKind::Attestation(i.into()));
+    // EIP-8453 deprecates `beacon_aggregate_and_proof` and the `beacon_attestation` subnets in
+    // favor of the FG attestation topics below.
+    if !fork_name.eip8453_enabled() {
+        topics.push(GossipKind::BeaconAggregateAndProof);
+
+        if opts.subscribe_all_subnets {
+            for i in 0..spec.attestation_subnet_count {
+                topics.push(GossipKind::Attestation(i.into()));
+            }
         }
     }
 
@@ -104,6 +118,20 @@ pub fn core_topics_to_subscribe<E: EthSpec>(
         topics.push(GossipKind::InclusionList);
     }
 
+    if fork_name.eip8453_enabled() {
+        topics.push(GossipKind::HeadVote);
+        topics.push(GossipKind::SafeVote);
+        topics.push(GossipKind::HeadVoteAggregate);
+        topics.push(GossipKind::SafeVoteAggregate);
+        topics.push(GossipKind::AttestationAggregate);
+        // EIP8453-STUB: every FG attestation subnet is subscribed as a core topic, instead of
+        // deriving per-duty subnet subscriptions through the subnet service. Fine at devnet
+        // scale; a production node would subscribe per committee assignment.
+        for i in 0..spec.attestation_subnet_count {
+            topics.push(GossipKind::FgAttestation(i.into()));
+        }
+    }
+
     topics
 }
 
@@ -133,7 +161,14 @@ pub fn is_fork_non_core_topic(topic: &GossipTopic, _fork_name: ForkName) -> bool
         | GossipKind::ExecutionProof
         | GossipKind::InclusionList
         | GossipKind::LightClientFinalityUpdate
-        | GossipKind::LightClientOptimisticUpdate => false,
+        | GossipKind::LightClientOptimisticUpdate
+        | GossipKind::HeadVote
+        | GossipKind::SafeVote
+        | GossipKind::HeadVoteAggregate
+        | GossipKind::SafeVoteAggregate
+        | GossipKind::AttestationAggregate
+        // Core at EIP-8453 (all subnets are core-subscribed for the prototype).
+        | GossipKind::FgAttestation(_) => false,
     }
 }
 
@@ -204,6 +239,19 @@ pub enum GossipKind {
     LightClientFinalityUpdate,
     /// Topic for publishing optimistic updates for light clients.
     LightClientOptimisticUpdate,
+    /// Topic for publishing EIP-8453 head votes.
+    HeadVote,
+    /// Topic for publishing EIP-8453 safe votes.
+    SafeVote,
+    /// Topic for publishing EIP-8453 head vote aggregates.
+    HeadVoteAggregate,
+    /// Topic for publishing EIP-8453 safe vote aggregates.
+    SafeVoteAggregate,
+    /// Topic for publishing EIP-8453 FG attestation aggregates.
+    AttestationAggregate,
+    /// Topic for publishing EIP-8453 FG attestations on a particular subnet.
+    #[strum(serialize = "attestation")]
+    FgAttestation(SubnetId),
 }
 
 impl GossipKind {
@@ -219,6 +267,7 @@ impl std::fmt::Display for GossipKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GossipKind::Attestation(subnet_id) => write!(f, "beacon_attestation_{}", **subnet_id),
+            GossipKind::FgAttestation(subnet_id) => write!(f, "attestation_{}", **subnet_id),
             GossipKind::SyncCommitteeMessage(subnet_id) => {
                 write!(f, "sync_committee_{}", **subnet_id)
             }
@@ -298,6 +347,11 @@ impl GossipTopic {
                 INCLUSION_LIST => GossipKind::InclusionList,
                 LIGHT_CLIENT_FINALITY_UPDATE => GossipKind::LightClientFinalityUpdate,
                 LIGHT_CLIENT_OPTIMISTIC_UPDATE => GossipKind::LightClientOptimisticUpdate,
+                HEAD_VOTE_TOPIC => GossipKind::HeadVote,
+                SAFE_VOTE_TOPIC => GossipKind::SafeVote,
+                HEAD_VOTE_AGGREGATE_TOPIC => GossipKind::HeadVoteAggregate,
+                SAFE_VOTE_AGGREGATE_TOPIC => GossipKind::SafeVoteAggregate,
+                ATTESTATION_AGGREGATE_TOPIC => GossipKind::AttestationAggregate,
                 topic => match subnet_topic_index(topic) {
                     Some(kind) => kind,
                     None => return Err(format!("Unknown topic: {}", topic)),
@@ -316,7 +370,9 @@ impl GossipTopic {
 
     pub fn subnet_id(&self) -> Option<Subnet> {
         match self.kind() {
-            GossipKind::Attestation(subnet_id) => Some(Subnet::Attestation(*subnet_id)),
+            GossipKind::Attestation(subnet_id) | GossipKind::FgAttestation(subnet_id) => {
+                Some(Subnet::Attestation(*subnet_id))
+            }
             GossipKind::SyncCommitteeMessage(subnet_id) => Some(Subnet::SyncCommittee(*subnet_id)),
             GossipKind::DataColumnSidecar(subnet_id) => Some(Subnet::DataColumn(*subnet_id)),
             _ => None,
@@ -366,6 +422,12 @@ impl std::fmt::Display for GossipTopic {
             GossipKind::InclusionList => INCLUSION_LIST.into(),
             GossipKind::LightClientFinalityUpdate => LIGHT_CLIENT_FINALITY_UPDATE.into(),
             GossipKind::LightClientOptimisticUpdate => LIGHT_CLIENT_OPTIMISTIC_UPDATE.into(),
+            GossipKind::HeadVote => HEAD_VOTE_TOPIC.into(),
+            GossipKind::SafeVote => SAFE_VOTE_TOPIC.into(),
+            GossipKind::HeadVoteAggregate => HEAD_VOTE_AGGREGATE_TOPIC.into(),
+            GossipKind::SafeVoteAggregate => SAFE_VOTE_AGGREGATE_TOPIC.into(),
+            GossipKind::AttestationAggregate => ATTESTATION_AGGREGATE_TOPIC.into(),
+            GossipKind::FgAttestation(index) => format!("{}{}", FG_ATTESTATION_PREFIX, *index),
         };
         write!(
             f,
@@ -409,6 +471,12 @@ fn subnet_topic_index(topic: &str) -> Option<GossipKind> {
         return Some(GossipKind::DataColumnSidecar(DataColumnSubnetId::new(
             index.parse::<u64>().ok()?,
         )));
+    } else if let Some(index) = topic.strip_prefix(FG_ATTESTATION_PREFIX) {
+        // The exact-match topics (`attestation_aggregate`) never reach this fallthrough, so a
+        // bare `attestation_{index}` is an EIP-8453 FG attestation subnet.
+        return Some(GossipKind::FgAttestation(SubnetId::new(
+            index.parse::<u64>().ok()?,
+        )));
     }
     None
 }
@@ -417,7 +485,7 @@ fn subnet_topic_index(topic: &str) -> Option<GossipKind> {
 mod tests {
     use super::GossipKind::*;
     use super::*;
-    use types::{Epoch, Spec as E};
+    use types::{Epoch, ForkName, Spec as E};
 
     const GOOD_FORK_DIGEST: &str = "e1925f3b";
     const BAD_PREFIX: &str = "tezos";
@@ -502,6 +570,80 @@ mod tests {
         assert!(GossipTopic::decode("").is_err());
         // Empty parts
         assert!(GossipTopic::decode("////").is_err());
+    }
+
+    #[test]
+    fn test_eip8453_topic_round_trips() {
+        let fork_digest: [u8; 4] = [1, 2, 3, 4];
+        for kind in [
+            HeadVote,
+            SafeVote,
+            HeadVoteAggregate,
+            SafeVoteAggregate,
+            AttestationAggregate,
+            FgAttestation(SubnetId::new(7)),
+        ] {
+            let topic = GossipTopic::new(kind.clone(), GossipEncoding::SSZSnappy, fork_digest);
+            let encoded: String = topic.clone().into();
+            assert_eq!(GossipTopic::decode(&encoded).unwrap(), topic, "{encoded}");
+        }
+        // The subnet-indexed FG attestation topic is distinct from both the exact-match
+        // aggregate topic and the deprecated `beacon_attestation` subnets.
+        assert_eq!(
+            GossipTopic::decode("/eth2/01020304/attestation_3/ssz_snappy")
+                .unwrap()
+                .kind(),
+            &FgAttestation(SubnetId::new(3))
+        );
+        assert_eq!(
+            GossipTopic::decode("/eth2/01020304/attestation_aggregate/ssz_snappy")
+                .unwrap()
+                .kind(),
+            &AttestationAggregate
+        );
+        assert_eq!(
+            GossipTopic::decode("/eth2/01020304/beacon_attestation_3/ssz_snappy")
+                .unwrap()
+                .kind(),
+            &Attestation(SubnetId::new(3))
+        );
+    }
+
+    #[test]
+    fn test_eip8453_core_topics() {
+        let spec = ForkName::Eip8453.make_genesis_spec(E::default_spec());
+        let opts = TopicConfig {
+            enable_light_client_server: false,
+            enable_execution_proof: false,
+            subscribe_all_subnets: true,
+            sampling_subnets: HashSet::new(),
+        };
+        let topics = core_topics_to_subscribe::<E>(ForkName::Eip8453, &opts, &spec);
+        // Deprecated at the fork.
+        assert!(!topics.contains(&BeaconAggregateAndProof));
+        assert!(topics.iter().all(|t| !matches!(t, Attestation(_))));
+        // The new global topics and every FG attestation subnet.
+        for kind in [
+            HeadVote,
+            SafeVote,
+            HeadVoteAggregate,
+            SafeVoteAggregate,
+            AttestationAggregate,
+        ] {
+            assert!(topics.contains(&kind), "{kind:?} missing");
+        }
+        assert_eq!(
+            topics
+                .iter()
+                .filter(|t| matches!(t, FgAttestation(_)))
+                .count() as u64,
+            spec.attestation_subnet_count
+        );
+        // Pre-fork sets are unchanged.
+        let heze_topics = core_topics_to_subscribe::<E>(ForkName::Heze, &opts, &spec);
+        assert!(heze_topics.contains(&BeaconAggregateAndProof));
+        assert!(heze_topics.iter().any(|t| matches!(t, Attestation(_))));
+        assert!(heze_topics.iter().all(|t| !matches!(t, FgAttestation(_))));
     }
 
     #[test]
@@ -602,7 +744,6 @@ mod tests {
 
         let mut expected_topics = vec![
             GossipKind::BeaconBlock,
-            GossipKind::BeaconAggregateAndProof,
             GossipKind::VoluntaryExit,
             GossipKind::ProposerSlashing,
             GossipKind::AttesterSlashing,
@@ -611,6 +752,16 @@ mod tests {
             GossipKind::LightClientOptimisticUpdate,
             GossipKind::BlsToExecutionChange,
         ];
+        // EIP-8453 deprecates `beacon_aggregate_and_proof` in favor of the FG vote topics.
+        if latest_fork.eip8453_enabled() {
+            expected_topics.push(GossipKind::HeadVote);
+            expected_topics.push(GossipKind::SafeVote);
+            expected_topics.push(GossipKind::HeadVoteAggregate);
+            expected_topics.push(GossipKind::SafeVoteAggregate);
+            expected_topics.push(GossipKind::AttestationAggregate);
+        } else {
+            expected_topics.push(GossipKind::BeaconAggregateAndProof);
+        }
         for subnet in s {
             expected_topics.push(GossipKind::DataColumnSidecar(subnet));
         }

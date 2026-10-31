@@ -14,6 +14,7 @@
 //! Spec: `specs/_features/eip8453/beacon-chain.md` on the `decoupled-consensus` branch.
 
 mod attestation;
+mod attestation_aggregate_and_proof;
 mod attestation_data;
 mod attester_slashing;
 mod head_vote;
@@ -30,6 +31,9 @@ mod safe_vote_message;
 mod single_attestation;
 
 pub use attestation::Attestation;
+pub use attestation_aggregate_and_proof::{
+    AttestationAggregateAndProof, SignedAttestationAggregateAndProof,
+};
 pub use attestation_data::AttestationData;
 pub use attester_slashing::{
     AttesterSlashing, is_conflicting_with_finality_pair, is_double_target_vote,
@@ -77,6 +81,22 @@ pub fn compute_round_at_slot<E: EthSpec>(slot: Slot) -> Round {
 pub fn compute_start_slot_at_round<E: EthSpec>(round: Round) -> Slot {
     Slot::new(round.saturating_mul(E::slots_per_round()))
 }
+
+/// `compute_subnet_for_attestation` from the networking spec: FG attestations map to subnets by
+/// committee index alone (they carry no slot).
+pub fn compute_subnet_for_fg_attestation(
+    committee_index: u64,
+    attestation_subnet_count: u64,
+) -> u64 {
+    committee_index
+        .checked_rem(attestation_subnet_count)
+        .unwrap_or(0)
+}
+
+/// `MAX_ATTESTER_SLASHING_SIZE_EIP8453` from the networking spec: the gossip size bound for the
+/// `attester_slashing` topic, superseding `MAX_ATTESTER_SLASHING_SIZE` since the EIP-8453
+/// `IndexedAttestation` is wider.
+pub const MAX_ATTESTER_SLASHING_SIZE_EIP8453: usize = 2_097_538;
 
 /// `compute_attestation_committee_slot` from the spec: the slot of `round` assigned to the
 /// committee at `committee_index`. The committees of a round are assigned to its slots in order,

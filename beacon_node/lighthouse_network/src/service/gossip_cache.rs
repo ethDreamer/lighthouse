@@ -271,6 +271,13 @@ impl GossipCache {
             GossipKind::InclusionList => self.inclusion_list,
             GossipKind::LightClientFinalityUpdate => self.light_client_finality_update,
             GossipKind::LightClientOptimisticUpdate => self.light_client_optimistic_update,
+            // EIP-8453 votes are deadline-driven; stale copies are not worth republishing.
+            GossipKind::HeadVote
+            | GossipKind::SafeVote
+            | GossipKind::HeadVoteAggregate
+            | GossipKind::SafeVoteAggregate
+            | GossipKind::AttestationAggregate
+            | GossipKind::FgAttestation(_) => None,
         };
         let Some(expire_timeout) = expire_timeout else {
             return;
