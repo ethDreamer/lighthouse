@@ -13,6 +13,7 @@ use ssz_types::ProgressiveVariableList;
 use state_processing::common::{get_attesting_indices_from_state, get_indexed_payload_attestation};
 use state_processing::envelope_processing::verify_execution_payload_envelope;
 use state_processing::epoch_cache::initialize_epoch_cache;
+use state_processing::per_block_processing::eip8453::process_attester_slashing_eip8453;
 use state_processing::per_block_processing::is_valid_indexed_payload_attestation;
 use state_processing::per_block_processing::{
     apply_parent_execution_payload, compute_timestamp_at_slot, get_expected_withdrawals,
@@ -920,6 +921,36 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                         },
                     );
 
+                // FG attester slashings: revalidate each candidate by running the state
+                // transition's check on a throwaway copy of the packing state. Applying them in
+                // sequence to the same copy also drops a second slashing whose targets the first
+                // already slashed. Signatures were verified at ingestion.
+                let mut slashing_state = state.clone();
+                slashing_state
+                    .build_slashings_cache()
+                    .map_err(BlockProductionError::BeaconStateError)?;
+                let mut slashing_ctxt = ConsensusContext::new(slashing_state.slot());
+                let fg_attester_slashings = self.eip8453_pool.drain_attester_slashings(
+                    <T::EthSpec as EthSpec>::max_attester_slashings_electra(),
+                    |slashing| {
+                        process_attester_slashing_eip8453(
+                            &mut slashing_state,
+                            slashing,
+                            VerifySignatures::False,
+                            &mut slashing_ctxt,
+                            &self.spec,
+                        )
+                        .map_err(|e| {
+                            warn!(
+                                err = ?e,
+                                block_slot = %state.slot(),
+                                "Attempted to include an invalid FG attester slashing"
+                            );
+                        })
+                        .is_ok()
+                    },
+                );
+
                 BeaconBlock::Eip8453(BeaconBlockEip8453 {
                     slot,
                     proposer_index,
@@ -933,10 +964,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             proposer_slashings,
                         )
                         .map_err(BlockProductionError::SszTypesError)?,
-                        // EIP8453-STUB: no FG slashing pool exists yet. Pre-fork (Casper FFG)
-                        // slashing evidence from the op pool goes into
-                        // `legacy_attester_slashings`.
-                        attester_slashings: ProgressiveVariableList::empty(),
+                        // FG slashing evidence from the eip8453 pool; pre-fork (Casper FFG)
+                        // evidence from the op pool goes into `legacy_attester_slashings`.
+                        attester_slashings: ProgressiveVariableList::try_from_iter(
+                            fg_attester_slashings,
+                        )
+                        .map_err(BlockProductionError::SszTypesError)?,
                         attestations: ProgressiveVariableList::try_from_iter(fg_attestations)
                             .map_err(BlockProductionError::SszTypesError)?,
                         voluntary_exits: ProgressiveVariableList::try_from_iter(voluntary_exits)

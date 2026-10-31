@@ -417,6 +417,8 @@ pub struct BeaconChain<T: BeaconChainTypes> {
     /// EIP8453-STUB: a dumb pool for the finality gadget objects (FG attestations, head votes,
     /// safe votes), outside `op_pool` because that machinery is Casper-FFG-shaped.
     pub eip8453_pool: crate::eip8453_pool::Eip8453OperationPool<T::EthSpec>,
+    /// The EIP-8453 gossip `Seen` caches (head votes, safe votes, FG attestations).
+    pub eip8453_observed_gossip: crate::eip8453_gossip::Eip8453ObservedGossip,
     /// A pool of attestations dedicated to the "naive aggregation strategy" defined in the eth2
     /// specs.
     ///

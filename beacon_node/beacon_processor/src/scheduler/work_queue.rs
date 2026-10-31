@@ -319,6 +319,7 @@ pub struct BeaconProcessorQueueLengths {
     gossip_execution_proof_queue: usize,
     gossip_execution_payload_bid_queue: usize,
     gossip_payload_attestation_queue: usize,
+    gossip_eip8453_vote_queue: usize,
     gossip_proposer_preferences_queue: usize,
     gossip_inclusion_list_queue: usize,
     lc_bootstrap_queue: usize,
@@ -405,6 +406,13 @@ impl BeaconProcessorQueueLengths {
             // PTC size ~512 per slot, buffer 2-3 slots for reorgs and processing delays (512 * 3 = 1536)
             // TODO(EIP-7732): verify if this is preferable queue length or otherwise
             gossip_payload_attestation_queue: 1536,
+            // EIP-8453: head votes (committee-sized per slot), safe votes (up to one per
+            // validator per round, two with equivocations) and FG attestation singles share this
+            // queue; size it like the attestation queue.
+            gossip_eip8453_vote_queue: std::cmp::max(
+                active_validator_count / slots_per_epoch,
+                MIN_QUEUE_LEN,
+            ),
             // TODO(EIP-7732): verify if this is preferable queue length
             gossip_proposer_preferences_queue: 1024,
             // TODO(heze): verify if this is preferable queue length
@@ -463,6 +471,7 @@ pub struct WorkQueues<E: EthSpec> {
     pub gossip_execution_proof_queue: FifoQueue<Work<E>>,
     pub gossip_execution_payload_bid_queue: FifoQueue<Work<E>>,
     pub gossip_payload_attestation_queue: FifoQueue<Work<E>>,
+    pub gossip_eip8453_vote_queue: FifoQueue<Work<E>>,
     pub gossip_proposer_preferences_queue: FifoQueue<Work<E>>,
     pub gossip_inclusion_list_queue: FifoQueue<Work<E>>,
     pub lc_gossip_finality_update_queue: FifoQueue<Work<E>>,
@@ -557,6 +566,7 @@ impl<E: EthSpec> WorkQueues<E> {
             FifoQueue::new(queue_lengths.gossip_execution_payload_bid_queue);
         let gossip_payload_attestation_queue =
             FifoQueue::new(queue_lengths.gossip_payload_attestation_queue);
+        let gossip_eip8453_vote_queue = FifoQueue::new(queue_lengths.gossip_eip8453_vote_queue);
         let gossip_proposer_preferences_queue =
             FifoQueue::new(queue_lengths.gossip_proposer_preferences_queue);
         let gossip_inclusion_list_queue = FifoQueue::new(queue_lengths.gossip_inclusion_list_queue);
@@ -618,6 +628,7 @@ impl<E: EthSpec> WorkQueues<E> {
             gossip_execution_proof_queue,
             gossip_execution_payload_bid_queue,
             gossip_payload_attestation_queue,
+            gossip_eip8453_vote_queue,
             gossip_proposer_preferences_queue,
             gossip_inclusion_list_queue,
             lc_gossip_optimistic_update_queue,

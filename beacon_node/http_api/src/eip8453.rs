@@ -8,14 +8,18 @@ use std::sync::Arc;
 
 use beacon_chain::{BeaconChain, BeaconChainTypes};
 use eth2::types::{self as api_types, GenericResponse, ValidatorIndexData};
+use lighthouse_network::PubsubMessage;
+use network::NetworkMessage;
 use serde::Deserialize;
-use types::eip8453::{HeadVoteMessage, SafeVoteMessage};
-use types::{Epoch, Slot, eip8453};
+use tokio::sync::mpsc::UnboundedSender;
+use types::eip8453::{HeadVoteMessage, SafeVoteMessage, compute_subnet_for_fg_attestation};
+use types::{Epoch, Slot, SubnetId, eip8453};
 use warp::{Filter, Rejection};
 
 use crate::task_spawner::{Priority, TaskSpawner};
 use crate::utils::{
-    ChainFilter, EthV1Filter, NotWhileSyncingFilter, ResponseFilter, TaskSpawnerFilter,
+    ChainFilter, EthV1Filter, NetworkTxFilter, NotWhileSyncingFilter, ResponseFilter,
+    TaskSpawnerFilter, publish_pubsub_messages,
 };
 
 #[derive(Deserialize)]
@@ -220,6 +224,7 @@ pub fn post_beacon_pool_eip8453_head_votes<T: BeaconChainTypes>(
     eth_v1: EthV1Filter,
     chain_filter: ChainFilter<T>,
     task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
 ) -> ResponseFilter {
     eth_v1
         .and(warp::path("beacon"))
@@ -229,16 +234,22 @@ pub fn post_beacon_pool_eip8453_head_votes<T: BeaconChainTypes>(
         .and(warp_utils::json::json())
         .and(task_spawner_filter)
         .and(chain_filter)
+        .and(network_tx_filter)
         .then(
             |messages: Vec<HeadVoteMessage>,
              task_spawner: TaskSpawner<T::EthSpec>,
-             chain: Arc<BeaconChain<T>>| {
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    // Verify and ingest everything first, then broadcast what passed.
+                    let mut accepted = Vec::with_capacity(messages.len());
                     for message in messages {
                         chain
-                            .eip8453_process_head_vote(message)
+                            .eip8453_process_head_vote(message.clone())
                             .map_err(warp_utils::reject::unhandled_error)?;
+                        accepted.push(PubsubMessage::HeadVote(Box::new(message)));
                     }
+                    publish_pubsub_messages(&network_tx, accepted)?;
                     Ok(())
                 })
             },
@@ -251,6 +262,7 @@ pub fn post_beacon_pool_eip8453_safe_votes<T: BeaconChainTypes>(
     eth_v1: EthV1Filter,
     chain_filter: ChainFilter<T>,
     task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
 ) -> ResponseFilter {
     eth_v1
         .and(warp::path("beacon"))
@@ -260,16 +272,21 @@ pub fn post_beacon_pool_eip8453_safe_votes<T: BeaconChainTypes>(
         .and(warp_utils::json::json())
         .and(task_spawner_filter)
         .and(chain_filter)
+        .and(network_tx_filter)
         .then(
             |messages: Vec<SafeVoteMessage>,
              task_spawner: TaskSpawner<T::EthSpec>,
-             chain: Arc<BeaconChain<T>>| {
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let mut accepted = Vec::with_capacity(messages.len());
                     for message in messages {
                         chain
-                            .eip8453_process_safe_vote(message)
+                            .eip8453_process_safe_vote(message.clone())
                             .map_err(warp_utils::reject::unhandled_error)?;
+                        accepted.push(PubsubMessage::SafeVote(Box::new(message)));
                     }
+                    publish_pubsub_messages(&network_tx, accepted)?;
                     Ok(())
                 })
             },
@@ -282,6 +299,7 @@ pub fn post_beacon_pool_eip8453_fg_attestations<T: BeaconChainTypes>(
     eth_v1: EthV1Filter,
     chain_filter: ChainFilter<T>,
     task_spawner_filter: TaskSpawnerFilter<T>,
+    network_tx_filter: NetworkTxFilter<T>,
 ) -> ResponseFilter {
     eth_v1
         .and(warp::path("beacon"))
@@ -291,16 +309,28 @@ pub fn post_beacon_pool_eip8453_fg_attestations<T: BeaconChainTypes>(
         .and(warp_utils::json::json())
         .and(task_spawner_filter)
         .and(chain_filter)
+        .and(network_tx_filter)
         .then(
             |attestations: Vec<eip8453::SingleAttestation>,
              task_spawner: TaskSpawner<T::EthSpec>,
-             chain: Arc<BeaconChain<T>>| {
+             chain: Arc<BeaconChain<T>>,
+             network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
                 task_spawner.blocking_json_task(Priority::P0, move || {
+                    let mut accepted = Vec::with_capacity(attestations.len());
                     for attestation in attestations {
                         chain
-                            .eip8453_process_fg_attestation(attestation)
+                            .eip8453_process_fg_attestation(attestation.clone())
                             .map_err(warp_utils::reject::unhandled_error)?;
+                        let subnet_id = SubnetId::new(compute_subnet_for_fg_attestation(
+                            attestation.committee_index,
+                            chain.spec.attestation_subnet_count,
+                        ));
+                        accepted.push(PubsubMessage::FgAttestation(Box::new((
+                            subnet_id,
+                            attestation,
+                        ))));
                     }
+                    publish_pubsub_messages(&network_tx, accepted)?;
                     Ok(())
                 })
             },

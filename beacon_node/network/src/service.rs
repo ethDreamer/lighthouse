@@ -1637,17 +1637,54 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                     ),
                 )
             }
-            // EIP8453-STUB (Phase 6 stage 6b wires these into the beacon processor): the
-            // EIP-8453 topics decode but their messages are dropped without validation or
-            // propagation.
-            PubsubMessage::HeadVote(_)
-            | PubsubMessage::SafeVote(_)
-            | PubsubMessage::HeadVoteAggregate(_)
+            PubsubMessage::HeadVote(head_vote_message) => {
+                trace!(%peer_id, "Received an EIP-8453 head vote");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor.send_gossip_eip8453_head_vote(
+                        message_id,
+                        peer_id,
+                        head_vote_message,
+                    ),
+                )
+            }
+            PubsubMessage::SafeVote(safe_vote_message) => {
+                trace!(%peer_id, "Received an EIP-8453 safe vote");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor.send_gossip_eip8453_safe_vote(
+                        message_id,
+                        peer_id,
+                        safe_vote_message,
+                    ),
+                )
+            }
+            PubsubMessage::FgAttestation(subnet_and_attestation) => {
+                trace!(%peer_id, "Received an EIP-8453 FG attestation");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor
+                        .send_gossip_eip8453_fg_attestation(
+                            message_id,
+                            peer_id,
+                            subnet_and_attestation,
+                        ),
+                )
+            }
+            PubsubMessage::Eip8453AttesterSlashing(attester_slashing) => {
+                trace!(%peer_id, "Received an EIP-8453 attester slashing");
+                self.handle_beacon_processor_send_result(
+                    self.network_beacon_processor
+                        .send_gossip_eip8453_attester_slashing(
+                            message_id,
+                            peer_id,
+                            attester_slashing,
+                        ),
+                )
+            }
+            // EIP8453-STUB (Phase 6 stage 6d wires aggregation end to end): the aggregate
+            // topics decode but their messages are dropped without validation or propagation.
+            PubsubMessage::HeadVoteAggregate(_)
             | PubsubMessage::SafeVoteAggregate(_)
-            | PubsubMessage::AttestationAggregate(_)
-            | PubsubMessage::FgAttestation(_)
-            | PubsubMessage::Eip8453AttesterSlashing(_) => {
-                trace!(%peer_id, "Dropped an EIP-8453 gossip message (processing not yet wired)");
+            | PubsubMessage::AttestationAggregate(_) => {
+                trace!(%peer_id, "Dropped an EIP-8453 aggregate (processing not yet wired)");
             }
         }
     }

@@ -290,7 +290,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         })?;
 
         {
-            let mut fork_choice = self.canonical_head.fork_choice_write_lock();
+            let fork_choice = self.canonical_head.fork_choice_read_lock();
             let on_committee = fork_choice
                 .fg()
                 .ok_or_else(|| eip8453_err("fg fork choice not active"))?
@@ -303,8 +303,18 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     message.validator_index, message.data.slot
                 )));
             }
-            fork_choice.on_head_vote(message.validator_index, message.data);
         }
+        self.eip8453_import_verified_head_vote(message)
+    }
+
+    /// Feed an already-verified head vote into the fork choice pool and the block-packing pool.
+    /// Verification (committee membership + signature) is the caller's: gossip validation or
+    /// [`Self::eip8453_process_head_vote`].
+    pub fn eip8453_import_verified_head_vote(&self, message: HeadVoteMessage) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
+        self.canonical_head
+            .fork_choice_write_lock()
+            .on_head_vote(message.validator_index, message.data);
         self.eip8453_pool.insert_head_vote_single(message);
         Ok(())
     }
@@ -322,6 +332,12 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             message.signature.verify(pk, signing_root)
         })?;
 
+        self.eip8453_import_verified_safe_vote(message)
+    }
+
+    /// Feed an already-verified safe vote into the fork choice and the block-packing pool.
+    pub fn eip8453_import_verified_safe_vote(&self, message: SafeVoteMessage) -> Result<(), Error> {
+        self.eip8453_tick_fg_to_now()?;
         self.canonical_head
             .fork_choice_write_lock()
             .on_safe_vote(message.validator_index, message.data);
@@ -361,8 +377,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 .fast_aggregate_verify(signing_root, &[pk])
         })?;
 
-        self.eip8453_pool.insert_fg_single(attestation);
+        self.eip8453_import_verified_fg_attestation(attestation);
         Ok(())
+    }
+
+    /// Feed an already-verified FG attestation single into the block-packing pool. The fork
+    /// choice reads FG effects only from imported blocks' post-states, so there is no
+    /// fork-choice feed.
+    pub fn eip8453_import_verified_fg_attestation(&self, attestation: eip8453::SingleAttestation) {
+        self.eip8453_pool.insert_fg_single(attestation);
     }
 
     fn eip8453_verify_single_signature(

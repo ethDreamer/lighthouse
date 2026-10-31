@@ -2779,17 +2779,20 @@ pub async fn serve<T: BeaconChainTypes>(
         eth_v1.clone(),
         chain_filter.clone(),
         task_spawner_filter.clone(),
+        network_tx_filter.clone(),
     );
     let post_beacon_pool_eip8453_safe_votes = eip8453::post_beacon_pool_eip8453_safe_votes(
         eth_v1.clone(),
         chain_filter.clone(),
         task_spawner_filter.clone(),
+        network_tx_filter.clone(),
     );
     let post_beacon_pool_eip8453_fg_attestations =
         eip8453::post_beacon_pool_eip8453_fg_attestations(
             eth_v1.clone(),
             chain_filter.clone(),
             task_spawner_filter.clone(),
+            network_tx_filter.clone(),
         );
 
     // POST validator/duties/attester/{epoch}

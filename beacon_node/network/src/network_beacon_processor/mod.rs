@@ -531,6 +531,84 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         })
     }
 
+    /// Create a new `Work` event for an EIP-8453 head vote.
+    pub fn send_gossip_eip8453_head_vote(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        message: Box<types::eip8453::HeadVoteMessage>,
+    ) -> Result<(), Error<T::EthSpec>> {
+        let processor = self.clone();
+        let process_fn = move || {
+            processor.process_gossip_eip8453_head_vote(message_id, peer_id, *message);
+        };
+
+        self.try_send(BeaconWorkEvent {
+            drop_during_sync: true,
+            work: Work::GossipEip8453Vote(Box::new(process_fn)),
+        })
+    }
+
+    /// Create a new `Work` event for an EIP-8453 safe vote.
+    pub fn send_gossip_eip8453_safe_vote(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        message: Box<types::eip8453::SafeVoteMessage>,
+    ) -> Result<(), Error<T::EthSpec>> {
+        let processor = self.clone();
+        let process_fn = move || {
+            processor.process_gossip_eip8453_safe_vote(message_id, peer_id, *message);
+        };
+
+        self.try_send(BeaconWorkEvent {
+            drop_during_sync: true,
+            work: Work::GossipEip8453Vote(Box::new(process_fn)),
+        })
+    }
+
+    /// Create a new `Work` event for an EIP-8453 FG attestation single from a subnet.
+    pub fn send_gossip_eip8453_fg_attestation(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        subnet_and_attestation: Box<(SubnetId, types::eip8453::SingleAttestation)>,
+    ) -> Result<(), Error<T::EthSpec>> {
+        let processor = self.clone();
+        let process_fn = move || {
+            let (subnet_id, attestation) = *subnet_and_attestation;
+            processor.process_gossip_eip8453_fg_attestation(
+                message_id,
+                peer_id,
+                subnet_id,
+                attestation,
+            );
+        };
+
+        self.try_send(BeaconWorkEvent {
+            drop_during_sync: true,
+            work: Work::GossipEip8453Vote(Box::new(process_fn)),
+        })
+    }
+
+    /// Create a new `Work` event for an EIP-8453 attester slashing (FG attestations).
+    pub fn send_gossip_eip8453_attester_slashing(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        slashing: Box<types::eip8453::AttesterSlashing<T::EthSpec>>,
+    ) -> Result<(), Error<T::EthSpec>> {
+        let processor = self.clone();
+        let process_fn = move || {
+            processor.process_gossip_eip8453_attester_slashing(message_id, peer_id, *slashing);
+        };
+
+        self.try_send(BeaconWorkEvent {
+            drop_during_sync: false,
+            work: Work::GossipAttesterSlashing(Box::new(process_fn)),
+        })
+    }
+
     /// Create a new `Work` event for some proposer preferences
     pub fn send_gossip_proposer_preferences(
         self: &Arc<Self>,

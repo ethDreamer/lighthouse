@@ -1037,6 +1037,7 @@ where
             observed_execution_payloads: <_>::default(),
             pending_payload_envelopes: <_>::default(),
             eip8453_pool: <_>::default(),
+            eip8453_observed_gossip: <_>::default(),
             inclusion_list_store: RwLock::new(InclusionListStore::new(&self.spec)),
             observed_voluntary_exits: <_>::default(),
             observed_proposer_slashings: <_>::default(),

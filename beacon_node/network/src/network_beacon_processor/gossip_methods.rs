@@ -25,6 +25,7 @@ use beacon_chain::{
     ExitValidationError, ForkChoiceError, GossipVerifiedBlock, NotifyExecutionLayer,
     attestation_verification::{self, Error as AttnError, VerifiedAttestation},
     data_availability_checker::AvailabilityCheckErrorCategory,
+    eip8453_gossip::{Eip8453GossipError, Eip8453GossipVerdict},
     light_client_finality_update_verification::Error as LightClientFinalityUpdateError,
     light_client_optimistic_update_verification::Error as LightClientOptimisticUpdateError,
     observed_operations::ObservationOutcome,
@@ -4620,6 +4621,133 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                     "Internal error verifying payload attestation"
                 );
                 self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+            }
+        }
+    }
+
+    /// Process an EIP-8453 head vote from the `head_vote` topic.
+    pub fn process_gossip_eip8453_head_vote(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        message: types::eip8453::HeadVoteMessage,
+    ) {
+        match self.chain.eip8453_verify_head_vote_for_gossip(&message) {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                if let Err(e) = self.chain.eip8453_import_verified_head_vote(message) {
+                    warn!(reason = ?e, %peer_id, "Failed to import gossip head vote");
+                }
+            }
+            Err(error) => {
+                self.handle_eip8453_gossip_failure(message_id, peer_id, error, "eip8453_head_vote")
+            }
+        }
+    }
+
+    /// Process an EIP-8453 safe vote from the `safe_vote` topic.
+    pub fn process_gossip_eip8453_safe_vote(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        message: types::eip8453::SafeVoteMessage,
+    ) {
+        match self.chain.eip8453_verify_safe_vote_for_gossip(&message) {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                if let Err(e) = self.chain.eip8453_import_verified_safe_vote(message) {
+                    warn!(reason = ?e, %peer_id, "Failed to import gossip safe vote");
+                }
+            }
+            Err(error) => {
+                self.handle_eip8453_gossip_failure(message_id, peer_id, error, "eip8453_safe_vote")
+            }
+        }
+    }
+
+    /// Process an EIP-8453 FG attestation single from an `attestation_{subnet_id}` topic.
+    pub fn process_gossip_eip8453_fg_attestation(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        subnet_id: SubnetId,
+        attestation: types::eip8453::SingleAttestation,
+    ) {
+        match self
+            .chain
+            .eip8453_verify_fg_attestation_for_gossip(&attestation, *subnet_id)
+        {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                self.chain
+                    .eip8453_import_verified_fg_attestation(attestation);
+            }
+            Err(error) => self.handle_eip8453_gossip_failure(
+                message_id,
+                peer_id,
+                error,
+                "eip8453_fg_attestation",
+            ),
+        }
+    }
+
+    /// Process an EIP-8453 attester slashing (FG attestations) from the `attester_slashing`
+    /// topic.
+    pub fn process_gossip_eip8453_attester_slashing(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        slashing: types::eip8453::AttesterSlashing<T::EthSpec>,
+    ) {
+        match self
+            .chain
+            .eip8453_verify_attester_slashing_for_gossip(&slashing)
+        {
+            Ok(()) => {
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Accept);
+                // EIP8453-STUB: the slasher is not taught the FG slashing predicates; the
+                // evidence only enters the packing pool.
+                self.chain.eip8453_pool.insert_attester_slashing(slashing);
+            }
+            Err(error) => self.handle_eip8453_gossip_failure(
+                message_id,
+                peer_id,
+                error,
+                "eip8453_attester_slashing",
+            ),
+        }
+    }
+
+    /// Map an EIP-8453 gossip validation failure to a propagation verdict and peer penalty.
+    fn handle_eip8453_gossip_failure(
+        self: &Arc<Self>,
+        message_id: MessageId,
+        peer_id: PeerId,
+        error: Eip8453GossipError,
+        topic: &'static str,
+    ) {
+        if let Eip8453GossipError::UnknownBlock(block_root) = &error {
+            // The spec allows queuing until the block is retrieved; the prototype asks sync to
+            // look the block up and drops the message (EIP8453-STUB: no reprocess re-queue —
+            // the sender re-broadcasts and votes age out within a slot anyway).
+            debug!(%peer_id, ?block_root, topic, "EIP-8453 gossip object references unknown block");
+            self.send_sync_message(SyncMessage::UnknownBlockHashFromAttestation(
+                peer_id,
+                *block_root,
+            ));
+            self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+            return;
+        }
+
+        match error.verdict() {
+            Eip8453GossipVerdict::Ignore => {
+                trace!(%peer_id, ?error, topic, "Ignoring EIP-8453 gossip object");
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Ignore);
+            }
+            Eip8453GossipVerdict::Reject => {
+                debug!(%peer_id, ?error, topic, "Rejecting EIP-8453 gossip object");
+                self.propagate_validation_result(message_id, peer_id, MessageAcceptance::Reject);
+                self.gossip_penalize_peer(peer_id, PeerAction::LowToleranceError, topic);
             }
         }
     }

@@ -472,6 +472,9 @@ pub enum Work<E: EthSpec> {
     GossipExecutionProof(AsyncFn),
     GossipExecutionPayloadBid(BlockingFn),
     GossipPayloadAttestation(BlockingFn),
+    /// An EIP-8453 head vote, safe vote, or FG attestation single. The three kinds share one
+    /// queue: they are all small, per-validator objects with the same fork-choice urgency.
+    GossipEip8453Vote(BlockingFn),
     GossipProposerPreferences(BlockingFn),
     GossipInclusionList(BlockingFn),
     LightClientBootstrapRequest(BlockingFn),
@@ -536,6 +539,7 @@ pub enum WorkType {
     GossipExecutionProof,
     GossipExecutionPayloadBid,
     GossipPayloadAttestation,
+    GossipEip8453Vote,
     GossipProposerPreferences,
     GossipInclusionList,
     LightClientBootstrapRequest,
@@ -578,6 +582,7 @@ impl<E: EthSpec> Work<E> {
             Work::GossipExecutionProof(_) => WorkType::GossipExecutionProof,
             Work::GossipExecutionPayloadBid(_) => WorkType::GossipExecutionPayloadBid,
             Work::GossipPayloadAttestation(_) => WorkType::GossipPayloadAttestation,
+            Work::GossipEip8453Vote(_) => WorkType::GossipEip8453Vote,
             Work::GossipProposerPreferences(_) => WorkType::GossipProposerPreferences,
             Work::GossipInclusionList(_) => WorkType::GossipInclusionList,
             Work::RpcBlock { .. } => WorkType::RpcBlock,
@@ -1054,6 +1059,10 @@ impl<E: EthSpec> BeaconProcessor<E> {
                             work_queues.gossip_payload_attestation_queue.pop()
                         {
                             Some(item)
+                        // Check EIP-8453 votes with the same urgency: they drive the fork
+                        // choice's head walk, confirmation, and stabilization.
+                        } else if let Some(item) = work_queues.gossip_eip8453_vote_queue.pop() {
+                            Some(item)
                         // Check inclusion lists next, they also influence fork choice.
                         } else if let Some(item) = work_queues.gossip_inclusion_list_queue.pop() {
                             Some(item)
@@ -1406,6 +1415,9 @@ impl<E: EthSpec> BeaconProcessor<E> {
                             Work::GossipPayloadAttestation { .. } => work_queues
                                 .gossip_payload_attestation_queue
                                 .push(work, work_id),
+                            Work::GossipEip8453Vote { .. } => {
+                                work_queues.gossip_eip8453_vote_queue.push(work, work_id)
+                            }
                             Work::GossipProposerPreferences { .. } => work_queues
                                 .gossip_proposer_preferences_queue
                                 .push(work, work_id),
@@ -1523,6 +1535,7 @@ impl<E: EthSpec> BeaconProcessor<E> {
                         WorkType::GossipPayloadAttestation => {
                             work_queues.gossip_payload_attestation_queue.len()
                         }
+                        WorkType::GossipEip8453Vote => work_queues.gossip_eip8453_vote_queue.len(),
                         WorkType::GossipProposerPreferences => {
                             work_queues.gossip_proposer_preferences_queue.len()
                         }
@@ -1737,6 +1750,7 @@ impl<E: EthSpec> BeaconProcessor<E> {
             | Work::GossipBlsToExecutionChange(process_fn)
             | Work::GossipExecutionPayloadBid(process_fn)
             | Work::GossipPayloadAttestation(process_fn)
+            | Work::GossipEip8453Vote(process_fn)
             | Work::GossipProposerPreferences(process_fn)
             | Work::GossipInclusionList(process_fn)
             | Work::LightClientBootstrapRequest(process_fn)

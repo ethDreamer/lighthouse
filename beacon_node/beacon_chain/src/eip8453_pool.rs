@@ -3,13 +3,14 @@
 //! EIP8453-STUB: the real `operation_pool` is Casper-FFG-shaped (`CompactIndexedAttestation`,
 //! epoch-keyed pruning, on-chain aggregation machinery), so the prototype keeps the new objects
 //! in plain vectors: insert on verification (or from the test harness), drain at block
-//! production, prune by staleness against the packing state. No dedup, no aggregation, no
-//! persistence.
+//! production, prune by staleness against the packing state. Dedup is linear-scan, aggregation
+//! happens only at packing, nothing persists.
 
 use parking_lot::Mutex;
 use ssz::ProgressiveBitList;
+use tree_hash::TreeHash;
 use types::eip8453::{HeadVote, HeadVoteMessage, SafeVote, SafeVoteMessage};
-use types::{EthSpec, eip8453};
+use types::{EthSpec, Hash256, eip8453};
 
 #[derive(Default)]
 pub struct Eip8453OperationPool<E: EthSpec> {
@@ -25,6 +26,8 @@ pub struct Eip8453OperationPool<E: EthSpec> {
     pub head_vote_singles: Mutex<Vec<HeadVoteMessage>>,
     /// Unaggregated safe votes from validators, aggregated at block production.
     pub safe_vote_singles: Mutex<Vec<SafeVoteMessage>>,
+    /// FG attester slashings awaiting inclusion, keyed by tree hash root for dedup.
+    pub attester_slashings: Mutex<Vec<(Hash256, eip8453::AttesterSlashing<E>)>>,
 }
 
 impl<E: EthSpec> Eip8453OperationPool<E> {
@@ -68,6 +71,31 @@ impl<E: EthSpec> Eip8453OperationPool<E> {
         }) {
             pool.push(message);
         }
+    }
+
+    pub fn insert_attester_slashing(&self, slashing: eip8453::AttesterSlashing<E>) {
+        let root = slashing.tree_hash_root();
+        let mut pool = self.attester_slashings.lock();
+        if !pool.iter().any(|(existing_root, _)| *existing_root == root) {
+            pool.push((root, slashing));
+        }
+    }
+
+    /// Drain up to `max` FG attester slashings satisfying `filter`, dropping the rest.
+    pub fn drain_attester_slashings(
+        &self,
+        max: usize,
+        filter: impl FnMut(&eip8453::AttesterSlashing<E>) -> bool,
+    ) -> Vec<eip8453::AttesterSlashing<E>> {
+        let mut filter = filter;
+        let mut pool = self.attester_slashings.lock();
+        let mut drained = Vec::new();
+        for (_, slashing) in pool.drain(..) {
+            if drained.len() < max && filter(&slashing) {
+                drained.push(slashing);
+            }
+        }
+        drained
     }
 
     /// Drain the unaggregated FG attestations satisfying `filter`, dropping the rest.
