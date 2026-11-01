@@ -865,6 +865,33 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let new_head_node = fork_choice_write_lock.get_head(current_slot, &self.spec)?;
         let new_payload_status = new_head_node.payload_status();
 
+        // EIP-8453 devnet observability: a per-recompute summary of the fg store's view (the
+        // four tips have no standard API surface — spec friction #7).
+        if let Some(fg) = fork_choice_write_lock.fg() {
+            let head = fg.get_head().ok();
+            let vote_head = fg.get_ac_vote_head().ok();
+            let confirmed = fg.get_confirmed_node().ok();
+            debug!(
+                %current_slot,
+                store_slot = %fg.get_current_slot(),
+                head = ?head.map(|n| (n.root, fg.block_slot(&n.root))),
+                vote_head = ?vote_head.map(|n| (n.root, fg.block_slot(&n.root))),
+                confirmed = ?confirmed.map(|n| (n.root, fg.block_slot(&n.root))),
+                latest_confirmed_slot = ?fg.block_slot(&fg.latest_confirmed.root),
+                locks = fg.locks.len(),
+                deepest_lock_slot = ?fg.locks.values().filter_map(|n| fg.block_slot(&n.root)).max(),
+                justified_height = fg.justified_checkpoint.height,
+                finalized_height = fg.finalized_checkpoint.height,
+                max_height = fg.max_height,
+                grade_2_round = fg.grade_2_round,
+                head_votes_last_slot = fg
+                    .head_vote_messages
+                    .get(&current_slot.saturating_sub(1u64))
+                    .map_or(0, |votes| votes.len()),
+                "EIP-8453 fg summary"
+            );
+        }
+
         // Downgrade the fork choice write-lock to a read lock, without allowing access to any
         // other writers.
         let fork_choice_read_lock = fork_choice_write_lock.downgrade();

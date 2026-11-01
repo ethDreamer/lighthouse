@@ -292,8 +292,15 @@ pub(crate) fn create_whitelist_filter(
         add(InclusionList);
         add(LightClientFinalityUpdate);
         add(LightClientOptimisticUpdate);
+        // EIP-8453 topics.
+        add(HeadVote);
+        add(SafeVote);
+        add(HeadVoteAggregate);
+        add(SafeVoteAggregate);
+        add(AttestationAggregate);
         for id in 0..spec.attestation_subnet_count {
             add(Attestation(SubnetId::new(id)));
+            add(FgAttestation(SubnetId::new(id)));
         }
         for id in 0..sync_committee_subnet_count {
             add(SyncCommitteeMessage(SyncSubnetId::new(id)));

@@ -106,8 +106,14 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         Ok((duties, dependent_root))
     }
 
-    /// The head vote duties for `epoch`, read from the fork choice's committee window (the same
-    /// source that verifies incoming votes). Slots beyond the known window are omitted.
+    /// The head vote duties for `epoch`, read from the head state's in-state committee window
+    /// (which spans whole epochs: `state_epoch - 1 ..= state_epoch + lookahead`). Slots outside
+    /// the state's window are omitted.
+    ///
+    /// EIP8453-STUB: head state, not the finalized state (see module docs). The fg store's
+    /// recorded committees are NOT used here: they only cover already-processed slots, and the
+    /// VC caches an epoch's duties under the (finalized-root) dependent root — serving a partial
+    /// epoch would freeze the gaps in until finality advances.
     pub fn eip8453_head_vote_duties(
         &self,
         epoch: Epoch,
@@ -117,19 +123,25 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let slots_per_epoch = T::EthSpec::slots_per_epoch();
         let start_slot = epoch.start_slot(slots_per_epoch);
 
-        // Collect the window under the fork choice lock, then resolve pubkeys without it.
+        let head = self.head_snapshot();
+        let state = &head.beacon_state;
         let mut committees: Vec<(Slot, Vec<u64>)> = Vec::new();
-        {
-            let fork_choice = self.canonical_head.fork_choice_read_lock();
-            let fg = fork_choice
-                .fg()
-                .ok_or_else(|| eip8453_err("fg fork choice not active"))?;
-            for offset in 0..slots_per_epoch {
-                let slot = start_slot.saturating_add(offset);
-                if let Ok(committee) = fg.committee_at_slot(slot) {
-                    committees.push((slot, committee.clone()));
-                }
+        for offset in 0..slots_per_epoch {
+            let slot = start_slot.saturating_add(offset);
+            if let Ok(committee) = state.get_head_vote_committee(slot, &self.spec) {
+                committees.push((slot, committee.into_iter().map(|v| v as u64).collect()));
             }
+        }
+        // The VC caches an epoch's duties under the dependent root, so an unservable epoch must
+        // ERROR (retried next slot) rather than return empty (cached as "no duties" until
+        // finality moves the root). This happens when the head state trails the requested epoch
+        // beyond the in-state window's lookahead.
+        if committees.is_empty() {
+            return Err(eip8453_err(format!(
+                "head vote committees for epoch {epoch} are outside the head state's window \
+                 (state epoch {})",
+                state.current_epoch(),
+            )));
         }
 
         let pubkey_cache = self.validator_pubkey_cache.read();

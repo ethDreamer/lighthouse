@@ -1,5 +1,6 @@
 mod block_root;
 mod check_deposit_data;
+mod eip8453_testnet;
 mod generate_bootnode_enr;
 mod http_sync;
 mod indexed_attestations;
@@ -483,6 +484,54 @@ fn main() {
                 )
         )
         .subcommand(
+            Command::new("eip8453-testnet")
+                .about("Writes a testnet directory for an EIP-8453-at-genesis devnet: config.yaml,                         genesis.ssz (built by this codebase — no public genesis generator knows                         the fork), deploy_block.txt and an empty boot_enr.yaml. The genesis                         validators derive from the mnemonic, matching `mnemonic-validators`; the                         genesis payload header matches `lcli mock-el`. TESTING ONLY.")
+                .arg(
+                    Arg::new("testnet-dir")
+                        .long("testnet-dir")
+                        .value_name("PATH")
+                        .action(ArgAction::Set)
+                        .required(true)
+                        .help("The output testnet directory.")
+                        .display_order(0)
+                )
+                .arg(
+                    Arg::new("validator-count")
+                        .long("validator-count")
+                        .value_name("COUNT")
+                        .action(ArgAction::Set)
+                        .required(true)
+                        .help("The number of genesis validators.")
+                        .display_order(0)
+                )
+                .arg(
+                    Arg::new("genesis-delay")
+                        .long("genesis-delay")
+                        .value_name("SECONDS")
+                        .action(ArgAction::Set)
+                        .default_value("30")
+                        .help("Genesis is this many seconds from now (ignored with --genesis-time).")
+                        .display_order(0)
+                )
+                .arg(
+                    Arg::new("genesis-time")
+                        .long("genesis-time")
+                        .value_name("UNIX_TIMESTAMP")
+                        .action(ArgAction::Set)
+                        .help("An explicit genesis time, instead of now + --genesis-delay.")
+                        .display_order(0)
+                )
+                .arg(
+                    Arg::new("mnemonic-phrase")
+                        .long("mnemonic-phrase")
+                        .value_name("MNEMONIC_PHRASE")
+                        .action(ArgAction::Set)
+                        .required(true)
+                        .help("The mnemonic the genesis validator keys derive from.")
+                        .display_order(0)
+                )
+        )
+        .subcommand(
             Command::new("mock-el")
                 .about("Creates a mock execution layer server. This is NOT SAFE and should only \
                 be used for testing and development on testnets. Do not use in production. Do not \
@@ -781,6 +830,8 @@ fn run<E: EthSpec>(env_builder: EnvironmentBuilder<E>, matches: &ArgMatches) -> 
             state_root::run::<E>(env, network_config, matches)
                 .map_err(|e| format!("Failed to run state-root command: {}", e))
         }
+        Some(("eip8453-testnet", matches)) => eip8453_testnet::run::<E>(matches)
+            .map_err(|e| format!("Failed to write eip8453 testnet: {}", e)),
         Some(("mock-el", matches)) => mock_el::run::<E>(env, matches)
             .map_err(|e| format!("Failed to run mock-el command: {}", e)),
         Some(("http-sync", matches)) => {
