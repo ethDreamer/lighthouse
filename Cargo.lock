@@ -5705,6 +5705,7 @@ dependencies = [
  "ethereum_ssz",
  "execution_layer",
  "fixed_bytes",
+ "genesis",
  "hex",
  "lighthouse_network",
  "lighthouse_version",
