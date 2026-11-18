@@ -229,7 +229,7 @@ pub enum StoreOp<'a, E: EthSpec> {
     PutState(Hash256, &'a BeaconState<E>),
     PutBlobs(Hash256, BlobSidecarList<E>),
     PutDataColumns(Hash256, DataColumnSidecarList<E>),
-    PutPayloadEnvelope(Hash256, Arc<SignedExecutionPayloadEnvelope<E>>),
+    PutPayloadEnvelope(Hash256, Arc<ExecutionPayloadEnvelope<E>>),
     PutStateSummary(Hash256, HotStateSummary),
     DeleteBlock(Hash256),
     DeleteBlobs(Hash256),
@@ -311,8 +311,8 @@ pub enum DBColumn {
     /// Prunable post-Gloas execution payload bodies.
     #[strum(serialize = "pay")]
     PayloadBody,
-    /// Reduced information database object `SignedExecutionPayloadEnvelopeSummary` mapped to
-    /// `SignedExecutionPayloadEnvelope`.
+    /// Reduced information database object `ExecutionPayloadEnvelopeSummary` mapped to
+    /// `ExecutionPayloadEnvelope`.
     #[strum(serialize = "pys")]
     PayloadSummary,
     /// For persisting in-memory state to the database.
@@ -475,7 +475,6 @@ mod tests {
     use crate::database::interface::BeaconNodeBackend;
 
     use super::*;
-    use bls::Signature;
     use ssz::{Decode, Encode};
     use ssz_derive::{Decode, Encode};
     use tempfile::tempdir;
@@ -572,19 +571,15 @@ mod tests {
         let block_root = Hash256::repeat_byte(0x11);
         let payload_hash = ExecutionBlockHash::repeat_byte(0x22);
         let slot = Slot::new(42);
-        let envelope = SignedExecutionPayloadEnvelope {
-            message: ExecutionPayloadEnvelope {
-                payload: ExecutionPayloadGloas {
-                    block_hash: payload_hash,
-                    slot_number: slot,
-                    ..Default::default()
-                },
-                execution_requests: Default::default(),
-                builder_index: 42,
-                beacon_block_root: block_root,
-                parent_beacon_block_root: Hash256::repeat_byte(0x33),
+        let envelope = ExecutionPayloadEnvelope {
+            payload: ExecutionPayloadGloas {
+                block_hash: payload_hash,
+                slot_number: slot,
+                ..Default::default()
             },
-            signature: Signature::empty(),
+            execution_requests: Default::default(),
+            beacon_block_root: block_root,
+            parent_beacon_block_root: Hash256::repeat_byte(0x33),
         };
 
         store.put_payload_envelope(&block_root, &envelope).unwrap();
@@ -595,12 +590,7 @@ mod tests {
         assert_eq!(summary.block_hash(), payload_hash);
         assert_eq!(summary.slot(), slot);
         assert!(store.get_payload_body(&block_root).unwrap().is_some());
-        assert!(
-            store
-                .get_signed_payload_envelope(&block_root)
-                .unwrap()
-                .is_some()
-        );
+        assert!(store.get_payload_envelope(&block_root).unwrap().is_some());
 
         store
             .do_atomically_with_block_and_blobs_cache(vec![StoreOp::DeletePayload(block_root)])
@@ -612,12 +602,7 @@ mod tests {
                 .is_some()
         );
         assert!(store.get_payload_body(&block_root).unwrap().is_none());
-        assert!(
-            store
-                .get_signed_payload_envelope(&block_root)
-                .unwrap()
-                .is_none()
-        );
+        assert!(store.get_payload_envelope(&block_root).unwrap().is_none());
         assert!(store.payload_envelope_summary_exists(&block_root).unwrap());
 
         store

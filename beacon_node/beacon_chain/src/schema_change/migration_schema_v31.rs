@@ -2,11 +2,11 @@ use crate::beacon_chain::BeaconChainTypes;
 use ssz::{Decode, Encode};
 use store::hot_cold_store::HotColdDB;
 use store::{DBColumn, Error as StoreError, KeyValueStore, KeyValueStoreOp};
-use types::{Hash256, SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary};
+use types::{ExecutionPayloadEnvelope, ExecutionPayloadEnvelopeSummary, Hash256};
 
 /// Upgrade from schema v30 to v31.
 ///
-/// Splits each signed execution payload envelope in `PayloadEnvelope` into its persistent summary
+/// Splits each execution payload envelope in `PayloadEnvelope` into its persistent summary
 /// and prunable execution payload. When payload pruning is enabled, bodies before the split are
 /// removed during migration because regular pruning will not revisit them.
 pub fn upgrade_to_v31<T: BeaconChainTypes>(
@@ -18,15 +18,13 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
 
     for result in db.hot_db.iter_column::<Hash256>(DBColumn::PayloadBody) {
         let (block_root, envelope_bytes) = result?;
-        let envelope = SignedExecutionPayloadEnvelope::<T::EthSpec>::from_ssz_bytes(
-            &envelope_bytes,
-        )
-        .map_err(|error| {
-            StoreError::MigrationError(format!(
-                "cannot upgrade from v30 to v31: invalid payload envelope at {block_root:?}: \
+        let envelope = ExecutionPayloadEnvelope::<T::EthSpec>::from_ssz_bytes(&envelope_bytes)
+            .map_err(|error| {
+                StoreError::MigrationError(format!(
+                    "cannot upgrade from v30 to v31: invalid payload envelope at {block_root:?}: \
                  {error:?}"
-            ))
-        })?;
+                ))
+            })?;
 
         // Older Gloas databases may retain envelopes for blocks that finalized as EMPTY.
         // Their summaries must not survive the upgrade, regardless of payload-pruning mode.
@@ -38,7 +36,7 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
             continue;
         }
 
-        let summary = SignedExecutionPayloadEnvelopeSummary::from(&envelope);
+        let summary = ExecutionPayloadEnvelopeSummary::from(&envelope);
 
         if prune_payloads && envelope.slot() < split_slot {
             // The old full envelope occupies the same key as the new body, so it must be deleted.
@@ -47,7 +45,7 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
                 block_root.as_slice().to_vec(),
             ));
         } else {
-            let payload = &envelope.message.payload;
+            let payload = &envelope.payload;
             ops.push(KeyValueStoreOp::PutKeyValue(
                 DBColumn::PayloadBody,
                 block_root.as_slice().to_vec(),
@@ -76,7 +74,7 @@ pub fn upgrade_to_v31<T: BeaconChainTypes>(
 fn finalized_as_empty<T: BeaconChainTypes>(
     db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
     block_root: Hash256,
-    envelope: &SignedExecutionPayloadEnvelope<T::EthSpec>,
+    envelope: &ExecutionPayloadEnvelope<T::EthSpec>,
 ) -> Result<bool, StoreError> {
     let split = db.get_split_info();
     if envelope.slot() >= split.slot || block_root == split.block_root {
@@ -103,7 +101,7 @@ fn child_selects_empty<T: BeaconChainTypes>(
     db: &HotColdDB<T::EthSpec, T::HotStore, T::ColdStore>,
     block_root: Hash256,
     child_root: Hash256,
-    envelope: &SignedExecutionPayloadEnvelope<T::EthSpec>,
+    envelope: &ExecutionPayloadEnvelope<T::EthSpec>,
 ) -> Result<bool, StoreError> {
     if child_root == block_root {
         return Ok(false);
@@ -114,7 +112,7 @@ fn child_selects_empty<T: BeaconChainTypes>(
         return Ok(false);
     };
     Ok(child.parent_root() == block_root
-        && !child.is_parent_block_full(envelope.message.payload.block_hash))
+        && !child.is_parent_block_full(envelope.payload.block_hash))
 }
 
 /// Downgrade from schema v31 to v30.

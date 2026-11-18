@@ -685,10 +685,10 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
             .map_err(|e| e.into())
     }
 
-    pub fn get_signed_payload_envelope(
+    pub fn get_payload_envelope(
         &self,
         block_root: &Hash256,
-    ) -> Result<Option<SignedExecutionPayloadEnvelope<E>>, Error> {
+    ) -> Result<Option<ExecutionPayloadEnvelope<E>>, Error> {
         let Some(summary) = self.get_payload_envelope_summary(block_root)? else {
             return Ok(None);
         };
@@ -699,11 +699,11 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         Ok(Some(summary.into_envelope(payload_body)))
     }
 
-    /// Load the persistent portion of a signed execution payload envelope.
+    /// Load the persistent portion of an execution payload envelope.
     pub fn get_payload_envelope_summary(
         &self,
         block_root: &Hash256,
-    ) -> Result<Option<SignedExecutionPayloadEnvelopeSummary<E>>, Error> {
+    ) -> Result<Option<ExecutionPayloadEnvelopeSummary<E>>, Error> {
         self.hot_db.get(block_root)
     }
 
@@ -1015,14 +1015,14 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         }
     }
 
-    /// Prepare a signed execution payload envelope for storage in the database.
+    /// Prepare an execution payload envelope for storage in the database.
     pub fn payload_envelope_as_kv_store_ops(
         &self,
         key: &Hash256,
-        envelope: &SignedExecutionPayloadEnvelope<E>,
+        envelope: &ExecutionPayloadEnvelope<E>,
         ops: &mut Vec<KeyValueStoreOp>,
     ) {
-        let payload = &envelope.message.payload;
+        let payload = &envelope.payload;
         ops.push(KeyValueStoreOp::PutKeyValue(
             DBColumn::PayloadBody,
             key.as_slice().into(),
@@ -1038,16 +1038,16 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
         self.payload_envelope_summary_as_kv_store_op(key, envelope, ops);
     }
 
-    /// Prepare the persistent portion of a signed execution payload envelope for storage.
+    /// Prepare the persistent portion of an execution payload envelope for storage.
     pub fn payload_envelope_summary_as_kv_store_op(
         &self,
         key: &Hash256,
-        envelope: &SignedExecutionPayloadEnvelope<E>,
+        envelope: &ExecutionPayloadEnvelope<E>,
         ops: &mut Vec<KeyValueStoreOp>,
     ) {
-        let summary = SignedExecutionPayloadEnvelopeSummary::from(envelope);
+        let summary = ExecutionPayloadEnvelopeSummary::from(envelope);
         ops.push(KeyValueStoreOp::PutKeyValue(
-            SignedExecutionPayloadEnvelopeSummary::<E>::db_column(),
+            ExecutionPayloadEnvelopeSummary::<E>::db_column(),
             key.as_slice().into(),
             summary.as_ssz_bytes(),
         ));
@@ -1057,7 +1057,7 @@ impl<E: EthSpec, Hot: ItemStore, Cold: ItemStore> HotColdDB<E, Hot, Cold> {
     pub fn put_payload_envelope(
         &self,
         block_root: &Hash256,
-        payload_envelope: &SignedExecutionPayloadEnvelope<E>,
+        payload_envelope: &ExecutionPayloadEnvelope<E>,
     ) -> Result<(), Error> {
         let mut ops = vec![];
         self.payload_envelope_as_kv_store_ops(block_root, payload_envelope, &mut ops);
@@ -4040,7 +4040,6 @@ impl BytesKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bls::Signature;
 
     #[test]
     fn payload_pruning_fast_path_skips_withheld_gloas_blocks() {
@@ -4057,18 +4056,14 @@ mod tests {
         let split_block_root = Hash256::repeat_byte(0x11);
         let withheld_block_root = Hash256::repeat_byte(0x22);
         let full_block_root = Hash256::repeat_byte(0x33);
-        let envelope = SignedExecutionPayloadEnvelope {
-            message: ExecutionPayloadEnvelope {
-                payload: ExecutionPayloadGloas {
-                    slot_number: Slot::new(2),
-                    ..Default::default()
-                },
-                execution_requests: Default::default(),
-                builder_index: 0,
-                beacon_block_root: full_block_root,
-                parent_beacon_block_root: Hash256::ZERO,
+        let envelope = ExecutionPayloadEnvelope {
+            payload: ExecutionPayloadGloas {
+                slot_number: Slot::new(2),
+                ..Default::default()
             },
-            signature: Signature::empty(),
+            execution_requests: Default::default(),
+            beacon_block_root: full_block_root,
+            parent_beacon_block_root: Hash256::ZERO,
         };
         store
             .put_payload_envelope(&full_block_root, &envelope)

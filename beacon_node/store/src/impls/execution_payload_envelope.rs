@@ -1,9 +1,9 @@
 use ssz::{Decode, Encode};
-use types::{EthSpec, SignedExecutionPayloadEnvelopeSummary};
+use types::{EthSpec, ExecutionPayloadEnvelopeSummary};
 
 use crate::{DBColumn, Error, StoreItem};
 
-impl<E: EthSpec> StoreItem for SignedExecutionPayloadEnvelopeSummary<E> {
+impl<E: EthSpec> StoreItem for ExecutionPayloadEnvelopeSummary<E> {
     fn db_column() -> DBColumn {
         DBColumn::PayloadSummary
     }
