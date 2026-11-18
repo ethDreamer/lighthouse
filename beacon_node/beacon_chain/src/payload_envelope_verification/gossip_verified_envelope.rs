@@ -11,7 +11,6 @@ use crate::payload_envelope_verification::observed_payload_envelopes::ObservedPa
 use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, BeaconStore, ServerSentEventHandler,
     canonical_head::CanonicalHead,
-    observed_execution_payloads::ObservedExecutionPayloads,
     payload_envelope_verification::{EnvelopeError, EnvelopeSource},
 };
 
@@ -23,7 +22,6 @@ pub struct GossipVerificationContext<'a, T: BeaconChainTypes> {
     pub store: &'a BeaconStore<T>,
     pub observed_payload_envelopes: &'a ObservedPayloadEnvelopes,
     pub event_handler: &'a Option<ServerSentEventHandler<T::EthSpec>>,
-    pub observed_execution_payloads: &'a ObservedExecutionPayloads,
 }
 
 /// Verify that an execution payload envelope is consistent with its beacon block
@@ -220,8 +218,6 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
 
         if !envelope_already_seen {
             let payload = &gossip_verified_envelope.envelope.payload;
-            ctx.observed_execution_payloads
-                .insert(payload.block_hash, payload.gas_limit);
 
             // Emit the SSE event once for the first observation from any source.
             if let Some(event_handler) = ctx.event_handler.as_ref()
@@ -259,7 +255,6 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             store: &self.store,
             observed_payload_envelopes: &self.observed_payload_envelopes,
             event_handler: &self.event_handler,
-            observed_execution_payloads: &self.observed_execution_payloads,
         }
     }
 
