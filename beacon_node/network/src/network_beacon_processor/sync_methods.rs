@@ -323,7 +323,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
     pub async fn process_lookup_envelope(
         self: Arc<NetworkBeaconProcessor<T>>,
         block_root: Hash256,
-        envelope: Arc<types::SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<types::ExecutionPayloadEnvelope<T::EthSpec>>,
         process_type: BlockProcessType,
     ) {
         debug!(
@@ -753,19 +753,6 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                         Some(PeerAction::LowToleranceError)
                     }
 
-                    HistoricalBlockError::MissingProposerPubkey {
-                        block_root,
-                        proposer_index,
-                    } => {
-                        warn!(
-                            ?block_root,
-                            proposer_index,
-                            error = "missing_proposer_pubkey",
-                            "Backfill batch processing error"
-                        );
-                        // This is an internal error, do not penalize the peer.
-                        None
-                    }
                     HistoricalBlockError::ValidatorPubkeyCacheTimeout => {
                         warn!(
                             error = "pubkey_cache_timeout",

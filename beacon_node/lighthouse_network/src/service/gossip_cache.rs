@@ -38,7 +38,7 @@ pub struct GossipCache {
     sync_committee_message: Option<Duration>,
     /// Timeout for signed BLS to execution changes.
     bls_to_execution_change: Option<Duration>,
-    /// Timeout for signed execution payload envelope.
+    /// Timeout for execution payload envelope.
     execution_payload: Option<Duration>,
     /// Timeout for execution payload bid.
     execution_payload_bid: Option<Duration>,
@@ -77,7 +77,7 @@ pub struct GossipCacheBuilder {
     sync_committee_message: Option<Duration>,
     /// Timeout for signed BLS to execution changes.
     bls_to_execution_change: Option<Duration>,
-    /// Timeout for signed execution payload envelope.
+    /// Timeout for execution payload envelope.
     execution_payload: Option<Duration>,
     /// Timeout for execution payload bid.
     execution_payload_bid: Option<Duration>,
@@ -155,7 +155,7 @@ impl GossipCacheBuilder {
         self
     }
 
-    /// Timeout for signed execution payload envelope.
+    /// Timeout for execution payload envelope.
     pub fn execution_payload_timeout(mut self, timeout: Duration) -> Self {
         self.execution_payload = Some(timeout);
         self

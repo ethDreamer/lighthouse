@@ -20,7 +20,7 @@ use std::sync::Arc;
 use tracing::{Span, debug, warn};
 use types::{
     BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, EthSpec,
-    Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
 };
 
 use crate::sync::network_context::{LookupRequestResult, PeerGroup, SyncNetworkContext};
@@ -45,10 +45,7 @@ pub struct RangeBlockComponentsRequest<E: EthSpec> {
     block_data_request: RangeBlockDataRequest<E>,
     /// Payload envelopes for Gloas blocks.
     payloads_request: Option<
-        ByRangeRequest<
-            PayloadEnvelopesByRangeRequestId,
-            Vec<Arc<SignedExecutionPayloadEnvelope<E>>>,
-        >,
+        ByRangeRequest<PayloadEnvelopesByRangeRequestId, Vec<Arc<ExecutionPayloadEnvelope<E>>>>,
     >,
     /// Span to track the range request and all children range requests.
     pub(crate) request_span: Span,
@@ -189,7 +186,7 @@ impl<E: EthSpec> RangeBlockComponentsRequest<E> {
     pub fn add_payload_envelopes(
         &mut self,
         req_id: PayloadEnvelopesByRangeRequestId,
-        envelopes: Vec<Arc<SignedExecutionPayloadEnvelope<E>>>,
+        envelopes: Vec<Arc<ExecutionPayloadEnvelope<E>>>,
     ) -> Result<(), String> {
         match &mut self.payloads_request {
             Some(req) => req.finish(req_id, envelopes),
@@ -221,7 +218,7 @@ impl<E: EthSpec> RangeBlockComponentsRequest<E> {
             Some(ByRangeRequest::Complete(envelopes)) => Some(
                 envelopes
                     .iter()
-                    .map(|envelope| envelope.beacon_block_root())
+                    .map(|envelope| envelope.beacon_block_root)
                     .collect::<HashSet<_>>(),
             ),
             None => None,
@@ -426,7 +423,7 @@ impl<E: EthSpec> RangeBlockComponentsRequest<E> {
         blocks: Vec<(Hash256, Arc<SignedBeaconBlock<E>>)>,
         columns: DataColumnSidecarList<E>,
         custody_context: &CustodyContext<T>,
-        payload_envelopes: Option<Vec<Arc<SignedExecutionPayloadEnvelope<E>>>>,
+        payload_envelopes: Option<Vec<Arc<ExecutionPayloadEnvelope<E>>>>,
     ) -> Result<Vec<RangeSyncBlock<E>>, CouplingError>
     where
         T: BeaconChainTypes<EthSpec = E>,
@@ -435,7 +432,7 @@ impl<E: EthSpec> RangeBlockComponentsRequest<E> {
         let mut envelopes_by_block_root = payload_envelopes.map(|envelopes| {
             envelopes
                 .into_iter()
-                .map(|e| (e.beacon_block_root(), e))
+                .map(|e| (e.beacon_block_root, e))
                 .collect::<HashMap<_, _>>()
         });
 
@@ -543,7 +540,6 @@ mod tests {
         EphemeralHarnessType, NumBlobs, generate_rand_block_and_blobs,
         generate_rand_block_and_data_columns, test_custody_context, test_spec,
     };
-    use bls::Signature;
     use lighthouse_network::{
         PeerId,
         service::api_types::{
@@ -555,8 +551,9 @@ mod tests {
     use tracing::Span;
     use tree_hash::TreeHash;
     use types::{
-        ChainSpec, DataColumnSidecarList, Epoch, ExecutionPayloadEnvelope, ExecutionRequestsGloas,
-        ForkName, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Spec as E,
+        ChainSpec, DataColumnSidecarList, Epoch, ExecutionPayloadBidRef, ExecutionPayloadEnvelope,
+        ExecutionPayloadGloas, ExecutionRequestsGloas, ForkName, SignedBeaconBlock, Slot,
+        Spec as E,
     };
 
     fn components_id() -> ComponentsByRangeRequestId {
@@ -615,24 +612,29 @@ mod tests {
         spec
     }
 
-    fn matching_envelope(block: &SignedBeaconBlock<E>) -> Arc<SignedExecutionPayloadEnvelope<E>> {
+    /// The payload which `matching_envelope` reveals for a block at `slot` carrying `bid`.
+    fn matching_payload(slot: Slot, bid: ExecutionPayloadBidRef<E>) -> ExecutionPayloadGloas<E> {
+        ExecutionPayloadGloas {
+            slot_number: slot,
+            parent_hash: bid.parent_block_hash(),
+            block_hash: bid.block_hash(),
+            ..Default::default()
+        }
+    }
+
+    fn matching_envelope(block: &SignedBeaconBlock<E>) -> Arc<ExecutionPayloadEnvelope<E>> {
         let bid = block
             .message()
             .body()
             .signed_execution_payload_bid()
             .expect("Gloas block should have payload bid")
             .message();
-        let mut envelope = SignedExecutionPayloadEnvelope {
-            message: ExecutionPayloadEnvelope::empty(),
-            signature: Signature::empty(),
-        };
-        envelope.message.beacon_block_root = block.canonical_root();
-        envelope.message.parent_beacon_block_root = block.parent_root();
-        envelope.message.builder_index = bid.builder_index();
-        envelope.message.payload.slot_number = block.slot();
-        envelope.message.payload.parent_hash = bid.parent_block_hash();
-        envelope.message.payload.block_hash = bid.block_hash();
-        Arc::new(envelope)
+        Arc::new(ExecutionPayloadEnvelope {
+            payload: matching_payload(block.slot(), bid),
+            execution_requests: ExecutionRequestsGloas::default(),
+            beacon_block_root: block.canonical_root(),
+            parent_beacon_block_root: block.parent_root(),
+        })
     }
 
     #[allow(clippy::type_complexity)]
@@ -642,7 +644,7 @@ mod tests {
     ) -> Vec<(
         Arc<SignedBeaconBlock<E>>,
         DataColumnSidecarList<E>,
-        Arc<SignedExecutionPayloadEnvelope<E>>,
+        Arc<ExecutionPayloadEnvelope<E>>,
     )> {
         let mut u = types::test_utils::test_unstructured();
         (0..count)
@@ -654,8 +656,9 @@ mod tests {
                     spec,
                 )
                 .unwrap();
-                // Commit the (random) bid to the empty execution requests carried by
-                // `matching_envelope`, so the envelope passes `verify_envelope_consistency`.
+                // Commit the (random) bid to the payload and the empty execution requests carried
+                // by `matching_envelope`, so the envelope passes `verify_envelope_consistency`.
+                let slot = block.slot();
                 if let Ok(bid) = block
                     .message_mut()
                     .body_mut()
@@ -663,6 +666,9 @@ mod tests {
                 {
                     bid.message.execution_requests_root =
                         ExecutionRequestsGloas::<E>::default().tree_hash_root();
+                    bid.message.payload_root =
+                        matching_payload(slot, ExecutionPayloadBidRef::Gloas(&bid.message))
+                            .tree_hash_root();
                 }
                 // The bid mutation changed the block root; re-point the columns at the mutated
                 // block so column<->block pairing (by block root) still holds.
@@ -689,7 +695,7 @@ mod tests {
         blocks: &[(
             Arc<SignedBeaconBlock<E>>,
             DataColumnSidecarList<E>,
-            Arc<SignedExecutionPayloadEnvelope<E>>,
+            Arc<ExecutionPayloadEnvelope<E>>,
         )],
         expected_custody_columns: &[u64],
     ) {
@@ -717,7 +723,7 @@ mod tests {
         blocks: Vec<(
             Arc<SignedBeaconBlock<E>>,
             DataColumnSidecarList<E>,
-            Arc<SignedExecutionPayloadEnvelope<E>>,
+            Arc<ExecutionPayloadEnvelope<E>>,
         )>,
         payloads_req_id: PayloadEnvelopesByRangeRequestId,
         expected_custody_columns: Vec<u64>,
@@ -945,7 +951,7 @@ mod tests {
                     ..
                 } => {
                     assert_eq!(
-                        envelope.envelope().beacon_block_root(),
+                        envelope.envelope().beacon_block_root,
                         block.canonical_root()
                     );
                     assert_eq!(envelope.columns.len(), expected_custody_columns.len());
@@ -995,7 +1001,7 @@ mod tests {
         } = setup_gloas_coupling(1);
 
         let mut bad_envelope = (*blocks[0].2).clone();
-        bad_envelope.message.payload.slot_number += 1;
+        bad_envelope.payload.slot_number += 1;
         info.add_payload_envelopes(payloads_req_id, vec![Arc::new(bad_envelope)])
             .unwrap();
 

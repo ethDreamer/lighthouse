@@ -74,8 +74,8 @@ use strum::IntoStaticStr;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace};
 use types::{
-    BlobSidecar, DataColumnSidecar, EthSpec, ExecutionBlockHash, ForkContext, Hash256,
-    SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot, new_non_zero_usize,
+    BlobSidecar, DataColumnSidecar, EthSpec, ExecutionBlockHash, ExecutionPayloadEnvelope,
+    ForkContext, Hash256, SignedBeaconBlock, Slot, new_non_zero_usize,
 };
 
 /// The number of slots ahead of us that is allowed before requesting a long-range (batch)  Sync
@@ -143,7 +143,7 @@ pub enum SyncMessage<E: EthSpec> {
     RpcPayloadEnvelope {
         sync_request_id: SyncRequestId,
         peer_id: PeerId,
-        envelope: Option<Arc<SignedExecutionPayloadEnvelope<E>>>,
+        envelope: Option<Arc<ExecutionPayloadEnvelope<E>>>,
     },
 
     /// A block with an unknown parent has been received.
@@ -1285,7 +1285,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         &mut self,
         sync_request_id: SyncRequestId,
         peer_id: PeerId,
-        envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        envelope: Option<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
     ) {
         match sync_request_id {
             SyncRequestId::SinglePayloadEnvelope { id } => self
@@ -1334,7 +1334,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
-        envelope: RpcEvent<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        envelope: RpcEvent<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
     ) {
         if let Some(resp) = self
             .network
@@ -1353,7 +1353,7 @@ impl<T: BeaconChainTypes> SyncManager<T> {
         &mut self,
         id: PayloadEnvelopesByRangeRequestId,
         peer_id: PeerId,
-        envelope: RpcEvent<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        envelope: RpcEvent<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
     ) {
         if let Some(resp) = self
             .network

@@ -15,7 +15,7 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::codec::{Decoder, Encoder};
-use types::SignedExecutionPayloadEnvelope;
+use types::ExecutionPayloadEnvelope;
 use types::{
     BlobSidecar, ChainSpec, DataColumnSidecar, DataColumnsByRootIdentifier, EthSpec, ForkContext,
     ForkName, ForkVersionDecode, Hash256, LightClientBootstrap, LightClientFinalityUpdate,
@@ -674,7 +674,7 @@ fn handle_rpc_response<E: EthSpec>(
             Some(fork_name) => {
                 if fork_name.gloas_enabled() {
                     Ok(Some(RpcSuccessResponse::PayloadEnvelopesByRange(Arc::new(
-                        SignedExecutionPayloadEnvelope::from_ssz_bytes(decoded_buffer)?,
+                        ExecutionPayloadEnvelope::from_ssz_bytes(decoded_buffer)?,
                     ))))
                 } else {
                     Err(RPCError::ErrorResponse(
@@ -695,7 +695,7 @@ fn handle_rpc_response<E: EthSpec>(
             Some(fork_name) => {
                 if fork_name.gloas_enabled() {
                     Ok(Some(RpcSuccessResponse::PayloadEnvelopesByRoot(Arc::new(
-                        SignedExecutionPayloadEnvelope::from_ssz_bytes(decoded_buffer)?,
+                        ExecutionPayloadEnvelope::from_ssz_bytes(decoded_buffer)?,
                     ))))
                 } else {
                     Err(RPCError::ErrorResponse(

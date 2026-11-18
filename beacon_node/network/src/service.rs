@@ -46,9 +46,9 @@ use tokio::time::Sleep;
 use tracing::{Span, debug, error, info, trace, warn};
 use typenum::Unsigned;
 use types::{
-    BlobSidecar, DataColumnSidecar, EthSpec, ForkContext, Hash256, PartialDataColumn,
-    SignedBeaconBlock, SignedExecutionPayloadEnvelope, SubnetId, SyncCommitteeSubscription,
-    SyncSubnetId, ValidatorSubscription,
+    BlobSidecar, DataColumnSidecar, EthSpec, ExecutionPayloadEnvelope, ForkContext, Hash256,
+    PartialDataColumn, SignedBeaconBlock, SubnetId, SyncCommitteeSubscription, SyncSubnetId,
+    ValidatorSubscription,
 };
 
 mod tests;
@@ -1340,7 +1340,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         &mut self,
         peer_id: PeerId,
         sync_request_id: Option<SyncRequestId>,
-        envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        envelope: Option<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
     ) {
         let sync_request_id = match sync_request_id {
             Some(id @ SyncRequestId::SinglePayloadEnvelope { .. }) => id,
@@ -1362,7 +1362,7 @@ impl<T: BeaconChainTypes> NetworkService<T> {
         &mut self,
         peer_id: PeerId,
         sync_request_id: Option<SyncRequestId>,
-        envelope: Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
+        envelope: Option<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
     ) {
         let sync_request_id = match sync_request_id {
             Some(id @ SyncRequestId::PayloadEnvelopesByRange { .. }) => id,
@@ -1572,13 +1572,13 @@ impl<T: BeaconChainTypes> NetworkService<T> {
                             bls_to_execution_change,
                         ),
                 ),
-            PubsubMessage::ExecutionPayload(signed_execution_payload_envelope) => {
-                trace!(%peer_id, "Received a signed execution payload envelope");
+            PubsubMessage::ExecutionPayload(execution_payload_envelope) => {
+                trace!(%peer_id, "Received an execution payload envelope");
                 self.handle_beacon_processor_send_result(
                     self.network_beacon_processor.send_gossip_execution_payload(
                         message_id,
                         peer_id,
-                        signed_execution_payload_envelope,
+                        execution_payload_envelope,
                         seen_timestamp,
                     ),
                 )

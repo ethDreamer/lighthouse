@@ -53,10 +53,10 @@ use store::hot_cold_store::HotColdDBError;
 use tracing::{Span, debug, error, info, instrument, trace, warn};
 use types::{
     Attestation, AttestationData, AttestationRef, AttesterSlashing, ColumnIndex, DataColumnSidecar,
-    DataColumnSubnetId, EthSpec, Hash256, IndexedAttestation, LightClientFinalityUpdate,
-    LightClientOptimisticUpdate, PartialDataColumn, PayloadAttestationMessage, ProposerSlashing,
-    SignedAggregateAndProof, SignedBeaconBlock, SignedBlsToExecutionChange,
-    SignedContributionAndProof, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
+    DataColumnSubnetId, EthSpec, ExecutionPayloadEnvelope, Hash256, IndexedAttestation,
+    LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
+    PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof, SignedBeaconBlock,
+    SignedBlsToExecutionChange, SignedContributionAndProof, SignedExecutionPayloadBid,
     SignedInclusionList, SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, Slot,
     SubnetId, SyncCommitteeMessage, SyncSubnetId, block::BlockImportSource, data::CellBitmap,
     execution::SignedExecutionProofEnvelope,
@@ -3802,7 +3802,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<ExecutionPayloadEnvelope<T::EthSpec>>,
         seen_timestamp: Duration,
     ) {
         if let Some(gossip_verified_envelope) = self
@@ -3814,7 +3814,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             )
             .await
         {
-            let beacon_block_root = gossip_verified_envelope.signed_envelope.beacon_block_root();
+            let beacon_block_root = gossip_verified_envelope.envelope.beacon_block_root;
 
             Span::current().record("beacon_block_root", beacon_block_root.to_string());
 
@@ -3834,7 +3834,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         self: &Arc<Self>,
         message_id: MessageId,
         peer_id: PeerId,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<ExecutionPayloadEnvelope<T::EthSpec>>,
         seen_duration: Duration,
     ) -> Option<GossipVerifiedEnvelope<T>> {
         let envelope_delay =
@@ -3855,15 +3855,15 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
 
                 // Write the time the envelope was observed into the delay cache.
                 self.chain.envelope_times_cache.write().set_time_observed(
-                    verified_envelope.signed_envelope.beacon_block_root(),
+                    verified_envelope.envelope.beacon_block_root,
                     envelope.slot(),
                     seen_duration,
                     Some(peer_id.to_string()),
                 );
 
                 info!(
-                    slot = %verified_envelope.signed_envelope.slot(),
-                    root = ?verified_envelope.signed_envelope.beacon_block_root(),
+                    slot = %verified_envelope.envelope.slot(),
+                    root = ?verified_envelope.envelope.beacon_block_root,
                     "New envelope received"
                 );
 
@@ -3881,15 +3881,12 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                         );
                     }
 
-                    EnvelopeError::BadSignature
-                    | EnvelopeError::BuilderIndexMismatch { .. }
-                    | EnvelopeError::SlotMismatch { .. }
+                    EnvelopeError::SlotMismatch { .. }
                     | EnvelopeError::BlockHashMismatch { .. }
                     | EnvelopeError::ParentBeaconBlockRootMismatch { .. }
                     | EnvelopeError::InvalidPayloadHash(_)
                     | EnvelopeError::ExecutionRequestsRootMismatch { .. }
-                    | EnvelopeError::UnknownValidator { .. }
-                    | EnvelopeError::IncorrectBlockProposer { .. }
+                    | EnvelopeError::PayloadRootMismatch { .. }
                     | EnvelopeError::ExecutionPayloadError(_)
                     | EnvelopeError::OperationListTooLong { .. }
                     | EnvelopeError::EnvelopeProcessingError(_) => {
@@ -3928,7 +3925,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
                                 .await
                             {
                                 Ok(verified_envelope) => {
-                                    let envelope_slot = verified_envelope.signed_envelope.slot();
+                                    let envelope_slot = verified_envelope.envelope.slot();
                                     inner_self.propagate_envelope_if_timely(
                                         envelope_slot,
                                         message_id,
@@ -3993,8 +3990,8 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
             }
         };
 
-        let envelope_slot = verified_envelope.signed_envelope.slot();
-        let beacon_block_root = verified_envelope.signed_envelope.beacon_block_root();
+        let envelope_slot = verified_envelope.envelope.slot();
+        let beacon_block_root = verified_envelope.envelope.beacon_block_root;
         match self.chain.slot() {
             // We only need to do a simple check about the envelope slot vs the current slot because
             // `verify_envelope_for_gossip` already ensures that the envelope slot is within tolerance
@@ -4076,7 +4073,7 @@ impl<T: BeaconChainTypes> NetworkBeaconProcessor<T> {
         verified_envelope: GossipVerifiedEnvelope<T>,
     ) {
         let _processing_start_time = Instant::now();
-        let beacon_block_root = verified_envelope.signed_envelope.beacon_block_root();
+        let beacon_block_root = verified_envelope.envelope.beacon_block_root;
 
         #[allow(clippy::result_large_err)]
         let result = self

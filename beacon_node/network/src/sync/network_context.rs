@@ -55,7 +55,7 @@ use tokio::sync::mpsc;
 use tracing::{Span, debug, debug_span, error, warn};
 use types::{
     BlobSidecar, ChainSpec, ColumnIndex, DataColumnSidecar, DataColumnSidecarList, Epoch, EthSpec,
-    ForkContext, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
+    ExecutionPayloadEnvelope, ForkContext, Hash256, SignedBeaconBlock, Slot,
 };
 
 pub mod custody;
@@ -282,7 +282,7 @@ pub enum RangeBlockComponent<E: EthSpec> {
     CustodyResult(CustodyByRootResult<E>, PeerGroup),
     PayloadEnvelope(
         PayloadEnvelopesByRangeRequestId,
-        RpcResponseResult<Vec<Arc<SignedExecutionPayloadEnvelope<E>>>>,
+        RpcResponseResult<Vec<Arc<ExecutionPayloadEnvelope<E>>>>,
     ),
 }
 
@@ -820,10 +820,8 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         lookup_peers: Arc<RwLock<HashSet<PeerId>>>,
         peers_to_deprioritize: &HashSet<PeerId>,
         block_root: Hash256,
-    ) -> Result<
-        LookupRequestResult<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
-        RpcRequestSendError,
-    > {
+    ) -> Result<LookupRequestResult<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>, RpcRequestSendError>
+    {
         // Skip the download if fork-choice already saw this envelope (e.g. imported via gossip
         // before the lookup got here). Return the cached envelope so the request completes.
         if self.chain.envelope_is_known_to_fork_choice(&block_root)
@@ -1372,8 +1370,8 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         &mut self,
         id: SingleLookupReqId,
         peer_id: PeerId,
-        rpc_event: RpcEvent<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
-    ) -> Option<RpcResponseResult<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>> {
+        rpc_event: RpcEvent<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
+    ) -> Option<RpcResponseResult<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>> {
         let resp = self
             .payload_envelopes_by_root_requests
             .on_response(id, rpc_event);
@@ -1442,8 +1440,8 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
         &mut self,
         id: PayloadEnvelopesByRangeRequestId,
         peer_id: PeerId,
-        rpc_event: RpcEvent<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>,
-    ) -> Option<RpcResponseResult<Vec<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>>> {
+        rpc_event: RpcEvent<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>,
+    ) -> Option<RpcResponseResult<Vec<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>>> {
         let resp = self
             .payload_envelopes_by_range_requests
             .on_response(id, rpc_event);
@@ -1551,7 +1549,7 @@ impl<T: BeaconChainTypes> SyncNetworkContext<T> {
     pub fn send_payload_for_processing(
         &self,
         block_root: Hash256,
-        envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<ExecutionPayloadEnvelope<T::EthSpec>>,
         process_type: BlockProcessType,
     ) -> Result<(), SendErrorProcessor> {
         let beacon_processor = self

@@ -9,14 +9,14 @@ use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use types::{
     AttesterSlashing, AttesterSlashingBase, AttesterSlashingElectra, AttesterSlashingGloas,
-    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ForkContext, ForkVersionDecode,
-    Hash256, LightClientFinalityUpdate, LightClientOptimisticUpdate, PartialDataColumn,
-    PartialDataColumnFulu, PartialDataColumnGloas, PartialDataColumnGroupId,
-    PartialDataColumnHeader, PartialDataColumnSidecarFulu, PartialDataColumnSidecarGloas,
-    PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof,
-    SignedAggregateAndProofBase, SignedAggregateAndProofElectra, SignedAggregateAndProofGloas,
-    SignedBeaconBlock, SignedBlsToExecutionChange, SignedContributionAndProof,
-    SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope, SignedInclusionList,
+    CellBitmap, DataColumnSidecar, DataColumnSubnetId, EthSpec, ExecutionPayloadEnvelope,
+    ForkContext, ForkVersionDecode, Hash256, LightClientFinalityUpdate,
+    LightClientOptimisticUpdate, PartialDataColumn, PartialDataColumnFulu, PartialDataColumnGloas,
+    PartialDataColumnGroupId, PartialDataColumnHeader, PartialDataColumnSidecarFulu,
+    PartialDataColumnSidecarGloas, PayloadAttestationMessage, ProposerSlashing,
+    SignedAggregateAndProof, SignedAggregateAndProofBase, SignedAggregateAndProofElectra,
+    SignedAggregateAndProofGloas, SignedBeaconBlock, SignedBlsToExecutionChange,
+    SignedContributionAndProof, SignedExecutionPayloadBid, SignedInclusionList,
     SignedProposerPreferences, SignedVoluntaryExit, SingleAttestation, SubnetId,
     SyncCommitteeMessage, SyncSubnetId, execution::SignedExecutionProofEnvelope,
 };
@@ -43,8 +43,8 @@ pub enum PubsubMessage<E: EthSpec> {
     SyncCommitteeMessage(Box<(SyncSubnetId, SyncCommitteeMessage)>),
     /// Gossipsub message for BLS to execution change messages.
     BlsToExecutionChange(Box<SignedBlsToExecutionChange>),
-    /// Gossipsub message providing notification of a signed execution payload envelope.
-    ExecutionPayload(Box<SignedExecutionPayloadEnvelope<E>>),
+    /// Gossipsub message providing notification of an execution payload envelope.
+    ExecutionPayload(Box<ExecutionPayloadEnvelope<E>>),
     /// Gossipsub message providing notification of a payload attestation message.
     PayloadAttestation(Box<PayloadAttestationMessage>),
     /// Gossipsub message providing notification of a signed execution payload bid.
@@ -381,7 +381,7 @@ impl<E: EthSpec> PubsubMessage<E> {
                     }
                     GossipKind::ExecutionPayload => {
                         let execution_payload_envelope =
-                            SignedExecutionPayloadEnvelope::from_ssz_bytes(data)
+                            ExecutionPayloadEnvelope::from_ssz_bytes(data)
                                 .map_err(|e| format!("{:?}", e))?;
                         Ok(PubsubMessage::ExecutionPayload(Box::new(
                             execution_payload_envelope,
@@ -639,9 +639,9 @@ impl<E: EthSpec> std::fmt::Display for PubsubMessage<E> {
             PubsubMessage::ExecutionPayload(data) => {
                 write!(
                     f,
-                    "Signed Execution Payload Envelope: slot: {:?}, beacon block root: {:?}",
+                    "Execution Payload Envelope: slot: {:?}, beacon block root: {:?}",
                     data.slot(),
-                    data.beacon_block_root()
+                    data.beacon_block_root
                 )
             }
             PubsubMessage::PayloadAttestation(data) => {

@@ -18,11 +18,11 @@ use tokio_util::{
 };
 use types::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BlobSidecar, ChainSpec, DataColumnSidecarFulu,
-    DataColumnSidecarGloas, EmptyBlock, Epoch, EthSpec, EthSpecId, ForkContext, ForkName,
-    LightClientBootstrap, LightClientBootstrapAltair, LightClientFinalityUpdate,
-    LightClientFinalityUpdateAltair, LightClientOptimisticUpdate,
+    DataColumnSidecarGloas, EmptyBlock, Epoch, EthSpec, EthSpecId, ExecutionPayloadEnvelope,
+    ForkContext, ForkName, LightClientBootstrap, LightClientBootstrapAltair,
+    LightClientFinalityUpdate, LightClientFinalityUpdateAltair, LightClientOptimisticUpdate,
     LightClientOptimisticUpdateAltair, LightClientUpdate, MainnetEthSpec, MinimalEthSpec,
-    SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    SignedBeaconBlock,
 };
 
 // Note: Hardcoding the `EthSpec` type for `SignedBeaconBlock` as min/max values is
@@ -65,11 +65,11 @@ pub static SIGNED_BEACON_BLOCK_BELLATRIX_MAX: LazyLock<usize> =
     + types::ExecutionPayload::<MainnetEthSpec>::max_execution_payload_bellatrix_size() // adding max size of execution payload (~16gb)
     + ssz::BYTES_PER_LENGTH_OFFSET); // Adding the additional ssz offset for the `ExecutionPayload` field
 
-pub static SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MIN: LazyLock<usize> =
-    LazyLock::new(SignedExecutionPayloadEnvelope::<MainnetEthSpec>::min_size);
+pub static EXECUTION_PAYLOAD_ENVELOPE_MIN: LazyLock<usize> =
+    LazyLock::new(ExecutionPayloadEnvelope::<MainnetEthSpec>::min_size);
 
-pub static SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MAX: LazyLock<usize> =
-    LazyLock::new(SignedExecutionPayloadEnvelope::<MainnetEthSpec>::max_size);
+pub static EXECUTION_PAYLOAD_ENVELOPE_MAX: LazyLock<usize> =
+    LazyLock::new(ExecutionPayloadEnvelope::<MainnetEthSpec>::max_size);
 
 pub static BLOB_SIDECAR_SIZE: LazyLock<usize> =
     LazyLock::new(BlobSidecar::<MainnetEthSpec>::max_size);
@@ -166,8 +166,8 @@ pub fn rpc_block_limits_by_fork(current_fork: ForkName) -> RpcLimits {
 /// Returns the rpc limits for payload_envelope_by_range and payload_envelope_by_root responses.
 pub fn rpc_payload_limits() -> RpcLimits {
     RpcLimits::new(
-        *SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MIN,
-        *SIGNED_EXECUTION_PAYLOAD_ENVELOPE_MAX,
+        *EXECUTION_PAYLOAD_ENVELOPE_MIN,
+        *EXECUTION_PAYLOAD_ENVELOPE_MAX,
     )
 }
 

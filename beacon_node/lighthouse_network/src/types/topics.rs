@@ -188,7 +188,7 @@ pub enum GossipKind {
     SyncCommitteeMessage(SyncSubnetId),
     /// Topic for validator messages which change their withdrawal address.
     BlsToExecutionChange,
-    /// Topic for signed execution payload envelopes.
+    /// Topic for execution payload envelopes.
     ExecutionPayload,
     /// Topic for payload attestation messages.
     PayloadAttestation,
