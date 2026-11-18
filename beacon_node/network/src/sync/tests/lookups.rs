@@ -39,12 +39,11 @@ use tokio::sync::mpsc;
 use tracing::info;
 use types::{
     BlobSidecar, BlockImportSource, ColumnIndex, DataColumnSidecar, DataColumnSubnetId,
-    ForkContext, ForkName, Hash256, SignedBeaconBlock, SignedExecutionPayloadEnvelope, Slot,
-    Spec as E,
+    ExecutionPayloadEnvelope, ForkContext, ForkName, Hash256, SignedBeaconBlock, Slot, Spec as E,
 };
 
 /// Extract the Gloas payload envelope (if any) carried by a stored `RangeSyncBlock`.
-fn envelope_of(block: &RangeSyncBlock<E>) -> Option<Arc<SignedExecutionPayloadEnvelope<E>>> {
+fn envelope_of(block: &RangeSyncBlock<E>) -> Option<Arc<ExecutionPayloadEnvelope<E>>> {
     match block {
         RangeSyncBlock::Gloas {
             envelope: Some(envelope),
@@ -998,7 +997,7 @@ impl TestRig {
         &mut self,
         sync_request_id: SyncRequestId,
         peer_id: PeerId,
-        envelope: Option<Arc<SignedExecutionPayloadEnvelope<E>>>,
+        envelope: Option<Arc<ExecutionPayloadEnvelope<E>>>,
     ) {
         self.log(&format!(
             "Completing request {sync_request_id:?} to {peer_id} with envelope {:?}",
@@ -1022,7 +1021,7 @@ impl TestRig {
         &mut self,
         sync_request_id: SyncRequestId,
         peer_id: PeerId,
-        envelopes: &[Arc<SignedExecutionPayloadEnvelope<E>>],
+        envelopes: &[Arc<ExecutionPayloadEnvelope<E>>],
     ) {
         let slots = envelopes.iter().map(|e| e.slot()).collect::<Vec<_>>();
         self.log(&format!(

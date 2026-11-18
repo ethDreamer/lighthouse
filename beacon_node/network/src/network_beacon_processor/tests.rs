@@ -45,8 +45,8 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use types::{
     AttesterSlashing, ChainSpec, DataColumnSidecarList, DataColumnSubnetId, Domain, Epoch, EthSpec,
-    Hash256, InclusionList, PayloadAttestationData, PayloadAttestationMessage, ProposerSlashing,
-    SignedAggregateAndProof, SignedBeaconBlock, SignedExecutionPayloadEnvelope,
+    ExecutionPayloadEnvelope, Hash256, InclusionList, PayloadAttestationData,
+    PayloadAttestationMessage, ProposerSlashing, SignedAggregateAndProof, SignedBeaconBlock,
     SignedInclusionList, SignedRoot, SignedVoluntaryExit, SingleAttestation, Slot, Spec, SubnetId,
     data::BlobIdentifier,
 };
@@ -68,7 +68,7 @@ const STANDARD_TIMEOUT: Duration = Duration::from_secs(10);
 struct TestRig {
     chain: Arc<BeaconChain<T>>,
     next_block: Arc<SignedBeaconBlock<E>>,
-    next_block_envelope: Option<Arc<SignedExecutionPayloadEnvelope<E>>>,
+    next_block_envelope: Option<Arc<ExecutionPayloadEnvelope<E>>>,
     next_data_columns: Option<DataColumnSidecarList<E>>,
     attestations: Vec<(SingleAttestation, SubnetId)>,
     next_block_attestations: Vec<(SingleAttestation, SubnetId)>,
@@ -2945,7 +2945,7 @@ async fn test_payload_envelopes_by_range() {
         } = next
         {
             if let Some(env) = envelope {
-                actual_roots.push(env.beacon_block_root());
+                actual_roots.push(env.beacon_block_root);
             } else {
                 break;
             }
@@ -2986,7 +2986,7 @@ async fn test_payload_envelopes_by_root() {
         } = next
         {
             if let Some(env) = envelope {
-                actual_roots.push(env.beacon_block_root());
+                actual_roots.push(env.beacon_block_root);
             } else {
                 break;
             }
@@ -3058,7 +3058,7 @@ async fn test_payload_envelopes_by_range_no_duplicates_with_skip_slots() {
         } = next
         {
             if let Some(env) = envelope {
-                beacon_block_roots.push(env.beacon_block_root());
+                beacon_block_roots.push(env.beacon_block_root);
             } else {
                 break;
             }

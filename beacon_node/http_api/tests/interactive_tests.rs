@@ -12,9 +12,7 @@ use beacon_chain::{
 use beacon_processor::{Work, WorkEvent, work_reprocessing_queue::ReprocessQueueMessage};
 use eth2::types::DepositContractData;
 use eth2::types::ProduceBlockV3Response;
-use eth2::types::{
-    BroadcastValidation, PublishBlockRequest, SignedExecutionPayloadEnvelopeContents,
-};
+use eth2::types::{BroadcastValidation, ExecutionPayloadEnvelopeContents, PublishBlockRequest};
 use execution_layer::{ForkchoiceState, PayloadAttributes};
 use fixed_bytes::FixedBytesExtended;
 use http_api::test_utils::InteractiveTester;
@@ -1380,7 +1378,7 @@ async fn http_published_gloas_block_fetches_columns(
             .pending_payload_envelopes
             .write()
             .insert(PendingEnvelopeData {
-                envelope: Arc::new(envelope.message),
+                envelope: Arc::new(envelope),
                 blobs: Some(Arc::new(BlobsList::<E>::default())),
             });
     }
@@ -1489,8 +1487,8 @@ async fn envelope_publishes_retrieved_columns_awaiting_publication() {
         .find(|bundle| bundle.commitments.iter().eq(commitments.iter()))
         .cloned()
         .expect("mock EL should hold the payload's blobs");
-    let contents = SignedExecutionPayloadEnvelopeContents {
-        signed_execution_payload_envelope: envelope,
+    let contents = ExecutionPayloadEnvelopeContents {
+        execution_payload_envelope: envelope,
         kzg_proofs: blobs_bundle.proofs,
         blobs: blobs_bundle.blobs,
     };

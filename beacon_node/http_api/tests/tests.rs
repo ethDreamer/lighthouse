@@ -10,8 +10,7 @@ use beacon_chain::{
 };
 use bls::{AggregateSignature, Keypair, PublicKeyBytes, SecretKey, Signature, SignatureBytes};
 use eth2::{
-    BLOB_DATA_INCLUDED_HEADER, BeaconNodeHttpClient, CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER,
-    Error,
+    BeaconNodeHttpClient, CONSENSUS_VERSION_HEADER, CONTENT_TYPE_HEADER, Error,
     Error::ServerMessage,
     JSON_CONTENT_TYPE_HEADER, Timeouts,
     mixin::{RequestAccept, ResponseForkName, ResponseOptional},
@@ -57,8 +56,7 @@ use types::{
     Address, Builder, Domain, EthSpec, ExecutionBlockHash, ExecutionPayloadBidGloas,
     ExecutionPayloadBidHeze, Hash256, ProposerPreferences, RelativeEpoch, SelectionProof,
     SignedExecutionPayloadBid, SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze,
-    SignedExecutionPayloadEnvelope, SignedProposerPreferences, SignedRoot, SingleAttestation, Slot,
-    Spec,
+    SignedProposerPreferences, SignedRoot, SingleAttestation, Slot, Spec,
     attestation::AttestationBase,
     consts::gloas::{BUILDER_INDEX_SELF_BUILD, PAYLOAD_BUILDER_VERSION},
 };
@@ -4218,6 +4216,7 @@ impl ApiTester {
                     parent_block_hash: ExecutionBlockHash::zero(),
                     parent_block_root: head.head_block_root(),
                     block_hash: ExecutionBlockHash::zero(),
+                    payload_root: Hash256::zero(),
                     prev_randao: Hash256::zero(),
                     fee_recipient: Address::zero(),
                     gas_limit: 30_000_000,
@@ -4237,6 +4236,7 @@ impl ApiTester {
                     parent_block_hash: ExecutionBlockHash::zero(),
                     parent_block_root: head.head_block_root(),
                     block_hash: ExecutionBlockHash::zero(),
+                    payload_root: Hash256::zero(),
                     prev_randao: Hash256::zero(),
                     fee_recipient: Address::zero(),
                     gas_limit: 30_000_000,
@@ -5581,40 +5581,6 @@ impl ApiTester {
         assert_eq!(envelope.slot(), slot);
     }
 
-    /// Assert envelope fields match the expected block root and slot.
-    fn assert_envelope_fields(
-        &self,
-        envelope: &ExecutionPayloadEnvelope<E>,
-        block_root: Hash256,
-        slot: Slot,
-    ) {
-        assert_eq!(envelope.beacon_block_root, block_root);
-        assert_eq!(envelope.slot(), slot);
-        assert_eq!(envelope.builder_index, BUILDER_INDEX_SELF_BUILD);
-    }
-
-    /// Sign an execution payload envelope.
-    fn sign_envelope(
-        &self,
-        envelope: ExecutionPayloadEnvelope<E>,
-        sk: &SecretKey,
-        epoch: Epoch,
-        fork: &Fork,
-        genesis_validators_root: Hash256,
-    ) -> SignedExecutionPayloadEnvelope<E> {
-        let domain =
-            self.chain
-                .spec
-                .get_domain(epoch, Domain::BeaconBuilder, fork, genesis_validators_root);
-        let signing_root = envelope.signing_root(domain);
-        let signature = sk.sign(signing_root);
-
-        SignedExecutionPayloadEnvelope {
-            message: envelope,
-            signature,
-        }
-    }
-
     fn advance_to_gloas_slot(&self) -> Option<(Slot, Epoch, ForkName)> {
         for _ in 0..E::slots_per_epoch() * 3 {
             let slot = self.chain.slot().unwrap();
@@ -5627,13 +5593,54 @@ impl ApiTester {
         None
     }
 
+    /// Subscribe to the events which the node emits when it imports an execution payload.
+    ///
+    /// Subscribe before publishing a block, so that the import of its payload is not missed.
+    fn subscribe_execution_payload_events(&self) -> tokio::sync::broadcast::Receiver<EventKind<E>> {
+        self.chain
+            .event_handler
+            .as_ref()
+            .expect("tester should have an event handler")
+            .subscribe_execution_payload()
+    }
+
+    /// Wait for the node to import the payload of `block_root`. A node broadcasts and imports
+    /// the envelope of a block it self-built once that block is published through it, without a
+    /// further request.
+    async fn wait_for_payload_received(
+        &self,
+        events: &mut tokio::sync::broadcast::Receiver<EventKind<E>>,
+        block_root: Hash256,
+    ) {
+        let payload_imported = async {
+            loop {
+                match events.recv().await {
+                    Ok(EventKind::ExecutionPayload(event)) if event.block_root == block_root => {
+                        return;
+                    }
+                    Ok(_) => {}
+                    Err(e) => panic!("execution payload event stream failed: {e:?}"),
+                }
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(10), payload_imported)
+            .await
+            .expect("the node should broadcast and import the envelope of its self-built block");
+    }
+
+    /// Produce a self-built block at `slot` with its payload contents, publish the block, and
+    /// return the proposer index and the contents, for the test to publish.
+    ///
+    /// The pending envelope is dropped from the node's cache before the block is published, as
+    /// if another beacon node had built the block, so that this node does not broadcast the
+    /// envelope by itself.
     async fn build_and_post_block_for_envelope(
         &self,
         slot: Slot,
         epoch: Epoch,
         fork: &Fork,
         genesis_validators_root: Hash256,
-    ) -> (SecretKey, u64, ExecutionPayloadEnvelope<E>) {
+    ) -> (u64, ExecutionPayloadEnvelopeContents<E>) {
         let (sk, randao_reveal) = self
             .proposer_setup(slot, epoch, fork, genesis_validators_root)
             .await;
@@ -5644,16 +5651,28 @@ impl ApiTester {
                 slot,
                 &randao_reveal,
                 None,
-                false,
+                true,
                 &eth2::types::BuilderConfig::empty(),
                 None,
                 ForkName::Gloas,
             )
             .await
             .unwrap();
-        let block = response.into_block();
-        let block_root = block.tree_hash_root();
+        let ProduceBlockV4Response::BlockAndEnvelope(BlockAndEnvelope {
+            block,
+            execution_payload_envelope,
+            kzg_proofs,
+            blobs,
+        }) = response
+        else {
+            panic!("a self-built block should be returned with its payload");
+        };
         let proposer_index = block.proposer_index();
+
+        self.chain
+            .pending_payload_envelopes
+            .write()
+            .remove(execution_payload_envelope.beacon_block_root);
 
         let signed_block = block.sign(&sk, fork, genesis_validators_root, &self.chain.spec);
         let signed_block_request = PublishBlockRequest::try_from(Arc::new(signed_block)).unwrap();
@@ -5662,17 +5681,21 @@ impl ApiTester {
             .await
             .unwrap();
 
-        let envelope = self
-            .client
-            .get_validator_execution_payload_envelopes::<E>(slot, block_root)
-            .await
-            .unwrap()
-            .data;
-
-        (sk, proposer_index, envelope)
+        (
+            proposer_index,
+            ExecutionPayloadEnvelopeContents {
+                execution_payload_envelope,
+                kzg_proofs,
+                blobs,
+            },
+        )
     }
 
-    pub async fn test_envelope_post_consensus_invalid_returns_400_no_broadcast(mut self) -> Self {
+    /// The envelope is not signed: the bid of its block commits to every field of it. An
+    /// envelope which does not match the bid is rejected before anything is broadcast.
+    pub async fn test_envelope_post_payload_root_mismatch_returns_400_no_broadcast(
+        mut self,
+    ) -> Self {
         if !self.chain.spec.is_gloas_scheduled() {
             return self;
         }
@@ -5683,24 +5706,23 @@ impl ApiTester {
             return self;
         };
 
-        let (sk, _, mut envelope) = self
+        let (_, mut contents) = self
             .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
             .await;
-        envelope.payload.gas_limit = envelope.payload.gas_limit.saturating_add(1);
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
+        let payload = &mut contents.execution_payload_envelope.payload;
+        payload.gas_limit = payload.gas_limit.saturating_add(1);
 
         while self.network_rx.network_recv.recv().now_or_never().is_some() {}
 
         let err = self
             .client
-            .post_beacon_execution_payload_envelopes(
-                &signed_envelope,
+            .post_beacon_execution_payload_envelope_contents(
+                &contents,
                 fork_name,
-                Some(BroadcastValidation::Consensus),
+                Some(BroadcastValidation::Gossip),
             )
             .await
-            .expect_err("consensus-invalid envelope should fail");
+            .expect_err("envelope not matching the bid should fail");
 
         assert_eq!(err.status(), Some(StatusCode::BAD_REQUEST));
         assert!(self.network_rx.network_recv.recv().now_or_never().is_none());
@@ -5710,7 +5732,10 @@ impl ApiTester {
         self
     }
 
-    pub async fn test_envelope_post_gossip_partial_pass_returns_202(mut self) -> Self {
+    /// An envelope which passes gossip validation is broadcast before it is imported. If the
+    /// execution layer then rejects the payload, the response says it was broadcast but not
+    /// imported.
+    pub async fn test_envelope_post_invalid_payload_returns_202(mut self) -> Self {
         if !self.chain.spec.is_gloas_scheduled() {
             return self;
         }
@@ -5721,12 +5746,24 @@ impl ApiTester {
             return self;
         };
 
-        let (sk, _, mut envelope) = self
+        let (_, contents) = self
             .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
             .await;
-        envelope.payload.gas_limit = envelope.payload.gas_limit.saturating_add(1);
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
+        let payload = &contents.execution_payload_envelope.payload;
+        self.harness
+            .mock_execution_layer
+            .as_ref()
+            .expect("tester should have a mock EL")
+            .server
+            .set_new_payload_status(
+                payload.block_hash,
+                execution_layer::PayloadStatusV1 {
+                    status: execution_layer::PayloadStatusV1Status::Invalid,
+                    latest_valid_hash: Some(payload.parent_hash),
+                    validation_error: None,
+                    inclusion_list_satisfied: None,
+                },
+            );
 
         while self.network_rx.network_recv.recv().now_or_never().is_some() {}
 
@@ -5738,8 +5775,7 @@ impl ApiTester {
             .post(url)
             .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER)
             .header(CONSENSUS_VERSION_HEADER, fork_name.to_string())
-            .header(BLOB_DATA_INCLUDED_HEADER, "false")
-            .json(&signed_envelope)
+            .json(&contents)
             .send()
             .await
             .unwrap();
@@ -5763,11 +5799,9 @@ impl ApiTester {
             return self;
         };
 
-        let (sk, proposer_index, envelope) = self
+        let (proposer_index, contents) = self
             .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
             .await;
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
 
         self.chain
             .observed_slashable
@@ -5779,8 +5813,8 @@ impl ApiTester {
 
         let err = self
             .client
-            .post_beacon_execution_payload_envelopes(
-                &signed_envelope,
+            .post_beacon_execution_payload_envelope_contents(
+                &contents,
                 fork_name,
                 Some(BroadcastValidation::ConsensusAndEquivocation),
             )
@@ -5789,6 +5823,86 @@ impl ApiTester {
 
         assert_eq!(err.status(), Some(StatusCode::BAD_REQUEST));
         assert!(self.network_rx.network_recv.recv().now_or_never().is_none());
+
+        self.chain.slot_clock.set_slot(slot.as_u64() + 1);
+
+        self
+    }
+
+    /// A node which already broadcast and imported the envelope of its self-built block is
+    /// handed the same envelope again, as a validator client does with `include_payload=true`.
+    pub async fn test_envelope_post_after_self_broadcast(self) -> Self {
+        if !self.chain.spec.is_gloas_scheduled() {
+            return self;
+        }
+
+        let fork = self.chain.canonical_head.cached_head().head_fork();
+        let genesis_validators_root = self.chain.genesis_validators_root;
+        let Some((slot, epoch, fork_name)) = self.advance_to_gloas_slot() else {
+            return self;
+        };
+
+        let (sk, randao_reveal) = self
+            .proposer_setup(slot, epoch, &fork, genesis_validators_root)
+            .await;
+        let (response, _metadata) = self
+            .client
+            .post_validator_blocks_v4::<E>(
+                slot,
+                &randao_reveal,
+                None,
+                true,
+                &eth2::types::BuilderConfig::empty(),
+                None,
+                ForkName::Gloas,
+            )
+            .await
+            .unwrap();
+        let ProduceBlockV4Response::BlockAndEnvelope(BlockAndEnvelope {
+            block,
+            execution_payload_envelope,
+            kzg_proofs,
+            blobs,
+        }) = response
+        else {
+            panic!("a self-built block should be returned with its payload");
+        };
+        let block_root = block.tree_hash_root();
+
+        // The envelope stays in the node's cache, so the node broadcasts it once it has the block.
+        let mut payload_events = self.subscribe_execution_payload_events();
+        let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
+        let signed_block_request = PublishBlockRequest::try_from(Arc::new(signed_block)).unwrap();
+        self.client
+            .post_beacon_blocks_v2(&signed_block_request, None)
+            .await
+            .unwrap();
+        self.wait_for_payload_received(&mut payload_events, block_root)
+            .await;
+
+        let contents = ExecutionPayloadEnvelopeContents {
+            execution_payload_envelope,
+            kzg_proofs,
+            blobs,
+        };
+        let url = self
+            .client
+            .post_beacon_execution_payload_envelopes_path(None)
+            .unwrap();
+        let response = reqwest::Client::new()
+            .post(url)
+            .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE_HEADER)
+            .header(CONSENSUS_VERSION_HEADER, fork_name.to_string())
+            .json(&contents)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "{:?}",
+            response.text().await
+        );
 
         self.chain.slot_clock.set_slot(slot.as_u64() + 1);
 
@@ -6093,11 +6207,9 @@ impl ApiTester {
             return self;
         };
 
-        let (sk, _, envelope) = self
+        let (_, contents) = self
             .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
             .await;
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
 
         // Simulate a syncing node: long-range sync with the head beyond the sync tolerance.
         let network_globals = self.ctx.network_globals.as_ref().unwrap();
@@ -6116,7 +6228,7 @@ impl ApiTester {
 
         let err = self
             .client
-            .post_beacon_execution_payload_envelopes(&signed_envelope, fork_name, None)
+            .post_beacon_execution_payload_envelope_contents(&contents, fork_name, None)
             .await
             .expect_err("envelope post should fail while syncing");
 
@@ -6125,52 +6237,6 @@ impl ApiTester {
 
         *network_globals.sync_state.write() = SyncState::Synced;
         self.chain.slot_clock.set_slot(original_slot.as_u64() + 1);
-
-        self
-    }
-
-    pub async fn test_envelope_post_stateful_no_cached_blobs_returns_400(mut self) -> Self {
-        if !self.chain.spec.is_gloas_scheduled() {
-            return self;
-        }
-
-        let fork = self.chain.canonical_head.cached_head().head_fork();
-        let genesis_validators_root = self.chain.genesis_validators_root;
-        let Some((slot, epoch, fork_name)) = self.advance_to_gloas_slot() else {
-            return self;
-        };
-
-        let (sk, _, envelope) = self
-            .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
-            .await;
-
-        // Drain the cached blobs so the node has nothing to attach. The mock EL is configured
-        // with a minimum blob count, so the block's bid commits to blobs.
-        let drained_blobs = self
-            .chain
-            .pending_payload_envelopes
-            .write()
-            .take_blobs(envelope.beacon_block_root);
-        assert!(
-            drained_blobs.is_some_and(|blobs| !blobs.is_empty()),
-            "precondition: the block should commit to blobs"
-        );
-
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-
-        while self.network_rx.network_recv.recv().now_or_never().is_some() {}
-
-        let err = self
-            .client
-            .post_beacon_execution_payload_envelopes(&signed_envelope, fork_name, None)
-            .await
-            .expect_err("stateful envelope post without cached blobs should fail");
-
-        assert_eq!(err.status(), Some(StatusCode::BAD_REQUEST));
-        assert!(self.network_rx.network_recv.recv().now_or_never().is_none());
-
-        self.chain.slot_clock.set_slot(slot.as_u64() + 1);
 
         self
     }
@@ -6186,15 +6252,14 @@ impl ApiTester {
             return self;
         };
 
-        let (sk, _, envelope) = self
+        let (_, contents) = self
             .build_and_post_block_for_envelope(slot, epoch, &fork, genesis_validators_root)
             .await;
+        let envelope = contents.execution_payload_envelope.clone();
         let block_root = envelope.beacon_block_root;
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
 
         self.client
-            .post_beacon_execution_payload_envelopes(&signed_envelope, fork_name, None)
+            .post_beacon_execution_payload_envelope_contents(&contents, fork_name, None)
             .await
             .unwrap();
 
@@ -6226,7 +6291,7 @@ impl ApiTester {
             .unwrap()
             .expect("envelope should be returned")
             .into_data();
-        assert_eq!(json_envelope, signed_envelope);
+        assert_eq!(json_envelope, envelope);
 
         let ssz_envelope = self
             .client
@@ -6234,7 +6299,7 @@ impl ApiTester {
             .await
             .unwrap()
             .expect("envelope should be returned");
-        assert_eq!(ssz_envelope, signed_envelope);
+        assert_eq!(ssz_envelope, envelope);
 
         let missing = self
             .client
@@ -6291,26 +6356,9 @@ impl ApiTester {
 
             self.assert_v4_block_metadata(&block, &metadata, slot);
 
-            let envelope = self
-                .client
-                .get_validator_execution_payload_envelopes::<E>(slot, block.tree_hash_root())
-                .await
-                .unwrap()
-                .data;
+            let block_root = block.tree_hash_root();
 
-            self.assert_envelope_fields(&envelope, block.tree_hash_root(), slot);
-
-            // A request for a root this node did not build must miss (reorg-resistance).
-            assert!(
-                self.client
-                    .get_validator_execution_payload_envelopes::<E>(
-                        slot,
-                        Hash256::repeat_byte(0xff)
-                    )
-                    .await
-                    .is_err()
-            );
-
+            let mut payload_events = self.subscribe_execution_payload_events();
             let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
             let signed_block_request =
                 PublishBlockRequest::try_from(Arc::new(signed_block.clone())).unwrap();
@@ -6320,12 +6368,9 @@ impl ApiTester {
                 .unwrap();
             assert_eq!(self.chain.head_beacon_block(), Arc::new(signed_block));
 
-            let signed_envelope =
-                self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-            self.client
-                .post_beacon_execution_payload_envelopes(&signed_envelope, fork_name, None)
-                .await
-                .unwrap();
+            // The node broadcasts the envelope of its self-built payload by itself.
+            self.wait_for_payload_received(&mut payload_events, block_root)
+                .await;
 
             self.chain.slot_clock.set_slot(slot.as_u64() + 1);
         }
@@ -6374,14 +6419,9 @@ impl ApiTester {
 
             self.assert_v4_block_metadata(&block, &metadata, slot);
 
-            let envelope = self
-                .client
-                .get_validator_execution_payload_envelopes_ssz::<E>(slot, block.tree_hash_root())
-                .await
-                .unwrap();
+            let block_root = block.tree_hash_root();
 
-            self.assert_envelope_fields(&envelope, block.tree_hash_root(), slot);
-
+            let mut payload_events = self.subscribe_execution_payload_events();
             let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
             let signed_block_request =
                 PublishBlockRequest::try_from(Arc::new(signed_block.clone())).unwrap();
@@ -6391,12 +6431,9 @@ impl ApiTester {
                 .unwrap();
             assert_eq!(self.chain.head_beacon_block(), Arc::new(signed_block));
 
-            let signed_envelope =
-                self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-            self.client
-                .post_beacon_execution_payload_envelopes_ssz(&signed_envelope, fork_name, None)
-                .await
-                .unwrap();
+            // The node broadcasts the envelope of its self-built payload by itself.
+            self.wait_for_payload_received(&mut payload_events, block_root)
+                .await;
 
             self.chain.slot_clock.set_slot(slot.as_u64() + 1);
         }
@@ -6472,6 +6509,13 @@ impl ApiTester {
                 blobs,
             } = self.unwrap_v4_block_contents(response, &metadata, slot);
 
+            // Clear the pending cache to simulate publishing via a beacon node that did not
+            // produce the block: it does not broadcast the envelope by itself.
+            self.chain
+                .pending_payload_envelopes
+                .write()
+                .remove(envelope.beacon_block_root);
+
             let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
             let signed_block_request =
                 PublishBlockRequest::try_from(Arc::new(signed_block.clone())).unwrap();
@@ -6488,16 +6532,9 @@ impl ApiTester {
             }
             assert_eq!(self.chain.head_beacon_block(), Arc::new(signed_block));
 
-            // Clear the pending cache to simulate publishing via a beacon node that did not
-            // produce the block, then publish the bundled envelope, blobs and proofs.
-            self.chain
-                .pending_payload_envelopes
-                .write()
-                .remove(envelope.beacon_block_root);
-            let signed_envelope =
-                self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-            let contents = SignedExecutionPayloadEnvelopeContents {
-                signed_execution_payload_envelope: signed_envelope,
+            // Publish the bundled envelope, blobs and proofs.
+            let contents = ExecutionPayloadEnvelopeContents {
+                execution_payload_envelope: envelope,
                 kzg_proofs,
                 blobs,
             };
@@ -6537,7 +6574,11 @@ impl ApiTester {
         };
 
         let block_root = block_contents.block.tree_hash_root();
-        self.assert_envelope_fields(&block_contents.execution_payload_envelope, block_root, slot);
+        assert_eq!(
+            block_contents.execution_payload_envelope.beacon_block_root,
+            block_root
+        );
+        assert_eq!(block_contents.execution_payload_envelope.slot(), slot);
 
         // The bundled envelope should match the one cached for the stateful flow.
         let cached_envelope = self
@@ -7015,6 +7056,7 @@ impl ApiTester {
             let block = response.into_block();
             let block_root = block.tree_hash_root();
 
+            let mut payload_events = self.subscribe_execution_payload_events();
             let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
             let signed_block_request =
                 PublishBlockRequest::try_from(Arc::new(signed_block)).unwrap();
@@ -7023,20 +7065,9 @@ impl ApiTester {
                 .await
                 .unwrap();
 
-            // Retrieve and publish the envelope.
-            let envelope = self
-                .client
-                .get_validator_execution_payload_envelopes::<E>(slot, block_root)
-                .await
-                .unwrap()
-                .data;
-
-            let signed_envelope =
-                self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-            self.client
-                .post_beacon_execution_payload_envelopes(&signed_envelope, fork_name, None)
-                .await
-                .unwrap();
+            // The node broadcasts the envelope of its self-built payload by itself.
+            self.wait_for_payload_received(&mut payload_events, block_root)
+                .await;
 
             // The payload attestation data endpoint must now report the payload as present.
             let pa_data = self
@@ -7051,8 +7082,8 @@ impl ApiTester {
             assert_eq!(pa_data.slot, slot);
             assert!(
                 pa_data.payload_present,
-                "payload attestation should report payload_present=true after publishing \
-                 the envelope via the HTTP API (slot {slot})"
+                "payload attestation should report payload_present=true after the node \
+                 broadcast the envelope (slot {slot})"
             );
             assert!(
                 pa_data.blob_data_available,
@@ -7105,6 +7136,13 @@ impl ApiTester {
                 .unwrap();
             let block = response.into_block();
             let block_root = block.tree_hash_root();
+
+            // The node broadcasts the envelope of a block it self-built once the block is
+            // published through it. Drop the envelope from its cache so that it is withheld.
+            self.chain
+                .pending_payload_envelopes
+                .write()
+                .remove(block_root);
 
             let signed_block = block.sign(&sk, &fork, genesis_validators_root, &self.chain.spec);
             let signed_block_request =
@@ -9711,6 +9749,7 @@ impl ApiTester {
             slot: next_slot,
             execution_optimistic: false,
             builder_index: None,
+            payload_root: None,
             block_hash: None,
         });
 
@@ -10018,6 +10057,7 @@ impl ApiTester {
             builder_index: bid.as_ref().map(|bid| Quoted {
                 value: bid.message().builder_index(),
             }),
+            payload_root: bid.as_ref().map(|bid| bid.message().payload_root()),
             block_hash: bid.map(|bid| bid.message().block_hash()),
         });
 
@@ -10094,13 +10134,6 @@ impl ApiTester {
             .unwrap();
         let block = response.into_block();
 
-        let envelope = self
-            .client
-            .get_validator_execution_payload_envelopes::<E>(slot, block.tree_hash_root())
-            .await
-            .unwrap()
-            .data;
-
         let signed_bid = block.body().signed_execution_payload_bid().unwrap();
         let expected_builder_index = signed_bid.message().builder_index();
         let expected_block_hash = signed_bid.message().block_hash();
@@ -10170,14 +10203,8 @@ impl ApiTester {
 
         assert_eq!(expected_fork_name, result_fork_name);
 
-        // Post the envelope to reveal the payload
-        // PayloadStatus should change from Empty to Full
-        let signed_envelope =
-            self.sign_envelope(envelope, &sk, epoch, &fork, genesis_validators_root);
-        self.client
-            .post_beacon_execution_payload_envelopes(&signed_envelope, expected_fork_name, None)
-            .await
-            .unwrap();
+        // The node broadcasts the envelope of its self-built payload by itself, which reveals
+        // the payload. PayloadStatus should change from Empty to Full
 
         // Should emit a second head_v2 event with payload_status=Full
         let head_v2_events_second_emission =
@@ -11855,15 +11882,15 @@ async fn envelope_api() {
         .await
         .test_builder_preferences_without_builder_service_returns_400()
         .await
-        .test_envelope_post_consensus_invalid_returns_400_no_broadcast()
+        .test_envelope_post_payload_root_mismatch_returns_400_no_broadcast()
         .await
-        .test_envelope_post_gossip_partial_pass_returns_202()
+        .test_envelope_post_invalid_payload_returns_202()
         .await
         .test_envelope_post_equivocation_returns_400()
         .await
-        .test_envelope_post_stateful_no_cached_blobs_returns_400()
-        .await
         .test_get_beacon_execution_payload_envelopes()
+        .await
+        .test_envelope_post_after_self_broadcast()
         .await
         .test_envelope_post_when_syncing_returns_503()
         .await;
