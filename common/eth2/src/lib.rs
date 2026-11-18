@@ -62,7 +62,6 @@ pub const EXECUTION_PAYLOAD_BLINDED_HEADER: &str = "Eth-Execution-Payload-Blinde
 pub const EXECUTION_PAYLOAD_VALUE_HEADER: &str = "Eth-Execution-Payload-Value";
 pub const EXECUTION_PAYLOAD_INCLUDED_HEADER: &str = "Eth-Execution-Payload-Included";
 pub const CONSENSUS_BLOCK_VALUE_HEADER: &str = "Eth-Consensus-Block-Value";
-pub const BLOB_DATA_INCLUDED_HEADER: &str = "Eth-Blob-Data-Included";
 pub const BUILDER_URL_HEADER: &str = "Eth-Builder-Url";
 
 pub const CONTENT_TYPE_HEADER: &str = "Content-Type";
@@ -528,41 +527,34 @@ impl BeaconNodeHttpClient {
         timeout: Option<Duration>,
         fork: ForkName,
     ) -> Result<Response, Error> {
-        self.post_generic_with_envelope_headers(url, body, timeout, fork, None)
+        self.post_generic_with_envelope_headers(url, body, timeout, fork)
             .await
     }
 
-    /// Generic POST function with `Eth-Consensus-Version` and optional
-    /// `Eth-Blob-Data-Included` headers.
+    /// Generic POST function with the `Eth-Consensus-Version` header.
     async fn post_generic_with_envelope_headers<T: Serialize, U: IntoUrl>(
         &self,
         url: U,
         body: &T,
         timeout: Option<Duration>,
         fork: ForkName,
-        blob_data_included: Option<bool>,
     ) -> Result<Response, Error> {
-        let mut builder = self
+        let builder = self
             .client
             .post(url)
             .timeout(timeout.unwrap_or(self.timeouts.default))
             .header(CONSENSUS_VERSION_HEADER, fork.to_string());
-        if let Some(blob_data_included) = blob_data_included {
-            builder = builder.header(BLOB_DATA_INCLUDED_HEADER, blob_data_included.to_string());
-        }
         let response = builder.json(body).send().await?;
         success_or_error(response).await
     }
 
-    /// Generic POST function with `Eth-Consensus-Version` and optional
-    /// `Eth-Blob-Data-Included` headers and an SSZ body.
+    /// Generic POST function with the `Eth-Consensus-Version` header and an SSZ body.
     async fn post_generic_with_envelope_headers_and_ssz_body<T: Into<Body>, U: IntoUrl>(
         &self,
         url: U,
         body: T,
         timeout: Option<Duration>,
         fork: ForkName,
-        blob_data_included: Option<bool>,
         builder_url: Option<&str>,
     ) -> Result<Response, Error> {
         let mut builder = self
@@ -571,9 +563,6 @@ impl BeaconNodeHttpClient {
             .timeout(timeout.unwrap_or(self.timeouts.default))
             .header(CONSENSUS_VERSION_HEADER, fork.to_string())
             .header("Content-Type", "application/octet-stream");
-        if let Some(blob_data_included) = blob_data_included {
-            builder = builder.header(BLOB_DATA_INCLUDED_HEADER, blob_data_included.to_string());
-        }
         // Echo the winning builder's URL (beacon-APIs #630) so the beacon node forwards the block to
         // that builder; only set on a block published after a direct-builder bid won.
         if let Some(builder_url) = builder_url {
@@ -608,7 +597,7 @@ impl BeaconNodeHttpClient {
         timeout: Option<Duration>,
         fork: ForkName,
     ) -> Result<Response, Error> {
-        self.post_generic_with_envelope_headers_and_ssz_body(url, body, timeout, fork, None, None)
+        self.post_generic_with_envelope_headers_and_ssz_body(url, body, timeout, fork, None)
             .await
     }
 
@@ -1681,7 +1670,6 @@ impl BeaconNodeHttpClient {
                 block_contents.as_ssz_bytes(),
                 Some(self.timeouts.proposal),
                 block_contents.signed_block().message().body().fork_name(),
-                None,
                 builder_url,
             )
             .await?;
@@ -3351,48 +3339,6 @@ impl BeaconNodeHttpClient {
         opt_response.ok_or(Error::StatusCode(StatusCode::NOT_FOUND))
     }
 
-    /// `GET v1/validator/execution_payload_envelopes/{slot}/{beacon_block_root}`
-    pub async fn get_validator_execution_payload_envelopes<E: EthSpec>(
-        &self,
-        slot: Slot,
-        beacon_block_root: Hash256,
-    ) -> Result<ForkVersionedResponse<ExecutionPayloadEnvelope<E>>, Error> {
-        let mut path = self.eth_path(V1)?;
-
-        path.path_segments_mut()
-            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
-            .push("validator")
-            .push("execution_payload_envelopes")
-            .push(&slot.to_string())
-            .push(&beacon_block_root.to_string());
-
-        self.get(path).await
-    }
-
-    /// `GET v1/validator/execution_payload_envelopes/{slot}/{beacon_block_root}` in SSZ format
-    pub async fn get_validator_execution_payload_envelopes_ssz<E: EthSpec>(
-        &self,
-        slot: Slot,
-        beacon_block_root: Hash256,
-    ) -> Result<ExecutionPayloadEnvelope<E>, Error> {
-        let mut path = self.eth_path(V1)?;
-
-        path.path_segments_mut()
-            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
-            .push("validator")
-            .push("execution_payload_envelopes")
-            .push(&slot.to_string())
-            .push(&beacon_block_root.to_string());
-
-        let opt_response = self
-            .get_bytes_opt_accept_header(path, Accept::Ssz, self.timeouts.get_validator_block)
-            .await?;
-
-        let response_bytes = opt_response.ok_or(Error::StatusCode(StatusCode::NOT_FOUND))?;
-
-        ExecutionPayloadEnvelope::from_ssz_bytes(&response_bytes).map_err(Error::InvalidSsz)
-    }
-
     /// Path for `v1/beacon/execution_payload_envelopes`
     pub fn post_beacon_execution_payload_envelopes_path(
         &self,
@@ -3415,60 +3361,11 @@ impl BeaconNodeHttpClient {
 
     /// `POST v1/beacon/execution_payload_envelopes`
     ///
-    /// Submits the envelope alone (stateful flow); the beacon node attaches blobs and KZG
-    /// proofs from its cache, so this must be sent to the beacon node that built the
-    /// payload.
-    pub async fn post_beacon_execution_payload_envelopes<E: EthSpec>(
-        &self,
-        envelope: &SignedExecutionPayloadEnvelope<E>,
-        fork_name: ForkName,
-        validation_level: Option<BroadcastValidation>,
-    ) -> Result<(), Error> {
-        let path = self.post_beacon_execution_payload_envelopes_path(validation_level)?;
-
-        self.post_generic_with_envelope_headers(
-            path,
-            envelope,
-            Some(self.timeouts.proposal),
-            fork_name,
-            Some(false),
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    /// `POST v1/beacon/execution_payload_envelopes` in SSZ format
-    ///
-    /// See [`Self::post_beacon_execution_payload_envelopes`] for the request semantics.
-    pub async fn post_beacon_execution_payload_envelopes_ssz<E: EthSpec>(
-        &self,
-        envelope: &SignedExecutionPayloadEnvelope<E>,
-        fork_name: ForkName,
-        validation_level: Option<BroadcastValidation>,
-    ) -> Result<(), Error> {
-        let path = self.post_beacon_execution_payload_envelopes_path(validation_level)?;
-
-        self.post_generic_with_envelope_headers_and_ssz_body(
-            path,
-            envelope.as_ssz_bytes(),
-            Some(self.timeouts.proposal),
-            fork_name,
-            Some(false),
-            None,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    /// `POST v1/beacon/execution_payload_envelopes`
-    ///
-    /// Submits the full envelope bundled with blobs and KZG proofs (stateless flow), allowing
-    /// publication via a beacon node that did not build the payload.
+    /// Submits the envelope bundled with blobs and KZG proofs, allowing publication via a beacon
+    /// node that did not build the payload.
     pub async fn post_beacon_execution_payload_envelope_contents<E: EthSpec>(
         &self,
-        contents: &SignedExecutionPayloadEnvelopeContents<E>,
+        contents: &ExecutionPayloadEnvelopeContents<E>,
         fork_name: ForkName,
         validation_level: Option<BroadcastValidation>,
     ) -> Result<(), Error> {
@@ -3479,7 +3376,6 @@ impl BeaconNodeHttpClient {
             contents,
             Some(self.timeouts.proposal),
             fork_name,
-            Some(true),
         )
         .await?;
 
@@ -3491,7 +3387,7 @@ impl BeaconNodeHttpClient {
     /// See [`Self::post_beacon_execution_payload_envelope_contents`] for the request semantics.
     pub async fn post_beacon_execution_payload_envelope_contents_ssz<E: EthSpec>(
         &self,
-        contents: &SignedExecutionPayloadEnvelopeContents<E>,
+        contents: &ExecutionPayloadEnvelopeContents<E>,
         fork_name: ForkName,
         validation_level: Option<BroadcastValidation>,
     ) -> Result<(), Error> {
@@ -3502,7 +3398,6 @@ impl BeaconNodeHttpClient {
             contents.as_ssz_bytes(),
             Some(self.timeouts.proposal),
             fork_name,
-            Some(true),
             None,
         )
         .await?;
@@ -3606,7 +3501,7 @@ impl BeaconNodeHttpClient {
         &self,
         block_id: BlockId,
     ) -> Result<
-        Option<ExecutionOptimisticFinalizedBeaconResponse<SignedExecutionPayloadEnvelope<E>>>,
+        Option<ExecutionOptimisticFinalizedBeaconResponse<ExecutionPayloadEnvelope<E>>>,
         Error,
     > {
         let path = self.get_beacon_execution_payload_envelopes_path(block_id)?;
@@ -3621,13 +3516,13 @@ impl BeaconNodeHttpClient {
     pub async fn get_beacon_execution_payload_envelopes_ssz<E: EthSpec>(
         &self,
         block_id: BlockId,
-    ) -> Result<Option<SignedExecutionPayloadEnvelope<E>>, Error> {
+    ) -> Result<Option<ExecutionPayloadEnvelope<E>>, Error> {
         let path = self.get_beacon_execution_payload_envelopes_path(block_id)?;
         let opt_response = self
             .get_bytes_opt_accept_header(path, Accept::Ssz, self.timeouts.get_beacon_blocks_ssz)
             .await?;
         match opt_response {
-            Some(bytes) => SignedExecutionPayloadEnvelope::from_ssz_bytes(&bytes)
+            Some(bytes) => ExecutionPayloadEnvelope::from_ssz_bytes(&bytes)
                 .map(Some)
                 .map_err(Error::InvalidSsz),
             None => Ok(None),

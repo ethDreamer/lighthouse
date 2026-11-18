@@ -1152,6 +1152,9 @@ pub struct SseBlock {
     pub builder_index: Option<Quoted<u64>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub block_hash: Option<ExecutionBlockHash>,
+    /// The `payload_root` of the block's bid, from Gloas onwards.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload_root: Option<Hash256>,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
@@ -1246,6 +1249,8 @@ pub struct SseExecutionPayload {
     #[serde(with = "serde_utils::quoted_u64")]
     pub builder_index: u64,
     pub block_hash: ExecutionBlockHash,
+    /// The hash tree root of the execution payload, which the block's bid commits to.
+    pub payload_root: Hash256,
     pub block_root: Hash256,
     pub execution_optimistic: bool,
 }
@@ -1256,6 +1261,8 @@ pub struct SseExecutionPayloadGossip {
     #[serde(with = "serde_utils::quoted_u64")]
     pub builder_index: u64,
     pub block_hash: ExecutionBlockHash,
+    /// The hash tree root of the execution payload, which the block's bid commits to.
+    pub payload_root: Hash256,
     pub block_root: Hash256,
 }
 
@@ -2144,13 +2151,13 @@ impl<E: EthSpec> ProduceBlockV4Response<E> {
     }
 }
 
-/// A signed execution payload envelope bundled with blobs and KZG proofs for stateless
+/// An execution payload envelope bundled with blobs and KZG proofs for stateless
 /// publishing via `POST beacon/execution_payload_envelopes`, used when the receiving beacon node
 /// does not have the blobs cached.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 #[serde(bound = "E: EthSpec")]
-pub struct SignedExecutionPayloadEnvelopeContents<E: EthSpec> {
-    pub signed_execution_payload_envelope: SignedExecutionPayloadEnvelope<E>,
+pub struct ExecutionPayloadEnvelopeContents<E: EthSpec> {
+    pub execution_payload_envelope: ExecutionPayloadEnvelope<E>,
     pub kzg_proofs: KzgProofs<E>,
     #[serde(with = "ssz_types::serde_utils::list_of_hex_fixed_vec")]
     pub blobs: BlobsList<E>,
@@ -2797,12 +2804,14 @@ mod test {
     #[test]
     fn sse_block_json_fields() {
         let block_hash = ExecutionBlockHash::repeat_byte(0x22);
+        let payload_root = Hash256::repeat_byte(0x33);
         let block_event = SseBlock {
             slot: Slot::new(10),
             block: Hash256::repeat_byte(0x11),
             execution_optimistic: false,
             builder_index: Some(Quoted { value: 42 }),
             block_hash: Some(block_hash),
+            payload_root: Some(payload_root),
         };
 
         let gloas_json = serde_json::to_value(&block_event).unwrap();
@@ -2811,16 +2820,22 @@ mod test {
             gloas_json["block_hash"],
             serde_json::to_value(block_hash).unwrap()
         );
-        assert_eq!(gloas_json.as_object().unwrap().len(), 5);
+        assert_eq!(
+            gloas_json["payload_root"],
+            serde_json::to_value(payload_root).unwrap()
+        );
+        assert_eq!(gloas_json.as_object().unwrap().len(), 6);
 
         let pre_gloas_json = serde_json::to_value(SseBlock {
             builder_index: None,
             block_hash: None,
+            payload_root: None,
             ..block_event
         })
         .unwrap();
         assert!(pre_gloas_json.get("builder_index").is_none());
         assert!(pre_gloas_json.get("block_hash").is_none());
+        assert!(pre_gloas_json.get("payload_root").is_none());
         assert_eq!(pre_gloas_json.as_object().unwrap().len(), 3);
     }
 
