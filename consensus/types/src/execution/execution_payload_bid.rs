@@ -17,12 +17,12 @@ use tree_hash_derive::TreeHash;
 /// The `active_fields` of the Gloas `ExecutionPayloadBid` progressive container (EIP-7688).
 ///
 /// Must match the `active_fields` attribute on the Gloas variant.
-pub const EXECUTION_PAYLOAD_BID_GLOAS_ACTIVE_FIELDS: [bool; 12] = [true; 12];
+pub const EXECUTION_PAYLOAD_BID_GLOAS_ACTIVE_FIELDS: [bool; 13] = [true; 13];
 
 /// The `active_fields` of the Heze `ExecutionPayloadBid` progressive container (EIP-7688).
 ///
 /// Must match the `active_fields` attribute on the Heze variant.
-pub const EXECUTION_PAYLOAD_BID_HEZE_ACTIVE_FIELDS: [bool; 13] = [true; 13];
+pub const EXECUTION_PAYLOAD_BID_HEZE_ACTIVE_FIELDS: [bool; 14] = [true; 14];
 
 #[superstruct(
     variants(Gloas, Heze),
@@ -52,14 +52,14 @@ pub const EXECUTION_PAYLOAD_BID_HEZE_ACTIVE_FIELDS: [bool; 13] = [true; 13];
         Gloas(
             tree_hash(
                 struct_behaviour = "progressive_container",
-                active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+                active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
             ),
             metastruct(mappings(map_execution_payload_bid_gloas_fields()))
         ),
         Heze(
             tree_hash(
                 struct_behaviour = "progressive_container",
-                active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+                active_fields(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
             ),
             metastruct(mappings(map_execution_payload_bid_heze_fields()))
         )
@@ -91,6 +91,8 @@ pub struct ExecutionPayloadBid<E: EthSpec> {
     pub parent_block_root: Hash256,
     #[superstruct(getter(copy))]
     pub block_hash: ExecutionBlockHash,
+    #[superstruct(getter(copy))]
+    pub payload_root: Hash256,
     #[superstruct(getter(copy))]
     pub prev_randao: Hash256,
     #[superstruct(getter(copy))]
@@ -243,6 +245,7 @@ mod gloas_tests {
             parent_block_hash: ExecutionBlockHash::from_root(Hash256::repeat_byte(1)),
             parent_block_root: Hash256::repeat_byte(2),
             block_hash: ExecutionBlockHash::from_root(Hash256::repeat_byte(3)),
+            payload_root: Hash256::repeat_byte(9),
             prev_randao: Hash256::repeat_byte(4),
             fee_recipient: Address::repeat_byte(5),
             gas_limit: 30_000_000,

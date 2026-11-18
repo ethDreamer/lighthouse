@@ -76,6 +76,7 @@ pub fn upgrade_state_to_heze<E: EthSpec>(
                 parent_block_hash: pre_bid.parent_block_hash,
                 parent_block_root: pre_bid.parent_block_root,
                 block_hash: pre_bid.block_hash,
+                payload_root: pre_bid.payload_root,
                 prev_randao: pre_bid.prev_randao,
                 fee_recipient: pre_bid.fee_recipient,
                 gas_limit: pre_bid.gas_limit,

@@ -14,7 +14,6 @@ mod inclusion_list;
 mod payload;
 mod signed_bls_to_execution_change;
 mod signed_execution_payload_bid;
-mod signed_execution_payload_envelope;
 mod signed_inclusion_list;
 
 pub use bls_to_execution_change::BlsToExecutionChange;
@@ -31,7 +30,10 @@ pub use execution_payload_bid::{
     ExecutionPayloadBid, ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadBidRef,
     ExecutionPayloadBidRefMut,
 };
-pub use execution_payload_envelope::ExecutionPayloadEnvelope;
+pub use execution_payload_envelope::{
+    ExecutionPayloadBody, ExecutionPayloadEnvelope, ExecutionPayloadEnvelopeSummary,
+    ExecutionPayloadHeaderGloas,
+};
 pub use execution_payload_header::{
     ExecutionPayloadHeader, ExecutionPayloadHeaderBellatrix, ExecutionPayloadHeaderCapella,
     ExecutionPayloadHeaderDeneb, ExecutionPayloadHeaderElectra, ExecutionPayloadHeaderFulu,
@@ -58,9 +60,5 @@ pub use signed_bls_to_execution_change::SignedBlsToExecutionChange;
 pub use signed_execution_payload_bid::{
     SignedExecutionPayloadBid, SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze,
     SignedExecutionPayloadBidRef,
-};
-pub use signed_execution_payload_envelope::{
-    ExecutionPayloadBody, ExecutionPayloadHeaderGloas, SignedExecutionPayloadEnvelope,
-    SignedExecutionPayloadEnvelopeSummary,
 };
 pub use signed_inclusion_list::SignedInclusionList;

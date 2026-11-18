@@ -1,11 +1,15 @@
 use crate::execution::{ExecutionPayloadGloas, ExecutionRequestsGloas};
-use crate::{EthSpec, ForkName, Hash256, SignedRoot, Slot};
+use crate::{
+    Address, BlockAccessList, EthSpec, ExecutionBlockHash, ForkName, Hash256,
+    ProgressiveTransactions, ProgressiveWithdrawals, Slot, Uint256,
+};
 use context_deserialize::context_deserialize;
 use educe::Educe;
 use fixed_bytes::FixedBytesExtended;
 use serde::{Deserialize, Serialize};
 use ssz::{BYTES_PER_LENGTH_OFFSET, Encode as SszEncode};
 use ssz_derive::{Decode, Encode};
+use ssz_types::{FixedVector, VariableList};
 use tree_hash_derive::TreeHash;
 
 #[cfg_attr(
@@ -17,16 +21,11 @@ use tree_hash_derive::TreeHash;
 #[educe(PartialEq, Hash(bound(E: EthSpec)))]
 #[context_deserialize(ForkName)]
 #[serde(bound = "E: EthSpec")]
-#[tree_hash(
-    struct_behaviour = "progressive_container",
-    active_fields(1, 1, 1, 1, 1)
-)]
+#[tree_hash(struct_behaviour = "progressive_container", active_fields(1, 1, 1, 1))]
 pub struct ExecutionPayloadEnvelope<E: EthSpec> {
     pub payload: ExecutionPayloadGloas<E>,
     // [Modified in Gloas:EIP7688]
     pub execution_requests: ExecutionRequestsGloas<E>,
-    #[serde(with = "serde_utils::quoted_u64")]
-    pub builder_index: u64,
     pub beacon_block_root: Hash256,
     pub parent_beacon_block_root: Hash256,
 }
@@ -37,7 +36,6 @@ impl<E: EthSpec> ExecutionPayloadEnvelope<E> {
         Self {
             payload: ExecutionPayloadGloas::default(),
             execution_requests: ExecutionRequestsGloas::default(),
-            builder_index: 0,
             beacon_block_root: Hash256::zero(),
             parent_beacon_block_root: Hash256::zero(),
         }
@@ -72,7 +70,178 @@ impl<E: EthSpec> ExecutionPayloadEnvelope<E> {
     }
 }
 
-impl<E: EthSpec> SignedRoot for ExecutionPayloadEnvelope<E> {}
+/// The fixed fields of a Gloas execution payload.
+///
+/// Together with the body returned by `engine_getPayloadBodiesByHashV2`, these fields can be used
+/// to reconstruct an `ExecutionPayloadGloas` without an additional execution-layer request.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[serde(bound = "E: EthSpec")]
+pub struct ExecutionPayloadHeaderGloas<E: EthSpec> {
+    pub parent_hash: ExecutionBlockHash,
+    #[serde(with = "serde_utils::address_hex")]
+    pub fee_recipient: Address,
+    pub state_root: Hash256,
+    pub receipts_root: Hash256,
+    #[serde(with = "ssz_types::serde_utils::hex_fixed_vec")]
+    pub logs_bloom: FixedVector<u8, E::BytesPerLogsBloom>,
+    pub prev_randao: Hash256,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub block_number: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub gas_limit: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub gas_used: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub timestamp: u64,
+    #[serde(with = "ssz_types::serde_utils::hex_var_list")]
+    pub extra_data: VariableList<u8, E::MaxExtraDataBytes>,
+    #[serde(with = "serde_utils::quoted_u256")]
+    pub base_fee_per_gas: Uint256,
+    pub block_hash: ExecutionBlockHash,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub blob_gas_used: u64,
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub excess_blob_gas: u64,
+    pub slot_number: Slot,
+}
+
+/// The prunable fields of a Gloas execution payload.
+///
+/// The remaining payload fields are retained in [`ExecutionPayloadHeaderGloas`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct ExecutionPayloadBody<E: EthSpec> {
+    pub transactions: ProgressiveTransactions,
+    pub withdrawals: ProgressiveWithdrawals<E>,
+    pub block_access_list: BlockAccessList,
+}
+
+impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadBody<E> {
+    fn from(payload: &ExecutionPayloadGloas<E>) -> Self {
+        Self {
+            transactions: payload.transactions.clone(),
+            withdrawals: payload.withdrawals.clone(),
+            block_access_list: payload.block_access_list.clone(),
+        }
+    }
+}
+
+impl<E: EthSpec> From<&ExecutionPayloadGloas<E>> for ExecutionPayloadHeaderGloas<E> {
+    fn from(payload: &ExecutionPayloadGloas<E>) -> Self {
+        Self {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom.clone(),
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data.clone(),
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            blob_gas_used: payload.blob_gas_used,
+            excess_blob_gas: payload.excess_blob_gas,
+            slot_number: payload.slot_number,
+        }
+    }
+}
+
+impl<E: EthSpec> ExecutionPayloadHeaderGloas<E> {
+    pub fn into_payload(
+        self,
+        transactions: ProgressiveTransactions,
+        withdrawals: ProgressiveWithdrawals<E>,
+        block_access_list: BlockAccessList,
+    ) -> ExecutionPayloadGloas<E> {
+        ExecutionPayloadGloas {
+            parent_hash: self.parent_hash,
+            fee_recipient: self.fee_recipient,
+            state_root: self.state_root,
+            receipts_root: self.receipts_root,
+            logs_bloom: self.logs_bloom,
+            prev_randao: self.prev_randao,
+            block_number: self.block_number,
+            gas_limit: self.gas_limit,
+            gas_used: self.gas_used,
+            timestamp: self.timestamp,
+            extra_data: self.extra_data,
+            base_fee_per_gas: self.base_fee_per_gas,
+            block_hash: self.block_hash,
+            transactions,
+            withdrawals,
+            blob_gas_used: self.blob_gas_used,
+            excess_blob_gas: self.excess_blob_gas,
+            block_access_list,
+            slot_number: self.slot_number,
+        }
+    }
+}
+
+/// The persistent fields of an execution payload envelope.
+///
+/// The execution payload body is stored separately and can be pruned after finalization. The
+/// summary retains enough information to reconstruct the envelope from a body returned by the EL.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[serde(bound = "E: EthSpec")]
+pub struct ExecutionPayloadEnvelopeSummary<E: EthSpec> {
+    pub payload_header: ExecutionPayloadHeaderGloas<E>,
+    pub execution_requests: ExecutionRequestsGloas<E>,
+    pub beacon_block_root: Hash256,
+    pub parent_beacon_block_root: Hash256,
+}
+
+impl<E: EthSpec> From<&ExecutionPayloadEnvelope<E>> for ExecutionPayloadEnvelopeSummary<E> {
+    fn from(envelope: &ExecutionPayloadEnvelope<E>) -> Self {
+        Self {
+            payload_header: (&envelope.payload).into(),
+            execution_requests: envelope.execution_requests.clone(),
+            beacon_block_root: envelope.beacon_block_root,
+            parent_beacon_block_root: envelope.parent_beacon_block_root,
+        }
+    }
+}
+
+impl<E: EthSpec> ExecutionPayloadEnvelopeSummary<E> {
+    pub fn block_hash(&self) -> ExecutionBlockHash {
+        self.payload_header.block_hash
+    }
+
+    pub fn slot(&self) -> Slot {
+        self.payload_header.slot_number
+    }
+
+    pub fn into_envelope(
+        self,
+        payload_body: ExecutionPayloadBody<E>,
+    ) -> ExecutionPayloadEnvelope<E> {
+        let payload = self.payload_header.into_payload(
+            payload_body.transactions,
+            payload_body.withdrawals,
+            payload_body.block_access_list,
+        );
+        ExecutionPayloadEnvelope {
+            payload,
+            execution_requests: self.execution_requests,
+            beacon_block_root: self.beacon_block_root,
+            parent_beacon_block_root: self.parent_beacon_block_root,
+        }
+    }
+
+    pub fn into_envelope_from_payload_body(
+        self,
+        transactions: ProgressiveTransactions,
+        withdrawals: ProgressiveWithdrawals<E>,
+        block_access_list: BlockAccessList,
+    ) -> ExecutionPayloadEnvelope<E> {
+        self.into_envelope(ExecutionPayloadBody {
+            transactions,
+            withdrawals,
+            block_access_list,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -575,11 +575,11 @@ impl EthSpec for MainnetEthSpec {
     }
 
     fn max_signed_execution_payload_bid_size() -> usize {
-        196932
+        196964
     }
 
     fn max_signed_execution_payload_bid_size_heze() -> usize {
-        196934
+        196966
     }
 
     fn max_signed_inclusion_list_size() -> usize {
@@ -675,11 +675,11 @@ impl EthSpec for MinimalEthSpec {
     }
 
     fn max_signed_execution_payload_bid_size() -> usize {
-        196932
+        196964
     }
 
     fn max_signed_execution_payload_bid_size_heze() -> usize {
-        196934
+        196966
     }
 
     fn max_signed_inclusion_list_size() -> usize {
@@ -772,11 +772,11 @@ impl EthSpec for GnosisEthSpec {
     }
 
     fn max_signed_execution_payload_bid_size() -> usize {
-        196932
+        196964
     }
 
     fn max_signed_execution_payload_bid_size_heze() -> usize {
-        196934
+        196966
     }
 
     fn max_signed_inclusion_list_size() -> usize {
