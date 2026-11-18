@@ -41,8 +41,6 @@ use types::{
 use warp::{Filter, Rejection, Reply, http::response::Builder};
 use warp_utils::reject::convert_rejection;
 
-pub mod execution_payload_envelopes;
-
 /// Uses the `chain.validator_pubkey_cache` to resolve a pubkey to a validator
 /// index and then ensures that the validator exists in the given `state`.
 pub fn pubkey_to_validator_index<T: BeaconChainTypes>(

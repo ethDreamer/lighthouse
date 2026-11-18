@@ -1,3 +1,4 @@
+use crate::beacon::execution_payload_envelopes::publish_self_built_execution_payload_envelope;
 use crate::metrics;
 use std::future::Future;
 
@@ -167,8 +168,9 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
     let block_root = block_root.unwrap_or_else(|| block.canonical_root());
     // Without blob data in the request (always the case for Gloas, where the builder reveals it
     // with the payload), the node must retrieve the block's columns like it does for gossip blocks.
-    // The exception is a payload we built ourselves, whose columns the envelope endpoint publishes
-    // from the cached blobs, so retrieving them as well would only duplicate that work.
+    // The exception is a payload we built ourselves, whose columns are published from the cached
+    // blobs when its envelope is broadcast below, so retrieving them as well would only
+    // duplicate that work.
     let fetch_columns =
         unverified_blobs.is_none() && !chain.pending_payload_envelopes.read().has_blobs(block_root);
 
@@ -348,7 +350,7 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
         }
     }
 
-    match gossip_verified_block_result {
+    let response = match gossip_verified_block_result {
         Ok(gossip_verified_block) => {
             let import_result = Box::pin(chain.process_block(
                 block_root,
@@ -427,7 +429,16 @@ pub async fn publish_block<T: BeaconChainTypes, B: IntoGossipVerifiedBlock<T>>(
             );
             Err(warp_utils::reject::custom_bad_request(e.to_string()))
         }
+    };
+
+    // The block has been published and imported: if this node self-built it, broadcast its
+    // execution payload envelope and blobs. The envelope is not signed, so this needs no further
+    // request from the validator client.
+    if response.is_ok() {
+        publish_self_built_execution_payload_envelope(&chain, network_tx, block_root, slot);
     }
+
+    response
 }
 
 type BuildDataSidecarTaskResult<T> = Result<Vec<GossipVerifiedDataColumn<T>>, Rejection>;

@@ -109,7 +109,6 @@ use types::{
     BeaconStateError, Checkpoint, ConfigAndPreset, Epoch, EthSpec, ForkName, Hash256,
     SignedBlindedBeaconBlock,
 };
-use validator::execution_payload_envelopes::get_validator_execution_payload_envelopes;
 use version::{
     ResponseIncludesVersion, V1, V2, V4, add_consensus_version_header, add_ssz_content_type_header,
     execution_optimistic_finalized_beacon_response, inconsistent_fork_rejection,
@@ -2731,14 +2730,6 @@ pub async fn serve<T: BeaconChainTypes>(
         task_spawner_filter.clone(),
     );
 
-    // GET validator/execution_payload_envelopes/{slot}/{beacon_block_root}
-    let get_validator_execution_payload_envelopes = get_validator_execution_payload_envelopes(
-        eth_v1.clone(),
-        chain_filter.clone(),
-        not_while_syncing_filter.clone(),
-        task_spawner_filter.clone(),
-    );
-
     // GET validator/attestation_data?slot,committee_index
     let get_validator_attestation_data = get_validator_attestation_data(
         eth_v1.clone(),
@@ -3600,7 +3591,6 @@ pub async fn serve<T: BeaconChainTypes>(
                 .uor(get_validator_duties_proposer)
                 .uor(get_validator_blocks)
                 .uor(get_validator_blinded_blocks)
-                .uor(get_validator_execution_payload_envelopes)
                 .uor(get_validator_attestation_data)
                 .uor(get_validator_payload_attestation_data)
                 .uor(get_validator_aggregate_attestation)
