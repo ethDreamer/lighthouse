@@ -1,10 +1,9 @@
-use crate::VerifySignatures;
 use crate::per_block_processing::compute_timestamp_at_slot;
 use safe_arith::ArithError;
 use tree_hash::TreeHash;
 use types::{
-    BeaconState, BeaconStateError, BuilderIndex, ChainSpec, EthSpec, ExecutionBlockHash, Hash256,
-    SignedExecutionPayloadEnvelope, Slot,
+    BeaconState, BeaconStateError, ChainSpec, EthSpec, ExecutionBlockHash,
+    ExecutionPayloadEnvelope, Hash256, Slot,
 };
 
 macro_rules! envelope_verify {
@@ -17,8 +16,6 @@ macro_rules! envelope_verify {
 
 #[derive(Debug, Clone)]
 pub enum EnvelopeProcessingError {
-    /// Bad Signature
-    BadSignature,
     BeaconStateError(BeaconStateError),
     ArithError(ArithError),
     /// Envelope doesn't match latest beacon block header
@@ -41,11 +38,6 @@ pub enum EnvelopeProcessingError {
     WithdrawalsRootMismatch {
         state: Hash256,
         payload: Hash256,
-    },
-    // The builder index doesn't match the committed bid.
-    BuilderIndexMismatch {
-        committed_bid: BuilderIndex,
-        envelope: BuilderIndex,
     },
     // The gas limit doesn't match the committed bid
     GasLimitMismatch {
@@ -77,6 +69,11 @@ pub enum EnvelopeProcessingError {
         committed_bid: Hash256,
         envelope: Hash256,
     },
+    // The payload root doesn't match the committed bid
+    PayloadRootMismatch {
+        committed_bid: Hash256,
+        envelope: Hash256,
+    },
     /// The envelope was deemed invalid by the execution engine.
     ExecutionInvalid,
 }
@@ -93,7 +90,7 @@ impl From<ArithError> for EnvelopeProcessingError {
     }
 }
 
-/// Verifies a `SignedExecutionPayloadEnvelope` against the beacon state.
+/// Verifies an `ExecutionPayloadEnvelope` against the beacon state.
 ///
 /// This function performs pure verification with no state mutation. The execution requests
 /// from the envelope are deferred to be processed in the next block via
@@ -104,16 +101,10 @@ impl From<ArithError> for EnvelopeProcessingError {
 /// its state_root filled in.
 pub fn verify_execution_payload_envelope<E: EthSpec>(
     state: &BeaconState<E>,
-    signed_envelope: &SignedExecutionPayloadEnvelope<E>,
-    verify_signatures: VerifySignatures,
+    envelope: &ExecutionPayloadEnvelope<E>,
     block_state_root: Hash256,
     spec: &ChainSpec,
 ) -> Result<(), EnvelopeProcessingError> {
-    if verify_signatures.is_true() && !signed_envelope.verify_signature_with_state(state, spec)? {
-        return Err(EnvelopeProcessingError::BadSignature);
-    }
-
-    let envelope = &signed_envelope.message;
     let payload = &envelope.payload;
 
     // Verify consistency with the beacon block.
@@ -149,13 +140,6 @@ pub fn verify_execution_payload_envelope<E: EthSpec>(
 
     // Verify consistency with the committed bid
     let committed_bid = state.latest_execution_payload_bid()?;
-    envelope_verify!(
-        envelope.builder_index == committed_bid.builder_index(),
-        EnvelopeProcessingError::BuilderIndexMismatch {
-            committed_bid: committed_bid.builder_index(),
-            envelope: envelope.builder_index,
-        }
-    );
     envelope_verify!(
         committed_bid.prev_randao() == payload.prev_randao,
         EnvelopeProcessingError::PrevRandaoMismatch {
@@ -228,6 +212,16 @@ pub fn verify_execution_payload_envelope<E: EthSpec>(
         }
     );
 
+    // Verify payload root matches committed bid
+    let payload_root = payload.tree_hash_root();
+    envelope_verify!(
+        payload_root == committed_bid.payload_root(),
+        EnvelopeProcessingError::PayloadRootMismatch {
+            committed_bid: committed_bid.payload_root(),
+            envelope: payload_root,
+        }
+    );
+
     // TODO(gloas): newPayload happens here in the spec, ensure we wire that up correctly
 
     Ok(())
@@ -272,15 +266,13 @@ mod tests {
         let mut envelope = envelope.unwrap();
 
         // Manually modify the beacon_block_root to make it invalid.
-        envelope.message.beacon_block_root = Hash256::zero();
+        envelope.beacon_block_root = Hash256::zero();
 
         let block_state_root = block.state_root();
 
-        // Skip the signature verification
         let result = verify_execution_payload_envelope(
             &post_state,
             &envelope,
-            VerifySignatures::False,
             block_state_root,
             &harness.spec,
         );
@@ -306,14 +298,13 @@ mod tests {
         let mut envelope = envelope.unwrap();
 
         // Manually modify the parent beacon_block_root to make it invalid.
-        envelope.message.parent_beacon_block_root = Hash256::zero();
+        envelope.parent_beacon_block_root = Hash256::zero();
 
         let block_state_root = block.state_root();
 
         let result = verify_execution_payload_envelope(
             &post_state,
             &envelope,
-            VerifySignatures::False,
             block_state_root,
             &harness.spec,
         );
@@ -324,6 +315,39 @@ mod tests {
                 Err(EnvelopeProcessingError::ParentBeaconBlockRootMismatch { .. })
             ),
             "expected ParentBeaconBlockRootMismatch, got: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn reject_envelope_with_mismatched_payload_root() {
+        let harness = get_harness();
+        harness.advance_slot();
+
+        let state = harness.get_current_state();
+        let slot = harness.get_current_slot();
+        let ((block, _blob), envelope, post_state) =
+            harness.make_block_with_envelope(state, slot).await;
+        let mut envelope = envelope.unwrap();
+
+        // Modify a payload field which the bid only commits to via `payload_root`, so that every
+        // other consistency check still passes.
+        envelope.payload.state_root = Hash256::repeat_byte(0xff);
+
+        let block_state_root = block.state_root();
+
+        let result = verify_execution_payload_envelope(
+            &post_state,
+            &envelope,
+            block_state_root,
+            &harness.spec,
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(EnvelopeProcessingError::PayloadRootMismatch { .. })
+            ),
+            "expected PayloadRootMismatch, got: {result:?}"
         );
     }
 }
