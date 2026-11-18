@@ -20,7 +20,6 @@ pub enum MessageType {
     SyncCommitteeSelectionProof,
     SyncCommitteeContributionAndProof,
     ValidatorRegistration,
-    ExecutionPayloadEnvelope,
     PayloadAttestationMessage,
     ProposerPreferences,
     BuilderRequestAuth,
@@ -98,7 +97,6 @@ pub enum Web3SignerObject<'a, E: EthSpec, Payload: AbstractExecPayload<E>> {
     SyncAggregatorSelectionData(&'a SyncAggregatorSelectionData),
     ContributionAndProof(&'a ContributionAndProof<E>),
     ValidatorRegistration(&'a ValidatorRegistrationData),
-    ExecutionPayloadEnvelope(VersionedForkData<'a, ExecutionPayloadEnvelope<E>>),
     PayloadAttestationMessage(VersionedForkData<'a, PayloadAttestationData>),
     ProposerPreferences(VersionedForkData<'a, ProposerPreferences>),
     BuilderRequestAuth(VersionedForkData<'a, RequestAuth>),
@@ -155,10 +153,6 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> Web3SignerObject<'a, E, Pa
         }
     }
 
-    pub fn execution_payload_envelope(envelope: &'a ExecutionPayloadEnvelope<E>) -> Self {
-        Web3SignerObject::ExecutionPayloadEnvelope(VersionedForkData::gloas(envelope))
-    }
-
     pub fn payload_attestation_message(data: &'a PayloadAttestationData) -> Self {
         Web3SignerObject::PayloadAttestationMessage(VersionedForkData::gloas(data))
     }
@@ -188,7 +182,6 @@ impl<'a, E: EthSpec, Payload: AbstractExecPayload<E>> Web3SignerObject<'a, E, Pa
                 MessageType::SyncCommitteeContributionAndProof
             }
             Web3SignerObject::ValidatorRegistration(_) => MessageType::ValidatorRegistration,
-            Web3SignerObject::ExecutionPayloadEnvelope(_) => MessageType::ExecutionPayloadEnvelope,
             Web3SignerObject::PayloadAttestationMessage(_) => {
                 MessageType::PayloadAttestationMessage
             }
@@ -249,23 +242,6 @@ mod tests {
             object,
         })
         .expect("signing request should serialize")
-    }
-
-    #[test]
-    fn execution_payload_envelope_request_shape() {
-        let envelope = ExecutionPayloadEnvelope::<E>::empty();
-        let value = serialize(
-            MessageType::ExecutionPayloadEnvelope,
-            Some(dummy_fork_info()),
-            Web3SignerObject::execution_payload_envelope(&envelope),
-        );
-
-        assert_eq!(value["type"], "EXECUTION_PAYLOAD_ENVELOPE");
-        assert!(value.get("fork_info").is_some());
-        assert_eq!(value["execution_payload_envelope"]["version"], "GLOAS");
-        assert!(value["execution_payload_envelope"].get("data").is_some());
-        assert!(value.get("payload_attestation_data").is_none());
-        assert!(value.get("request_auth").is_none());
     }
 
     #[test]

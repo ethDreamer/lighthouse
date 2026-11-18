@@ -1002,19 +1002,6 @@ mod tests {
         )
         .await
         .assert_signatures_match(
-            "execution_payload_envelope_gloas",
-            |pubkey, validator_store| async move {
-                let mut envelope = ExecutionPayloadEnvelope::<E>::empty();
-                envelope.payload.slot_number = gloas_fork_slot;
-                validator_store
-                    .sign_execution_payload_envelope(pubkey, envelope)
-                    .await
-                    .unwrap()
-                    .signature
-            },
-        )
-        .await
-        .assert_signatures_match(
             "payload_attestation_message_gloas",
             |pubkey, validator_store| async move {
                 validator_store.set_validator_index(&pubkey, 0);

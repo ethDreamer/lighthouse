@@ -1,8 +1,8 @@
 use eth2::types::{
-    GenericResponse, ProduceBlockV4Response, PublishBlockRequest, RootData,
-    SignedExecutionPayloadEnvelopeContents, SubmittedBuilderPreferences, SyncingData,
+    ExecutionPayloadEnvelopeContents, GenericResponse, ProduceBlockV4Response, PublishBlockRequest,
+    RootData, SubmittedBuilderPreferences, SyncingData,
 };
-use eth2::{BLOB_DATA_INCLUDED_HEADER, BeaconNodeHttpClient, CONSENSUS_VERSION_HEADER, Timeouts};
+use eth2::{BeaconNodeHttpClient, CONSENSUS_VERSION_HEADER, Timeouts};
 use mockito::{Matcher, Mock, Server, ServerGuard};
 use regex::Regex;
 use reqwest::StatusCode;
@@ -14,10 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::info;
 use types::{
-    ChainSpec, ConfigAndPreset, Epoch, EthSpec, ExecutionPayloadEnvelope, ForkName, Hash256,
-    PayloadAttestationData, PayloadAttestationMessage, SignedBlindedBeaconBlock,
-    SignedContributionAndProof, SignedExecutionPayloadEnvelope, Slot, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncDuty,
+    ChainSpec, ConfigAndPreset, Epoch, EthSpec, ForkName, Hash256, PayloadAttestationData,
+    PayloadAttestationMessage, SignedBlindedBeaconBlock, SignedContributionAndProof, Slot,
+    SyncCommitteeContribution, SyncCommitteeMessage, SyncDuty,
 };
 
 pub struct MockBeaconNode<E: EthSpec> {
@@ -26,9 +25,7 @@ pub struct MockBeaconNode<E: EthSpec> {
     _phantom: PhantomData<E>,
     pub received_blinded_blocks: Arc<Mutex<Vec<SignedBlindedBeaconBlock<E>>>>,
     pub received_full_blocks: Arc<Mutex<Vec<PublishBlockRequest<E>>>>,
-    pub execution_payload_envelope: Arc<Mutex<Vec<SignedExecutionPayloadEnvelope<E>>>>,
-    pub execution_payload_envelope_contents:
-        Arc<Mutex<Vec<SignedExecutionPayloadEnvelopeContents<E>>>>,
+    pub execution_payload_envelope_contents: Arc<Mutex<Vec<ExecutionPayloadEnvelopeContents<E>>>>,
     pub payload_attestation_message: Arc<Mutex<Vec<PayloadAttestationMessage>>>,
     pub builder_preferences: Arc<Mutex<Vec<SubmittedBuilderPreferences>>>,
     pub sync_committee_messages: Arc<Mutex<Vec<SyncCommitteeMessage>>>,
@@ -49,7 +46,6 @@ impl<E: EthSpec> MockBeaconNode<E> {
             _phantom: PhantomData,
             received_blinded_blocks: Arc::new(Mutex::new(Vec::new())),
             received_full_blocks: Arc::new(Mutex::new(Vec::new())),
-            execution_payload_envelope: Arc::new(Mutex::new(Vec::new())),
             execution_payload_envelope_contents: Arc::new(Mutex::new(Vec::new())),
             payload_attestation_message: Arc::new(Mutex::new(Vec::new())),
             builder_preferences: Arc::new(Mutex::new(Vec::new())),
@@ -377,52 +373,6 @@ impl<E: EthSpec> MockBeaconNode<E> {
             .create()
     }
 
-    /// Mocks `GET /eth/v1/validator/execution_payload_envelopes/{slot}/{beacon_block_root}` (SSZ)
-    pub fn mock_get_validator_execution_payload_envelope_ssz(
-        &mut self,
-        envelope: &ExecutionPayloadEnvelope<E>,
-        slot: Slot,
-        beacon_block_root: Hash256,
-    ) -> Mock {
-        let path_pattern = Regex::new(&format!(
-            r"^/eth/v1/validator/execution_payload_envelopes/{}/{}$",
-            slot.as_u64(),
-            beacon_block_root,
-        ))
-        .unwrap();
-
-        let ssz_bytes = envelope.as_ssz_bytes();
-
-        self.server
-            .mock("GET", Matcher::Regex(path_pattern.to_string()))
-            .match_header("accept", "application/octet-stream")
-            .with_status(200)
-            .with_header("content-type", "application/octet-stream")
-            .with_body(ssz_bytes)
-            .create()
-    }
-
-    /// Mocks `GET /eth/v1/validator/execution_payload_envelopes/{slot}/{beacon_block_root}` returning error.
-    pub fn mock_get_validator_execution_payload_envelope_ssz_error(
-        &mut self,
-        slot: Slot,
-        beacon_block_root: Hash256,
-    ) -> Mock {
-        let path_pattern = Regex::new(&format!(
-            r"^/eth/v1/validator/execution_payload_envelopes/{}/{}$",
-            slot.as_u64(),
-            beacon_block_root,
-        ))
-        .unwrap();
-
-        self.server
-            .mock("GET", Matcher::Regex(path_pattern.to_string()))
-            .match_header("accept", "application/octet-stream")
-            .with_status(500)
-            .with_body(r#"{"message":"Internal server error"}"#)
-            .create()
-    }
-
     /// Mocks the `post_beacon_blinded_blocks_v2_ssz` response with an optional `delay`.
     pub fn mock_post_beacon_blinded_blocks_v2_ssz(&mut self, delay: Duration) -> Mock {
         let path_pattern = Regex::new(r"^/eth/v2/beacon/blinded_blocks$").unwrap();
@@ -577,68 +527,34 @@ impl<E: EthSpec> MockBeaconNode<E> {
     }
 
     /// Base mock for `POST /eth/v1/beacon/execution_payload_envelopes` (SSZ).
-    fn post_beacon_execution_payload_envelope_ssz_mock(
-        &mut self,
-        blob_data_included: bool,
-    ) -> Mock {
+    fn post_beacon_execution_payload_envelope_ssz_mock(&mut self) -> Mock {
         let path_pattern = Regex::new(r"^/eth/v1/beacon/execution_payload_envelopes$").unwrap();
 
         self.server
             .mock("POST", Matcher::Regex(path_pattern.to_string()))
             .match_header("content-type", "application/octet-stream")
             .match_header(CONSENSUS_VERSION_HEADER, "gloas")
-            .match_header(
-                BLOB_DATA_INCLUDED_HEADER,
-                blob_data_included.to_string().as_str(),
-            )
-    }
-
-    /// Mocks `POST /eth/v1/beacon/execution_payload_envelopes` (SSZ) to receive signed envelopes.
-    pub fn mock_post_beacon_execution_payload_envelope_ssz(&mut self) -> Mock {
-        let execution_payload_envelope = Arc::clone(&self.execution_payload_envelope);
-
-        self.post_beacon_execution_payload_envelope_ssz_mock(false)
-            .with_status(200)
-            .with_body_from_request(move |request| {
-                let body = request.body().expect("Failed to get request body");
-                let envelope = SignedExecutionPayloadEnvelope::<E>::from_ssz_bytes(body)
-                    .expect("Failed to deserialize SignedExecutionPayloadEnvelope from SSZ");
-                execution_payload_envelope.lock().unwrap().push(envelope);
-                vec![]
-            })
-            .create()
     }
 
     /// Mocks `POST /eth/v1/beacon/execution_payload_envelopes` (SSZ) to receive envelope contents.
     pub fn mock_post_beacon_execution_payload_envelope_contents_ssz(&mut self) -> Mock {
         let received = Arc::clone(&self.execution_payload_envelope_contents);
 
-        self.post_beacon_execution_payload_envelope_ssz_mock(true)
+        self.post_beacon_execution_payload_envelope_ssz_mock()
             .with_status(200)
             .with_body_from_request(move |request| {
                 let body = request.body().expect("Failed to get request body");
-                let contents = SignedExecutionPayloadEnvelopeContents::<E>::from_ssz_bytes(body)
-                    .expect(
-                        "Failed to deserialize SignedExecutionPayloadEnvelopeContents from SSZ",
-                    );
+                let contents = ExecutionPayloadEnvelopeContents::<E>::from_ssz_bytes(body)
+                    .expect("Failed to deserialize ExecutionPayloadEnvelopeContents from SSZ");
                 received.lock().unwrap().push(contents);
                 vec![]
             })
             .create()
     }
 
-    /// Mocks `POST /eth/v1/beacon/execution_payload_envelopes` (SSZ) returning error for envelope
-    /// contents.
-    pub fn mock_post_beacon_execution_payload_envelope_contents_ssz_error(&mut self) -> Mock {
-        self.post_beacon_execution_payload_envelope_ssz_mock(true)
-            .with_status(500)
-            .with_body(r#"{"message":"Internal server error"}"#)
-            .create()
-    }
-
     /// Mocks `POST /eth/v1/beacon/execution_payload_envelopes` (SSZ) returning error.
-    pub fn mock_post_beacon_execution_payload_envelope_ssz_error(&mut self) -> Mock {
-        self.post_beacon_execution_payload_envelope_ssz_mock(false)
+    pub fn mock_post_beacon_execution_payload_envelope_contents_ssz_error(&mut self) -> Mock {
+        self.post_beacon_execution_payload_envelope_ssz_mock()
             .with_status(500)
             .with_body(r#"{"message":"Internal server error"}"#)
             .create()

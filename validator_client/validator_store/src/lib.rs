@@ -7,12 +7,12 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, EthSpec,
-    ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
-    ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedBlindedBeaconBlock,
-    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeContribution,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Attestation, AttestationData, BlindedBeaconBlock, Epoch, EthSpec, Graffiti, Hash256,
+    PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
+    SignedAggregateAndProof, SignedBlindedBeaconBlock, SignedContributionAndProof,
+    SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
+    SyncCommitteeContribution, SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId,
+    ValidatorRegistrationData,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -198,13 +198,6 @@ pub trait ValidatorStore: Send + Sync {
     /// cheap to call. The `first_run` flag can be used to print a more verbose message when pruning
     /// runs.
     fn prune_slashing_protection_db(&self, current_epoch: Epoch, first_run: bool);
-
-    /// Sign an `ExecutionPayloadEnvelope` for Gloas.
-    fn sign_execution_payload_envelope(
-        &self,
-        validator_pubkey: PublicKeyBytes,
-        envelope: ExecutionPayloadEnvelope<Self::E>,
-    ) -> impl Future<Output = Result<SignedExecutionPayloadEnvelope<Self::E>, Error<Self::Error>>> + Send;
 
     /// Sign a `PayloadAttestationData` for the PTC.
     fn sign_payload_attestation(

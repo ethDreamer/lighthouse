@@ -3,11 +3,10 @@ use eth2::types::{RequestAuth, SignedRequestAuth};
 use futures::Stream;
 use std::sync::{Arc, Mutex};
 use types::{
-    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
-    SignedContributionAndProof, SignedExecutionPayloadEnvelope, SignedProposerPreferences,
-    SignedValidatorRegistrationData, SingleAttestation, Slot, SyncCommitteeMessage,
-    SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Epoch, Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage,
+    ProposerPreferences, SelectionProof, SignedAggregateAndProof, SignedContributionAndProof,
+    SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
+    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -26,12 +25,11 @@ pub struct SignBlockCall {
 type SignBlockResult<S> =
     Result<SignedBlock<<S as ValidatorStore>::E>, StoreError<<S as ValidatorStore>::Error>>;
 
-/// A `ValidatorStore` that records block and envelope signing calls and delegates to `inner`.
+/// A `ValidatorStore` that records block signing calls and delegates to `inner`.
 pub struct RecordingValidatorStore<S: ValidatorStore> {
     inner: Arc<S>,
     sign_block_calls: Mutex<Vec<SignBlockCall>>,
     next_sign_block_result: Mutex<Option<SignBlockResult<S>>>,
-    signed_envelope_block_roots: Mutex<Vec<Hash256>>,
 }
 
 impl<S: ValidatorStore> RecordingValidatorStore<S> {
@@ -40,7 +38,6 @@ impl<S: ValidatorStore> RecordingValidatorStore<S> {
             inner,
             sign_block_calls: Mutex::new(Vec::new()),
             next_sign_block_result: Mutex::new(None),
-            signed_envelope_block_roots: Mutex::new(Vec::new()),
         }
     }
 
@@ -51,11 +48,6 @@ impl<S: ValidatorStore> RecordingValidatorStore<S> {
     /// Override the next block signing result, for example when a DVT cluster chooses another block.
     pub fn set_next_sign_block_result(&self, result: SignBlockResult<S>) {
         *self.next_sign_block_result.lock().unwrap() = Some(result);
-    }
-
-    /// Block roots of the envelopes passed to the signer, including failed signing attempts.
-    pub fn signed_envelope_block_roots(&self) -> Vec<Hash256> {
-        self.signed_envelope_block_roots.lock().unwrap().clone()
     }
 }
 
@@ -195,20 +187,6 @@ impl<S: ValidatorStore + 'static> ValidatorStore for RecordingValidatorStore<S> 
     fn prune_slashing_protection_db(&self, current_epoch: Epoch, first_run: bool) {
         self.inner
             .prune_slashing_protection_db(current_epoch, first_run)
-    }
-
-    async fn sign_execution_payload_envelope(
-        &self,
-        validator_pubkey: PublicKeyBytes,
-        envelope: ExecutionPayloadEnvelope<Self::E>,
-    ) -> Result<SignedExecutionPayloadEnvelope<Self::E>, StoreError<Self::Error>> {
-        self.signed_envelope_block_roots
-            .lock()
-            .unwrap()
-            .push(envelope.beacon_block_root);
-        self.inner
-            .sign_execution_payload_envelope(validator_pubkey, envelope)
-            .await
     }
 
     async fn sign_payload_attestation(

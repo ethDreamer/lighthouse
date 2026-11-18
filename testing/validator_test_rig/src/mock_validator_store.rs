@@ -5,11 +5,11 @@ use futures::{Stream, stream};
 use std::future::Future;
 use std::sync::Arc;
 use types::{
-    Address, Epoch, ExecutionPayloadEnvelope, Graffiti, Hash256, MainnetEthSpec,
-    PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences, SelectionProof,
-    SignedAggregateAndProof, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedValidatorRegistrationData, SingleAttestation, Slot,
-    SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
+    Address, Epoch, Graffiti, Hash256, MainnetEthSpec, PayloadAttestationData,
+    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
+    SignedContributionAndProof, SignedProposerPreferences, SignedValidatorRegistrationData,
+    SingleAttestation, Slot, SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId,
+    ValidatorRegistrationData,
 };
 use validator_store::{
     AggregateToSign, AttestationToSign, ContributionToSign, DoppelgangerStatus,
@@ -168,14 +168,6 @@ impl ValidatorStore for MockValidatorStore {
 
     fn prune_slashing_protection_db(&self, _current_epoch: Epoch, _first_run: bool) {
         panic!("MockValidatorStore::prune_slashing_protection_db called without a hook")
-    }
-
-    async fn sign_execution_payload_envelope(
-        &self,
-        _validator_pubkey: PublicKeyBytes,
-        _envelope: ExecutionPayloadEnvelope<Self::E>,
-    ) -> Result<SignedExecutionPayloadEnvelope<Self::E>, StoreError<Self::Error>> {
-        panic!("MockValidatorStore::sign_execution_payload_envelope called without a hook")
     }
 
     async fn sign_proposer_preferences(

@@ -5,8 +5,7 @@ use builder_store::BuilderStore;
 use builder_types::SignedRequestAuth;
 use eth2::BeaconNodeHttpClient;
 use eth2::types::{
-    BlockAndEnvelope, GraffitiPolicy, ProduceBlockV4Response,
-    SignedExecutionPayloadEnvelopeContents,
+    BlockAndEnvelope, ExecutionPayloadEnvelopeContents, GraffitiPolicy, ProduceBlockV4Response,
 };
 use graffiti_file::{GraffitiFile, determine_graffiti};
 use logging::crit;
@@ -279,7 +278,7 @@ pub struct Inner<S, T> {
     /// builder config.
     request_auth_cache: RequestAuthCache,
     /// Produce Gloas blocks with `include_payload=true` and publish the self-built envelope from
-    /// the response, rather than fetching it from the beacon node that built the block.
+    /// the response, rather than relying on the beacon node that built the block to broadcast it.
     stateless_block_production: bool,
 }
 
@@ -292,11 +291,11 @@ struct LocalPayloadContents<E: EthSpec> {
 
 /// What to do about the execution payload envelope once the block is published.
 enum EnvelopeAction<E: EthSpec> {
-    /// Nothing to publish: pre-Gloas or an external builder.
+    /// Nothing to publish: pre-Gloas, an external builder, or a self-built payload which is left
+    /// to the beacon node that built it. That node broadcasts the envelope once it has seen the
+    /// signed block.
     Skip,
-    /// Fetch the envelope from the beacon node by this block root.
-    Fetch(Hash256),
-    /// Sign and publish the envelope returned with the block.
+    /// Publish the envelope returned with the block.
     Local(Box<LocalPayloadContents<E>>),
 }
 
@@ -338,39 +337,17 @@ impl<E: EthSpec> EnvelopeAction<E> {
                     })),
                 )
             }
-            (true, ProduceBlockV4Response::BlockOnly(block)) => {
-                let action = match block.body().signed_execution_payload_bid() {
-                    Ok(bid) if bid.message().builder_index() == BUILDER_INDEX_SELF_BUILD => {
-                        warn!(
-                            slot = slot.as_u64(),
-                            "Beacon node omitted the payload contents for a self-built block, \
-                             falling back to fetching the execution payload envelope"
-                        );
-                        Self::Fetch(block.canonical_root())
-                    }
-                    Ok(bid) => {
-                        info!(
-                            slot = slot.as_u64(),
-                            builder_index = bid.message().builder_index(),
-                            "Builder bid won; the builder reveals the payload envelope"
-                        );
-                        Self::Skip
-                    }
-                    Err(_) => {
-                        warn!(
-                            slot = slot.as_u64(),
-                            "Produced Gloas block has no readable payload bid; skipping envelope"
-                        );
-                        Self::Skip
-                    }
-                };
-                (block, action)
-            }
-            (false, response) => {
+            (include_payload, response) => {
                 let block = response.into_block();
-                let action = match block.body().signed_execution_payload_bid() {
+                match block.body().signed_execution_payload_bid() {
                     Ok(bid) if bid.message().builder_index() == BUILDER_INDEX_SELF_BUILD => {
-                        Self::Fetch(block.canonical_root())
+                        if include_payload {
+                            warn!(
+                                slot = slot.as_u64(),
+                                "Beacon node omitted the payload contents for a self-built block, \
+                                 relying on it to broadcast the execution payload envelope"
+                            );
+                        }
                     }
                     Ok(bid) => {
                         info!(
@@ -378,17 +355,15 @@ impl<E: EthSpec> EnvelopeAction<E> {
                             builder_index = bid.message().builder_index(),
                             "Builder bid won; the builder reveals the payload envelope"
                         );
-                        Self::Skip
                     }
                     Err(_) => {
                         warn!(
                             slot = slot.as_u64(),
                             "Produced Gloas block has no readable payload bid; skipping envelope"
                         );
-                        Self::Skip
                     }
-                };
-                (block, action)
+                }
+                (block, Self::Skip)
             }
         }
     }
@@ -397,7 +372,7 @@ impl<E: EthSpec> EnvelopeAction<E> {
     fn local_payload_root(&self) -> Option<Hash256> {
         match self {
             Self::Local(contents) => Some(contents.envelope.payload.tree_hash_root()),
-            Self::Fetch(_) | Self::Skip => None,
+            Self::Skip => None,
         }
     }
 }
@@ -884,28 +859,9 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
 
         match envelope_action {
             EnvelopeAction::Skip => {}
-            EnvelopeAction::Fetch(beacon_block_root) => {
-                // The producing node's cache is only useful if the local candidate was signed.
-                if beacon_block_root != signed_block_root {
-                    debug!(
-                        local_block_root = %beacon_block_root,
-                        %signed_block_root,
-                        "Skipping envelope fetch for a different block"
-                    );
-                    return Ok(());
-                }
-                self_ref
-                    .fetch_sign_and_publish_payload_envelope(
-                        &proposer_fallback,
-                        slot,
-                        beacon_block_root,
-                        &validator_pubkey,
-                    )
-                    .await?;
-            }
             EnvelopeAction::Local(contents) => {
                 // A distributed validator store can sign a different block after consensus.
-                // Its unused local envelope must not be signed or published.
+                // Its unused local envelope must not be published.
                 if contents.envelope.beacon_block_root != signed_block_root {
                     debug!(
                         local_block_root = %contents.envelope.beacon_block_root,
@@ -915,13 +871,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
                     return Ok(());
                 }
                 self_ref
-                    .sign_and_publish_local_payload_envelope(
-                        &proposer_fallback,
-                        slot,
-                        fork_name,
-                        *contents,
-                        &validator_pubkey,
-                    )
+                    .publish_local_payload_envelope(&proposer_fallback, slot, fork_name, *contents)
                     .await?;
             }
         }
@@ -929,113 +879,19 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         Ok(())
     }
 
-    /// Fetch, sign, and publish the execution payload envelope for Gloas.
-    /// This should be called after the block has been published.
+    /// Publish the envelope returned with a self-built block, with its blobs and KZG proofs, via
+    /// the same nodes as the block, since any beacon node can accept that form.
     ///
-    /// TODO(gloas): For multi-BN setups, we need to track which beacon node produced the block
-    /// and fetch the envelope from that same node. The envelope is cached per-BN,
-    /// so fetching from a different BN than the one that built the block will fail.
-    /// This applies to the `Fetch` path. The `Local` path already uses proposer fallback to
-    /// publish the envelope with its blobs and proofs without relying on the producing BN's cache.
-    /// See: https://github.com/sigp/lighthouse/pull/8313
+    /// The envelope is not signed. The beacon node that built the block broadcasts it as well once
+    /// it has seen the signed block, so this covers the case in which that node has become
+    /// unavailable.
     #[instrument(skip_all)]
-    async fn fetch_sign_and_publish_payload_envelope(
-        &self,
-        _proposer_fallback: &ProposerFallback<T>,
-        slot: Slot,
-        beacon_block_root: Hash256,
-        validator_pubkey: &PublicKeyBytes,
-    ) -> Result<(), BlockError> {
-        info!(
-            slot = slot.as_u64(),
-            %beacon_block_root,
-            "Fetching execution payload envelope"
-        );
-
-        // Fetch the envelope from the beacon node.
-        let envelope = self
-            .beacon_nodes
-            .first_success(|beacon_node| async move {
-                beacon_node
-                    .get_validator_execution_payload_envelopes_ssz::<S::E>(slot, beacon_block_root)
-                    .await
-                    .map_err(|e| {
-                        BlockError::Recoverable(format!(
-                            "Error fetching execution payload envelope: {:?}",
-                            e
-                        ))
-                    })
-            })
-            .await?;
-
-        info!(
-            slot = slot.as_u64(),
-            beacon_block_root = %envelope.beacon_block_root,
-            "Received execution payload envelope, signing"
-        );
-
-        // Sign the envelope
-        let signed_envelope = self
-            .validator_store
-            .sign_execution_payload_envelope(*validator_pubkey, envelope)
-            .await
-            .map_err(|e| {
-                BlockError::Recoverable(format!(
-                    "Error signing execution payload envelope: {:?}",
-                    e
-                ))
-            })?;
-
-        info!(
-            slot = slot.as_u64(),
-            "Signed execution payload envelope, publishing"
-        );
-
-        let fork_name = self.chain_spec.fork_name_at_slot::<S::E>(slot);
-
-        // Publish the signed envelope
-        // TODO(gloas): Use proposer_fallback for the Fetch path once multi-BN is supported (#8313).
-        // The Local path already uses proposer_fallback to publish the full contents.
-        self.beacon_nodes
-            .first_success(|beacon_node| {
-                let signed_envelope = signed_envelope.clone();
-                async move {
-                    beacon_node
-                        .post_beacon_execution_payload_envelopes_ssz(
-                            &signed_envelope,
-                            fork_name,
-                            None,
-                        )
-                        .await
-                        .map_err(|e| {
-                            BlockError::Recoverable(format!(
-                                "Error publishing execution payload envelope: {:?}",
-                                e
-                            ))
-                        })
-                }
-            })
-            .await?;
-
-        info!(
-            slot = slot.as_u64(),
-            beacon_block_root = %signed_envelope.message.beacon_block_root,
-            "Successfully published signed execution payload envelope"
-        );
-
-        Ok(())
-    }
-
-    /// Sign the envelope returned with a self-built block and publish it with its blobs and KZG
-    /// proofs via the same nodes as the block, since any beacon node can accept that form.
-    #[instrument(skip_all)]
-    async fn sign_and_publish_local_payload_envelope(
+    async fn publish_local_payload_envelope(
         &self,
         proposer_fallback: &ProposerFallback<T>,
         slot: Slot,
         fork_name: ForkName,
         contents: LocalPayloadContents<S::E>,
-        validator_pubkey: &PublicKeyBytes,
     ) -> Result<(), BlockError> {
         let LocalPayloadContents {
             envelope,
@@ -1046,34 +902,20 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         info!(
             slot = slot.as_u64(),
             %beacon_block_root,
-            "Signing locally built execution payload envelope"
+            "Publishing locally built execution payload envelope"
         );
 
-        let signed_execution_payload_envelope = self
-            .validator_store
-            .sign_execution_payload_envelope(*validator_pubkey, envelope)
-            .await
-            .map_err(|e| {
-                BlockError::Recoverable(format!(
-                    "Error signing execution payload envelope: {:?}",
-                    e
-                ))
-            })?;
-        let signed_contents = SignedExecutionPayloadEnvelopeContents {
-            signed_execution_payload_envelope,
+        let contents = ExecutionPayloadEnvelopeContents {
+            execution_payload_envelope: envelope,
             kzg_proofs,
             blobs,
         };
-        let signed_contents = &signed_contents;
+        let contents = &contents;
 
         proposer_fallback
             .request_proposers_first(|beacon_node| async move {
                 beacon_node
-                    .post_beacon_execution_payload_envelope_contents_ssz(
-                        signed_contents,
-                        fork_name,
-                        None,
-                    )
+                    .post_beacon_execution_payload_envelope_contents_ssz(contents, fork_name, None)
                     .await
                     .map_err(|e| {
                         BlockError::Recoverable(format!(
@@ -1087,7 +929,7 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
         info!(
             slot = slot.as_u64(),
             %beacon_block_root,
-            "Successfully published signed execution payload envelope"
+            "Successfully published execution payload envelope"
         );
 
         Ok(())
@@ -1343,7 +1185,6 @@ mod tests {
         let mut envelope = ExecutionPayloadEnvelope::empty();
         envelope.payload.slot_number = block.slot();
         envelope.payload.block_number = 7;
-        envelope.builder_index = BUILDER_INDEX_SELF_BUILD;
         envelope.beacon_block_root = block.canonical_root();
         envelope.parent_beacon_block_root = block.parent_root();
         BlockAndEnvelope {
@@ -1363,7 +1204,7 @@ mod tests {
         let received = node.execution_payload_envelope_contents.lock().unwrap();
         assert_eq!(received.len(), 1, "Expected one envelope contents publish");
         assert_eq!(
-            received[0].signed_execution_payload_envelope.message,
+            received[0].execution_payload_envelope,
             contents.execution_payload_envelope
         );
         assert_eq!(received[0].kzg_proofs, contents.kzg_proofs);
@@ -1385,16 +1226,6 @@ mod tests {
         let mock_post_block = test_harness
             .bn1()
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_get_envelope = test_harness
-            .bn1()
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &ExecutionPayloadEnvelope::empty(),
-                slot,
-                block.canonical_root(),
-            );
-        let mock_post_bare_envelope = test_harness
-            .bn1()
-            .mock_post_beacon_execution_payload_envelope_ssz();
         let mock_post_contents = test_harness
             .bn1()
             .mock_post_beacon_execution_payload_envelope_contents_ssz();
@@ -1402,8 +1233,6 @@ mod tests {
         test_harness.publish(slot).await;
 
         mock_post_block.expect(1).assert();
-        mock_get_envelope.expect(0).assert();
-        mock_post_bare_envelope.expect(0).assert();
         mock_post_contents.expect(0).assert();
         test_harness.assert_signed_once(&block, None);
     }
@@ -1488,7 +1317,6 @@ mod tests {
 
         let slot = Slot::new(1);
         let block = self_build_block(&test_harness.harness.spec);
-        let envelope = ExecutionPayloadEnvelope::empty();
 
         test_harness
             .harness
@@ -1498,24 +1326,17 @@ mod tests {
             .harness
             .mock_beacon_node_1
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        test_harness
-            .harness
-            .mock_beacon_node_1
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &envelope,
-                slot,
-                block.canonical_root(),
-            );
         let mock_post_envelope = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_post_beacon_execution_payload_envelope_ssz();
+            .mock_post_beacon_execution_payload_envelope_contents_ssz();
 
         test_harness.publish(slot).await;
 
-        // Both mock BN only being hit once, as it is successful on the first call
+        // The block is published once. The envelope of the self-built payload is left to the
+        // beacon node, which broadcasts it once it has seen the signed block.
         mock_post_block.expect(1).assert();
-        mock_post_envelope.expect(1).assert();
+        mock_post_envelope.expect(0).assert();
 
         let received_blocks = test_harness
             .harness
@@ -1524,14 +1345,6 @@ mod tests {
             .lock()
             .unwrap();
         assert_eq!(received_blocks.len(), 1, "Expected one published block");
-
-        let received_envelopes = test_harness
-            .harness
-            .mock_beacon_node_1
-            .execution_payload_envelope
-            .lock()
-            .unwrap();
-        assert_eq!(received_envelopes.len(), 1, "Expected one envelope");
 
         test_harness.assert_signed_once(&block, None);
     }
@@ -1553,19 +1366,10 @@ mod tests {
             ForkName::Gloas,
             slot,
         );
-        let mock_get_envelope = test_harness
-            .bn1()
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &contents.execution_payload_envelope,
-                slot,
-                block.canonical_root(),
-            );
         let mock_beacon_node_post_contents = test_harness
             .bn1()
             .mock_post_beacon_execution_payload_envelope_contents_ssz();
         let mock_post_block = proposer_node.mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_post_bare_envelope =
-            proposer_node.mock_post_beacon_execution_payload_envelope_ssz();
         let mock_post_contents =
             proposer_node.mock_post_beacon_execution_payload_envelope_contents_ssz();
 
@@ -1573,18 +1377,9 @@ mod tests {
 
         mock_post_block.expect(1).assert();
         mock_post_contents.expect(1).assert();
-        mock_post_bare_envelope.expect(0).assert();
-        mock_get_envelope.expect(0).assert();
         mock_beacon_node_post_contents.expect(0).assert();
 
         test_harness.assert_signed_once(&block, Some(expected_payload_root));
-        assert_eq!(
-            test_harness
-                .service
-                .validator_store
-                .signed_envelope_block_roots(),
-            vec![block.canonical_root()]
-        );
         assert_published_contents(&proposer_node, &contents);
         assert_eq!(
             proposer_node.received_full_blocks.lock().unwrap().len(),
@@ -1625,13 +1420,6 @@ mod tests {
         mock_post_block.expect(1).assert();
 
         // The existing check against the signed block still suppresses the mismatched envelope.
-        assert!(
-            test_harness
-                .service
-                .validator_store
-                .signed_envelope_block_roots()
-                .is_empty()
-        );
         mock_post_contents.expect(0).assert();
     }
 
@@ -1677,13 +1465,6 @@ mod tests {
                 .validator_store
                 .set_next_sign_block_result(Ok(signed_block));
 
-            let mock_get_envelope = test_harness
-                .bn1()
-                .mock_get_validator_execution_payload_envelope_ssz(
-                    &contents.execution_payload_envelope,
-                    slot,
-                    block.canonical_root(),
-                );
             let response = if with_contents {
                 ProduceBlockV4Response::BlockAndEnvelope(contents)
             } else {
@@ -1701,26 +1482,13 @@ mod tests {
             let mock_post_contents = test_harness
                 .bn1()
                 .mock_post_beacon_execution_payload_envelope_contents_ssz();
-            let mock_post_bare_envelope = test_harness
-                .bn1()
-                .mock_post_beacon_execution_payload_envelope_ssz();
 
             test_harness.publish(slot).await;
 
             test_harness
                 .assert_signed_once(&block, (stateless && with_contents).then_some(payload_root));
-            assert!(
-                test_harness
-                    .service
-                    .validator_store
-                    .signed_envelope_block_roots()
-                    .is_empty(),
-                "a losing local envelope must not reach the signer"
-            );
             mock_post_block.expect(1).assert();
-            mock_get_envelope.expect(0).assert();
             mock_post_contents.expect(0).assert();
-            mock_post_bare_envelope.expect(0).assert();
             let published = test_harness
                 .harness
                 .mock_beacon_node_1
@@ -1741,12 +1509,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stateless_skips_fetched_envelope_when_store_signs_different_block() {
+    async fn stateless_without_contents_skips_envelope_when_store_signs_different_block() {
         assert_skips_envelope_when_store_signs_different_block(true, false).await;
     }
 
     #[tokio::test]
-    async fn stateful_skips_fetched_envelope_when_store_signs_different_block() {
+    async fn stateful_skips_envelope_when_store_signs_different_block() {
         assert_skips_envelope_when_store_signs_different_block(false, false).await;
     }
 
@@ -1777,14 +1545,6 @@ mod tests {
 
         test_harness.publish(slot).await;
 
-        assert!(
-            test_harness
-                .service
-                .validator_store
-                .signed_envelope_block_roots()
-                .is_empty(),
-            "no envelope should be signed when no block was signed"
-        );
         mock_post_block.expect(0).assert();
         mock_post_contents.expect(0).assert();
     }
@@ -1813,13 +1573,6 @@ mod tests {
         let mock_post_block = test_harness
             .bn1()
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_get_envelope = test_harness
-            .bn1()
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &contents.execution_payload_envelope,
-                slot,
-                block.canonical_root(),
-            );
         let mock_post_contents = test_harness
             .bn1()
             .mock_post_beacon_execution_payload_envelope_contents_ssz();
@@ -1832,7 +1585,6 @@ mod tests {
         mock_json.expect(1).assert();
         mock_post_block.expect(1).assert();
         mock_post_contents.expect(1).assert();
-        mock_get_envelope.expect(0).assert();
 
         test_harness.assert_signed_once(&block, Some(expected_payload_root));
         assert_published_contents(&test_harness.harness.mock_beacon_node_1, &contents);
@@ -1856,26 +1608,15 @@ mod tests {
         let mock_post_block = test_harness
             .bn1()
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_get_envelope = test_harness
-            .bn1()
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &contents.execution_payload_envelope,
-                slot,
-                block.canonical_root(),
-            );
-        let mock_post_bare_envelope = test_harness
-            .bn1()
-            .mock_post_beacon_execution_payload_envelope_ssz();
         let mock_post_contents = test_harness
             .bn1()
             .mock_post_beacon_execution_payload_envelope_contents_ssz();
 
         test_harness.publish(slot).await;
 
-        // The stateful path runs as if the contents had not been returned.
+        // The stateful path runs as if the contents had not been returned: the envelope is left to
+        // the beacon node.
         mock_post_block.expect(1).assert();
-        mock_get_envelope.expect(1).assert();
-        mock_post_bare_envelope.expect(1).assert();
         mock_post_contents.expect(0).assert();
         test_harness.assert_signed_once(&block, None);
     }
@@ -1913,11 +1654,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stateless_self_build_without_inline_contents_fetches_envelope() {
+    async fn stateless_self_build_without_inline_contents_publishes_block_only() {
         let mut test_harness = TestHarness::new_stateless().await;
         let slot = Slot::new(1);
         let block = self_build_block(&test_harness.harness.spec);
-        let envelope = local_contents(&block).execution_payload_envelope;
         test_harness.bn1().mock_post_validator_blocks_v4_ssz(
             &block_only(&block),
             true,
@@ -1927,16 +1667,6 @@ mod tests {
         let mock_post_block = test_harness
             .bn1()
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_get_envelope = test_harness
-            .bn1()
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &envelope,
-                slot,
-                block.canonical_root(),
-            );
-        let mock_post_bare_envelope = test_harness
-            .bn1()
-            .mock_post_beacon_execution_payload_envelope_ssz();
         let mock_post_contents = test_harness
             .bn1()
             .mock_post_beacon_execution_payload_envelope_contents_ssz();
@@ -1944,25 +1674,8 @@ mod tests {
         test_harness.publish(slot).await;
 
         mock_post_block.expect(1).assert();
-        mock_get_envelope.expect(1).assert();
-        mock_post_bare_envelope.expect(1).assert();
         mock_post_contents.expect(0).assert();
         test_harness.assert_signed_once(&block, None);
-        assert_eq!(
-            test_harness
-                .service
-                .validator_store
-                .signed_envelope_block_roots(),
-            vec![block.canonical_root()]
-        );
-        let published = test_harness
-            .harness
-            .mock_beacon_node_1
-            .execution_payload_envelope
-            .lock()
-            .unwrap();
-        assert_eq!(published.len(), 1);
-        assert_eq!(published[0].message, envelope);
     }
 
     #[tokio::test]
@@ -1973,9 +1686,8 @@ mod tests {
         let validator_pubkey = test_harness.harness.pubkeys[0];
         // `BeaconBlock::empty` carries a default bid (`builder_index: 0`) — a block whose payload
         // bid was won by a builder. The builder reveals the envelope, so the proposal must succeed
-        // without the VC fetching or publishing one.
+        // without the VC publishing one.
         let block = BeaconBlock::empty(&test_harness.harness.spec);
-        let envelope = ExecutionPayloadEnvelope::empty();
 
         test_harness
             .harness
@@ -1985,18 +1697,10 @@ mod tests {
             .harness
             .mock_beacon_node_1
             .mock_post_beacon_blocks_v2_ssz(ForkName::Gloas);
-        let mock_get_envelope = test_harness
-            .harness
-            .mock_beacon_node_1
-            .mock_get_validator_execution_payload_envelope_ssz(
-                &envelope,
-                slot,
-                block.canonical_root(),
-            );
         let mock_post_envelope = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_post_beacon_execution_payload_envelope_ssz();
+            .mock_post_beacon_execution_payload_envelope_contents_ssz();
 
         let result = test_harness
             .service
@@ -2011,7 +1715,6 @@ mod tests {
         );
 
         mock_post_block.expect(1).assert();
-        mock_get_envelope.expect(0).assert();
         mock_post_envelope.expect(0).assert();
     }
 
@@ -2040,7 +1743,7 @@ mod tests {
         let mock_post_envelope = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_post_beacon_execution_payload_envelope_ssz();
+            .mock_post_beacon_execution_payload_envelope_contents_ssz();
 
         let result = test_harness
             .service
@@ -2095,74 +1798,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_validator_execution_payload_envelope_ssz_fails() {
-        let mut test_harness = TestHarness::new_with_validators(1).await;
-
-        let slot = Slot::new(1);
-        let validator_pubkey = test_harness.harness.pubkeys[0];
-
-        // Both beacon nodes return error for get_validator_execution_payload_envelope_ssz
-        test_harness
-            .harness
-            .mock_beacon_node_1
-            .mock_get_validator_execution_payload_envelope_ssz_error(slot, Hash256::default());
-        test_harness
-            .harness
-            .mock_beacon_node_2
-            .mock_get_validator_execution_payload_envelope_ssz_error(slot, Hash256::default());
-
-        let mock_post_envelope = test_harness
-            .harness
-            .mock_beacon_node_1
-            .mock_post_beacon_execution_payload_envelope_ssz();
-
-        let proposer_fallback = ProposerFallback {
-            beacon_nodes: test_harness.service.beacon_nodes.clone(),
-            proposer_nodes: test_harness.service.proposer_nodes.clone(),
-        };
-
-        let result = test_harness
-            .service
-            .fetch_sign_and_publish_payload_envelope(
-                &proposer_fallback,
-                slot,
-                Hash256::default(),
-                &validator_pubkey,
-            )
-            .await;
-
-        let Err(BlockError::Recoverable(msg)) = result else {
-            panic!("Expected Recoverable error, got: {result:?}");
-        };
-        // When get_validator_execution_payload_envelope_ssz failed, we should get the error below
-        assert!(msg.contains("Error fetching execution payload envelope"));
-
-        // Since get_validator_execution_payload_envelope_ssz failed, the BN shouldn't be called to publish the envelope
-        mock_post_envelope.expect(0).assert();
-    }
-
-    #[tokio::test]
     async fn post_beacon_execution_payload_envelope_ssz_fails() {
         let mut test_harness = TestHarness::new_with_validators(1).await;
 
         let slot = Slot::new(1);
-        let validator_pubkey = test_harness.harness.pubkeys[0];
-        let envelope = ExecutionPayloadEnvelope::empty();
+        let block = self_build_block(&test_harness.harness.spec);
+        let BlockAndEnvelope {
+            execution_payload_envelope: envelope,
+            kzg_proofs,
+            blobs,
+            ..
+        } = local_contents(&block);
 
-        test_harness
-            .harness
-            .mock_beacon_node_1
-            .mock_get_validator_execution_payload_envelope_ssz(&envelope, slot, Hash256::default());
-
-        // Both beacon nodes return error for post_beacon_execution_payload_envelope_ssz
+        // Both beacon nodes return error for post_beacon_execution_payload_envelope_contents_ssz
         let mock_post_envelope_1 = test_harness
             .harness
             .mock_beacon_node_1
-            .mock_post_beacon_execution_payload_envelope_ssz_error();
+            .mock_post_beacon_execution_payload_envelope_contents_ssz_error();
         let mock_post_envelope_2 = test_harness
             .harness
             .mock_beacon_node_2
-            .mock_post_beacon_execution_payload_envelope_ssz_error();
+            .mock_post_beacon_execution_payload_envelope_contents_ssz_error();
 
         let proposer_fallback = ProposerFallback {
             beacon_nodes: test_harness.service.beacon_nodes.clone(),
@@ -2171,18 +1827,22 @@ mod tests {
 
         let result = test_harness
             .service
-            .fetch_sign_and_publish_payload_envelope(
+            .publish_local_payload_envelope(
                 &proposer_fallback,
                 slot,
-                Hash256::default(),
-                &validator_pubkey,
+                ForkName::Gloas,
+                LocalPayloadContents {
+                    envelope,
+                    kzg_proofs,
+                    blobs,
+                },
             )
             .await;
 
         let Err(BlockError::Recoverable(msg)) = result else {
             panic!("Expected Recoverable error, got: {result:?}");
         };
-        // When post_beacon_execution_payload_envelope_ssz failed, we should get the error below
+        // When post_beacon_execution_payload_envelope_contents_ssz failed, we should get the error below
         assert!(msg.contains("Error publishing execution payload envelope"));
 
         // first_success tries 2 times, so each BN is hit twice

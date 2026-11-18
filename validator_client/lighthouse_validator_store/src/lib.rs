@@ -21,10 +21,9 @@ use task_executor::TaskExecutor;
 use tracing::{Instrument, debug, error, info, info_span, instrument, warn};
 use types::{
     AbstractExecPayload, Address, AggregateAndProof, Attestation, AttestationData, BeaconBlock,
-    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, EthSpec,
-    ExecutionPayloadEnvelope, Fork, FullPayload, Graffiti, Hash256, PayloadAttestationData,
-    PayloadAttestationMessage, ProposerPreferences, SelectionProof, SignedAggregateAndProof,
-    SignedBeaconBlock, SignedContributionAndProof, SignedExecutionPayloadEnvelope,
+    BlindedPayload, ChainSpec, ContributionAndProof, Domain, Epoch, EthSpec, Fork, FullPayload,
+    Graffiti, Hash256, PayloadAttestationData, PayloadAttestationMessage, ProposerPreferences,
+    SelectionProof, SignedAggregateAndProof, SignedBeaconBlock, SignedContributionAndProof,
     SignedProposerPreferences, SignedRoot, SignedValidatorRegistrationData, SignedVoluntaryExit,
     SingleAttestation, Slot, SyncAggregatorSelectionData, SyncCommitteeContribution,
     SyncCommitteeMessage, SyncSelectionProof, SyncSubnetId, ValidatorRegistrationData,
@@ -1466,37 +1465,6 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
         Ok(PayloadAttestationMessage {
             validator_index,
             data,
-            signature,
-        })
-    }
-
-    /// Sign an `ExecutionPayloadEnvelope` for Gloas (local building).
-    /// The proposer acts as the builder and signs with the BeaconBuilder domain.
-    async fn sign_execution_payload_envelope(
-        &self,
-        validator_pubkey: PublicKeyBytes,
-        envelope: ExecutionPayloadEnvelope<E>,
-    ) -> Result<SignedExecutionPayloadEnvelope<E>, Error> {
-        let signing_context = self.signing_context(
-            Domain::BeaconBuilder,
-            envelope.slot().epoch(E::slots_per_epoch()),
-        );
-
-        // Execution payload envelope signing is not slashable, bypass doppelganger protection.
-        let signing_method = self.doppelganger_bypassed_signing_method(validator_pubkey)?;
-
-        let signature = signing_method
-            .get_signature::<E, FullPayload<E>>(
-                SignableMessage::ExecutionPayloadEnvelope(&envelope),
-                signing_context,
-                &self.spec,
-                &self.task_executor,
-            )
-            .await
-            .map_err(Error::SpecificError)?;
-
-        Ok(SignedExecutionPayloadEnvelope {
-            message: envelope,
             signature,
         })
     }
