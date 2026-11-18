@@ -31,12 +31,11 @@ use types::{
     BeaconBlockBodyGloas, BeaconBlockBodyHeze, BeaconBlockGloas, BeaconBlockHeze, BeaconState,
     BeaconStateError, BlobsList, BuilderIndex, Deposit, Eth1Data, EthSpec, ExecutionBlockHash,
     ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadEnvelope,
-    ExecutionRequestsGloas, FullPayload, Graffiti, Hash256, IndexedAttestation, KzgProofs,
-    PayloadAttestation, ProposerSlashing, RelativeEpoch, SignedBeaconBlock,
-    SignedBlsToExecutionChange, SignedExecutionPayloadBid, SignedExecutionPayloadBidGloas,
-    SignedExecutionPayloadBidHeze, SignedExecutionPayloadEnvelope,
-    SignedExecutionPayloadEnvelopeSummary, SignedProposerPreferences, SignedVoluntaryExit, Slot,
-    SyncAggregate, Uint256, Withdrawal, Withdrawals,
+    ExecutionPayloadEnvelopeSummary, ExecutionRequestsGloas, FullPayload, Graffiti, Hash256,
+    IndexedAttestation, KzgProofs, PayloadAttestation, ProposerSlashing, RelativeEpoch,
+    SignedBeaconBlock, SignedBlsToExecutionChange, SignedExecutionPayloadBid,
+    SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze, SignedProposerPreferences,
+    SignedVoluntaryExit, Slot, SyncAggregate, Uint256, Withdrawal, Withdrawals,
 };
 
 use builder_client::BidRequestContext;
@@ -174,7 +173,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         state_root_opt: Option<Hash256>,
         parent_root: Hash256,
         parent_payload_status: PayloadStatus,
-        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
+        parent_envelope: Option<Arc<ExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
         produce_at_slot: Slot,
         randao_reveal: Signature,
         graffiti_settings: GraffitiSettings,
@@ -892,30 +891,23 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             let execution_payload_envelope = ExecutionPayloadEnvelope {
                 payload: payload_data.payload,
                 execution_requests: payload_data.execution_requests,
-                builder_index: payload_data.builder_index,
                 beacon_block_root,
                 parent_beacon_block_root,
-            };
-
-            let signed_envelope = SignedExecutionPayloadEnvelope {
-                message: execution_payload_envelope,
-                signature: Signature::empty(),
             };
 
             // Verify the envelope against the state. This performs no state mutation.
             verify_execution_payload_envelope(
                 &state,
-                &signed_envelope,
-                VerifySignatures::False,
+                &execution_payload_envelope,
                 state_root,
                 &self.spec,
             )
             .map_err(BlockProductionError::EnvelopeProcessingError)?;
 
-            // Cache the envelope for later retrieval by the validator for signing and publishing.
+            // Cache the envelope for later retrieval by the validator for publishing.
             let envelope_slot = payload_data.slot;
             let (blobs, kzg_proofs) = payload_data.blobs_and_proofs;
-            let envelope = Arc::new(signed_envelope.message);
+            let envelope = Arc::new(execution_payload_envelope);
             let blobs = Arc::new(blobs);
             self.pending_payload_envelopes
                 .write()
@@ -967,7 +959,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     pub async fn produce_execution_payload_bid(
         self: Arc<Self>,
         state: &BeaconState<T::EthSpec>,
-        parent_envelope: Option<Arc<SignedExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
+        parent_envelope: Option<Arc<ExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
         produce_at_slot: Slot,
         bid_value: u64,
         builder_index: BuilderIndex,
@@ -1041,6 +1033,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     parent_block_hash: executed_ancestor_hash,
                     parent_block_root: parent_root,
                     block_hash: payload.block_hash,
+                    payload_root: payload.tree_hash_root(),
                     prev_randao: payload.prev_randao,
                     fee_recipient: Address::ZERO,
                     gas_limit: payload.gas_limit,
@@ -1062,6 +1055,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     parent_block_hash: executed_ancestor_hash,
                     parent_block_root: parent_root,
                     block_hash: payload.block_hash,
+                    payload_root: payload.tree_hash_root(),
                     prev_randao: payload.prev_randao,
                     fee_recipient: Address::ZERO,
                     gas_limit: payload.gas_limit,
@@ -1412,7 +1406,7 @@ fn get_execution_payload_gloas<T: BeaconChainTypes>(
     state: &BeaconState<T::EthSpec>,
     parent_beacon_block_root: Hash256,
     parent_block_hash: ExecutionBlockHash,
-    parent_envelope: Option<Arc<SignedExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
+    parent_envelope: Option<Arc<ExecutionPayloadEnvelopeSummary<T::EthSpec>>>,
     proposer_index: u64,
     slot: Slot,
     preferred_gas_limit: Option<u64>,

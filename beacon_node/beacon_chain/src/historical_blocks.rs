@@ -1,6 +1,8 @@
 use crate::block_verification_types::RangeSyncBlock;
 use crate::data_availability_checker::AvailableBlockData;
-use crate::payload_envelope_verification::verify_envelope_payload_hash;
+use crate::payload_envelope_verification::{
+    verify_envelope_matches_bid, verify_envelope_payload_hash,
+};
 use crate::{BeaconChain, BeaconChainTypes, WhenSlotSkipped, metrics};
 use fixed_bytes::FixedBytesExtended;
 use itertools::Itertools;
@@ -14,7 +16,7 @@ use std::time::Duration;
 use store::{AnchorInfo, DBColumn, DataInfo, Error as StoreError, KeyValueStore, KeyValueStoreOp};
 use strum::IntoStaticStr;
 use tracing::{debug, debug_span, instrument};
-use types::{EthSpec, Hash256, Slot, consts::gloas::BUILDER_INDEX_SELF_BUILD};
+use types::{Hash256, Slot};
 
 /// Use a longer timeout on the pubkey cache.
 ///
@@ -42,14 +44,8 @@ pub enum HistoricalBlockError {
     /// retry/penalize.
     MissingEnvelope { block_root: Hash256 },
     /// A Gloas payload envelope failed verification against its block's committed bid
-    /// (e.g. the recomputed execution block hash doesn't match). Caller should retry/penalize.
+    /// (e.g. the payload's root doesn't match). Caller should retry/penalize.
     InvalidEnvelope { block_root: Hash256, reason: String },
-    /// The proposer pubkey of a root-chained block is missing from the pubkey cache.
-    /// Logic error: internal inconsistency, do not penalize peers.
-    MissingProposerPubkey {
-        block_root: Hash256,
-        proposer_index: u64,
-    },
     /// Internal store error
     StoreError(StoreError),
 }
@@ -150,10 +146,6 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         let mut cold_batch = Vec::with_capacity(blocks_to_import.len());
         let mut hot_batch = Vec::with_capacity(blocks_to_import.len());
         let mut signed_blocks = Vec::with_capacity(blocks_to_import.len());
-        // Self-built envelopes whose signatures are verified in the batch signature section
-        // below, using the proposer pubkey from the (batch-verified) block.
-        let mut envelopes_to_verify = Vec::new();
-
         for range_sync_block in blocks_to_import.into_iter().rev() {
             let (block_root, block, block_data, envelope) = match range_sync_block {
                 RangeSyncBlock::Base(available_block) => {
@@ -264,15 +256,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                             }
                         })?;
                     }
-                    if envelope.envelope().message.builder_index == BUILDER_INDEX_SELF_BUILD {
-                        envelopes_to_verify.push((
+                    // The envelope is not signed: it is authenticated by the roots which the
+                    // (root-chained) block's bid commits to.
+                    verify_envelope_matches_bid(envelope.envelope(), &block).map_err(|e| {
+                        HistoricalBlockError::InvalidEnvelope {
                             block_root,
-                            envelope.envelope().clone(),
-                            block.message().proposer_index(),
-                            block.slot().epoch(T::EthSpec::slots_per_epoch()),
-                        ));
-                    }
-                    let (signed_envelope, columns) = envelope.deconstruct();
+                            reason: format!("{e:?}"),
+                        }
+                    })?;
+                    let (envelope, columns) = envelope.deconstruct();
                     if !columns.is_empty() {
                         new_oldest_data_slot = block.slot();
                         if let Some(op) = self.get_blobs_or_columns_store_op(
@@ -286,13 +278,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                     if self.store.get_config().prune_payloads {
                         self.store.payload_envelope_summary_as_kv_store_op(
                             &block_root,
-                            &signed_envelope,
+                            &envelope,
                             &mut hot_batch,
                         );
                     } else {
                         self.store.payload_envelope_as_kv_store_ops(
                             &block_root,
-                            &signed_envelope,
+                            &envelope,
                             &mut hot_batch,
                         );
                     }
@@ -359,31 +351,6 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .try_read_for(PUBKEY_CACHE_LOCK_TIMEOUT)
             .ok_or(HistoricalBlockError::ValidatorPubkeyCacheTimeout)?;
 
-        // Verify self-built envelope signatures with the proposer's pubkey. The proposer index
-        // is trusted because the containing block's proposer signature is verified below.
-        // External-builder envelopes cannot be verified historically (the builder registry is
-        // not reconstructible without historical states); their contents are still bound to the
-        // bid via the block hash recompute above.
-        for (envelope_block_root, signed_envelope, proposer_index, epoch) in &envelopes_to_verify {
-            let pubkey = pubkey_cache.get(*proposer_index as usize).ok_or(
-                HistoricalBlockError::MissingProposerPubkey {
-                    block_root: *envelope_block_root,
-                    proposer_index: *proposer_index,
-                },
-            )?;
-            let fork = self.spec.fork_at_epoch(*epoch);
-            if !signed_envelope.verify_signature(
-                pubkey,
-                &fork,
-                self.genesis_validators_root,
-                &self.spec,
-            ) {
-                return Err(HistoricalBlockError::InvalidEnvelope {
-                    block_root: *envelope_block_root,
-                    reason: "invalid self-build envelope signature".to_string(),
-                });
-            }
-        }
         let block_roots = signed_blocks
             .get(1..)
             .ok_or(HistoricalBlockError::IndexOutOfBounds)?

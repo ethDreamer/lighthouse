@@ -4,7 +4,7 @@ use fork_choice::PayloadStatus;
 use proto_array::{ParentPayloadStatus, ProposerHeadError};
 use slot_clock::SlotClock;
 use tracing::{debug, error, info, instrument, warn};
-use types::{BeaconState, EthSpec, Hash256, SignedExecutionPayloadEnvelopeSummary, Slot};
+use types::{BeaconState, EthSpec, ExecutionPayloadEnvelopeSummary, Hash256, Slot};
 
 use crate::{
     BeaconChain, BeaconChainTypes, BlockProductionError, StateSkipConfig,
@@ -22,7 +22,7 @@ pub(crate) struct BlockProductionState<E: EthSpec> {
     pub state_root: Option<Hash256>,
     pub parent_root: Hash256,
     pub parent_payload_status: PayloadStatus,
-    pub parent_envelope: Option<Arc<SignedExecutionPayloadEnvelopeSummary<E>>>,
+    pub parent_envelope: Option<Arc<ExecutionPayloadEnvelopeSummary<E>>>,
 }
 
 /// Inputs assembled for producing a block via a proposer re-org.
@@ -31,7 +31,7 @@ struct ReOrgInputs<E: EthSpec> {
     state_root: Hash256,
     parent_root: Hash256,
     parent_payload_status: PayloadStatus,
-    parent_envelope: Option<Arc<SignedExecutionPayloadEnvelopeSummary<E>>>,
+    parent_envelope: Option<Arc<ExecutionPayloadEnvelopeSummary<E>>>,
 }
 
 impl<T: BeaconChainTypes> BeaconChain<T> {

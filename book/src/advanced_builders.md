@@ -222,7 +222,7 @@ show up as blocks whose payloads never land, not as missed slots, and the circui
   excused by being imported, and a timely reveal with withheld blob data still bans. Bans are kept in memory and do
   not survive a restart.
 * A builder whose revealed payload the execution engine rejects as invalid is banned on the same terms. No
-  attestation threshold applies: the envelope is signed by the builder and bound to its bid, so an invalid payload is
+  attestation threshold applies: the builder's signed bid commits to the payload, so an invalid payload is
   attributable to the builder alone. Transient engine failures (unreachable, syncing) never cause a ban.
 * `--builder-fallback-disable-checks` disables the skip rules and the bans.
 

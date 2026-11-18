@@ -1,10 +1,10 @@
 //! The incremental processing steps (e.g., signatures verified but not the state transition) is
 //! represented as a sequence of wrapper-types around the envelope. There is a linear progression of
-//! types, starting at a `SignedExecutionPayloadEnvelope` and finishing with an `AvailableExecutedEnvelope` (see
+//! types, starting at a `ExecutionPayloadEnvelope` and finishing with an `AvailableExecutedEnvelope` (see
 //! diagram below).
 //!
 //! ```ignore
-//! SignedExecutionPayloadEnvelope
+//! ExecutionPayloadEnvelope
 //!              |
 //!              ▼
 //!    GossipVerifiedEnvelope
@@ -28,10 +28,10 @@ use std::sync::Arc;
 use store::Error as DBError;
 use strum::AsRefStr;
 use tracing::{instrument, warn};
+use tree_hash::TreeHash;
 use types::{
     BeaconState, BeaconStateError, BuilderIndex, DataColumnSidecarList, EthSpec,
-    ExecutionBlockHash, ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBidRef,
-    SignedExecutionPayloadEnvelope, Slot,
+    ExecutionBlockHash, ExecutionPayloadEnvelope, Hash256, SignedExecutionPayloadBidRef, Slot,
 };
 
 pub mod execution_pending_envelope;
@@ -52,8 +52,13 @@ pub enum EnvelopeSource {
 
 #[derive(Debug, Clone)]
 pub struct AvailableEnvelope<E: EthSpec> {
-    envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+    envelope: Arc<ExecutionPayloadEnvelope<E>>,
     pub columns: DataColumnSidecarList<E>,
+    /// The builder committed to by the block's bid. The envelope does not carry it.
+    builder_index: BuilderIndex,
+    /// The `payload_root` of the block's bid, which the envelope's payload has been verified
+    /// against.
+    payload_root: Hash256,
 }
 
 impl<E: EthSpec> AvailableEnvelope<E> {
@@ -68,7 +73,7 @@ impl<E: EthSpec> AvailableEnvelope<E> {
     /// Returns `AvailabilityCheckError` if:
     /// - `MissingCustodyColumns`: Required custody columns are missing or incomplete
     pub fn new<T>(
-        envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+        envelope: Arc<ExecutionPayloadEnvelope<E>>,
         columns: DataColumnSidecarList<E>,
         bid: SignedExecutionPayloadBidRef<E>,
         custody_context: &CustodyContext<T>,
@@ -76,6 +81,8 @@ impl<E: EthSpec> AvailableEnvelope<E> {
     where
         T: BeaconChainTypes<EthSpec = E>,
     {
+        let builder_index = bid.message().builder_index();
+        let payload_root = bid.message().payload_root();
         if custody_context.data_columns_required_for_bid(bid) {
             let columns_expected = custody_context.num_of_data_columns_to_sample(bid.epoch());
 
@@ -105,7 +112,7 @@ impl<E: EthSpec> AvailableEnvelope<E> {
             if num_provided_columns != filtered_columns.len() {
                 warn!(
                     message = "More columns provided than expected",
-                    envelope = %envelope.message.payload.block_hash,
+                    envelope = %envelope.payload.block_hash,
                     num_provided_columns = %num_provided_columns,
                     columns_expected = %columns_expected,
                 );
@@ -114,36 +121,48 @@ impl<E: EthSpec> AvailableEnvelope<E> {
             Ok(Self {
                 envelope,
                 columns: filtered_columns,
+                builder_index,
+                payload_root,
             })
         } else if columns.is_empty() {
-            Ok(Self { envelope, columns })
+            Ok(Self {
+                envelope,
+                columns,
+                builder_index,
+                payload_root,
+            })
         } else {
             warn!(
                 message = "Custody columns provided for envelope that does not require them",
-                envelope = %envelope.message.payload.block_hash,
+                envelope = %envelope.payload.block_hash,
             );
             Ok(Self {
                 envelope,
                 columns: vec![],
+                builder_index,
+                payload_root,
             })
         }
     }
 
-    pub fn envelope(&self) -> &Arc<SignedExecutionPayloadEnvelope<E>> {
+    pub fn envelope(&self) -> &Arc<ExecutionPayloadEnvelope<E>> {
         &self.envelope
     }
 
     pub fn message(&self) -> &ExecutionPayloadEnvelope<E> {
-        &self.envelope.message
+        &self.envelope
+    }
+
+    pub fn builder_index(&self) -> BuilderIndex {
+        self.builder_index
+    }
+
+    pub fn payload_root(&self) -> Hash256 {
+        self.payload_root
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn deconstruct(
-        self,
-    ) -> (
-        Arc<SignedExecutionPayloadEnvelope<E>>,
-        DataColumnSidecarList<E>,
-    ) {
+    pub fn deconstruct(self) -> (Arc<ExecutionPayloadEnvelope<E>>, DataColumnSidecarList<E>) {
         let AvailableEnvelope {
             envelope, columns, ..
         } = self;
@@ -164,14 +183,14 @@ pub struct EnvelopeProcessingSnapshot<E: EthSpec> {
 /// by an EL client but does not have all requisite columns to get imported into
 /// fork choice.
 pub struct AvailabilityPendingExecutedEnvelope<E: EthSpec> {
-    pub envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+    pub envelope: Arc<ExecutionPayloadEnvelope<E>>,
     pub block_root: Hash256,
     pub payload_verification_outcome: PayloadVerificationOutcome,
 }
 
 impl<E: EthSpec> AvailabilityPendingExecutedEnvelope<E> {
     pub fn new(
-        envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+        envelope: Arc<ExecutionPayloadEnvelope<E>>,
         block_root: Hash256,
         payload_verification_outcome: PayloadVerificationOutcome,
     ) -> Self {
@@ -209,20 +228,11 @@ impl<E: EthSpec> AvailableExecutedEnvelope<E> {
 pub enum EnvelopeError {
     /// The envelope's block root is unknown.
     BlockRootUnknown { block_root: Hash256 },
-    /// A validated envelope for this `block_root` has already been seen from the
-    /// builder with `builder_index`, so this one is a duplicate.
-    EnvelopeAlreadySeen {
-        block_root: Hash256,
-        builder_index: BuilderIndex,
-    },
-    /// The signature is invalid.
-    BadSignature,
-    /// The builder index doesn't match the committed bid
-    BuilderIndexMismatch { committed_bid: u64, envelope: u64 },
+    /// A validated envelope for this `block_root` has already been seen, so this one is a
+    /// duplicate.
+    EnvelopeAlreadySeen { block_root: Hash256 },
     /// The envelope slot doesn't match the block
     SlotMismatch { block: Slot, envelope: Slot },
-    /// The validator index is unknown
-    UnknownValidator { proposer_index: u64 },
     /// The block hash doesn't match the committed bid
     BlockHashMismatch {
         committed_bid: ExecutionBlockHash,
@@ -241,10 +251,10 @@ pub enum EnvelopeError {
         committed_bid: Hash256,
         envelope: Hash256,
     },
-    /// The block's proposer_index does not match the locally computed proposer
-    IncorrectBlockProposer {
-        proposer_index: u64,
-        local_shuffling: u64,
+    /// The payload's root doesn't match the committed bid
+    PayloadRootMismatch {
+        committed_bid: Hash256,
+        envelope: Hash256,
     },
     /// The slot belongs to a block that is from a slot prior than
     /// to most recently finalized slot
@@ -285,15 +295,12 @@ impl std::fmt::Display for EnvelopeError {
 impl EnvelopeError {
     pub fn penalize_peer(&self) -> bool {
         match self {
-            EnvelopeError::BadSignature
-            | EnvelopeError::BuilderIndexMismatch { .. }
-            | EnvelopeError::SlotMismatch { .. }
+            EnvelopeError::SlotMismatch { .. }
             | EnvelopeError::BlockHashMismatch { .. }
             | EnvelopeError::ParentBeaconBlockRootMismatch { .. }
             | EnvelopeError::InvalidPayloadHash(_)
             | EnvelopeError::ExecutionRequestsRootMismatch { .. }
-            | EnvelopeError::UnknownValidator { .. }
-            | EnvelopeError::IncorrectBlockProposer { .. }
+            | EnvelopeError::PayloadRootMismatch { .. }
             | EnvelopeError::OperationListTooLong { .. }
             | EnvelopeError::EnvelopeProcessingError(_) => true,
             EnvelopeError::ExecutionPayloadError(e) => e.penalize_peer(),
@@ -352,7 +359,6 @@ impl From<PayloadVerificationError> for EnvelopeError {
 impl From<EnvelopeProcessingError> for EnvelopeError {
     fn from(e: EnvelopeProcessingError) -> Self {
         match e {
-            EnvelopeProcessingError::BadSignature => EnvelopeError::BadSignature,
             EnvelopeProcessingError::BeaconStateError(e) => EnvelopeError::BeaconStateError(e),
             EnvelopeProcessingError::BlockHashMismatch {
                 committed_bid,
@@ -401,7 +407,7 @@ pub(crate) fn load_snapshot_from_state_root<T: BeaconChainTypes>(
 /// proposer-signed block), so a subsequent `perform_optimistic_sync_verifications` binds the
 /// payload's blob transactions to the committed commitments.
 pub fn build_new_payload_request<'a, E: EthSpec>(
-    envelope: &'a SignedExecutionPayloadEnvelope<E>,
+    envelope: &'a ExecutionPayloadEnvelope<E>,
     block: &'a types::SignedBeaconBlock<E>,
 ) -> Result<execution_layer::NewPayloadRequest<'a, E>, EnvelopeError> {
     let bid = &block
@@ -419,12 +425,55 @@ pub fn build_new_payload_request<'a, E: EthSpec>(
 
     Ok(execution_layer::NewPayloadRequest::Gloas(
         execution_layer::NewPayloadRequestGloas {
-            execution_payload: &envelope.message.payload,
+            execution_payload: &envelope.payload,
             versioned_hashes,
-            parent_beacon_block_root: envelope.message.parent_beacon_block_root,
-            execution_requests: &envelope.message.execution_requests,
+            parent_beacon_block_root: envelope.parent_beacon_block_root,
+            execution_requests: &envelope.execution_requests,
         },
     ))
+}
+
+/// Verify that an envelope is the one committed to by the bid in `block`.
+///
+/// The envelope is not signed: the hash tree roots of its `payload` and `execution_requests`
+/// must match the `payload_root` and `execution_requests_root` of the block's bid, and its
+/// `parent_beacon_block_root` must match the block's `parent_root`. An envelope obtained from
+/// an untrusted source (e.g. req/resp) is authenticated by these checks alone.
+pub fn verify_envelope_matches_bid<E: EthSpec>(
+    envelope: &ExecutionPayloadEnvelope<E>,
+    block: &types::SignedBeaconBlock<E>,
+) -> Result<(), EnvelopeError> {
+    let bid = block
+        .message()
+        .body()
+        .signed_execution_payload_bid()
+        .map_err(|e| EnvelopeError::BeaconChainError(Box::new(BeaconChainError::from(e))))?
+        .message();
+
+    if envelope.parent_beacon_block_root != block.parent_root() {
+        return Err(EnvelopeError::ParentBeaconBlockRootMismatch {
+            block: block.parent_root(),
+            envelope: envelope.parent_beacon_block_root,
+        });
+    }
+
+    let execution_requests_root = envelope.execution_requests.tree_hash_root();
+    if execution_requests_root != bid.execution_requests_root() {
+        return Err(EnvelopeError::ExecutionRequestsRootMismatch {
+            committed_bid: bid.execution_requests_root(),
+            envelope: execution_requests_root,
+        });
+    }
+
+    let payload_root = envelope.payload.tree_hash_root();
+    if payload_root != bid.payload_root() {
+        return Err(EnvelopeError::PayloadRootMismatch {
+            committed_bid: bid.payload_root(),
+            envelope: payload_root,
+        });
+    }
+
+    Ok(())
 }
 
 /// Recompute the execution block hash of an envelope's payload and verify it, along with the
@@ -434,7 +483,7 @@ pub fn build_new_payload_request<'a, E: EthSpec>(
 /// `verify_and_notify_new_payload`, used where the execution layer cannot be consulted
 /// (historical backfill).
 pub fn verify_envelope_payload_hash<E: EthSpec>(
-    envelope: &SignedExecutionPayloadEnvelope<E>,
+    envelope: &ExecutionPayloadEnvelope<E>,
     block: &types::SignedBeaconBlock<E>,
 ) -> Result<(), EnvelopeError> {
     build_new_payload_request(envelope, block)?
@@ -452,8 +501,8 @@ mod payload_hash_tests {
     use types::{
         BeaconBlock, BeaconBlockBodyGloas, BeaconBlockGloas, Eth1Data, ExecutionPayloadEnvelope,
         ExecutionPayloadGloas, ExecutionPayloadRef, ExecutionRequestsGloas, ExecutionRequestsRef,
-        Graffiti, Hash256, SignedBeaconBlock, SignedExecutionPayloadBidGloas,
-        SignedExecutionPayloadEnvelope, Slot, Spec, SyncAggregate,
+        Graffiti, Hash256, SignedBeaconBlock, SignedExecutionPayloadBidGloas, Slot, Spec,
+        SyncAggregate,
     };
 
     type E = Spec;
@@ -489,7 +538,7 @@ mod payload_hash_tests {
     }
 
     /// Envelope whose payload's `block_hash` is the genuinely recomputed execution block hash.
-    fn make_consistent_envelope(slot: Slot) -> SignedExecutionPayloadEnvelope<E> {
+    fn make_consistent_envelope(slot: Slot) -> ExecutionPayloadEnvelope<E> {
         let mut payload = ExecutionPayloadGloas::<E> {
             slot_number: slot,
             ..ExecutionPayloadGloas::default()
@@ -503,15 +552,11 @@ mod payload_hash_tests {
         );
         payload.block_hash = block_hash;
 
-        SignedExecutionPayloadEnvelope {
-            message: ExecutionPayloadEnvelope {
-                payload,
-                execution_requests: requests,
-                builder_index: 0,
-                beacon_block_root: Hash256::ZERO,
-                parent_beacon_block_root,
-            },
-            signature: Signature::empty(),
+        ExecutionPayloadEnvelope {
+            payload,
+            execution_requests: requests,
+            beacon_block_root: Hash256::ZERO,
+            parent_beacon_block_root,
         }
     }
 
@@ -529,7 +574,7 @@ mod payload_hash_tests {
         let block = make_block(slot);
         let mut envelope = make_consistent_envelope(slot);
         // Tamper a field that only the hash recompute can catch.
-        envelope.message.payload.timestamp += 1;
+        envelope.payload.timestamp += 1;
         assert!(verify_envelope_payload_hash::<E>(&envelope, &block).is_err());
     }
 }

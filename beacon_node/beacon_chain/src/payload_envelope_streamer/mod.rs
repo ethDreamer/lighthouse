@@ -14,16 +14,15 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{debug, error, warn};
 use types::{
-    EthSpec, ExecutionBlockHash, ExecutionPayloadRef, ExecutionRequestsRef, Hash256,
-    SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary, Slot,
+    EthSpec, ExecutionBlockHash, ExecutionPayloadEnvelope, ExecutionPayloadEnvelopeSummary,
+    ExecutionPayloadRef, ExecutionRequestsRef, Hash256, Slot,
 };
 
 #[cfg(not(test))]
 use crate::BeaconChain;
 use crate::{BeaconChainError, BeaconChainTypes};
 
-type PayloadEnvelopeResult<E> =
-    Result<Option<Arc<SignedExecutionPayloadEnvelope<E>>>, BeaconChainError>;
+type PayloadEnvelopeResult<E> = Result<Option<Arc<ExecutionPayloadEnvelope<E>>>, BeaconChainError>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -53,7 +52,7 @@ pub enum EnvelopeRequestSource {
 
 enum LoadedEnvelope<E: EthSpec> {
     Complete(PayloadEnvelopeResult<E>),
-    NeedsPayload(Box<SignedExecutionPayloadEnvelopeSummary<E>>),
+    NeedsPayload(Box<ExecutionPayloadEnvelopeSummary<E>>),
 }
 
 impl<E: EthSpec> LoadedEnvelope<E> {
@@ -276,7 +275,7 @@ pub fn launch_payload_envelope_stream<T: BeaconChainTypes>(
 const MAX_PAYLOAD_BODIES_PER_REQUEST: usize = 32;
 
 fn reconstruct_envelope_from_body<E: EthSpec>(
-    summary: SignedExecutionPayloadEnvelopeSummary<E>,
+    summary: ExecutionPayloadEnvelopeSummary<E>,
     payload_body: ExecutionPayloadBodyV2<E>,
 ) -> PayloadEnvelopeResult<E> {
     let expected_payload_hash = summary.block_hash();
@@ -295,11 +294,9 @@ fn reconstruct_envelope_from_body<E: EthSpec>(
         block_access_list,
     );
     let (computed_payload_hash, _) = execution_layer::calculate_execution_block_hash(
-        ExecutionPayloadRef::Gloas(&envelope.message.payload),
-        Some(envelope.message.parent_beacon_block_root),
-        Some(ExecutionRequestsRef::Gloas(
-            &envelope.message.execution_requests,
-        )),
+        ExecutionPayloadRef::Gloas(&envelope.payload),
+        Some(envelope.parent_beacon_block_root),
+        Some(ExecutionRequestsRef::Gloas(&envelope.execution_requests)),
     );
     if expected_payload_hash != computed_payload_hash {
         return Err(Error::ComputedPayloadHashMismatch {

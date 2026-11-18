@@ -1220,7 +1220,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     ) -> impl Stream<
         Item = (
             Hash256,
-            Arc<Result<Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>>, Error>>,
+            Arc<Result<Option<Arc<ExecutionPayloadEnvelope<T::EthSpec>>>, Error>>,
         ),
     > {
         launch_payload_envelope_stream(self.clone(), block_roots, request_source)
@@ -1380,8 +1380,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     pub fn get_payload_envelope(
         &self,
         block_root: &Hash256,
-    ) -> Result<Option<SignedExecutionPayloadEnvelope<T::EthSpec>>, Error> {
-        Ok(self.store.get_signed_payload_envelope(block_root)?)
+    ) -> Result<Option<ExecutionPayloadEnvelope<T::EthSpec>>, Error> {
+        Ok(self.store.get_payload_envelope(block_root)?)
     }
 
     /// Return the status of a block as it progresses through the various caches of the beacon
@@ -5169,7 +5169,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
                 builder_index: bid.as_ref().map(|bid| Quoted {
                     value: bid.message().builder_index(),
                 }),
-                block_hash: bid.map(|bid| bid.message().block_hash()),
+                block_hash: bid.as_ref().map(|bid| bid.message().block_hash()),
+                payload_root: bid.map(|bid| bid.message().payload_root()),
             }));
         }
 
@@ -7783,10 +7784,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // (the parent block was full).
         for (i, (block_root, block)) in blocks.iter().enumerate() {
             let opt_envelope = if block.fork_name_unchecked().gloas_enabled() {
-                let opt_envelope = self
-                    .store
-                    .get_signed_payload_envelope(block_root)?
-                    .map(Arc::new);
+                let opt_envelope = self.store.get_payload_envelope(block_root)?.map(Arc::new);
                 let payload_is_canonical = if let Some((_, next_block)) = blocks.get(i + 1) {
                     let block_hash = block.payload_bid_block_hash()?;
                     next_block.is_parent_block_full(block_hash)

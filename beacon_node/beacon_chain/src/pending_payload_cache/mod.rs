@@ -44,7 +44,7 @@ use crate::observed_data_sidecars::ObservationStrategy;
 use crate::partial_data_column_assembler::PartialMergeResult;
 use pending_components::{PendingComponents, ReconstructColumnsDecision};
 use types::{
-    BlockImportSource, SignedBeaconBlock, SignedExecutionPayloadBid, SignedExecutionPayloadEnvelope,
+    BlockImportSource, ExecutionPayloadEnvelope, SignedBeaconBlock, SignedExecutionPayloadBid,
 };
 
 /// The LRU Cache stores `PendingComponents`, which store the block root, the execution payload bid, and its associated column data.
@@ -187,7 +187,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
     pub fn get_executed_payload_envelope(
         &self,
         block_root: &Hash256,
-    ) -> Option<Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>> {
+    ) -> Option<Arc<ExecutionPayloadEnvelope<T::EthSpec>>> {
         self.peek_pending_components(block_root, |components| {
             components.and_then(|components| {
                 components
@@ -258,7 +258,7 @@ impl<T: BeaconChainTypes> PendingPayloadCache<T> {
         executed_envelope: AvailabilityPendingExecutedEnvelope<T::EthSpec>,
         bid: &Arc<SignedExecutionPayloadBid<T::EthSpec>>,
     ) -> Result<Availability<T::EthSpec>, AvailabilityCheckError> {
-        let beacon_block_root = executed_envelope.envelope.beacon_block_root();
+        let beacon_block_root = executed_envelope.envelope.beacon_block_root;
 
         let (_, pending_components) =
             self.update_pending_components(beacon_block_root, bid, |pending_components| {
@@ -689,8 +689,8 @@ mod data_availability_checker_tests {
     use std::time::Duration;
     use types::{
         Cell, CellBitmap, ExecutionPayloadEnvelope, ExecutionPayloadGloas, ExecutionRequestsGloas,
-        ForkName, PartialDataColumnGloas, PartialDataColumnSidecarGloas,
-        SignedExecutionPayloadEnvelope, Slot, Spec, test_utils::test_unstructured,
+        ForkName, PartialDataColumnGloas, PartialDataColumnSidecarGloas, Slot, Spec,
+        test_utils::test_unstructured,
     };
 
     type E = Spec;
@@ -791,18 +791,14 @@ mod data_availability_checker_tests {
     }
 
     /// Hand-rolled executed envelope with bypassed verification; the cache only inspects
-    /// `beacon_block_root` and the verification outcome, never the signature or payload.
+    /// `beacon_block_root` and the verification outcome, never the payload.
     fn executed_envelope(block_root: Hash256) -> AvailabilityPendingExecutedEnvelope<E> {
         AvailabilityPendingExecutedEnvelope {
-            envelope: Arc::new(SignedExecutionPayloadEnvelope {
-                message: ExecutionPayloadEnvelope {
-                    payload: ExecutionPayloadGloas::default(),
-                    execution_requests: ExecutionRequestsGloas::default(),
-                    builder_index: 0,
-                    beacon_block_root: block_root,
-                    parent_beacon_block_root: Hash256::random(),
-                },
-                signature: bls::Signature::infinity().expect("infinity sig"),
+            envelope: Arc::new(ExecutionPayloadEnvelope {
+                payload: ExecutionPayloadGloas::default(),
+                execution_requests: ExecutionRequestsGloas::default(),
+                beacon_block_root: block_root,
+                parent_beacon_block_root: Hash256::random(),
             }),
             block_root,
             payload_verification_outcome: PayloadVerificationOutcome {

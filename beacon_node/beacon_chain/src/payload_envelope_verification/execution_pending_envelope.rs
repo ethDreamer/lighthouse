@@ -1,8 +1,8 @@
 use bls::Hash256;
 use slot_clock::SlotClock;
-use state_processing::{VerifySignatures, envelope_processing::verify_execution_payload_envelope};
+use state_processing::envelope_processing::verify_execution_payload_envelope;
 use std::sync::Arc;
-use types::{EthSpec, SignedExecutionPayloadEnvelope};
+use types::{EthSpec, ExecutionPayloadEnvelope};
 
 use crate::{
     BeaconChain, BeaconChainError, BeaconChainTypes, NotifyExecutionLayer,
@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub struct ExecutionPendingEnvelope<E: EthSpec> {
-    pub signed_envelope: Arc<SignedExecutionPayloadEnvelope<E>>,
+    pub envelope: Arc<ExecutionPayloadEnvelope<E>>,
     pub block_root: Hash256,
     pub payload_verification_handle: PayloadVerificationHandle,
 }
@@ -27,8 +27,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         chain: &Arc<BeaconChain<T>>,
         notify_execution_layer: NotifyExecutionLayer,
     ) -> Result<ExecutionPendingEnvelope<T::EthSpec>, EnvelopeError> {
-        let signed_envelope = self.signed_envelope;
-        let envelope = &signed_envelope.message;
+        let envelope = self.envelope;
 
         // Define a future that will verify the execution payload with an execution engine.
         //
@@ -36,7 +35,7 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
         // with the payload verification.
         let payload_notifier = PayloadNotifier::new(
             chain.clone(),
-            signed_envelope.clone(),
+            envelope.clone(),
             self.block.clone(),
             notify_execution_layer,
         )?;
@@ -68,30 +67,20 @@ impl<T: BeaconChainTypes> GossipVerifiedEnvelope<T> {
             )
             .ok_or(BeaconChainError::RuntimeShutdown)?;
 
-        let snapshot = if let Some(snapshot) = self.snapshot {
-            *snapshot
-        } else {
-            load_snapshot_from_state_root::<T>(block_root, self.block.state_root(), &chain.store)?
-        };
+        let snapshot =
+            load_snapshot_from_state_root::<T>(block_root, self.block.state_root(), &chain.store)?;
         let state = snapshot.pre_state;
 
         // Verify the envelope against the state (no state mutation).
-        verify_execution_payload_envelope(
-            &state,
-            &signed_envelope,
-            // verify signature already done for GossipVerifiedEnvelope
-            VerifySignatures::False,
-            snapshot.state_root,
-            &chain.spec,
-        )?;
+        verify_execution_payload_envelope(&state, &envelope, snapshot.state_root, &chain.spec)?;
 
         // No execution layer to check the payload hash, so check it here.
         if chain.execution_layer.is_none() {
-            verify_envelope_payload_hash(&signed_envelope, &self.block)?;
+            verify_envelope_payload_hash(&envelope, &self.block)?;
         }
 
         Ok(ExecutionPendingEnvelope {
-            signed_envelope,
+            envelope,
             block_root,
             payload_verification_handle,
         })

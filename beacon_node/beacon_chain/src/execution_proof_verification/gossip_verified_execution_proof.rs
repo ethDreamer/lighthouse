@@ -238,12 +238,11 @@ fn get_execution_proof<T: BeaconChainTypes>(
 ) -> Result<ExecutionProof, Error> {
     let payload_envelope = chain
         .store
-        .get_signed_payload_envelope(&block_root)
+        .get_payload_envelope(&block_root)
         .map_err(|e| Error::BeaconChainError(Box::new(e.into())))?
         .ok_or(Error::PayloadUnavailable {
             beacon_block_root: block_root,
-        })?
-        .message;
+        })?;
 
     // Commitments live on the bid, not the envelope.
     let bid = load_gloas_payload_bid(block_root, chain)

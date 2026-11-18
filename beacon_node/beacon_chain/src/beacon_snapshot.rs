@@ -1,9 +1,9 @@
 use serde::Serialize;
 use std::sync::Arc;
 use types::{
-    AbstractExecPayload, BeaconState, BlindedPayload, EthSpec, FullPayload, Hash256,
-    SignedBeaconBlock, SignedBlindedBeaconBlock, SignedExecutionPayloadEnvelope,
-    SignedExecutionPayloadEnvelopeSummary,
+    AbstractExecPayload, BeaconState, BlindedPayload, EthSpec, ExecutionPayloadEnvelope,
+    ExecutionPayloadEnvelopeSummary, FullPayload, Hash256, SignedBeaconBlock,
+    SignedBlindedBeaconBlock,
 };
 
 /// Represents some block and its associated state. Generally, this will be used for tracking the
@@ -12,7 +12,7 @@ use types::{
 pub struct BeaconSnapshot<
     E: EthSpec,
     Payload: AbstractExecPayload<E> = FullPayload<E>,
-    Envelope = SignedExecutionPayloadEnvelopeSummary<E>,
+    Envelope = ExecutionPayloadEnvelopeSummary<E>,
 > {
     pub beacon_block: Arc<SignedBeaconBlock<E, Payload>>,
     pub execution_envelope: Option<Arc<Envelope>>,
@@ -20,8 +20,7 @@ pub struct BeaconSnapshot<
     pub beacon_state: BeaconState<E>,
 }
 
-pub type ChainDumpSnapshot<E> =
-    BeaconSnapshot<E, BlindedPayload<E>, SignedExecutionPayloadEnvelope<E>>;
+pub type ChainDumpSnapshot<E> = BeaconSnapshot<E, BlindedPayload<E>, ExecutionPayloadEnvelope<E>>;
 
 /// This snapshot is to be used for verifying a child of `self.beacon_block`.
 #[derive(Debug)]

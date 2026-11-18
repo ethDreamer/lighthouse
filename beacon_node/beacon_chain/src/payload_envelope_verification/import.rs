@@ -5,12 +5,12 @@ use eth2::types::{EventKind, SseExecutionPayload, SseExecutionPayloadAvailable};
 use execution_layer::PayloadStatus;
 use fork_choice::PayloadVerificationStatus;
 use slot_clock::SlotClock;
-use state_processing::{VerifySignatures, envelope_processing::verify_execution_payload_envelope};
+use state_processing::envelope_processing::verify_execution_payload_envelope;
 use store::StoreOp;
 use tracing::{debug, error, info, info_span, instrument, warn};
 use types::{
-    BlockImportSource, Hash256, SignedBeaconBlock, SignedExecutionPayloadBid,
-    SignedExecutionPayloadEnvelope,
+    BlockImportSource, BuilderIndex, ExecutionPayloadEnvelope, Hash256, SignedBeaconBlock,
+    SignedExecutionPayloadBid,
 };
 
 use super::{
@@ -56,7 +56,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         envelope_source: BlockImportSource,
         publish_fn: impl FnOnce() -> Result<(), EnvelopeError>,
     ) -> Result<AvailabilityProcessingStatus, BlockError> {
-        let block_slot = unverified_envelope.signed_envelope.slot();
+        let block_slot = unverified_envelope.envelope.slot();
         let bid = Arc::new(
             unverified_envelope
                 .block
@@ -143,8 +143,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             }
             Err(err) => {
                 // A definitive EL rejection is attributable to the builder: the envelope's
-                // signature was verified at gossip and its payload is hash-bound to the committed
-                // bid, so no peer could have forged it and no other payload satisfies the bid.
+                // payload is bound by root to the committed bid, so no peer could have forged it
+                // and no other payload satisfies the bid.
                 // Transient failures (EL unreachable, syncing) never take this error path.
                 if let BlockError::EnvelopeError(envelope_error) = &err
                     && let EnvelopeError::ExecutionPayloadError(
@@ -193,7 +193,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         pending_envelope: ExecutionPendingEnvelope<T::EthSpec>,
     ) -> Result<AvailabilityPendingExecutedEnvelope<T::EthSpec>, EnvelopeError> {
         let ExecutionPendingEnvelope {
-            signed_envelope,
+            envelope,
             block_root,
             payload_verification_handle,
         } = pending_envelope;
@@ -204,7 +204,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .ok_or(BeaconChainError::RuntimeShutdown)??;
 
         Ok(AvailabilityPendingExecutedEnvelope::new(
-            signed_envelope,
+            envelope,
             block_root,
             payload_verification_outcome,
         ))
@@ -249,7 +249,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     #[instrument(skip_all)]
     fn import_execution_payload_envelope(
         &self,
-        signed_envelope: AvailableEnvelope<T::EthSpec>,
+        envelope: AvailableEnvelope<T::EthSpec>,
         block_root: Hash256,
         payload_verification_status: PayloadVerificationStatus,
     ) -> Result<Hash256, EnvelopeError> {
@@ -275,7 +275,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
             .on_payload_envelope_received(
                 block_root,
                 payload_verification_status,
-                signed_envelope.message().payload.block_hash,
+                envelope.message().payload.block_hash,
             )
             .map_err(|e| EnvelopeError::InternalError(format!("{e:?}")))?;
 
@@ -288,13 +288,15 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // If the write fails, revert fork choice to the version from disk, else we can
         // end up with envelopes in fork choice that are missing from disk.
         // See https://github.com/sigp/lighthouse/issues/2028
-        let (signed_envelope, columns) = signed_envelope.deconstruct();
+        let builder_index = envelope.builder_index();
+        let payload_root = envelope.payload_root();
+        let (envelope, columns) = envelope.deconstruct();
 
         let mut ops = vec![];
 
         if let Some(blobs_or_columns_store_op) = self.get_blobs_or_columns_store_op(
             block_root,
-            signed_envelope.slot(),
+            envelope.slot(),
             AvailableBlockData::DataColumns(columns),
         ) {
             ops.push(blobs_or_columns_store_op);
@@ -302,10 +304,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
         let db_write_timer = metrics::start_timer(&metrics::ENVELOPE_PROCESSING_DB_WRITE);
 
-        ops.push(StoreOp::PutPayloadEnvelope(
-            block_root,
-            signed_envelope.clone(),
-        ));
+        ops.push(StoreOp::PutPayloadEnvelope(block_root, envelope.clone()));
 
         let db_span = info_span!("persist_payloads_and_blobs").entered();
 
@@ -329,10 +328,8 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         // This prevents inconsistency between the two at the expense of concurrency.
         drop(fork_choice);
 
-        self.observed_execution_payloads.insert(
-            signed_envelope.message.payload.block_hash,
-            signed_envelope.message.payload.gas_limit,
-        );
+        self.observed_execution_payloads
+            .insert(envelope.payload.block_hash, envelope.payload.gas_limit);
 
         // We're declaring the envelope "imported" at this point, since fork choice and the DB know
         // about it.
@@ -344,7 +341,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         metrics::stop_timer(db_write_timer);
 
         self.import_envelope_update_metrics_and_events(
-            signed_envelope,
+            envelope,
+            builder_index,
+            payload_root,
             block_root,
             envelope_time_imported,
         );
@@ -354,11 +353,13 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
     fn import_envelope_update_metrics_and_events(
         &self,
-        signed_envelope: Arc<SignedExecutionPayloadEnvelope<T::EthSpec>>,
+        envelope: Arc<ExecutionPayloadEnvelope<T::EthSpec>>,
+        builder_index: BuilderIndex,
+        payload_root: Hash256,
         block_root: Hash256,
         envelope_time_imported: Duration,
     ) {
-        let envelope_slot = signed_envelope.slot();
+        let envelope_slot = envelope.slot();
         let envelope_delay_total =
             get_slot_delay_ms(envelope_time_imported, envelope_slot, &self.slot_clock);
 
@@ -392,8 +393,9 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
 
             event_handler.register(EventKind::ExecutionPayload(SseExecutionPayload {
                 slot: envelope_slot,
-                builder_index: signed_envelope.message.builder_index,
-                block_hash: signed_envelope.block_hash(),
+                builder_index,
+                block_hash: envelope.payload.block_hash,
+                payload_root,
                 block_root,
                 execution_optimistic,
             }));
@@ -414,8 +416,7 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
     }
 
     /// Process an envelope received during range sync. The associated block must already
-    /// be imported into fork choice. This performs signature verification, state processing,
-    /// EL verification and import.
+    /// be imported into fork choice. This performs state processing, EL verification and import.
     #[instrument(skip_all, level = "debug")]
     pub async fn process_range_sync_envelope(
         self: &Arc<Self>,
@@ -423,30 +424,29 @@ impl<T: BeaconChainTypes> BeaconChain<T> {
         block_root: Hash256,
         block: Arc<SignedBeaconBlock<T::EthSpec>>,
     ) -> Result<(), EnvelopeError> {
-        let signed_envelope = available_envelope.envelope().clone();
+        let envelope = available_envelope.envelope().clone();
 
         // Load the state snapshot for envelope processing
         let state_root = block.state_root();
         let snapshot = load_snapshot_from_state_root::<T>(block_root, state_root, &self.store)?;
 
-        // Verify envelope signature and state processing
+        // Verify the envelope against the state
         verify_execution_payload_envelope(
             &snapshot.pre_state,
-            &signed_envelope,
-            VerifySignatures::True,
+            &envelope,
             snapshot.state_root,
             &self.spec,
         )?;
 
         // No execution layer to check the payload hash, so check it here.
         if self.execution_layer.is_none() {
-            verify_envelope_payload_hash(&signed_envelope, &block)?;
+            verify_envelope_payload_hash(&envelope, &block)?;
         }
 
         // Send to EL for verification
         let payload_notifier = PayloadNotifier::new(
             self.clone(),
-            signed_envelope.clone(),
+            envelope.clone(),
             block,
             NotifyExecutionLayer::Yes,
         )?;

@@ -2,8 +2,8 @@
 //! payloads built by this beacon node.
 //!
 //! The cache is populated during self-build block production or by builder bid
-//! production. It holds the envelopes temporarily until the payload builder fetches,
-//!  signs, and publishes the envelope.
+//! production. It holds the envelopes temporarily until the block is published through this
+//! node, at which point the envelope and its blobs are broadcast.
 use std::collections::HashMap;
 use std::sync::Arc;
 use types::{BlobsList, EthSpec, ExecutionPayloadEnvelope, Hash256, Slot};
@@ -116,7 +116,6 @@ mod tests {
                     ..ExecutionPayloadGloas::default()
                 },
                 execution_requests: ExecutionRequestsGloas::default(),
-                builder_index: 0,
                 beacon_block_root,
                 parent_beacon_block_root: Hash256::ZERO,
             }),
