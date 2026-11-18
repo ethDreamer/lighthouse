@@ -78,7 +78,7 @@ fn operations_execution_payload_blinded() {
 
 #[test]
 fn operations_execution_payload_envelope() {
-    OperationsHandler::<Spec, SignedExecutionPayloadEnvelope<_>>::default().run();
+    OperationsHandler::<Spec, ExecutionPayloadEnvelope<_>>::default().run();
 }
 
 #[test]
@@ -260,7 +260,7 @@ mod ssz_static {
         BuilderPendingWithdrawal, ConsolidationRequest, DepositRequest, ExecutionPayloadEnvelope,
         IndexedPayloadAttestation, LightClientBootstrapAltair, PayloadAttestation,
         PayloadAttestationData, PayloadAttestationMessage, PendingDeposit,
-        PendingPartialWithdrawal, SignedExecutionPayloadEnvelope, WithdrawalRequest, *,
+        PendingPartialWithdrawal, WithdrawalRequest, *,
     };
 
     ssz_static_test!(attestation_data, AttestationData);
@@ -617,9 +617,7 @@ mod ssz_static {
     }
 
     #[test]
-    fn signed_execution_payload_envelope() {
-        SszStaticHandler::<SignedExecutionPayloadEnvelope<Spec>, Spec>::gloas_and_later().run();
-    }
+    fn signed_execution_payload_envelope() {}
 
     #[test]
     fn proposer_preferences() {

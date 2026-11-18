@@ -106,7 +106,6 @@ type_name_generic!(SignedExecutionPayloadBidHeze, "SignedExecutionPayloadBid");
 type_name_generic!(ExecutionRequestsElectra, "ExecutionRequests");
 type_name_generic!(ExecutionRequestsGloas, "ExecutionRequests");
 type_name_generic!(ExecutionPayloadEnvelope);
-type_name_generic!(SignedExecutionPayloadEnvelope);
 type_name_generic!(BlindedPayload, "ExecutionPayloadHeader");
 type_name!(Fork);
 type_name!(ForkData);
