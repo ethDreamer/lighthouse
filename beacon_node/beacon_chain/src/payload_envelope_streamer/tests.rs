@@ -2,15 +2,15 @@ use super::*;
 use crate::beacon_chain::ForkChoiceError;
 use crate::payload_envelope_streamer::beacon_chain_adapter::MockEnvelopeStreamerBeaconAdapter;
 use crate::test_utils::EphemeralHarnessType;
-use bls::{FixedBytesExtended, Signature};
+use bls::FixedBytesExtended;
 use execution_layer::ExecutionPayloadBodyV2;
 use futures::StreamExt;
 use std::collections::HashMap;
 use task_executor::test_utils::TestRuntime;
 use types::{
     BlockAccessList, ExecutionBlockHash, ExecutionPayloadBody, ExecutionPayloadEnvelope,
-    ExecutionPayloadGloas, ExecutionPayloadRef, ExecutionRequestsGloas, ExecutionRequestsRef,
-    Hash256, SignedExecutionPayloadEnvelope, SignedExecutionPayloadEnvelopeSummary, Slot, Spec,
+    ExecutionPayloadEnvelopeSummary, ExecutionPayloadGloas, ExecutionPayloadRef,
+    ExecutionRequestsGloas, ExecutionRequestsRef, Hash256, Slot, Spec,
 };
 
 type E = Spec;
@@ -19,7 +19,7 @@ type T = EphemeralHarnessType<E>;
 struct SlotEntry {
     block_root: Hash256,
     slot: Slot,
-    envelope: Option<SignedExecutionPayloadEnvelope<E>>,
+    envelope: Option<ExecutionPayloadEnvelope<E>>,
     non_canonical_envelope: bool,
 }
 
@@ -75,15 +75,11 @@ fn build_chain(
                 Some(ExecutionRequestsRef::Gloas(&execution_requests)),
             )
             .0;
-            Some(SignedExecutionPayloadEnvelope {
-                message: ExecutionPayloadEnvelope {
-                    payload,
-                    execution_requests,
-                    builder_index: 0,
-                    beacon_block_root: block_root,
-                    parent_beacon_block_root: Hash256::ZERO,
-                },
-                signature: Signature::empty(),
+            Some(ExecutionPayloadEnvelope {
+                payload,
+                execution_requests,
+                beacon_block_root: block_root,
+                parent_beacon_block_root: Hash256::ZERO,
             })
         } else {
             None
@@ -117,13 +113,13 @@ fn mock_envelopes_with_pruned_payloads(
     chain: &[SlotEntry],
     pruned_payload_slots: &[u64],
 ) {
-    let summary_map: HashMap<Hash256, Option<SignedExecutionPayloadEnvelopeSummary<E>>> = chain
+    let summary_map: HashMap<Hash256, Option<ExecutionPayloadEnvelopeSummary<E>>> = chain
         .iter()
         .map(|entry| {
             let summary = entry
                 .envelope
                 .as_ref()
-                .map(SignedExecutionPayloadEnvelopeSummary::from);
+                .map(ExecutionPayloadEnvelopeSummary::from);
             (entry.block_root, summary)
         })
         .collect();
@@ -139,7 +135,7 @@ fn mock_envelopes_with_pruned_payloads(
                     .envelope
                     .as_ref()
                     .filter(|_| !pruned_payload_slots.contains(&entry.slot.as_u64()))
-                    .map(|envelope| ExecutionPayloadBody::from(&envelope.message.payload)),
+                    .map(|envelope| ExecutionPayloadBody::from(&envelope.payload)),
             )
         })
         .collect();
@@ -168,7 +164,7 @@ fn mock_canonical_head(mock: &mut MockEnvelopeStreamerBeaconAdapter<T>, chain: &
 
 fn unwrap_result(
     result: &Arc<PayloadEnvelopeResult<E>>,
-) -> &Option<Arc<SignedExecutionPayloadEnvelope<E>>> {
+) -> &Option<Arc<ExecutionPayloadEnvelope<E>>> {
     result
         .as_ref()
         .as_ref()
@@ -312,8 +308,8 @@ async fn stream_envelopes_single_root() {
         .as_ref()
         .expect("should have envelope");
     assert_eq!(
-        envelope.block_hash(),
-        chain[1].envelope.as_ref().unwrap().block_hash(),
+        envelope.payload.block_hash,
+        chain[1].envelope.as_ref().unwrap().payload.block_hash,
     );
 
     assert!(stream.next().await.is_none(), "stream should be exhausted");
@@ -333,7 +329,7 @@ async fn stream_reconstructs_pruned_envelopes() {
         .iter()
         .filter(|entry| [2, 4].contains(&entry.slot.as_u64()))
         .map(|entry| {
-            let payload = entry.envelope.as_ref().unwrap().message.payload.clone();
+            let payload = entry.envelope.as_ref().unwrap().payload.clone();
             (payload.block_hash, payload_body(&payload))
         })
         .collect();
@@ -366,7 +362,7 @@ async fn stream_batches_pruned_envelope_requests() {
     let payload_bodies: HashMap<ExecutionBlockHash, ExecutionPayloadBodyV2<E>> = chain
         .iter()
         .map(|entry| {
-            let payload = entry.envelope.as_ref().unwrap().message.payload.clone();
+            let payload = entry.envelope.as_ref().unwrap().payload.clone();
             (payload.block_hash, payload_body(&payload))
         })
         .collect();
@@ -448,7 +444,7 @@ async fn stream_rejects_payload_body_with_wrong_hash() {
     mock_envelopes_with_pruned_payloads(&mut mock, &chain, &[1]);
     mock.expect_block_has_canonical_payload().times(0);
 
-    let mut wrong_body = payload_body(&chain[0].envelope.as_ref().unwrap().message.payload);
+    let mut wrong_body = payload_body(&chain[0].envelope.as_ref().unwrap().payload);
     wrong_body.block_access_list =
         Some(BlockAccessList::new(vec![1]).expect("valid block access list"));
     mock.expect_get_payload_bodies_by_hash_v2()
@@ -477,7 +473,7 @@ async fn stream_rejects_payload_body_without_withdrawals() {
     mock_envelopes_with_pruned_payloads(&mut mock, &chain, &[1]);
     mock.expect_block_has_canonical_payload().times(0);
 
-    let mut body = payload_body(&chain[0].envelope.as_ref().unwrap().message.payload);
+    let mut body = payload_body(&chain[0].envelope.as_ref().unwrap().payload);
     body.withdrawals = None;
     mock.expect_get_payload_bodies_by_hash_v2()
         .times(1)
@@ -505,7 +501,7 @@ async fn stream_rejects_payload_body_without_block_access_list() {
     mock_envelopes_with_pruned_payloads(&mut mock, &chain, &[1]);
     mock.expect_block_has_canonical_payload().times(0);
 
-    let mut body = payload_body(&chain[0].envelope.as_ref().unwrap().message.payload);
+    let mut body = payload_body(&chain[0].envelope.as_ref().unwrap().payload);
     body.block_access_list = None;
     mock.expect_get_payload_bodies_by_hash_v2()
         .times(1)
@@ -550,8 +546,7 @@ async fn stream_envelopes_by_root() {
             .unwrap_or_else(|| panic!("expected Some at index {i} for ByRoot request"));
         let expected_envelope = entry.envelope.as_ref().unwrap();
         assert_eq!(
-            envelope.block_hash(),
-            expected_envelope.block_hash(),
+            envelope.payload.block_hash, expected_envelope.payload.block_hash,
             "block_hash mismatch at index {i}"
         );
     }
@@ -652,8 +647,7 @@ async fn stream_envelopes_by_root_missing_envelopes() {
                 .as_ref()
                 .unwrap_or_else(|| panic!("expected Some at index {i}"));
             assert_eq!(
-                envelope.block_hash(),
-                entry_envelope.block_hash(),
+                envelope.payload.block_hash, entry_envelope.payload.block_hash,
                 "block_hash mismatch at index {i}"
             );
         } else {

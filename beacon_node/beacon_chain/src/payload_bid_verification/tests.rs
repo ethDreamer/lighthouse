@@ -16,8 +16,8 @@ use types::{
     ExecutionPayloadBidGloas, ExecutionPayloadBidHeze, ExecutionPayloadBidRef,
     ExecutionPayloadEnvelope, ExecutionPayloadHeader, ExecutionPayloadHeaderFulu, ForkName,
     Hash256, ProposerPreferences, SignedBeaconBlock, SignedExecutionPayloadBid,
-    SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze, SignedExecutionPayloadEnvelope,
-    SignedProposerPreferences, SignedRoot, Slot, Spec, consts::gloas::PAYLOAD_BUILDER_VERSION,
+    SignedExecutionPayloadBidGloas, SignedExecutionPayloadBidHeze, SignedProposerPreferences,
+    SignedRoot, Slot, Spec, consts::gloas::PAYLOAD_BUILDER_VERSION,
 };
 
 use proto_array::{Block as ProtoBlock, ExecutionStatus};
@@ -340,13 +340,7 @@ impl TestContext {
             .push(builder_exit)
             .unwrap();
         self.store
-            .put_payload_envelope(
-                &block_root,
-                &SignedExecutionPayloadEnvelope {
-                    message: envelope,
-                    signature: Signature::empty(),
-                },
-            )
+            .put_payload_envelope(&block_root, &envelope)
             .expect("should store payload envelope");
     }
 }

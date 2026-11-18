@@ -498,7 +498,7 @@ async fn prepare_payload_generic(
     let mut unadvanced_full_state = unadvanced_empty_state.clone();
     apply_parent_execution_payload(
         &mut unadvanced_full_state,
-        &envelope.message.execution_requests,
+        &envelope.execution_requests,
         &spec,
     )
     .unwrap();
@@ -506,7 +506,7 @@ async fn prepare_payload_generic(
     let mut advanced_full_state = advanced_empty_state.clone();
     apply_parent_execution_payload(
         &mut advanced_full_state,
-        &envelope.message.execution_requests,
+        &envelope.execution_requests,
         &spec,
     )
     .unwrap();

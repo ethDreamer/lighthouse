@@ -222,10 +222,9 @@ async fn gossip_rejects_execution_requests_root_mismatch() {
         .await
         .expect("block should be processed");
 
-    let mut signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let block_hash = signed_envelope.message.payload.block_hash;
-    signed_envelope
-        .message
+    let mut envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let block_hash = envelope.payload.block_hash;
+    envelope
         .execution_requests
         .withdrawals
         .push(WithdrawalRequest {
@@ -237,7 +236,7 @@ async fn gossip_rejects_execution_requests_root_mismatch() {
 
     let result = harness
         .chain
-        .verify_envelope_for_gossip(Arc::new(signed_envelope), EnvelopeSource::Gossip)
+        .verify_envelope_for_gossip(Arc::new(envelope), EnvelopeSource::Gossip)
         .await;
     assert!(matches!(
         result,
@@ -253,7 +252,7 @@ async fn gossip_rejects_execution_requests_root_mismatch() {
 }
 
 #[tokio::test]
-async fn gossip_verified_envelope_records_payload_gas_limit() {
+async fn imported_envelope_records_payload_gas_limit() {
     if !fork_name_from_env().is_some_and(|f| f.gloas_enabled()) {
         return;
     }
@@ -279,9 +278,25 @@ async fn gossip_verified_envelope_records_payload_gas_limit() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let block_hash = signed_envelope.message.payload.block_hash;
-    let gas_limit = signed_envelope.message.payload.gas_limit;
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let block_hash = envelope.payload.block_hash;
+    let gas_limit = envelope.payload.gas_limit;
+    assert_eq!(
+        harness
+            .chain
+            .observed_execution_payloads
+            .get_gas_limit(block_hash),
+        None
+    );
+
+    let gossip_verified = harness
+        .chain
+        .verify_envelope_for_gossip(Arc::new(envelope), EnvelopeSource::Gossip)
+        .await
+        .expect("envelope should pass gossip verification");
+
+    // A bid must build on a verified payload, so the payload is not recorded until it has been
+    // imported.
     assert_eq!(
         harness
             .chain
@@ -292,9 +307,16 @@ async fn gossip_verified_envelope_records_payload_gas_limit() {
 
     harness
         .chain
-        .verify_envelope_for_gossip(Arc::new(signed_envelope), EnvelopeSource::Gossip)
+        .process_execution_payload_envelope(
+            block_root,
+            gossip_verified,
+            NotifyExecutionLayer::Yes,
+            BlockImportSource::Gossip,
+            #[allow(clippy::result_large_err)]
+            || Ok(()),
+        )
         .await
-        .expect("envelope should pass gossip verification");
+        .expect("envelope should be imported");
 
     assert_eq!(
         harness
@@ -332,8 +354,8 @@ async fn gossip_ignores_subsequent_envelope_from_same_builder() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let envelope = Arc::new(signed_envelope);
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = Arc::new(envelope);
 
     harness
         .chain
@@ -378,8 +400,8 @@ async fn gossip_ignores_subsequent_envelope_with_modified_slot() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let envelope = Arc::new(signed_envelope);
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = Arc::new(envelope);
 
     harness
         .chain
@@ -388,7 +410,7 @@ async fn gossip_ignores_subsequent_envelope_with_modified_slot() {
         .expect("first envelope should pass gossip verification");
 
     let mut replayed_envelope = (*envelope).clone();
-    replayed_envelope.message.payload.slot_number += 1;
+    replayed_envelope.payload.slot_number += 1;
 
     let second_result = harness
         .chain
@@ -428,8 +450,8 @@ async fn http_envelope_bypasses_deduplication_but_marks_seen() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let envelope = Arc::new(signed_envelope);
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = Arc::new(envelope);
 
     harness
         .chain
@@ -483,8 +505,8 @@ async fn rpc_envelope_bypasses_deduplication_but_marks_seen() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let envelope = Arc::new(signed_envelope);
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = Arc::new(envelope);
 
     harness
         .chain
@@ -538,8 +560,8 @@ async fn gossip_seen_envelope_can_be_reverified_via_non_gossip() {
         .await
         .expect("block should be processed");
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
-    let envelope = Arc::new(signed_envelope);
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = Arc::new(envelope);
     let event_handler = harness.chain.event_handler.as_ref().unwrap();
     let mut gossip_receiver = event_handler.subscribe_execution_payload_gossip();
 
@@ -612,10 +634,10 @@ async fn import_block_and_envelope(
     // Without its custody columns the envelope never reaches fork choice.
     harness.process_gossip_columns(&block, None).await;
 
-    let signed_envelope = opt_envelope.expect("Gloas block should produce an envelope");
+    let envelope = opt_envelope.expect("Gloas block should produce an envelope");
     let gossip_verified = harness
         .chain
-        .verify_envelope_for_gossip(Arc::new(signed_envelope), EnvelopeSource::Gossip)
+        .verify_envelope_for_gossip(Arc::new(envelope), EnvelopeSource::Gossip)
         .await
         .expect("envelope gossip verification should succeed");
 

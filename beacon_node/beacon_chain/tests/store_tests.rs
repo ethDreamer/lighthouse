@@ -2869,7 +2869,7 @@ async fn gloas_payload_database_invariants() {
         assert!(
             !child_contents
                 .0
-                .is_parent_block_full(envelope.message.payload.block_hash)
+                .is_parent_block_full(envelope.payload.block_hash)
         );
         let child_root = child_contents.0.canonical_root();
         let child_state_root = child_contents.0.state_root();
@@ -3192,12 +3192,7 @@ async fn prunes_payload_envelopes_from_multiple_pre_finalization_forks() {
             store.get_payload_body(&block_root).unwrap().is_none(),
             "payload for finalized canonical block {block_root:?} should be pruned"
         );
-        assert!(
-            store
-                .get_signed_payload_envelope(&block_root)
-                .unwrap()
-                .is_none()
-        );
+        assert!(store.get_payload_envelope(&block_root).unwrap().is_none());
     }
 
     let (&pruned_slot, pruned_block_hash) = common_blocks
@@ -3228,12 +3223,7 @@ async fn prunes_payload_envelopes_from_multiple_pre_finalization_forks() {
             "summary for abandoned block {block_root:?} should be pruned"
         );
         assert!(store.get_payload_body(&block_root).unwrap().is_none());
-        assert!(
-            store
-                .get_signed_payload_envelope(&block_root)
-                .unwrap()
-                .is_none()
-        );
+        assert!(store.get_payload_envelope(&block_root).unwrap().is_none());
     }
 
     check_db_invariants(&rig);
@@ -4604,7 +4594,7 @@ async fn weak_subjectivity_sync_test(
     if let Some(envelope) = harness
         .chain
         .store
-        .get_signed_payload_envelope(&wss_block.canonical_root())
+        .get_payload_envelope(&wss_block.canonical_root())
         .unwrap_or(None)
     {
         beacon_chain
@@ -4660,7 +4650,7 @@ async fn weak_subjectivity_sync_test(
     if let Some(envelope) = harness
         .chain
         .store
-        .get_signed_payload_envelope(&wss_block_root)
+        .get_payload_envelope(&wss_block_root)
         .unwrap()
     {
         beacon_chain
@@ -6122,15 +6112,11 @@ async fn payload_envelope_storage_body_encoding() {
             ..Default::default()
         },
     ] {
-        let envelope = SignedExecutionPayloadEnvelope {
-            message: ExecutionPayloadEnvelope {
-                payload,
-                execution_requests: Default::default(),
-                builder_index: 42,
-                beacon_block_root: block_root,
-                parent_beacon_block_root: Hash256::repeat_byte(0x33),
-            },
-            signature: Signature::empty(),
+        let envelope = ExecutionPayloadEnvelope {
+            payload,
+            execution_requests: Default::default(),
+            beacon_block_root: block_root,
+            parent_beacon_block_root: Hash256::repeat_byte(0x33),
         };
         store.put_payload_envelope(&block_root, &envelope).unwrap();
         assert_eq!(
@@ -6138,10 +6124,10 @@ async fn payload_envelope_storage_body_encoding() {
                 .hot_db
                 .get_bytes(DBColumn::PayloadBody, block_root.as_slice())
                 .unwrap(),
-            Some(ExecutionPayloadBody::from(&envelope.message.payload).as_ssz_bytes())
+            Some(ExecutionPayloadBody::from(&envelope.payload).as_ssz_bytes())
         );
         assert_eq!(
-            store.get_signed_payload_envelope(&block_root).unwrap(),
+            store.get_payload_envelope(&block_root).unwrap(),
             Some(envelope)
         );
     }
@@ -6152,18 +6138,14 @@ async fn payload_envelope_schema_v31_migration() {
     let db_path = tempdir().unwrap();
     let store = get_store_generic(&db_path, StoreConfig::default(), test_spec::<E>());
     let block_root = Hash256::repeat_byte(0x11);
-    let envelope = SignedExecutionPayloadEnvelope {
-        message: ExecutionPayloadEnvelope {
-            payload: ExecutionPayloadGloas {
-                block_hash: ExecutionBlockHash::repeat_byte(0x22),
-                ..Default::default()
-            },
-            execution_requests: Default::default(),
-            builder_index: 42,
-            beacon_block_root: block_root,
-            parent_beacon_block_root: Hash256::repeat_byte(0x33),
+    let envelope = ExecutionPayloadEnvelope {
+        payload: ExecutionPayloadGloas {
+            block_hash: ExecutionBlockHash::repeat_byte(0x22),
+            ..Default::default()
         },
-        signature: Signature::empty(),
+        execution_requests: Default::default(),
+        beacon_block_root: block_root,
+        parent_beacon_block_root: Hash256::repeat_byte(0x33),
     };
 
     // Write the v30 full-envelope representation directly into `PayloadEnvelope`.
@@ -6185,7 +6167,7 @@ async fn payload_envelope_schema_v31_migration() {
             .is_some()
     );
     assert_eq!(
-        store.get_signed_payload_envelope(&block_root).unwrap(),
+        store.get_payload_envelope(&block_root).unwrap(),
         Some(envelope.clone())
     );
 
@@ -6198,7 +6180,7 @@ async fn payload_envelope_schema_v31_migration() {
             .is_some()
     );
     assert_eq!(
-        store.get_signed_payload_envelope(&block_root).unwrap(),
+        store.get_payload_envelope(&block_root).unwrap(),
         Some(envelope)
     );
 }
@@ -6255,7 +6237,7 @@ async fn payload_envelope_schema_v31_migration_discards_finalized_empty_envelope
             assert_eq!(
                 child_contents
                     .0
-                    .is_parent_block_full(parent_envelope.message.payload.block_hash),
+                    .is_parent_block_full(parent_envelope.payload.block_hash),
                 parent_payload_status == PayloadStatus::Full
             );
             rig.process_block(child_slot, child_root, child_contents)
@@ -6334,32 +6316,28 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
     let split_slot = Slot::new(8);
     store.set_split(split_slot, Hash256::zero(), Hash256::zero());
 
-    let envelopes = [0, 7, 8, 9].map(|slot| SignedExecutionPayloadEnvelope {
-        message: ExecutionPayloadEnvelope {
-            payload: ExecutionPayloadGloas {
-                slot_number: Slot::new(slot),
-                block_hash: ExecutionBlockHash::from_root(Hash256::from_low_u64_be(slot + 1)),
-                transactions: ProgressiveTransactions::new(vec![
-                    ProgressiveVariableList::new(vec![0x01, 0x02]).unwrap(),
-                    ProgressiveVariableList::new(vec![0x03]).unwrap(),
-                ])
-                .unwrap(),
-                withdrawals: ProgressiveWithdrawals::<E>::new(vec![Withdrawal {
-                    index: 1,
-                    validator_index: 2,
-                    address: Address::repeat_byte(0x44),
-                    amount: 3,
-                }])
-                .unwrap(),
-                block_access_list: BlockAccessList::new(vec![0x05, 0x06, 0x07]).unwrap(),
-                ..Default::default()
-            },
-            execution_requests: Default::default(),
-            builder_index: 42,
-            beacon_block_root: Hash256::from_low_u64_be(slot + 1),
-            parent_beacon_block_root: Hash256::repeat_byte(0x33),
+    let envelopes = [0, 7, 8, 9].map(|slot| ExecutionPayloadEnvelope {
+        payload: ExecutionPayloadGloas {
+            slot_number: Slot::new(slot),
+            block_hash: ExecutionBlockHash::from_root(Hash256::from_low_u64_be(slot + 1)),
+            transactions: ProgressiveTransactions::new(vec![
+                ProgressiveVariableList::new(vec![0x01, 0x02]).unwrap(),
+                ProgressiveVariableList::new(vec![0x03]).unwrap(),
+            ])
+            .unwrap(),
+            withdrawals: ProgressiveWithdrawals::<E>::new(vec![Withdrawal {
+                index: 1,
+                validator_index: 2,
+                address: Address::repeat_byte(0x44),
+                amount: 3,
+            }])
+            .unwrap(),
+            block_access_list: BlockAccessList::new(vec![0x05, 0x06, 0x07]).unwrap(),
+            ..Default::default()
         },
-        signature: Signature::empty(),
+        execution_requests: Default::default(),
+        beacon_block_root: Hash256::from_low_u64_be(slot + 1),
+        parent_beacon_block_root: Hash256::repeat_byte(0x33),
     });
 
     for envelope in &envelopes {
@@ -6367,7 +6345,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
             .hot_db
             .put_bytes(
                 DBColumn::PayloadBody,
-                envelope.message.beacon_block_root.as_slice(),
+                envelope.beacon_block_root.as_slice(),
                 &envelope.as_ssz_bytes(),
             )
             .unwrap();
@@ -6377,14 +6355,14 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
         .expect("schema upgrade to v31 should succeed");
 
     for envelope in envelopes {
-        let block_root = envelope.message.beacon_block_root;
+        let block_root = envelope.beacon_block_root;
         let summary = store
             .get_payload_envelope_summary(&block_root)
             .unwrap()
             .expect("every migrated envelope should retain its summary");
         assert_eq!(
             summary.as_ssz_bytes(),
-            SignedExecutionPayloadEnvelopeSummary::from(&envelope).as_ssz_bytes()
+            ExecutionPayloadEnvelopeSummary::from(&envelope).as_ssz_bytes()
         );
         let retain_body = !prune_payloads || envelope.slot() >= split_slot;
         assert_eq!(
@@ -6392,8 +6370,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
                 .hot_db
                 .get_bytes(DBColumn::PayloadBody, block_root.as_slice())
                 .unwrap(),
-            retain_body
-                .then(|| ExecutionPayloadBody::from(&envelope.message.payload).as_ssz_bytes())
+            retain_body.then(|| ExecutionPayloadBody::from(&envelope.payload).as_ssz_bytes())
         );
         assert_eq!(
             store
@@ -6405,7 +6382,7 @@ fn check_payload_envelope_schema_v31_migration_pruning(prune_payloads: bool) {
             envelope.slot()
         );
         assert_eq!(
-            store.get_signed_payload_envelope(&block_root).unwrap(),
+            store.get_payload_envelope(&block_root).unwrap(),
             retain_body.then_some(envelope)
         );
     }
@@ -7891,7 +7868,7 @@ async fn test_gloas_block_and_envelope_storage_generic(
         );
 
         // Envelope can be loaded.
-        let loaded_envelope = store.get_signed_payload_envelope(block_root).unwrap();
+        let loaded_envelope = store.get_payload_envelope(block_root).unwrap();
         assert!(
             loaded_envelope.is_some(),
             "envelope at slot {} should be in DB",

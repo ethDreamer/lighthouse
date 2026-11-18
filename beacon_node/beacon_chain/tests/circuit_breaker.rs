@@ -224,7 +224,7 @@ fn observe_envelope(harness: &Harness, block: &BuilderBlock, into_slot: Duration
         .set_time_observed(block.root, block.slot, slot_start + into_slot, None);
 }
 
-/// Build the builder's signed envelope answering `block`'s bid and run it through the full
+/// Build the builder's envelope answering `block`'s bid and run it through the full
 /// envelope pipeline: consensus verification, then the mock EL's `newPayload` verdict.
 async fn process_builder_envelope(
     harness: &Harness,
@@ -236,9 +236,8 @@ async fn process_builder_envelope(
         .process_execution_payload_envelope(
             block.root,
             GossipVerifiedEnvelope {
-                signed_envelope: Arc::new(envelope),
+                envelope: Arc::new(envelope),
                 block: block.block.clone(),
-                snapshot: None,
             },
             NotifyExecutionLayer::Yes,
             BlockImportSource::Gossip,
